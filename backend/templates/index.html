@@ -229,15 +229,7 @@
             </div>
         </div>
 
-        <!-- 2. CONSIGLIO PERSONALIZZATO (il pezzo piu' importante) -->
-        {% if result.advice %}
-        <div class="advice-box">
-            <div class="advice-title">💡 Il mio consiglio per te</div>
-            <div class="advice-text">{{ result.advice }}</div>
-        </div>
-        {% endif %}
-
-        <!-- 3. VERDETTO AI -->
+        <!-- 2. VERDETTO AI -->
         {% if result.summary %}
         <div class="verdict">🧠 {{ result.summary }}</div>
         {% endif %}
@@ -290,6 +282,14 @@
                 {% endfor %}
             </div>
         </div>
+
+        <!-- 5b. CONSIGLIO PERSONALIZZATO -->
+        {% if result.advice %}
+        <div class="advice-box">
+            <div class="advice-title">💡 Il mio consiglio per te</div>
+            <div class="advice-text">{{ result.advice }}</div>
+        </div>
+        {% endif %}
 
         <!-- 6. COLLOQUIO (collassabile) -->
         {% if result.interview_scripts %}
