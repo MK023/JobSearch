@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import create_engine, Column, String, Text, DateTime, Integer, Float, Index
+from sqlalchemy import create_engine, Column, String, Text, DateTime, Integer, Float, Index, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from sqlalchemy.pool import QueuePool
@@ -85,6 +85,19 @@ class CoverLetter(Base):
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+    # Auto-migrate: add columns that create_all won't add to existing tables
+    with engine.connect() as conn:
+        _add_column_if_missing(conn, "job_analyses", "company_reputation", "TEXT DEFAULT ''")
+
+
+def _add_column_if_missing(conn, table: str, column: str, col_type: str):
+    result = conn.execute(
+        text("SELECT column_name FROM information_schema.columns WHERE table_name=:t AND column_name=:c"),
+        {"t": table, "c": column},
+    )
+    if result.fetchone() is None:
+        conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
+        conn.commit()
 
 
 def get_db():
