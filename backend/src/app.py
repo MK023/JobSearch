@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 
 from fastapi import FastAPI, Depends, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -182,14 +182,19 @@ VALID_STATUSES = {"da_valutare", "candidato", "colloquio", "scartato"}
 
 @app.post("/status/{analysis_id}/{new_status}")
 def update_status(
+    request: Request,
     analysis_id: str,
     new_status: str,
     db: Session = Depends(get_db),
 ):
     if new_status not in VALID_STATUSES:
+        if "application/json" in request.headers.get("accept", ""):
+            return JSONResponse({"error": "invalid status"}, status_code=400)
         return RedirectResponse(url="/", status_code=303)
     analysis = db.query(JobAnalysis).filter(JobAnalysis.id == analysis_id).first()
     if analysis:
         analysis.status = new_status
         db.commit()
+    if "application/json" in request.headers.get("accept", ""):
+        return JSONResponse({"ok": True, "status": new_status})
     return RedirectResponse(url="/", status_code=303)

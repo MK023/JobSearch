@@ -145,6 +145,21 @@
         .spin{width:16px;height:16px;border:2px solid #475569;border-top-color:#6366f1;border-radius:50%;animation:s .6s linear infinite}
         @keyframes s{to{transform:rotate(360deg)}}
 
+        .pill-group{display:flex;gap:4px;flex-wrap:wrap}
+        .pill-btn{padding:6px 14px;border-radius:20px;border:2px solid #475569;background:transparent;color:#94a3b8;font-size:.78rem;font-weight:600;cursor:pointer;transition:all .15s}
+        .pill-btn:hover{border-color:#6366f1;color:#c7d2fe}
+        .pill-da_valutare.active{background:#334155;border-color:#64748b;color:#e2e8f0}
+        .pill-candidato.active{background:#1e3a5f;border-color:#3b82f6;color:#93c5fd}
+        .pill-colloquio.active{background:#365314;border-color:#84cc16;color:#d9f99d}
+        .pill-scartato.active{background:#450a0a;border-color:#f87171;color:#fca5a5}
+
+        .tabs{display:flex;gap:2px;margin-bottom:12px;background:#0f172a;border-radius:8px;padding:3px;border:1px solid #334155}
+        .tab{flex:1;padding:8px 12px;border-radius:6px;text-align:center;cursor:pointer;font-size:.8rem;font-weight:600;color:#64748b;transition:all .15s}
+        .tab:hover{color:#94a3b8}
+        .tab.active{background:#1e293b;color:#e2e8f0}
+        .tab-badge{display:inline-block;min-width:18px;padding:1px 6px;border-radius:10px;font-size:.68rem;margin-left:4px;background:#334155;color:#94a3b8}
+        .tab.active .tab-badge{background:#6366f1;color:#fff}
+
         /* Footer */
         .foot{text-align:center;padding:24px 0 8px;color:#334155;font-size:.72rem}
     </style>
@@ -306,14 +321,16 @@
 
         <!-- 7. AZIONI -->
         {% if current %}
-        <div class="actions">
+        <div class="actions" id="actions-{{ current.id }}">
             {% if current.job_url %}
-            <a href="{{ current.job_url }}" target="_blank" class="btn btn-b btn-s"
-               onclick="fetch('/status/{{ current.id }}/candidato',{method:'POST'})">🔗 Apri annuncio</a>
+            <a href="{{ current.job_url }}" target="_blank" class="btn btn-b btn-s">🔗 Apri annuncio</a>
             {% endif %}
-            <form method="post" action="/status/{{ current.id }}/candidato" style="display:inline"><button class="btn btn-g btn-s">✅ Candidato</button></form>
-            <form method="post" action="/status/{{ current.id }}/colloquio" style="display:inline"><button class="btn btn-p btn-s">🗣️ In colloquio</button></form>
-            <form method="post" action="/status/{{ current.id }}/scartato" style="display:inline"><button class="btn btn-r btn-s">❌ Scarta</button></form>
+            <div class="pill-group" data-analysis-id="{{ current.id }}">
+                <button class="pill-btn pill-da_valutare {{ 'active' if (current.status or 'da_valutare') == 'da_valutare' }}" data-status="da_valutare" onclick="setStatus(this)">🔍 Da valutare</button>
+                <button class="pill-btn pill-candidato {{ 'active' if current.status == 'candidato' }}" data-status="candidato" onclick="setStatus(this)">📨 Candidato</button>
+                <button class="pill-btn pill-colloquio {{ 'active' if current.status == 'colloquio' }}" data-status="colloquio" onclick="setStatus(this)">🗣️ Colloquio</button>
+                <button class="pill-btn pill-scartato {{ 'active' if current.status == 'scartato' }}" data-status="scartato" onclick="setStatus(this)">❌ Scartato</button>
+            </div>
         </div>
         {% endif %}
     </div>
@@ -323,10 +340,15 @@
     {% if analyses %}
     <div class="hist">
         <h2>📚 Storico analisi</h2>
-        <div class="card" style="padding:0;overflow:hidden">
+        <div class="tabs" id="hist-tabs">
+            <div class="tab active" data-tab="valutazione" onclick="switchTab(this)">In valutazione <span class="tab-badge" id="badge-valutazione">0</span></div>
+            <div class="tab" data-tab="applicato" onclick="switchTab(this)">Applicato <span class="tab-badge" id="badge-applicato">0</span></div>
+            <div class="tab" data-tab="skippato" onclick="switchTab(this)">Skippato <span class="tab-badge" id="badge-skippato">0</span></div>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden" id="hist-list">
             {% for a in analyses %}
             <a href="/analysis/{{ a.id }}" style="text-decoration:none;color:inherit">
-            <div class="hi">
+            <div class="hi" data-hist-id="{{ a.id }}" data-hist-status="{{ a.status or 'da_valutare' }}">
                 <div class="hi-score score-{{ a.recommendation|lower }}">{{ a.score }}</div>
                 <div class="hi-info">
                     <div class="hi-role">{{ a.role or 'Ruolo sconosciuto' }}</div>
@@ -350,6 +372,48 @@ document.getElementById('af').addEventListener('submit',function(){
     document.getElementById('ab').disabled=true;
     document.getElementById('ld').classList.add('on');
 });
+
+function setStatus(btn){
+    var group=btn.closest('.pill-group');
+    var id=group.dataset.analysisId;
+    var status=btn.dataset.status;
+    fetch('/status/'+id+'/'+status,{method:'POST',headers:{'Accept':'application/json'}})
+    .then(function(r){return r.json();}).then(function(data){
+        if(data.ok){
+            group.querySelectorAll('.pill-btn').forEach(function(b){b.classList.remove('active');});
+            btn.classList.add('active');
+            var histItem=document.querySelector('[data-hist-id="'+id+'"]');
+            if(histItem) histItem.dataset.histStatus=status;
+            updateHistTabs();
+        }
+    });
+}
+
+function switchTab(tabEl){
+    document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+    tabEl.classList.add('active');
+    updateHistTabs();
+}
+function updateHistTabs(){
+    var activeTab=document.querySelector('.tab.active');
+    if(!activeTab) return;
+    var tab=activeTab.dataset.tab;
+    var countVal=0,countApp=0,countSkip=0;
+    document.querySelectorAll('.hi').forEach(function(hi){
+        var st=hi.dataset.histStatus||'da_valutare';
+        var isVal=st==='da_valutare';
+        var isApp=st==='candidato'||st==='colloquio';
+        var isSkip=st==='scartato';
+        if(tab==='valutazione') hi.parentElement.style.display=isVal?'':'none';
+        else if(tab==='applicato') hi.parentElement.style.display=isApp?'':'none';
+        else hi.parentElement.style.display=isSkip?'':'none';
+        if(isVal)countVal++;if(isApp)countApp++;if(isSkip)countSkip++;
+    });
+    document.getElementById('badge-valutazione').textContent=countVal;
+    document.getElementById('badge-applicato').textContent=countApp;
+    document.getElementById('badge-skippato').textContent=countSkip;
+}
+document.addEventListener('DOMContentLoaded',function(){if(document.getElementById('hist-tabs'))updateHistTabs();});
 </script>
 </body>
 </html>
