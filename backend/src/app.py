@@ -1,15 +1,16 @@
 import json
 import logging
+import uuid as uuid_mod
 from pathlib import Path
 
-from fastapi import FastAPI, Depends, Form, Request
+from fastapi import FastAPI, Depends, Form, Request, BackgroundTasks
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .config import settings
-from .database import init_db, get_db, CVProfile, JobAnalysis, CoverLetter
+from .database import init_db, get_db, CVProfile, JobAnalysis, CoverLetter, SessionLocal
 from .ai_client import analyze_job, generate_cover_letter
 
 logging.basicConfig(level=logging.INFO)
@@ -22,6 +23,64 @@ templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templa
 @app.on_event("startup")
 def startup():
     init_db()
+
+
+# Batch analysis state (in-memory)
+batch_queue: dict[str, dict] = {}
+
+
+def _run_batch(batch_id: str):
+    """Background task to process batch analysis queue."""
+    batch = batch_queue.get(batch_id)
+    if not batch:
+        return
+    batch["status"] = "running"
+    db = SessionLocal()
+    try:
+        cv = db.query(CVProfile).order_by(CVProfile.updated_at.desc()).first()
+        if not cv:
+            batch["status"] = "error"
+            batch["error"] = "Nessun CV trovato"
+            return
+        for item in batch["items"]:
+            if item["status"] == "cancelled":
+                continue
+            item["status"] = "running"
+            try:
+                result = analyze_job(cv.raw_text, item["job_description"], item.get("model", "haiku"))
+                analysis = JobAnalysis(
+                    cv_id=cv.id,
+                    job_description=item["job_description"],
+                    job_url=item.get("job_url", ""),
+                    job_summary=result.get("job_summary", ""),
+                    company=result.get("company", ""),
+                    role=result.get("role", ""),
+                    location=result.get("location", ""),
+                    work_mode=result.get("work_mode", ""),
+                    salary_info=result.get("salary_info", ""),
+                    score=result.get("score", 0),
+                    recommendation=result.get("recommendation", ""),
+                    strengths=json.dumps(result.get("strengths", []), ensure_ascii=False),
+                    gaps=json.dumps(result.get("gaps", []), ensure_ascii=False),
+                    interview_scripts=json.dumps(result.get("interview_scripts", []), ensure_ascii=False),
+                    advice=result.get("advice", ""),
+                    company_reputation=json.dumps(result.get("company_reputation", {}), ensure_ascii=False),
+                    full_response=result.get("full_response", ""),
+                    model_used=result.get("model_used", ""),
+                    tokens_input=result.get("tokens", {}).get("input", 0),
+                    tokens_output=result.get("tokens", {}).get("output", 0),
+                    cost_usd=result.get("cost_usd", 0.0),
+                )
+                db.add(analysis)
+                db.commit()
+                item["status"] = "done"
+                item["result_preview"] = f"{result.get('role', '?')} @ {result.get('company', '?')} -- {result.get('score', 0)}/100"
+            except Exception as e:
+                item["status"] = "error"
+                item["error"] = str(e)
+        batch["status"] = "done"
+    finally:
+        db.close()
 
 
 def _get_spending(db: Session) -> dict:
@@ -265,3 +324,57 @@ def create_cover_letter(
             message=f"Cover letter generata! ({language})",
         ),
     )
+
+
+@app.post("/batch/add")
+def batch_add(
+    job_description: str = Form(...),
+    job_url: str = Form(""),
+    model: str = Form("haiku"),
+):
+    active = None
+    for bid, b in batch_queue.items():
+        if b["status"] == "pending":
+            active = (bid, b)
+            break
+    if not active:
+        bid = str(uuid_mod.uuid4())
+        batch_queue[bid] = {"items": [], "status": "pending"}
+        active = (bid, batch_queue[bid])
+
+    active[1]["items"].append({
+        "job_description": job_description,
+        "job_url": job_url,
+        "model": model,
+        "status": "pending",
+        "preview": job_description[:80] + "..." if len(job_description) > 80 else job_description,
+    })
+    return JSONResponse({"ok": True, "batch_id": active[0], "count": len(active[1]["items"])})
+
+
+@app.post("/batch/run")
+def batch_run(background_tasks: BackgroundTasks):
+    active = None
+    for bid, b in batch_queue.items():
+        if b["status"] == "pending":
+            active = bid
+            break
+    if not active:
+        return JSONResponse({"error": "Nessuna coda attiva"}, status_code=400)
+    background_tasks.add_task(_run_batch, active)
+    return JSONResponse({"ok": True, "batch_id": active})
+
+
+@app.get("/batch/status")
+def batch_status():
+    for bid in reversed(list(batch_queue.keys())):
+        return JSONResponse({"batch_id": bid, **batch_queue[bid]})
+    return JSONResponse({"status": "empty"})
+
+
+@app.delete("/batch/clear")
+def batch_clear():
+    to_remove = [bid for bid, b in batch_queue.items() if b["status"] in ("pending", "done")]
+    for bid in to_remove:
+        del batch_queue[bid]
+    return JSONResponse({"ok": True})
