@@ -434,6 +434,7 @@
                 <button class="pill-btn pill-colloquio {{ 'active' if current.status == 'colloquio' }}" data-status="colloquio" onclick="setStatus(this)">🗣️ Colloquio</button>
                 <button class="pill-btn pill-scartato {{ 'active' if current.status == 'scartato' }}" data-status="scartato" onclick="setStatus(this)">❌ Scartato</button>
             </div>
+            <button class="btn btn-r btn-s" onclick="deleteAnalysis('{{ current.id }}')">🗑️ Elimina</button>
         </div>
         {% endif %}
     </div>
@@ -450,18 +451,19 @@
         </div>
         <div class="card" style="padding:0;overflow:hidden" id="hist-list">
             {% for a in analyses %}
-            <a href="/analysis/{{ a.id }}" style="text-decoration:none;color:inherit">
             <div class="hi" data-hist-id="{{ a.id }}" data-hist-status="{{ a.status or 'da_valutare' }}">
-                <div class="hi-score score-{{ a.recommendation|lower }}">{{ a.score }}</div>
-                <div class="hi-info">
-                    <div class="hi-role">{{ a.role or 'Ruolo sconosciuto' }}</div>
-                    <div class="hi-co">{{ a.company or 'Azienda sconosciuta' }}{% if a.work_mode %} · {{ a.work_mode }}{% endif %}{% if a.salary_info %} · {{ a.salary_info }}{% endif %}</div>
-                </div>
-                <span class="st st-{{ a.status or 'da_valutare' }}">{% if a.status == 'candidato' %}📨{% elif a.status == 'colloquio' %}🗣️{% elif a.status == 'scartato' %}❌{% else %}🔍{% endif %} {{ (a.status or 'da valutare')|replace('_',' ') }}</span>
-                <span class="rec rec-{{ a.recommendation }}" style="font-size:.72rem;padding:3px 9px">{{ a.recommendation }}</span>
-                <span class="hi-date">${{ '%.4f' % (a.cost_usd or 0) }}<br>{{ a.created_at.strftime('%d/%m %H:%M') if a.created_at else '' }}</span>
+                <a href="/analysis/{{ a.id }}" style="text-decoration:none;color:inherit;display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+                    <div class="hi-score score-{{ a.recommendation|lower }}">{{ a.score }}</div>
+                    <div class="hi-info">
+                        <div class="hi-role">{{ a.role or 'Ruolo sconosciuto' }}</div>
+                        <div class="hi-co">{{ a.company or 'Azienda sconosciuta' }}{% if a.work_mode %} · {{ a.work_mode }}{% endif %}{% if a.salary_info %} · {{ a.salary_info }}{% endif %}</div>
+                    </div>
+                    <span class="st st-{{ a.status or 'da_valutare' }}">{% if a.status == 'candidato' %}📨{% elif a.status == 'colloquio' %}🗣️{% elif a.status == 'scartato' %}❌{% else %}🔍{% endif %} {{ (a.status or 'da valutare')|replace('_',' ') }}</span>
+                    <span class="rec rec-{{ a.recommendation }}" style="font-size:.72rem;padding:3px 9px">{{ a.recommendation }}</span>
+                    <span class="hi-date">${{ '%.4f' % (a.cost_usd or 0) }}<br>{{ a.created_at.strftime('%d/%m %H:%M') if a.created_at else '' }}</span>
+                </a>
+                <button class="btn btn-r btn-s" onclick="deleteAnalysis('{{ a.id }}')" title="Elimina" style="flex-shrink:0">🗑️</button>
             </div>
-            </a>
             {% endfor %}
         </div>
     </div>
@@ -507,9 +509,9 @@ function updateHistTabs(){
         var isVal=st==='da_valutare';
         var isApp=st==='candidato'||st==='colloquio';
         var isSkip=st==='scartato';
-        if(tab==='valutazione') hi.parentElement.style.display=isVal?'':'none';
-        else if(tab==='applicato') hi.parentElement.style.display=isApp?'':'none';
-        else hi.parentElement.style.display=isSkip?'':'none';
+        if(tab==='valutazione') hi.style.display=isVal?'':'none';
+        else if(tab==='applicato') hi.style.display=isApp?'':'none';
+        else hi.style.display=isSkip?'':'none';
         if(isVal)countVal++;if(isApp)countApp++;if(isSkip)countSkip++;
     });
     document.getElementById('badge-valutazione').textContent=countVal;
@@ -594,6 +596,13 @@ function batchClear(){
     fetch('/batch/clear',{method:'DELETE'}).then(function(r){return r.json();}).then(function(){
         batchItems=[];renderBatchQueue();
         document.getElementById('batch-status-text').textContent='';
+    });
+}
+function deleteAnalysis(id){
+    if(!confirm('Sei sicuro di voler eliminare questa analisi? Verra\' rimossa anche ogni cover letter associata.'))return;
+    fetch('/analysis/'+id,{method:'DELETE',headers:{'Accept':'application/json'}})
+    .then(function(r){return r.json();}).then(function(data){
+        if(data.ok) window.location.href='/';
     });
 }
 </script>

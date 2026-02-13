@@ -341,6 +341,29 @@ def update_status(
     return RedirectResponse(url="/", status_code=303)
 
 
+@app.delete("/analysis/{analysis_id}")
+def delete_analysis(
+    request: Request,
+    analysis_id: str,
+    db: Session = Depends(get_db),
+):
+    analysis = db.query(JobAnalysis).filter(JobAnalysis.id == analysis_id).first()
+    if not analysis:
+        if "application/json" in request.headers.get("accept", ""):
+            return JSONResponse({"error": "Analisi non trovata"}, status_code=404)
+        return RedirectResponse(url="/", status_code=303)
+
+    # Cascade: delete associated cover letters
+    db.query(CoverLetter).filter(CoverLetter.analysis_id == analysis.id).delete()
+    db.delete(analysis)
+    db.commit()
+    logger.info("Analisi eliminata: id=%s, role=%s @ %s", analysis_id, analysis.role, analysis.company)
+
+    if "application/json" in request.headers.get("accept", ""):
+        return JSONResponse({"ok": True})
+    return RedirectResponse(url="/", status_code=303)
+
+
 @app.post("/cover-letter", response_class=HTMLResponse)
 def create_cover_letter(
     request: Request,
