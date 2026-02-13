@@ -1,6 +1,7 @@
 import json
 import logging
 import uuid as uuid_mod
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Form, Request
@@ -16,15 +17,20 @@ from .database import CoverLetter, CVProfile, JobAnalysis, SessionLocal, get_db,
 setup_logging()
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Job Search Command Center")
-templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
 
-
-@app.on_event("startup")
-def startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     logger.info("Avvio Job Search Command Center")
+    if not settings.anthropic_api_key:
+        logger.error("ANTHROPIC_API_KEY non configurata! L'app non funzionera'.")
+        raise RuntimeError("ANTHROPIC_API_KEY mancante. Configura il file .env")
     init_db()
     logger.info("Database inizializzato")
+    yield
+
+
+app = FastAPI(title="Job Search Command Center", lifespan=lifespan)
+templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
 
 
 # Batch analysis state (in-memory)
