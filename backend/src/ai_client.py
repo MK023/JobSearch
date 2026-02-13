@@ -58,7 +58,7 @@ def _extract_and_parse_json(raw_text: str) -> dict:
     start = text.find("{")
     end = text.rfind("}")
     if start != -1 and end != -1 and end > start:
-        fragment = text[start:end + 1]
+        fragment = text[start : end + 1]
         fragment = re.sub(r",\s*([}\]])", r"\1", fragment)
         fragment = re.sub(r"//[^\n]*", "", fragment)
         return json.loads(fragment)
@@ -149,7 +149,11 @@ def analyze_job(cv_text: str, job_description: str, model: str = "haiku") -> dic
 
     logger.info(
         "API analisi completata: model=%s, %.1fs, %d tok in + %d tok out, $%.6f",
-        model_id, elapsed, usage.input_tokens, usage.output_tokens, total_cost,
+        model_id,
+        elapsed,
+        usage.input_tokens,
+        usage.output_tokens,
+        total_cost,
     )
 
     # Save to cache
@@ -164,7 +168,9 @@ def analyze_job(cv_text: str, job_description: str, model: str = "haiku") -> dic
     return result
 
 
-def generate_cover_letter(cv_text: str, job_description: str, analysis_result: dict, language: str, model: str = "haiku") -> dict:
+def generate_cover_letter(
+    cv_text: str, job_description: str, analysis_result: dict, language: str, model: str = "haiku"
+) -> dict:
     model_id = MODELS.get(model, MODELS["haiku"])
 
     # Check cache
@@ -184,9 +190,7 @@ def generate_cover_letter(cv_text: str, job_description: str, analysis_result: d
 
     strengths_text = ", ".join(analysis_result.get("strengths", [])[:5])
     gaps_list = analysis_result.get("gaps", [])
-    gaps_text = ", ".join(
-        g.get("gap", g) if isinstance(g, dict) else str(g) for g in gaps_list[:5]
-    )
+    gaps_text = ", ".join(g.get("gap", g) if isinstance(g, dict) else str(g) for g in gaps_list[:5])
 
     logger.debug("Chiamata API Anthropic cover letter: model=%s, max_tokens=2048, lang=%s", model_id, language)
     t0 = time.monotonic()
@@ -196,19 +200,21 @@ def generate_cover_letter(cv_text: str, job_description: str, analysis_result: d
         model=model_id,
         max_tokens=2048,
         system=COVER_LETTER_SYSTEM_PROMPT,
-        messages=[{
-            "role": "user",
-            "content": COVER_LETTER_USER_PROMPT.format(
-                cv_text=cv_text,
-                job_description=job_description,
-                role=analysis_result.get("role", ""),
-                company=analysis_result.get("company", ""),
-                score=analysis_result.get("score", 0),
-                strengths=strengths_text,
-                gaps=gaps_text,
-                language=language,
-            ),
-        }],
+        messages=[
+            {
+                "role": "user",
+                "content": COVER_LETTER_USER_PROMPT.format(
+                    cv_text=cv_text,
+                    job_description=job_description,
+                    role=analysis_result.get("role", ""),
+                    company=analysis_result.get("company", ""),
+                    score=analysis_result.get("score", 0),
+                    strengths=strengths_text,
+                    gaps=gaps_text,
+                    language=language,
+                ),
+            }
+        ],
     )
 
     elapsed = time.monotonic() - t0
@@ -238,7 +244,12 @@ def generate_cover_letter(cv_text: str, job_description: str, analysis_result: d
 
     logger.info(
         "API cover letter completata: model=%s, lang=%s, %.1fs, %d tok in + %d tok out, $%.6f",
-        model_id, language, elapsed, usage.input_tokens, usage.output_tokens, total_cost,
+        model_id,
+        language,
+        elapsed,
+        usage.input_tokens,
+        usage.output_tokens,
+        total_cost,
     )
 
     if r and cache_key:

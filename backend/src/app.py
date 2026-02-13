@@ -3,15 +3,15 @@ import logging
 import uuid as uuid_mod
 from pathlib import Path
 
-from fastapi import FastAPI, Depends, Form, Request, BackgroundTasks
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi import BackgroundTasks, Depends, FastAPI, Form, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from .config import settings, setup_logging
-from .database import init_db, get_db, CVProfile, JobAnalysis, CoverLetter, SessionLocal
 from .ai_client import analyze_job, generate_cover_letter
+from .config import settings, setup_logging
+from .database import CoverLetter, CVProfile, JobAnalysis, SessionLocal, get_db, init_db
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -80,7 +80,9 @@ def _run_batch(batch_id: str):
                 db.add(analysis)
                 db.commit()
                 item["status"] = "done"
-                item["result_preview"] = f"{result.get('role', '?')} @ {result.get('company', '?')} -- {result.get('score', 0)}/100"
+                item["result_preview"] = (
+                    f"{result.get('role', '?')} @ {result.get('company', '?')} -- {result.get('score', 0)}/100"
+                )
                 logger.info("Batch %s [%d/%d]: completata - %s", batch_id[:8], idx, total, item["result_preview"])
             except Exception as e:
                 item["status"] = "error"
@@ -113,9 +115,7 @@ def _get_spending(db: Session) -> dict:
 
 def _base_context(request: Request, db: Session, **extra) -> dict:
     cv = db.query(CVProfile).order_by(CVProfile.updated_at.desc()).first()
-    analyses = (
-        db.query(JobAnalysis).order_by(JobAnalysis.created_at.desc()).limit(50).all()
-    )
+    analyses = db.query(JobAnalysis).order_by(JobAnalysis.created_at.desc()).limit(50).all()
     ctx = {
         "request": request,
         "cv": cv,
@@ -174,8 +174,10 @@ def run_analysis(
         result = analyze_job(cv.raw_text, job_description, model)
         logger.info(
             "Analisi completata: score=%s, rec=%s, cache=%s, costo=$%.6f",
-            result.get("score"), result.get("recommendation"),
-            result.get("from_cache"), result.get("cost_usd", 0),
+            result.get("score"),
+            result.get("recommendation"),
+            result.get("from_cache"),
+            result.get("cost_usd", 0),
         )
     except Exception as e:
         logger.error("Analisi fallita: %s", e, exc_info=True)
@@ -314,9 +316,7 @@ def create_cover_letter(
 
     try:
         logger.info("Cover letter avviata: analysis=%s, lang=%s, model=%s", analysis_id, language, model)
-        result = generate_cover_letter(
-            cv.raw_text, analysis.job_description, analysis_data, language, model
-        )
+        result = generate_cover_letter(cv.raw_text, analysis.job_description, analysis_data, language, model)
         logger.info("Cover letter completata: costo=$%.6f", result.get("cost_usd", 0))
     except Exception as e:
         logger.error("Cover letter fallita: %s", e, exc_info=True)
@@ -341,7 +341,8 @@ def create_cover_letter(
     return templates.TemplateResponse(
         "index.html",
         _base_context(
-            request, db,
+            request,
+            db,
             cover_letter=cl,
             cover_letter_result=result,
             message=f"Cover letter generata! ({language})",
@@ -365,13 +366,15 @@ def batch_add(
         batch_queue[bid] = {"items": [], "status": "pending"}
         active = (bid, batch_queue[bid])
 
-    active[1]["items"].append({
-        "job_description": job_description,
-        "job_url": job_url,
-        "model": model,
-        "status": "pending",
-        "preview": job_description[:80] + "..." if len(job_description) > 80 else job_description,
-    })
+    active[1]["items"].append(
+        {
+            "job_description": job_description,
+            "job_url": job_url,
+            "model": model,
+            "status": "pending",
+            "preview": job_description[:80] + "..." if len(job_description) > 80 else job_description,
+        }
+    )
     return JSONResponse({"ok": True, "batch_id": active[0], "count": len(active[1]["items"])})
 
 

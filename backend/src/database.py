@@ -2,7 +2,7 @@ import logging
 import uuid
 from datetime import datetime
 
-from sqlalchemy import create_engine, Column, String, Text, DateTime, Integer, Float, Index, text
+from sqlalchemy import Column, DateTime, Float, Index, Integer, String, Text, create_engine, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from sqlalchemy.pool import QueuePool

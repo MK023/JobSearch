@@ -1,6 +1,5 @@
 import logging
 import logging.handlers
-import os
 from pathlib import Path
 
 from pydantic_settings import BaseSettings
@@ -44,10 +43,12 @@ def setup_logging() -> None:
     # --- Console handler (brief, for Docker logs / stdout) ---
     console = logging.StreamHandler()
     console.setLevel(logging.INFO)
-    console.setFormatter(logging.Formatter(
-        "%(asctime)s %(levelname)-8s %(name)s: %(message)s",
-        datefmt="%H:%M:%S",
-    ))
+    console.setFormatter(
+        logging.Formatter(
+            "%(asctime)s %(levelname)-8s %(name)s: %(message)s",
+            datefmt="%H:%M:%S",
+        )
+    )
     root.addHandler(console)
 
     # --- Rotating file handler (detailed, all levels) ---
@@ -86,5 +87,8 @@ def setup_logging() -> None:
 
     logging.getLogger(__name__).info(
         "Logging configurato: level=%s, dir=%s, max=%s MB x %d backup",
-        settings.log_level, log_dir, settings.log_max_bytes // 1_048_576, settings.log_backup_count,
+        settings.log_level,
+        log_dir,
+        settings.log_max_bytes // 1_048_576,
+        settings.log_backup_count,
     )
