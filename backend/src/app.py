@@ -9,11 +9,11 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from .config import settings
+from .config import settings, setup_logging
 from .database import init_db, get_db, CVProfile, JobAnalysis, CoverLetter, SessionLocal
 from .ai_client import analyze_job, generate_cover_letter
 
-logging.basicConfig(level=logging.INFO)
+setup_logging()
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Job Search Command Center")
@@ -22,7 +22,9 @@ templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templa
 
 @app.on_event("startup")
 def startup():
+    logger.info("Avvio Job Search Command Center")
     init_db()
+    logger.info("Database inizializzato")
 
 
 # Batch analysis state (in-memory)
@@ -34,6 +36,8 @@ def _run_batch(batch_id: str):
     batch = batch_queue.get(batch_id)
     if not batch:
         return
+    total = len(batch["items"])
+    logger.info("Batch %s avviato: %d analisi in coda", batch_id[:8], total)
     batch["status"] = "running"
     db = SessionLocal()
     try:
@@ -41,11 +45,13 @@ def _run_batch(batch_id: str):
         if not cv:
             batch["status"] = "error"
             batch["error"] = "Nessun CV trovato"
+            logger.error("Batch %s fallito: nessun CV trovato", batch_id[:8])
             return
-        for item in batch["items"]:
+        for idx, item in enumerate(batch["items"], 1):
             if item["status"] == "cancelled":
                 continue
             item["status"] = "running"
+            logger.info("Batch %s [%d/%d]: analisi in corso", batch_id[:8], idx, total)
             try:
                 result = analyze_job(cv.raw_text, item["job_description"], item.get("model", "haiku"))
                 analysis = JobAnalysis(
@@ -75,10 +81,15 @@ def _run_batch(batch_id: str):
                 db.commit()
                 item["status"] = "done"
                 item["result_preview"] = f"{result.get('role', '?')} @ {result.get('company', '?')} -- {result.get('score', 0)}/100"
+                logger.info("Batch %s [%d/%d]: completata - %s", batch_id[:8], idx, total, item["result_preview"])
             except Exception as e:
                 item["status"] = "error"
                 item["error"] = str(e)
+                logger.error("Batch %s [%d/%d]: fallita - %s", batch_id[:8], idx, total, e, exc_info=True)
+        done = sum(1 for i in batch["items"] if i["status"] == "done")
+        errors = sum(1 for i in batch["items"] if i["status"] == "error")
         batch["status"] = "done"
+        logger.info("Batch %s completato: %d ok, %d errori su %d totali", batch_id[:8], done, errors, total)
     finally:
         db.close()
 
@@ -131,9 +142,11 @@ def save_cv(
     if existing:
         existing.raw_text = cv_text
         existing.name = cv_name
+        logger.info("CV aggiornato: name=%s, len=%d", cv_name, len(cv_text))
     else:
         existing = CVProfile(raw_text=cv_text, name=cv_name)
         db.add(existing)
+        logger.info("CV creato: name=%s, len=%d", cv_name, len(cv_text))
     db.commit()
     return templates.TemplateResponse(
         "index.html",
@@ -157,11 +170,15 @@ def run_analysis(
         )
 
     try:
-        logger.info(f"Analisi: model={model}, cv={len(cv.raw_text)}c, jd={len(job_description)}c")
+        logger.info("Analisi avviata: model=%s, cv=%dc, jd=%dc", model, len(cv.raw_text), len(job_description))
         result = analyze_job(cv.raw_text, job_description, model)
-        logger.info(f"Risultato: score={result.get('score')}, rec={result.get('recommendation')}, cache={result.get('from_cache')}")
+        logger.info(
+            "Analisi completata: score=%s, rec=%s, cache=%s, costo=$%.6f",
+            result.get("score"), result.get("recommendation"),
+            result.get("from_cache"), result.get("cost_usd", 0),
+        )
     except Exception as e:
-        logger.error(f"Analisi fallita: {e}")
+        logger.error("Analisi fallita: %s", e, exc_info=True)
         return templates.TemplateResponse(
             "index.html",
             _base_context(request, db, error=f"Analisi AI fallita: {e}"),
@@ -254,8 +271,12 @@ def update_status(
         return RedirectResponse(url="/", status_code=303)
     analysis = db.query(JobAnalysis).filter(JobAnalysis.id == analysis_id).first()
     if analysis:
+        old_status = analysis.status
         analysis.status = new_status
         db.commit()
+        logger.info("Status aggiornato: analysis=%s, %s -> %s", analysis_id, old_status, new_status)
+    else:
+        logger.warning("Status update: analisi %s non trovata", analysis_id)
     if "application/json" in request.headers.get("accept", ""):
         return JSONResponse({"ok": True, "status": new_status})
     return RedirectResponse(url="/", status_code=303)
@@ -292,11 +313,13 @@ def create_cover_letter(
     }
 
     try:
+        logger.info("Cover letter avviata: analysis=%s, lang=%s, model=%s", analysis_id, language, model)
         result = generate_cover_letter(
             cv.raw_text, analysis.job_description, analysis_data, language, model
         )
+        logger.info("Cover letter completata: costo=$%.6f", result.get("cost_usd", 0))
     except Exception as e:
-        logger.error(f"Cover letter fallita: {e}")
+        logger.error("Cover letter fallita: %s", e, exc_info=True)
         return templates.TemplateResponse(
             "index.html",
             _base_context(request, db, error=f"Generazione cover letter fallita: {e}"),

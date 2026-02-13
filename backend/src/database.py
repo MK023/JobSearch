@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import datetime
 
@@ -7,6 +8,8 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from sqlalchemy.pool import QueuePool
 
 from .config import settings
+
+logger = logging.getLogger(__name__)
 
 engine = create_engine(
     settings.database_url,
@@ -84,7 +87,9 @@ class CoverLetter(Base):
 
 
 def init_db():
+    logger.info("Creazione/verifica tabelle database")
     Base.metadata.create_all(bind=engine)
+    logger.info("Tabelle verificate: %s", ", ".join(Base.metadata.tables.keys()))
     # Auto-migrate: add columns that create_all won't add to existing tables
     with engine.connect() as conn:
         _add_column_if_missing(conn, "job_analyses", "company_reputation", "TEXT DEFAULT ''")
@@ -98,6 +103,9 @@ def _add_column_if_missing(conn, table: str, column: str, col_type: str):
     if result.fetchone() is None:
         conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
         conn.commit()
+        logger.info("Migrazione: aggiunta colonna %s.%s (%s)", table, column, col_type)
+    else:
+        logger.debug("Colonna %s.%s già presente, skip migrazione", table, column)
 
 
 def get_db():

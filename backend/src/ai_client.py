@@ -1,6 +1,7 @@
 import hashlib
 import json
 import logging
+import time
 
 import anthropic
 import redis
@@ -32,8 +33,9 @@ def _get_redis():
         try:
             _redis = redis.from_url(settings.redis_url, decode_responses=True)
             _redis.ping()
-        except Exception:
-            logger.warning("Redis non disponibile, cache disattivata")
+            logger.info("Redis connesso: %s", settings.redis_url)
+        except Exception as e:
+            logger.warning("Redis non disponibile (%s), cache disattivata", e)
             _redis = False
     return _redis if _redis else None
 
@@ -52,10 +54,15 @@ def analyze_job(cv_text: str, job_description: str, model: str = "haiku") -> dic
         key = _cache_key(cv_text, job_description, model)
         cached = r.get(key)
         if cached:
-            logger.info("Cache hit per analisi")
+            logger.info("Cache HIT per analisi (model=%s)", model)
             result = json.loads(cached)
             result["from_cache"] = True
             return result
+    else:
+        logger.debug("Cache SKIP: Redis non disponibile")
+
+    logger.debug("Chiamata API Anthropic: model=%s, max_tokens=4096", model_id)
+    t0 = time.monotonic()
 
     client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
 
@@ -74,6 +81,7 @@ def analyze_job(cv_text: str, job_description: str, model: str = "haiku") -> dic
         ],
     )
 
+    elapsed = time.monotonic() - t0
     raw_text = message.content[0].text
 
     # Parse JSON from response (handle markdown code blocks)
@@ -82,7 +90,12 @@ def analyze_job(cv_text: str, job_description: str, model: str = "haiku") -> dic
         text = text.split("\n", 1)[1]
         text = text.rsplit("```", 1)[0]
 
-    result = json.loads(text)
+    try:
+        result = json.loads(text)
+    except json.JSONDecodeError as e:
+        logger.error("JSON parse fallito per risposta AI: %s (primi 200 char: %s)", e, text[:200])
+        raise
+
     result["model_used"] = model_id
     result["full_response"] = raw_text
     result["from_cache"] = False
@@ -101,13 +114,19 @@ def analyze_job(cv_text: str, job_description: str, model: str = "haiku") -> dic
     }
     result["cost_usd"] = round(total_cost, 6)
 
+    logger.info(
+        "API analisi completata: model=%s, %.1fs, %d tok in + %d tok out, $%.6f",
+        model_id, elapsed, usage.input_tokens, usage.output_tokens, total_cost,
+    )
+
     # Save to cache
     if r:
         try:
             cache_data = {k: v for k, v in result.items() if k != "from_cache"}
             r.setex(key, CACHE_TTL, json.dumps(cache_data, ensure_ascii=False))
-        except Exception:
-            pass
+            logger.debug("Analisi salvata in cache (key=%s)", key)
+        except Exception as e:
+            logger.warning("Cache write fallita: %s", e)
 
     return result
 
@@ -123,15 +142,21 @@ def generate_cover_letter(cv_text: str, job_description: str, analysis_result: d
         cache_key = f"coverletter:{hashlib.sha256(content.encode()).hexdigest()[:16]}"
         cached = r.get(cache_key)
         if cached:
+            logger.info("Cache HIT per cover letter (model=%s, lang=%s)", model, language)
             result = json.loads(cached)
             result["from_cache"] = True
             return result
+    else:
+        logger.debug("Cache SKIP cover letter: Redis non disponibile")
 
     strengths_text = ", ".join(analysis_result.get("strengths", [])[:5])
     gaps_list = analysis_result.get("gaps", [])
     gaps_text = ", ".join(
         g.get("gap", g) if isinstance(g, dict) else str(g) for g in gaps_list[:5]
     )
+
+    logger.debug("Chiamata API Anthropic cover letter: model=%s, max_tokens=2048, lang=%s", model_id, language)
+    t0 = time.monotonic()
 
     client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
     message = client.messages.create(
@@ -153,13 +178,19 @@ def generate_cover_letter(cv_text: str, job_description: str, analysis_result: d
         }],
     )
 
+    elapsed = time.monotonic() - t0
     raw_text = message.content[0].text
     text = raw_text.strip()
     if text.startswith("```"):
         text = text.split("\n", 1)[1]
         text = text.rsplit("```", 1)[0]
 
-    result = json.loads(text)
+    try:
+        result = json.loads(text)
+    except json.JSONDecodeError as e:
+        logger.error("JSON parse fallito per cover letter: %s (primi 200 char: %s)", e, text[:200])
+        raise
+
     result["model_used"] = model_id
     result["from_cache"] = False
 
@@ -167,19 +198,26 @@ def generate_cover_letter(cv_text: str, job_description: str, analysis_result: d
     pricing = PRICING.get(model_id, PRICING["claude-haiku-4-5-20251001"])
     input_cost = (usage.input_tokens / 1_000_000) * pricing["input"]
     output_cost = (usage.output_tokens / 1_000_000) * pricing["output"]
+    total_cost = input_cost + output_cost
 
     result["tokens"] = {
         "input": usage.input_tokens,
         "output": usage.output_tokens,
         "total": usage.input_tokens + usage.output_tokens,
     }
-    result["cost_usd"] = round(input_cost + output_cost, 6)
+    result["cost_usd"] = round(total_cost, 6)
+
+    logger.info(
+        "API cover letter completata: model=%s, lang=%s, %.1fs, %d tok in + %d tok out, $%.6f",
+        model_id, language, elapsed, usage.input_tokens, usage.output_tokens, total_cost,
+    )
 
     if r and cache_key:
         try:
             cache_data = {k: v for k, v in result.items() if k != "from_cache"}
             r.setex(cache_key, CACHE_TTL, json.dumps(cache_data, ensure_ascii=False))
-        except Exception:
-            pass
+            logger.debug("Cover letter salvata in cache (key=%s)", cache_key)
+        except Exception as e:
+            logger.warning("Cache write cover letter fallita: %s", e)
 
     return result

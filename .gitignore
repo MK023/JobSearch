@@ -41,6 +41,7 @@ JOB_SEARCH_COMMAND_CENTER_SPEC.md
 *.db
 *.sqlite3
 *.log
+logs/
 
 # Node (if ever added)
 node_modules/
