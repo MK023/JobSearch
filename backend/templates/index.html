@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎯 Job Search Command Center</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+        .c{max-width:1100px;margin:0 auto;padding:20px 16px}
+        h1{font-size:1.4rem;font-weight:700;color:#f8fafc}
+        h2{font-size:1.05rem;font-weight:600;margin-bottom:10px;color:#cbd5e1}
+        a{color:#818cf8;text-decoration:none}a:hover{text-decoration:underline}
+
+        /* Header + spending */
+        .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+        .spend{display:flex;gap:16px;font-size:.78rem;flex-wrap:wrap;align-items:center}
+        .spend span{color:#64748b}.spend b{color:#e2e8f0}.spend .bal{color:#34d399}
+        .bar-bg{width:100px;height:5px;background:#334155;border-radius:3px;overflow:hidden}
+        .bar-fg{height:100%;background:#6366f1;border-radius:3px}
+
+        /* Layout */
+        .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;align-items:start}
+        .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+        @media(max-width:768px){.grid,.grid2{grid-template-columns:1fr}}
+
+        /* Card + form */
+        .card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px}
+        textarea{width:100%;min-height:140px;background:#0f172a;border:1px solid #475569;border-radius:6px;padding:10px;color:#e2e8f0;font-size:.85rem;font-family:inherit;resize:vertical}
+        textarea:focus{outline:none;border-color:#6366f1}
+        input[type="text"],input[type="url"]{width:100%;background:#0f172a;border:1px solid #475569;border-radius:6px;padding:8px 10px;color:#e2e8f0;font-size:.85rem;margin-bottom:8px}
+        input:focus{outline:none;border-color:#6366f1}
+
+        /* Buttons */
+        .btn{display:inline-block;padding:8px 16px;border:none;border-radius:6px;font-size:.82rem;font-weight:600;cursor:pointer;text-decoration:none;transition:opacity .15s}
+        .btn:hover{opacity:.85}
+        .btn-p{background:#6366f1;color:#fff}.btn-a{background:#f59e0b;color:#1e293b}
+        .btn-g{background:#059669;color:#fff}.btn-b{background:#2563eb;color:#fff}
+        .btn-r{background:#dc2626;color:#fff}.btn-muted{background:#334155;color:#94a3b8}
+        .btn-s{padding:5px 12px;font-size:.78rem}
+        .btns{display:flex;gap:6px;margin-top:10px;align-items:center;flex-wrap:wrap}
+
+        .toggle{display:flex;gap:3px;background:#0f172a;border-radius:6px;padding:2px;border:1px solid #334155}
+        .toggle label{padding:5px 12px;border-radius:5px;font-size:.78rem;cursor:pointer;font-weight:500}
+        .toggle input{display:none}
+        .toggle input:checked+label{background:#6366f1;color:#fff}
+
+        .msg{padding:8px 12px;border-radius:6px;margin-bottom:12px;font-size:.85rem}
+        .msg-ok{background:#065f46;color:#a7f3d0}.msg-err{background:#7f1d1d;color:#fca5a5}
+
+        .cv-st{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:6px;font-size:.78rem;margin-bottom:10px}
+        .cv-ok{background:#064e3b;color:#6ee7b7}.cv-no{background:#78350f;color:#fbbf24}
+
+        /* === RISULTATO === */
+        .res{margin-top:20px}
+
+        /* 1. Hero: score grande + info essenziali */
+        .hero{display:flex;gap:16px;align-items:flex-start;padding-bottom:16px;border-bottom:1px solid #334155;margin-bottom:16px}
+        .score{width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:800;flex-shrink:0}
+        .score-apply{background:#065f46;color:#34d399;border:3px solid #34d399}
+        .score-consider{background:#78350f;color:#fbbf24;border:3px solid #fbbf24}
+        .score-skip{background:#7f1d1d;color:#f87171;border:3px solid #f87171}
+        .hero-info{flex:1;min-width:0}
+        .hero-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+        .rec{padding:4px 12px;border-radius:14px;font-weight:700;font-size:.82rem;letter-spacing:.03em}
+        .rec-APPLY{background:#34d399;color:#064e3b}.rec-CONSIDER{background:#fbbf24;color:#78350f}.rec-SKIP{background:#f87171;color:#7f1d1d}
+        .hero-role{font-size:1.1rem;font-weight:700;color:#f8fafc}
+        .hero-label{font-size:.82rem;color:#94a3b8;margin-top:2px}
+        .hero-tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+        .ht{padding:3px 9px;border-radius:5px;font-size:.75rem;font-weight:500}
+        .ht-loc{background:#1e1b4b;color:#c7d2fe}.ht-mode{background:#1e1b4b;color:#c7d2fe}
+        .ht-sal{background:#064e3b;color:#6ee7b7}.ht-pot{background:#064e3b;color:#34d399}
+        .ht-time{background:#78350f;color:#fbbf24}.ht-conf{background:#334155;color:#94a3b8}
+        .hero-meta{font-size:.72rem;color:#475569;flex-shrink:0;text-align:right}
+        .pill{padding:2px 7px;border-radius:8px;font-size:.7rem;background:#1e1b4b;color:#a5b4fc;display:inline-block}
+
+        /* 2. Consiglio: il pezzo piu' importante */
+        .advice-box{padding:14px 16px;background:#0f172a;border-radius:8px;border-left:4px solid #818cf8;margin-bottom:16px}
+        .advice-title{font-size:.82rem;font-weight:700;color:#818cf8;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}
+        .advice-text{color:#c7d2fe;font-size:.87rem;line-height:1.7;white-space:pre-line}
+
+        /* 3. Sommario annuncio */
+        .jd-box{padding:12px 14px;background:#0f172a;border-radius:8px;border-left:4px solid #f59e0b;margin-bottom:16px}
+        .jd-title{font-size:.82rem;font-weight:700;color:#f59e0b;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}
+        .jd-text{color:#94a3b8;font-size:.82rem;line-height:1.5;white-space:pre-line}
+
+        /* 4. Verdetto: summary AI */
+        .verdict{color:#cbd5e1;font-size:.87rem;line-height:1.6;padding:12px 14px;background:#0f172a;border-radius:8px;border-left:4px solid #6366f1;margin-bottom:16px}
+
+        /* 5. Punti forza */
+        .sec-title{font-size:.82rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+        .str-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+        .str-header .sec-title{margin-bottom:0}
+        .str-count{background:#059669;color:#fff;font-size:.72rem;font-weight:700;padding:2px 8px;border-radius:10px}
+        .str-item{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;background:linear-gradient(135deg,#064e3b 0%,#0f2922 100%);border-radius:8px;margin-bottom:6px;border:1px solid #065f46}
+        .str-icon{color:#34d399;font-size:1rem;flex-shrink:0;line-height:1.3}
+        .str-text{color:#a7f3d0;font-size:.85rem;font-weight:500;line-height:1.4}
+        .str-section{padding:14px 16px;background:#0f172a;border-radius:10px;border:1px solid #065f46}
+
+        /* 5b. Lacune / Aree di crescita */
+        .gap-section{padding:14px 16px;background:#0f172a;border-radius:10px;border:1px solid #334155}
+        .tag{display:inline-block;padding:3px 9px;border-radius:5px;font-size:.78rem;margin:2px 2px 2px 0}
+        .tag-r{background:#450a0a;color:#fca5a5}
+
+        .gap-item{padding:10px 12px;background:#1e293b;border-radius:8px;margin-bottom:8px;border-left:3px solid #475569}
+        .gap-item.sev-bloccante-border{border-left-color:#f87171}
+        .gap-item.sev-importante-border{border-left-color:#fbbf24}
+        .gap-item.sev-minore-border{border-left-color:#60a5fa}
+        .gap-top{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+        .gap-name{font-weight:600;font-size:.85rem;color:#e2e8f0}
+        .sev{font-size:.68rem;font-weight:700;padding:2px 6px;border-radius:4px;text-transform:uppercase;flex-shrink:0}
+        .sev-bloccante{background:#7f1d1d;color:#fca5a5}.sev-importante{background:#78350f;color:#fbbf24}.sev-minore{background:#1e3a5f;color:#60a5fa}
+        .gap-closable{font-size:.78rem;color:#34d399;font-weight:600}
+        .gap-not{font-size:.78rem;color:#94a3b8}
+        .gap-how{font-size:.8rem;color:#94a3b8;line-height:1.4;padding:6px 0 0 0;display:flex;align-items:flex-start;gap:6px}
+        .gap-how-icon{color:#818cf8;flex-shrink:0;font-size:.82rem}
+
+        /* 6. Colloquio: collassabile */
+        details{margin-bottom:16px}
+        summary{cursor:pointer;font-size:.85rem;font-weight:700;color:#94a3b8;padding:10px 0;list-style:none;display:flex;align-items:center;gap:6px}
+        summary::before{content:'';display:inline-block;width:0;height:0;border-left:5px solid #64748b;border-top:4px solid transparent;border-bottom:4px solid transparent;transition:transform .2s}
+        details[open] summary::before{transform:rotate(90deg)}
+        .script{background:#0f172a;border:1px solid #334155;border-radius:6px;padding:12px;margin-bottom:8px}
+        .script-q{font-weight:600;color:#a5b4fc;margin-bottom:4px;font-size:.85rem}
+        .script-a{color:#cbd5e1;font-size:.82rem;line-height:1.5}
+
+        /* 7. Azioni */
+        .actions{display:flex;gap:8px;padding:14px;background:#0f172a;border-radius:8px;border:1px solid #334155;align-items:center;flex-wrap:wrap}
+
+        /* Storico */
+        .hist{margin-top:28px}
+        .hi{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #1e293b;cursor:pointer;transition:background .1s}
+        .hi:hover{background:#253449}.hi:last-child{border-bottom:none}
+        .hi-score{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.82rem;flex-shrink:0}
+        .hi-info{flex:1;min-width:0}
+        .hi-role{font-weight:600;font-size:.87rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .hi-co{color:#64748b;font-size:.78rem}
+        .st{padding:2px 8px;border-radius:8px;font-size:.68rem;font-weight:600;text-transform:uppercase}
+        .st-da_valutare{background:#334155;color:#94a3b8}.st-candidato{background:#1e3a5f;color:#60a5fa}
+        .st-colloquio{background:#365314;color:#a3e635}.st-scartato{background:#450a0a;color:#fca5a5}
+        .hi-date{color:#475569;font-size:.72rem;flex-shrink:0;text-align:right}
+
+        .loading{display:none;align-items:center;gap:8px;color:#94a3b8;font-size:.85rem;margin-top:10px}
+        .loading.on{display:flex}
+        .spin{width:16px;height:16px;border:2px solid #475569;border-top-color:#6366f1;border-radius:50%;animation:s .6s linear infinite}
+        @keyframes s{to{transform:rotate(360deg)}}
+
+        /* Footer */
+        .foot{text-align:center;padding:24px 0 8px;color:#334155;font-size:.72rem}
+    </style>
+</head>
+<body>
+<div class="c">
+    <div class="top">
+        <h1>🎯 Job Search Command Center</h1>
+        {% if spending %}
+        <div class="spend">
+            <span>💰 Speso: <b>${{ '%.4f' % spending.total_cost_usd }}</b></span>
+            <span>💳 Saldo: <b class="bal">${{ '%.4f' % spending.balance_usd }}</b></span>
+            <div class="bar-bg"><div class="bar-fg" style="width:{{ [(spending.total_cost_usd / 5.0 * 100)|round(1), 100]|min }}%"></div></div>
+            <span>📊 Analisi: <b>{{ spending.total_analyses }}</b></span>
+            <span>🔤 Token: <b>{{ '{:,}'.format(spending.total_tokens_input + spending.total_tokens_output) }}</b></span>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if message %}<div class="msg msg-ok">✅ {{ message }}</div>{% endif %}
+    {% if error %}<div class="msg msg-err">❌ {{ error }}</div>{% endif %}
+
+    <div class="grid">
+        <div class="card">
+            <h2>📄 Il tuo CV</h2>
+            {% if cv %}
+            <div class="cv-st cv-ok">✅ CV caricato ({{ cv.name or 'senza nome' }}) &mdash; incolla di nuovo per aggiornare</div>
+            {% else %}
+            <div class="cv-st cv-no">⚠️ Nessun CV &mdash; incollalo qui sotto</div>
+            {% endif %}
+            <form method="post" action="/cv">
+                <input type="text" name="cv_name" placeholder="👤 Il tuo nome (opzionale)" value="{{ cv.name if cv else '' }}">
+                <textarea name="cv_text" placeholder="📋 Incolla qui il tuo CV completo..."></textarea>
+                <div class="btns">
+                    <button type="submit" class="btn btn-p">💾 Salva CV</button>
+                    {% if cv %}<button type="button" class="btn btn-muted btn-s" disabled title="Prossimamente">📥 Scarica CV</button>{% endif %}
+                </div>
+            </form>
+        </div>
+        <div class="card">
+            <h2>🔍 Analizza candidatura</h2>
+            <form method="post" action="/analyze" id="af">
+                <input type="url" name="job_url" placeholder="🔗 Link annuncio (LinkedIn, Indeed...) - opzionale">
+                <textarea name="job_description" placeholder="📝 Incolla qui la descrizione del lavoro..."></textarea>
+                <div class="btns">
+                    <button type="submit" class="btn btn-a" id="ab">⚡ Analizza</button>
+                    <div class="toggle">
+                        <input type="radio" name="model" value="haiku" id="mh" checked><label for="mh">🐇 Haiku</label>
+                        <input type="radio" name="model" value="sonnet" id="ms"><label for="ms">🧠 Sonnet</label>
+                    </div>
+                </div>
+            </form>
+            <div class="loading" id="ld"><div class="spin"></div><span>🤖 Analisi AI in corso...</span></div>
+        </div>
+    </div>
+
+    <!-- ========== RISULTATO ========== -->
+    {% if result %}
+    <div class="card res">
+
+        <!-- 1. HERO: punteggio + ruolo + info rapide -->
+        <div class="hero">
+            <div class="score score-{{ result.recommendation|lower }}">{{ result.score }}</div>
+            <div class="hero-info">
+                <div class="hero-top">
+                    <span class="rec rec-{{ result.recommendation }}">{% if result.recommendation == 'APPLY' %}🚀{% elif result.recommendation == 'CONSIDER' %}🤔{% else %}⛔{% endif %} {{ result.recommendation }}</span>
+                    <span class="hero-role">{{ result.role }} @ {{ result.company }}</span>
+                </div>
+                {% if result.score_label %}<div class="hero-label">{{ result.score_label }}</div>{% endif %}
+                <div class="hero-tags">
+                    {% if result.location %}<span class="ht ht-loc">📍 {{ result.location }}</span>{% endif %}
+                    {% if result.work_mode %}<span class="ht ht-mode">🏢 {{ result.work_mode }}</span>{% endif %}
+                    {% if result.salary_info %}<span class="ht ht-sal">💶 {{ result.salary_info }}</span>{% endif %}
+                    {% if result.potential_score %}<span class="ht ht-pot">📈 Potenziale: {{ result.potential_score }}/100</span>{% endif %}
+                    {% if result.gap_timeline %}<span class="ht ht-time">⏱️ {{ result.gap_timeline }}</span>{% endif %}
+                    {% if result.confidence %}<span class="ht ht-conf">🎯 {{ result.confidence }}{% if result.confidence_reason %}: {{ result.confidence_reason }}{% endif %}</span>{% endif %}
+                </div>
+            </div>
+            <div class="hero-meta">
+                <span class="pill">💲{{ '%.5f' % result.cost_usd }}</span><br>
+                <span style="font-size:.68rem">{{ result.tokens.total }} tok{% if result.from_cache %} · ⚡ cache{% endif %}</span>
+            </div>
+        </div>
+
+        <!-- 2. CONSIGLIO PERSONALIZZATO (il pezzo piu' importante) -->
+        {% if result.advice %}
+        <div class="advice-box">
+            <div class="advice-title">💡 Il mio consiglio per te</div>
+            <div class="advice-text">{{ result.advice }}</div>
+        </div>
+        {% endif %}
+
+        <!-- 3. VERDETTO AI -->
+        {% if result.summary %}
+        <div class="verdict">🧠 {{ result.summary }}</div>
+        {% endif %}
+
+        <!-- 4. PUNTI CHIAVE ANNUNCIO -->
+        {% if result.job_summary %}
+        <div class="jd-box">
+            <div class="jd-title">📋 Punti chiave dell'annuncio</div>
+            <div class="jd-text">{{ result.job_summary }}</div>
+        </div>
+        {% endif %}
+
+        <!-- 5. FORZA + LACUNE side by side -->
+        <div class="grid2">
+            <div class="str-section">
+                <div class="str-header">
+                    <div class="sec-title">💪 I tuoi punti di forza</div>
+                    <span class="str-count">{{ result.strengths|length }}</span>
+                </div>
+                {% for s in result.strengths %}
+                <div class="str-item">
+                    <span class="str-icon">✅</span>
+                    <span class="str-text">{{ s }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="gap-section">
+                <div class="str-header">
+                    <div class="sec-title">🌱 Aree di crescita</div>
+                    <span class="str-count" style="background:#475569">{{ result.gaps|length }}</span>
+                </div>
+                {% for g in result.gaps %}
+                    {% if g is mapping %}
+                    <div class="gap-item sev-{{ g.severity }}-border">
+                        <div class="gap-top">
+                            <span class="sev sev-{{ g.severity }}">{% if g.severity == 'bloccante' %}🚫{% elif g.severity == 'importante' %}⚠️{% else %}💡{% endif %} {{ g.severity }}</span>
+                            <span class="gap-name">{{ g.gap }}</span>
+                            {% if g.closable %}<span class="gap-closable">✨ colmabile</span>{% else %}<span class="gap-not">🔒 difficile</span>{% endif %}
+                        </div>
+                        {% if g.how %}
+                        <div class="gap-how">
+                            <span class="gap-how-icon">🛠️</span>
+                            <span>{{ g.how }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <span class="tag tag-r">{{ g }}</span>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- 6. COLLOQUIO (collassabile) -->
+        {% if result.interview_scripts %}
+        <details style="margin-top:16px">
+            <summary>🎤 Preparazione colloquio ({{ result.interview_scripts|length }} domande)</summary>
+            {% for s in result.interview_scripts %}
+            <div class="script">
+                <div class="script-q">❓ {{ s.question }}</div>
+                <div class="script-a">💬 {{ s.suggested_answer }}</div>
+            </div>
+            {% endfor %}
+        </details>
+        {% endif %}
+
+        <!-- 7. AZIONI -->
+        {% if current %}
+        <div class="actions">
+            {% if current.job_url %}
+            <a href="{{ current.job_url }}" target="_blank" class="btn btn-b btn-s"
+               onclick="fetch('/status/{{ current.id }}/candidato',{method:'POST'})">🔗 Apri annuncio</a>
+            {% endif %}
+            <form method="post" action="/status/{{ current.id }}/candidato" style="display:inline"><button class="btn btn-g btn-s">✅ Candidato</button></form>
+            <form method="post" action="/status/{{ current.id }}/colloquio" style="display:inline"><button class="btn btn-p btn-s">🗣️ In colloquio</button></form>
+            <form method="post" action="/status/{{ current.id }}/scartato" style="display:inline"><button class="btn btn-r btn-s">❌ Scarta</button></form>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- ========== STORICO ========== -->
+    {% if analyses %}
+    <div class="hist">
+        <h2>📚 Storico analisi</h2>
+        <div class="card" style="padding:0;overflow:hidden">
+            {% for a in analyses %}
+            <a href="/analysis/{{ a.id }}" style="text-decoration:none;color:inherit">
+            <div class="hi">
+                <div class="hi-score score-{{ a.recommendation|lower }}">{{ a.score }}</div>
+                <div class="hi-info">
+                    <div class="hi-role">{{ a.role or 'Ruolo sconosciuto' }}</div>
+                    <div class="hi-co">{{ a.company or 'Azienda sconosciuta' }}{% if a.work_mode %} · {{ a.work_mode }}{% endif %}{% if a.salary_info %} · {{ a.salary_info }}{% endif %}</div>
+                </div>
+                <span class="st st-{{ a.status or 'da_valutare' }}">{% if a.status == 'candidato' %}📨{% elif a.status == 'colloquio' %}🗣️{% elif a.status == 'scartato' %}❌{% else %}🔍{% endif %} {{ (a.status or 'da valutare')|replace('_',' ') }}</span>
+                <span class="rec rec-{{ a.recommendation }}" style="font-size:.72rem;padding:3px 9px">{{ a.recommendation }}</span>
+                <span class="hi-date">${{ '%.4f' % (a.cost_usd or 0) }}<br>{{ a.created_at.strftime('%d/%m %H:%M') if a.created_at else '' }}</span>
+            </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="foot">🎯 Job Search Command Center</div>
+</div>
+
+<script>
+document.getElementById('af').addEventListener('submit',function(){
+    document.getElementById('ab').disabled=true;
+    document.getElementById('ld').classList.add('on');
+});
+</script>
+</body>
+</html>

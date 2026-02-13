@@ -1,0 +1,46 @@
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+*.egg-info/
+*.egg
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# Docker volumes
+pgdata/
+redis-data/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Project-specific
+.claude/
+firebase-debug.log
+JOB_SEARCH_COMMAND_CENTER_SPEC.md
+*.db
+*.sqlite3
+*.log
+
+# Node (if ever added)
+node_modules/
