@@ -155,3 +155,20 @@
 
         /* Footer */
         .foot{text-align:center;padding:24px 0 8px;color:#334155;font-size:.72rem}
+
+/* Reputation section */
+.rep-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
+@media(max-width:768px){.rep-grid{grid-template-columns:1fr}}
+.rep-col{padding:10px 12px;border-radius:8px}
+.rep-pros{background:#064e3b;border:1px solid #065f46}
+.rep-cons{background:#450a0a;border:1px solid #7f1d1d}
+.rep-label{font-size:.78rem;font-weight:700;margin-bottom:6px}
+.rep-label-pro{color:#34d399}
+.rep-label-con{color:#f87171}
+.rep-item{font-size:.82rem;line-height:1.5;padding:4px 0;color:#cbd5e1}
+.rep-rating{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;font-weight:700;font-size:.95rem;margin-left:8px}
+.rep-rating-good{background:#064e3b;color:#34d399;border:1px solid #065f46}
+.rep-rating-mid{background:#78350f;color:#fbbf24;border:1px solid #92400e}
+.rep-rating-low{background:#7f1d1d;color:#f87171;border:1px solid #991b1b}
+.rep-rating-na{background:#334155;color:#94a3b8;border:1px solid #475569}
+.rep-note{font-size:.72rem;color:#64748b;margin-top:8px;font-style:italic}

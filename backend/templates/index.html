@@ -171,21 +171,39 @@
         </div>
 
         {% if result.company_reputation and (result.company_reputation.known_pros or result.company_reputation.known_cons) %}
-        <details style="margin-bottom:16px">
-            <summary>🏢 Reputazione aziendale {% if result.company_reputation.glassdoor_estimate and result.company_reputation.glassdoor_estimate != 'non disponibile' %}(~{{ result.company_reputation.glassdoor_estimate }}){% endif %}</summary>
-            <div style="padding:12px;background:#0f172a;border-radius:8px;border:1px solid #334155">
+        <details style="margin-bottom:16px" open>
+            <summary>🏢 Reputazione aziendale
+                {% set gr_str = result.company_reputation.glassdoor_estimate|default('non disponibile') %}
+                {% if gr_str != 'non disponibile' %}
+                {% set gr = gr_str|replace('/5','')|float %}
+                <span class="rep-rating {% if gr >= 4.0 %}rep-rating-good{% elif gr >= 3.0 %}rep-rating-mid{% else %}rep-rating-low{% endif %}">
+                    ⭐ {{ gr_str }}
+                </span>
+                {% else %}
+                <span class="rep-rating rep-rating-na">⭐ n/d</span>
+                {% endif %}
+            </summary>
+            <div class="rep-grid">
                 {% if result.company_reputation.known_pros %}
-                <div style="margin-bottom:8px"><span style="color:#34d399;font-weight:600">Pro:</span>
-                {% for p in result.company_reputation.known_pros %}<span class="ht ht-sal" style="margin:2px">{{ p }}</span>{% endfor %}
-                </div>{% endif %}
+                <div class="rep-col rep-pros">
+                    <div class="rep-label rep-label-pro">👍 Punti di forza</div>
+                    {% for p in result.company_reputation.known_pros %}
+                    <div class="rep-item">✅ {{ p }}</div>
+                    {% endfor %}
+                </div>
+                {% endif %}
                 {% if result.company_reputation.known_cons %}
-                <div><span style="color:#f87171;font-weight:600">Contro:</span>
-                {% for c in result.company_reputation.known_cons %}<span class="ht" style="background:#450a0a;color:#fca5a5;margin:2px">{{ c }}</span>{% endfor %}
-                </div>{% endif %}
-                {% if result.company_reputation.note %}
-                <div style="margin-top:8px;font-size:.72rem;color:#475569">⚠️ {{ result.company_reputation.note }}</div>
+                <div class="rep-col rep-cons">
+                    <div class="rep-label rep-label-con">👎 Criticita'</div>
+                    {% for c in result.company_reputation.known_cons %}
+                    <div class="rep-item">⚠️ {{ c }}</div>
+                    {% endfor %}
+                </div>
                 {% endif %}
             </div>
+            {% if result.company_reputation.note %}
+            <div class="rep-note">⚠️ {{ result.company_reputation.note }}</div>
+            {% endif %}
         </details>
         {% endif %}
 
