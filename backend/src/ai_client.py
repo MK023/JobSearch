@@ -1,6 +1,7 @@
 import hashlib
 import json
 import logging
+import re
 import time
 
 import anthropic
@@ -25,6 +26,44 @@ PRICING = {
 CACHE_TTL = 86400  # 24h
 
 _redis = None
+
+
+def _extract_and_parse_json(raw_text: str) -> dict:
+    """Extract JSON from AI response, fixing common LLM output issues."""
+    text = raw_text.strip()
+
+    # Strip markdown code blocks
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1]
+        text = text.rsplit("```", 1)[0].strip()
+
+    # First attempt: parse as-is
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    # Fix trailing commas before } or ] (most common LLM mistake)
+    cleaned = re.sub(r",\s*([}\]])", r"\1", text)
+
+    # Remove single-line // comments
+    cleaned = re.sub(r"//[^\n]*", "", cleaned)
+
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        pass
+
+    # Last resort: find the outermost { ... } block
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        fragment = text[start:end + 1]
+        fragment = re.sub(r",\s*([}\]])", r"\1", fragment)
+        fragment = re.sub(r"//[^\n]*", "", fragment)
+        return json.loads(fragment)
+
+    raise json.JSONDecodeError("Nessun JSON valido trovato nella risposta AI", text, 0)
 
 
 def _get_redis():
@@ -84,16 +123,10 @@ def analyze_job(cv_text: str, job_description: str, model: str = "haiku") -> dic
     elapsed = time.monotonic() - t0
     raw_text = message.content[0].text
 
-    # Parse JSON from response (handle markdown code blocks)
-    text = raw_text.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[1]
-        text = text.rsplit("```", 1)[0]
-
     try:
-        result = json.loads(text)
+        result = _extract_and_parse_json(raw_text)
     except json.JSONDecodeError as e:
-        logger.error("JSON parse fallito per risposta AI: %s (primi 200 char: %s)", e, text[:200])
+        logger.error("JSON parse fallito per risposta AI: %s (primi 300 char: %s)", e, raw_text[:300])
         raise
 
     result["model_used"] = model_id
@@ -180,15 +213,11 @@ def generate_cover_letter(cv_text: str, job_description: str, analysis_result: d
 
     elapsed = time.monotonic() - t0
     raw_text = message.content[0].text
-    text = raw_text.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[1]
-        text = text.rsplit("```", 1)[0]
 
     try:
-        result = json.loads(text)
+        result = _extract_and_parse_json(raw_text)
     except json.JSONDecodeError as e:
-        logger.error("JSON parse fallito per cover letter: %s (primi 200 char: %s)", e, text[:200])
+        logger.error("JSON parse fallito per cover letter: %s (primi 300 char: %s)", e, raw_text[:300])
         raise
 
     result["model_used"] = model_id

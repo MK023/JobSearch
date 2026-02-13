@@ -66,6 +66,13 @@ Per interview_scripts, genera 3-5 domande focalizzate su:
 Le risposte suggerite devono essere concrete, con esempi specifici dal CV del candidato.
 Sii diretto, specifico e pratico. Niente frasi generiche. Parla come un mentore che conosce bene il candidato.
 
+CRITICO - FORMATO JSON:
+- Rispondi SOLO con JSON valido, nessun testo prima o dopo
+- NON usare trailing comma (virgola prima di } o ])
+- NON usare commenti (// o /* */)
+- Tutti i valori stringa devono usare doppi apici "
+- Escape corretto per newline nelle stringhe: usa \\n
+
 Per company_reputation:
 - Stima il rating Glassdoor basandoti sulle tue conoscenze dell'azienda
 - Se non conosci l'azienda, usa "non disponibile" come glassdoor_estimate e liste vuote per pro/cons
@@ -99,7 +106,13 @@ Linee guida:
 - Se ci sono lacune, affrontale positivamente (es. "sono entusiasta di approfondire X")
 - Tono: professionale ma personale, sicuro ma non arrogante
 - Le subject line devono essere brevi (max 60 caratteri), specifiche per il ruolo e accattivanti
-- IMPORTANTE: scrivi nella lingua richiesta dall'utente"""
+- IMPORTANTE: scrivi nella lingua richiesta dall'utente
+
+CRITICO - FORMATO JSON:
+- Rispondi SOLO con JSON valido, nessun testo prima o dopo
+- NON usare trailing comma (virgola prima di } o ])
+- Tutti i valori stringa devono usare doppi apici "
+- Escape corretto per newline nelle stringhe: usa \\n"""
 
 COVER_LETTER_USER_PROMPT = """## CV DEL CANDIDATO
 {cv_text}
