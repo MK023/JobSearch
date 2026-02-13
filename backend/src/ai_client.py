@@ -79,23 +79,30 @@ def _get_redis():
     return _redis if _redis else None
 
 
-def _cache_key(cv_text: str, job_description: str, model: str) -> str:
-    content = f"{model}:{cv_text[:500]}:{job_description[:500]}"
-    return f"analysis:{hashlib.sha256(content.encode()).hexdigest()[:16]}"
+def _content_hash(cv_text: str, job_description: str) -> str:
+    """SHA-256 hash of full CV + job description for duplicate detection."""
+    content = f"{cv_text}:{job_description}"
+    return hashlib.sha256(content.encode()).hexdigest()
+
+
+def _cache_key(content_hash: str, model: str) -> str:
+    return f"analysis:{model}:{content_hash[:16]}"
 
 
 def analyze_job(cv_text: str, job_description: str, model: str = "haiku") -> dict:
     model_id = MODELS.get(model, MODELS["haiku"])
+    ch = _content_hash(cv_text, job_description)
 
     # Check cache
     r = _get_redis()
     if r:
-        key = _cache_key(cv_text, job_description, model)
+        key = _cache_key(ch, model)
         cached = r.get(key)
         if cached:
             logger.info("Cache HIT per analisi (model=%s)", model)
             result = json.loads(cached)
             result["from_cache"] = True
+            result["content_hash"] = ch
             return result
     else:
         logger.debug("Cache SKIP: Redis non disponibile")
@@ -132,6 +139,7 @@ def analyze_job(cv_text: str, job_description: str, model: str = "haiku") -> dic
     result["model_used"] = model_id
     result["full_response"] = raw_text
     result["from_cache"] = False
+    result["content_hash"] = ch
 
     # Token usage and cost
     usage = message.usage

@@ -10,7 +10,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from .ai_client import analyze_job, generate_cover_letter
+from .ai_client import _content_hash, analyze_job, generate_cover_letter
 from .config import settings, setup_logging
 from .database import CoverLetter, CVProfile, JobAnalysis, SessionLocal, get_db, init_db
 
@@ -59,11 +59,13 @@ def _run_batch(batch_id: str):
             item["status"] = "running"
             logger.info("Batch %s [%d/%d]: analisi in corso", batch_id[:8], idx, total)
             try:
+                batch_content_hash = _content_hash(cv.raw_text, item["job_description"])
                 result = analyze_job(cv.raw_text, item["job_description"], item.get("model", "haiku"))
                 analysis = JobAnalysis(
                     cv_id=cv.id,
                     job_description=item["job_description"],
                     job_url=item.get("job_url", ""),
+                    content_hash=batch_content_hash,
                     job_summary=result.get("job_summary", ""),
                     company=result.get("company", ""),
                     role=result.get("role", ""),
@@ -175,6 +177,54 @@ def run_analysis(
             _base_context(request, db, error="Salva prima il tuo CV!"),
         )
 
+    # Compute hash and check for existing identical analysis in DB
+    content_hash = _content_hash(cv.raw_text, job_description)
+
+    existing = (
+        db.query(JobAnalysis)
+        .filter(JobAnalysis.content_hash == content_hash)
+        .order_by(JobAnalysis.created_at.desc())
+        .first()
+    )
+
+    if existing:
+        logger.info("Analisi duplicata trovata: id=%s, score=%s", existing.id, existing.score)
+        # Rebuild result dict from stored data (same pattern as view_analysis)
+        result = {
+            "company": existing.company,
+            "role": existing.role,
+            "location": existing.location,
+            "work_mode": existing.work_mode,
+            "salary_info": existing.salary_info,
+            "score": existing.score,
+            "recommendation": existing.recommendation,
+            "job_summary": existing.job_summary,
+            "strengths": json.loads(existing.strengths) if existing.strengths else [],
+            "gaps": json.loads(existing.gaps) if existing.gaps else [],
+            "interview_scripts": json.loads(existing.interview_scripts) if existing.interview_scripts else [],
+            "advice": existing.advice or "",
+            "company_reputation": json.loads(existing.company_reputation) if existing.company_reputation else {},
+            "summary": "",
+            "model_used": existing.model_used,
+            "tokens": {
+                "input": existing.tokens_input or 0,
+                "output": existing.tokens_output or 0,
+                "total": (existing.tokens_input or 0) + (existing.tokens_output or 0),
+            },
+            "cost_usd": existing.cost_usd or 0.0,
+            "from_cache": True,
+        }
+        return templates.TemplateResponse(
+            "index.html",
+            _base_context(
+                request,
+                db,
+                current=existing,
+                result=result,
+                message=f"Analisi gia' eseguita il {existing.created_at.strftime('%d/%m/%Y %H:%M')} - mostro il risultato salvato (0 token usati)",
+            ),
+        )
+
     try:
         logger.info("Analisi avviata: model=%s, cv=%dc, jd=%dc", model, len(cv.raw_text), len(job_description))
         result = analyze_job(cv.raw_text, job_description, model)
@@ -196,6 +246,7 @@ def run_analysis(
         cv_id=cv.id,
         job_description=job_description,
         job_url=job_url,
+        content_hash=content_hash,
         job_summary=result.get("job_summary", ""),
         company=result.get("company", ""),
         role=result.get("role", ""),

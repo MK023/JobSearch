@@ -42,6 +42,7 @@ class JobAnalysis(Base):
     cv_id = Column(UUID(as_uuid=True), nullable=False)
     job_description = Column(Text, nullable=False)
     job_url = Column(String(500), default="")
+    content_hash = Column(String(64), default="", index=True)
     job_summary = Column(Text, default="")
     company = Column(String(255), default="")
     role = Column(String(255), default="")
@@ -93,6 +94,7 @@ def init_db():
     # Auto-migrate: add columns that create_all won't add to existing tables
     with engine.connect() as conn:
         _add_column_if_missing(conn, "job_analyses", "company_reputation", "TEXT DEFAULT ''")
+        _add_column_if_missing(conn, "job_analyses", "content_hash", "VARCHAR(64) DEFAULT ''")
 
 
 def _add_column_if_missing(conn, table: str, column: str, col_type: str):
