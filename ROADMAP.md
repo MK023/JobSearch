@@ -17,6 +17,12 @@
 
 ## Completato
 
+- [x] Cover letter con scelta lingua + subject line email suggerite
+- [x] Glassdoor auto-flag (reputazione aziendale stimata nell'analisi)
+- [x] Analisi multipla batch con coda e background tasks
+- [x] Pill selezionabili per stato candidatura (AJAX, no reload)
+- [x] Storico a 3 tab: In valutazione / Applicato / Skippato
+- [x] Riordino UI: consiglio dopo forza/lacune, prima del colloquio
 - [x] Analisi AI con Haiku / Sonnet
 - [x] Score + raccomandazione APPLY / CONSIDER / SKIP
 - [x] Punti di forza e aree di crescita strutturate
