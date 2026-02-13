@@ -13,8 +13,6 @@
         {% if spending %}
         <div class="spend" id="spend-bar">
             <span>💰 Speso: <b id="sp-cost">${{ '%.4f' % spending.total_cost_usd }}</b></span>
-            <span>💳 Saldo: <b class="bal" id="sp-bal">${{ '%.4f' % spending.balance_usd }}</b></span>
-            <div class="bar-bg"><div class="bar-fg" id="sp-bar" style="width:{{ [(spending.total_cost_usd / 5.0 * 100)|round(1), 100]|min }}%"></div></div>
             <span>📊 Analisi: <b id="sp-count">{{ spending.total_analyses }}</b></span>
             <span>🔤 Token: <b id="sp-tokens">{{ '{:,}'.format(spending.total_tokens_input + spending.total_tokens_output) }}</b></span>
         </div>
@@ -47,7 +45,7 @@
                 <input type="url" name="job_url" placeholder="🔗 Link annuncio (LinkedIn, Indeed...) - opzionale">
                 <textarea name="job_description" placeholder="📝 Incolla qui la descrizione del lavoro..."></textarea>
                 <div class="btns">
-                    <button type="submit" class="btn btn-a" id="ab">⚡ Analizza</button>
+                    <button type="submit" class="btn btn-a btn-s" id="ab">⚡ Analizza</button>
                     <div class="toggle">
                         <input type="radio" name="model" value="haiku" id="mh" checked><label for="mh">🐇 Haiku</label>
                         <input type="radio" name="model" value="sonnet" id="ms"><label for="ms">🧠 Sonnet</label>

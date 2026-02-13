@@ -129,8 +129,6 @@ function refreshSpending(){
         var el=document.getElementById('sp-cost');
         if(!el)return;
         el.textContent='$'+d.total_cost_usd.toFixed(4);
-        document.getElementById('sp-bal').textContent='$'+d.balance_usd.toFixed(4);
-        document.getElementById('sp-bar').style.width=Math.min(d.total_cost_usd/5.0*100,100).toFixed(1)+'%';
         document.getElementById('sp-count').textContent=d.total_analyses;
         var tok=d.total_tokens_input+d.total_tokens_output;
         document.getElementById('sp-tokens').textContent=tok.toLocaleString('it-IT');

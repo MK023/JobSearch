@@ -140,7 +140,6 @@ def _get_spending(db: Session) -> dict:
         "total_tokens_input": tok_in,
         "total_tokens_output": tok_out,
         "total_analyses": int(a_row[3]),
-        "balance_usd": round(settings.credit_budget_usd - total, 4),
     }
 
 

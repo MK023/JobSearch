@@ -9,9 +9,7 @@ a{color:#818cf8;text-decoration:none}a:hover{text-decoration:underline}
 /* Header + spending */
 .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px}
 .spend{display:flex;gap:16px;font-size:.78rem;flex-wrap:wrap;align-items:center}
-.spend span{color:#64748b}.spend b{color:#e2e8f0}.spend .bal{color:#34d399}
-.bar-bg{width:100px;height:5px;background:#334155;border-radius:3px;overflow:hidden}
-.bar-fg{height:100%;background:#6366f1;border-radius:3px}
+.spend span{color:#64748b}.spend b{color:#e2e8f0}
 
 /* Layout */
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;align-items:start}
