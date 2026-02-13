@@ -114,6 +114,7 @@ function pollBatch(){
         if(data.status==='running'){setTimeout(pollBatch,2000);}
         else if(data.status==='done'){
             document.getElementById('batch-status-text').textContent='Completato! Ricarica la pagina per vedere i risultati.';
+            refreshSpending();
         }
     });
 }
@@ -123,10 +124,41 @@ function batchClear(){
         document.getElementById('batch-status-text').textContent='';
     });
 }
+function refreshSpending(){
+    fetch('/spending').then(function(r){return r.json();}).then(function(d){
+        var el=document.getElementById('sp-cost');
+        if(!el)return;
+        el.textContent='$'+d.total_cost_usd.toFixed(4);
+        document.getElementById('sp-bal').textContent='$'+d.balance_usd.toFixed(4);
+        document.getElementById('sp-bar').style.width=Math.min(d.total_cost_usd/5.0*100,100).toFixed(1)+'%';
+        document.getElementById('sp-count').textContent=d.total_analyses;
+        var tok=d.total_tokens_input+d.total_tokens_output;
+        document.getElementById('sp-tokens').textContent=tok.toLocaleString('it-IT');
+    });
+}
 function deleteAnalysis(id){
     if(!confirm('Sei sicuro di voler eliminare questa analisi? Verra\' rimossa anche ogni cover letter associata.'))return;
     fetch('/analysis/'+id,{method:'DELETE',headers:{'Accept':'application/json'}})
     .then(function(r){return r.json();}).then(function(data){
-        if(data.ok) window.location.href='/';
+        if(data.ok){
+            var histItem=document.querySelector('[data-hist-id="'+id+'"]');
+            if(histItem) histItem.remove();
+            var actionsEl=document.getElementById('actions-'+id);
+            if(actionsEl){
+                var resCard=actionsEl.closest('.res');
+                if(resCard) resCard.remove();
+            }
+            var clSelect=document.querySelector('select[name="analysis_id"]');
+            if(clSelect){
+                var opt=clSelect.querySelector('option[value="'+id+'"]');
+                if(opt) opt.remove();
+                if(clSelect.options.length===0){
+                    var clCard=clSelect.closest('.card');
+                    if(clCard) clCard.remove();
+                }
+            }
+            updateHistTabs();
+            refreshSpending();
+        }
     });
 }

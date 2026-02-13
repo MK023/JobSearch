@@ -121,18 +121,25 @@ def _run_batch(batch_id: str):
 
 
 def _get_spending(db: Session) -> dict:
-    row = db.query(
+    a_row = db.query(
         func.coalesce(func.sum(JobAnalysis.cost_usd), 0.0),
         func.coalesce(func.sum(JobAnalysis.tokens_input), 0),
         func.coalesce(func.sum(JobAnalysis.tokens_output), 0),
         func.count(JobAnalysis.id),
     ).first()
-    total = float(row[0])
+    cl_row = db.query(
+        func.coalesce(func.sum(CoverLetter.cost_usd), 0.0),
+        func.coalesce(func.sum(CoverLetter.tokens_input), 0),
+        func.coalesce(func.sum(CoverLetter.tokens_output), 0),
+    ).first()
+    total = float(a_row[0]) + float(cl_row[0])
+    tok_in = int(a_row[1]) + int(cl_row[1])
+    tok_out = int(a_row[2]) + int(cl_row[2])
     return {
         "total_cost_usd": round(total, 4),
-        "total_tokens_input": int(row[1]),
-        "total_tokens_output": int(row[2]),
-        "total_analyses": int(row[3]),
+        "total_tokens_input": tok_in,
+        "total_tokens_output": tok_out,
+        "total_analyses": int(a_row[3]),
         "balance_usd": round(settings.credit_budget_usd - total, 4),
     }
 
@@ -504,3 +511,8 @@ def batch_clear():
     for bid in to_remove:
         del batch_queue[bid]
     return JSONResponse({"ok": True})
+
+
+@app.get("/spending")
+def spending_api(db: Session = Depends(get_db)):
+    return JSONResponse(_get_spending(db))

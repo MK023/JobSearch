@@ -11,12 +11,12 @@
     <div class="top">
         <h1>🎯 Job Search Command Center</h1>
         {% if spending %}
-        <div class="spend">
-            <span>💰 Speso: <b>${{ '%.4f' % spending.total_cost_usd }}</b></span>
-            <span>💳 Saldo: <b class="bal">${{ '%.4f' % spending.balance_usd }}</b></span>
-            <div class="bar-bg"><div class="bar-fg" style="width:{{ [(spending.total_cost_usd / 5.0 * 100)|round(1), 100]|min }}%"></div></div>
-            <span>📊 Analisi: <b>{{ spending.total_analyses }}</b></span>
-            <span>🔤 Token: <b>{{ '{:,}'.format(spending.total_tokens_input + spending.total_tokens_output) }}</b></span>
+        <div class="spend" id="spend-bar">
+            <span>💰 Speso: <b id="sp-cost">${{ '%.4f' % spending.total_cost_usd }}</b></span>
+            <span>💳 Saldo: <b class="bal" id="sp-bal">${{ '%.4f' % spending.balance_usd }}</b></span>
+            <div class="bar-bg"><div class="bar-fg" id="sp-bar" style="width:{{ [(spending.total_cost_usd / 5.0 * 100)|round(1), 100]|min }}%"></div></div>
+            <span>📊 Analisi: <b id="sp-count">{{ spending.total_analyses }}</b></span>
+            <span>🔤 Token: <b id="sp-tokens">{{ '{:,}'.format(spending.total_tokens_input + spending.total_tokens_output) }}</b></span>
         </div>
         {% endif %}
     </div>
@@ -60,16 +60,16 @@
 
     <!-- ========== COVER LETTER ========== -->
     {% if analyses %}
-    <div class="card" style="margin-bottom:20px">
+    <div class="card card-mb">
         <h2>✉️ Cover Letter</h2>
         <form method="post" action="/cover-letter" id="clf">
-            <select name="analysis_id" style="width:100%;background:#0f172a;border:1px solid #475569;border-radius:6px;padding:8px 10px;color:#e2e8f0;font-size:.85rem;margin-bottom:8px">
+            <select name="analysis_id" class="select select-full">
                 {% for a in analyses %}
                 <option value="{{ a.id }}">{{ a.role or 'Ruolo' }} @ {{ a.company or 'Azienda' }} ({{ a.score }}/100)</option>
                 {% endfor %}
             </select>
             <div class="btns">
-                <select name="language" style="background:#0f172a;border:1px solid #475569;border-radius:6px;padding:6px 10px;color:#e2e8f0;font-size:.82rem">
+                <select name="language" class="select select-inline">
                     <option value="italiano">🇮🇹 Italiano</option>
                     <option value="english">🇬🇧 English</option>
                     <option value="francais">🇫🇷 Français</option>
@@ -88,36 +88,36 @@
     {% endif %}
 
     {% if cover_letter_result %}
-    <div class="card" style="margin-bottom:20px">
+    <div class="card card-mb">
         <h2>✉️ Cover Letter generata</h2>
-        <div style="margin-bottom:12px">
-            <div class="advice-title" style="color:#059669">📝 Lettera</div>
-            <div id="cl-text" style="background:#0f172a;padding:14px;border-radius:8px;border:1px solid #334155;color:#cbd5e1;font-size:.85rem;line-height:1.7;white-space:pre-line;margin-bottom:8px">{{ cover_letter_result.cover_letter }}</div>
+        <div>
+            <div class="advice-title advice-title-green">📝 Lettera</div>
+            <div id="cl-text" class="cl-text">{{ cover_letter_result.cover_letter }}</div>
             <button class="btn btn-muted btn-s" onclick="navigator.clipboard.writeText(document.getElementById('cl-text').textContent)">📋 Copia lettera</button>
         </div>
         {% if cover_letter_result.subject_lines %}
         <div>
-            <div class="advice-title" style="color:#f59e0b">📧 Subject line suggerite</div>
+            <div class="advice-title advice-title-amber">📧 Subject line suggerite</div>
             {% for sl in cover_letter_result.subject_lines %}
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-                <span style="background:#0f172a;padding:6px 12px;border-radius:6px;border:1px solid #334155;color:#e2e8f0;font-size:.82rem;flex:1" id="sl-{{ loop.index }}">{{ sl }}</span>
+            <div class="sl-row">
+                <span class="sl-text" id="sl-{{ loop.index }}">{{ sl }}</span>
                 <button class="btn btn-muted btn-s" onclick="navigator.clipboard.writeText(document.getElementById('sl-{{ loop.index }}').textContent)">📋 Copia</button>
             </div>
             {% endfor %}
         </div>
         {% endif %}
-        <div style="margin-top:8px;font-size:.72rem;color:#475569">
+        <div class="meta-small">
             💰 Costo: ${{ '%.5f' % cover_letter_result.cost_usd }} | 🔤 {{ cover_letter_result.tokens.total }} token
         </div>
     </div>
     {% endif %}
 
     <!-- ========== BATCH ANALYSIS ========== -->
-    <div class="card" style="margin-bottom:20px">
+    <div class="card card-mb">
         <h2>📦 Analisi multipla</h2>
         <div id="batch-form">
-            <input type="url" id="batch-url" placeholder="🔗 Link annuncio (opzionale)" style="width:100%;background:#0f172a;border:1px solid #475569;border-radius:6px;padding:8px 10px;color:#e2e8f0;font-size:.85rem;margin-bottom:8px">
-            <textarea id="batch-jd" placeholder="📝 Incolla la descrizione del lavoro..." style="width:100%;min-height:80px;background:#0f172a;border:1px solid #475569;border-radius:6px;padding:10px;color:#e2e8f0;font-size:.85rem;resize:vertical;margin-bottom:8px"></textarea>
+            <input type="url" id="batch-url" placeholder="🔗 Link annuncio (opzionale)">
+            <textarea id="batch-jd" placeholder="📝 Incolla la descrizione del lavoro..." class="batch-textarea"></textarea>
             <div class="btns">
                 <button class="btn btn-a btn-s" onclick="batchAdd()">➕ Aggiungi alla coda</button>
                 <div class="toggle">
@@ -126,11 +126,11 @@
                 </div>
             </div>
         </div>
-        <div id="batch-queue" style="margin-top:12px"></div>
-        <div id="batch-actions" style="display:none;margin-top:10px" class="btns">
+        <div id="batch-queue"></div>
+        <div id="batch-actions" style="display:none" class="btns">
             <button class="btn btn-g" onclick="batchRun()">🚀 Analizza tutti</button>
             <button class="btn btn-r btn-s" onclick="batchClear()">🗑️ Svuota coda</button>
-            <span id="batch-status-text" style="font-size:.82rem;color:#94a3b8"></span>
+            <span id="batch-status-text" class="batch-status"></span>
         </div>
     </div>
 
@@ -166,12 +166,12 @@
             </div>
             <div class="hero-meta">
                 <span class="pill">💲{{ '%.5f' % result.cost_usd }}</span><br>
-                <span style="font-size:.68rem">{{ result.tokens.total }} tok{% if result.from_cache %} · ⚡ cache{% endif %}</span>
+                <span class="meta-small">{{ result.tokens.total }} tok{% if result.from_cache %} · ⚡ cache{% endif %}</span>
             </div>
         </div>
 
         {% if result.company_reputation and (result.company_reputation.known_pros or result.company_reputation.known_cons) %}
-        <details style="margin-bottom:16px" open>
+        <details open>
             <summary>🏢 Reputazione aziendale
                 {% set gr_str = result.company_reputation.glassdoor_estimate|default('non disponibile') %}
                 {% if gr_str != 'non disponibile' %}
@@ -237,7 +237,7 @@
             <div class="gap-section">
                 <div class="str-header">
                     <div class="sec-title">🌱 Aree di crescita</div>
-                    <span class="str-count" style="background:#475569">{{ result.gaps|length }}</span>
+                    <span class="str-count str-count-muted">{{ result.gaps|length }}</span>
                 </div>
                 {% for g in result.gaps %}
                     {% if g is mapping %}
@@ -271,7 +271,7 @@
 
         <!-- 6. COLLOQUIO (collassabile) -->
         {% if result.interview_scripts %}
-        <details style="margin-top:16px">
+        <details>
             <summary>🎤 Preparazione colloquio ({{ result.interview_scripts|length }} domande)</summary>
             {% for s in result.interview_scripts %}
             <div class="script">
@@ -309,20 +309,20 @@
             <div class="tab" data-tab="applicato" onclick="switchTab(this)">Applicato <span class="tab-badge" id="badge-applicato">0</span></div>
             <div class="tab" data-tab="skippato" onclick="switchTab(this)">Skippato <span class="tab-badge" id="badge-skippato">0</span></div>
         </div>
-        <div class="card" style="padding:0;overflow:hidden" id="hist-list">
+        <div class="card hist-card" id="hist-list">
             {% for a in analyses %}
             <div class="hi" data-hist-id="{{ a.id }}" data-hist-status="{{ a.status or 'da_valutare' }}">
-                <a href="/analysis/{{ a.id }}" style="text-decoration:none;color:inherit;display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+                <a href="/analysis/{{ a.id }}" class="hi-link">
                     <div class="hi-score score-{{ a.recommendation|lower }}">{{ a.score }}</div>
                     <div class="hi-info">
                         <div class="hi-role">{{ a.role or 'Ruolo sconosciuto' }}</div>
                         <div class="hi-co">{{ a.company or 'Azienda sconosciuta' }}{% if a.work_mode %} · {{ a.work_mode }}{% endif %}{% if a.salary_info %} · {{ a.salary_info }}{% endif %}</div>
                     </div>
                     <span class="st st-{{ a.status or 'da_valutare' }}">{% if a.status == 'candidato' %}📨{% elif a.status == 'colloquio' %}🗣️{% elif a.status == 'scartato' %}❌{% else %}🔍{% endif %} {{ (a.status or 'da valutare')|replace('_',' ') }}</span>
-                    <span class="rec rec-{{ a.recommendation }}" style="font-size:.72rem;padding:3px 9px">{{ a.recommendation }}</span>
+                    <span class="rec rec-{{ a.recommendation }} rec-sm">{{ a.recommendation }}</span>
                     <span class="hi-date">${{ '%.4f' % (a.cost_usd or 0) }}<br>{{ a.created_at.strftime('%d/%m %H:%M') if a.created_at else '' }}</span>
                 </a>
-                <button class="btn btn-r btn-s" onclick="deleteAnalysis('{{ a.id }}')" title="Elimina" style="flex-shrink:0">🗑️</button>
+                <button class="btn btn-r btn-s" onclick="deleteAnalysis('{{ a.id }}')" title="Elimina">🗑️</button>
             </div>
             {% endfor %}
         </div>
