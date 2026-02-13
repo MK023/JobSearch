@@ -6,6 +6,7 @@ from pathlib import Path
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -31,6 +32,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Job Search Command Center", lifespan=lifespan)
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
+app.mount("/static", StaticFiles(directory=str(Path(__file__).parent.parent / "static")), name="static")
 
 
 # Batch analysis state (in-memory)
