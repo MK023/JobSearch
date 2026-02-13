@@ -236,6 +236,14 @@
                     {% if result.potential_score %}<span class="ht ht-pot">📈 Potenziale: {{ result.potential_score }}/100</span>{% endif %}
                     {% if result.gap_timeline %}<span class="ht ht-time">⏱️ {{ result.gap_timeline }}</span>{% endif %}
                     {% if result.confidence %}<span class="ht ht-conf">🎯 {{ result.confidence }}{% if result.confidence_reason %}: {{ result.confidence_reason }}{% endif %}</span>{% endif %}
+                    {% if result.company_reputation and result.company_reputation.glassdoor_estimate and result.company_reputation.glassdoor_estimate != 'non disponibile' %}
+                    {% set gr = result.company_reputation.glassdoor_estimate|replace('/5','')|float %}
+                    <span class="ht {% if gr >= 4.0 %}ht-sal{% elif gr >= 3.0 %}ht-time{% else %}tag-r{% endif %}" title="{{ result.company_reputation.known_pros|join(', ') }} | {{ result.company_reputation.known_cons|join(', ') }}{% if result.company_reputation.note %} - {{ result.company_reputation.note }}{% endif %}">
+                        ⭐ Glassdoor ~{{ result.company_reputation.glassdoor_estimate }}
+                    </span>
+                    {% elif result.company_reputation %}
+                    <span class="ht ht-conf" title="{{ result.company_reputation.note|default('') }}">⭐ Glassdoor: n/d</span>
+                    {% endif %}
                 </div>
             </div>
             <div class="hero-meta">
@@ -243,6 +251,25 @@
                 <span style="font-size:.68rem">{{ result.tokens.total }} tok{% if result.from_cache %} · ⚡ cache{% endif %}</span>
             </div>
         </div>
+
+        {% if result.company_reputation and (result.company_reputation.known_pros or result.company_reputation.known_cons) %}
+        <details style="margin-bottom:16px">
+            <summary>🏢 Reputazione aziendale {% if result.company_reputation.glassdoor_estimate and result.company_reputation.glassdoor_estimate != 'non disponibile' %}(~{{ result.company_reputation.glassdoor_estimate }}){% endif %}</summary>
+            <div style="padding:12px;background:#0f172a;border-radius:8px;border:1px solid #334155">
+                {% if result.company_reputation.known_pros %}
+                <div style="margin-bottom:8px"><span style="color:#34d399;font-weight:600">Pro:</span>
+                {% for p in result.company_reputation.known_pros %}<span class="ht ht-sal" style="margin:2px">{{ p }}</span>{% endfor %}
+                </div>{% endif %}
+                {% if result.company_reputation.known_cons %}
+                <div><span style="color:#f87171;font-weight:600">Contro:</span>
+                {% for c in result.company_reputation.known_cons %}<span class="ht" style="background:#450a0a;color:#fca5a5;margin:2px">{{ c }}</span>{% endfor %}
+                </div>{% endif %}
+                {% if result.company_reputation.note %}
+                <div style="margin-top:8px;font-size:.72rem;color:#475569">⚠️ {{ result.company_reputation.note }}</div>
+                {% endif %}
+            </div>
+        </details>
+        {% endif %}
 
         <!-- 2. VERDETTO AI -->
         {% if result.summary %}

@@ -52,6 +52,7 @@ class JobAnalysis(Base):
     gaps = Column(Text, default="")
     interview_scripts = Column(Text, default="")
     advice = Column(Text, default="")
+    company_reputation = Column(Text, default="")  # JSON: glassdoor_estimate, pros, cons
     full_response = Column(Text, default="")
     model_used = Column(String(50), default="")
     tokens_input = Column(Integer, default=0)

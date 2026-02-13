@@ -124,6 +124,7 @@ def run_analysis(
         gaps=json.dumps(result.get("gaps", []), ensure_ascii=False),
         interview_scripts=json.dumps(result.get("interview_scripts", []), ensure_ascii=False),
         advice=result.get("advice", ""),
+        company_reputation=json.dumps(result.get("company_reputation", {}), ensure_ascii=False),
         full_response=result.get("full_response", ""),
         model_used=result.get("model_used", ""),
         tokens_input=result.get("tokens", {}).get("input", 0),
@@ -160,6 +161,7 @@ def view_analysis(request: Request, analysis_id: str, db: Session = Depends(get_
         "gaps": json.loads(analysis.gaps) if analysis.gaps else [],
         "interview_scripts": json.loads(analysis.interview_scripts) if analysis.interview_scripts else [],
         "advice": analysis.advice or "",
+        "company_reputation": json.loads(analysis.company_reputation) if analysis.company_reputation else {},
         "summary": "",
         "model_used": analysis.model_used,
         "tokens": {

@@ -33,7 +33,13 @@ Devi rispondere SOLO con JSON valido con questa struttura esatta:
     }
   ],
   "summary": "valutazione complessiva in 2-3 frasi",
-  "advice": "Consiglio personalizzato dettagliato (4-8 frasi). Parla direttamente al candidato dandogli del tu. Spiega il PERCHE' del tuo punteggio basandoti sulle sue esperienze specifiche. Se e' APPLY: spiega perche' e' un buon match e su cosa puntare nel colloquio. Se e' CONSIDER: spiega cosa potrebbe fare nelle prossime 1-2 settimane per colmare le lacune e candidarsi con piu' sicurezza, e se vale la pena candidarsi comunque. Se e' SKIP: spiega onestamente perche' non vale la pena e suggerisci che tipo di ruoli sarebbero piu' in linea col suo profilo. Cita sempre esperienze, progetti o competenze specifiche dal suo CV. IMPORTANTE: ricorda che il fattore umano conta - se il candidato ha soft skills forti, capacita' di apprendimento dimostrata, o esperienze trasferibili, valorizzale."
+  "advice": "Consiglio personalizzato dettagliato (4-8 frasi). Parla direttamente al candidato dandogli del tu. Spiega il PERCHE' del tuo punteggio basandoti sulle sue esperienze specifiche. Se e' APPLY: spiega perche' e' un buon match e su cosa puntare nel colloquio. Se e' CONSIDER: spiega cosa potrebbe fare nelle prossime 1-2 settimane per colmare le lacune e candidarsi con piu' sicurezza, e se vale la pena candidarsi comunque. Se e' SKIP: spiega onestamente perche' non vale la pena e suggerisci che tipo di ruoli sarebbero piu' in linea col suo profilo. Cita sempre esperienze, progetti o competenze specifiche dal suo CV. IMPORTANTE: ricorda che il fattore umano conta - se il candidato ha soft skills forti, capacita' di apprendimento dimostrata, o esperienze trasferibili, valorizzale.",
+  "company_reputation": {
+    "glassdoor_estimate": "<rating stimato su 5, es: '3.8/5' oppure 'non disponibile' se non conosci l'azienda>",
+    "known_pros": ["aspetto positivo 1", "aspetto positivo 2"],
+    "known_cons": ["aspetto negativo 1", "aspetto negativo 2"],
+    "note": "breve nota sulla fonte/affidabilita' della stima"
+  }
 }
 
 Regole di punteggio:
@@ -58,7 +64,13 @@ Per interview_scripts, genera 3-5 domande focalizzate su:
 3. Domande comportamentali probabili per questo ruolo
 
 Le risposte suggerite devono essere concrete, con esempi specifici dal CV del candidato.
-Sii diretto, specifico e pratico. Niente frasi generiche. Parla come un mentore che conosce bene il candidato."""
+Sii diretto, specifico e pratico. Niente frasi generiche. Parla come un mentore che conosce bene il candidato.
+
+Per company_reputation:
+- Stima il rating Glassdoor basandoti sulle tue conoscenze dell'azienda
+- Se non conosci l'azienda, usa "non disponibile" come glassdoor_estimate e liste vuote per pro/cons
+- Sii onesto: se non sei sicuro, dillo nella nota
+- Pro e cons devono essere specifici dell'azienda, non generici"""
 
 ANALYSIS_USER_PROMPT = """## CV DEL CANDIDATO
 {cv_text}
