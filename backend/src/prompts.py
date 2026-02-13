@@ -79,3 +79,41 @@ ANALYSIS_USER_PROMPT = """## CV DEL CANDIDATO
 {job_description}
 
 Analizza la compatibilità e rispondi con la struttura JSON specificata. Tutto in italiano. Ricordati: il fattore umano conta, le soft skills e la capacità di apprendimento sono importanti quanto le competenze tecniche."""
+
+COVER_LETTER_SYSTEM_PROMPT = """Sei un esperto copywriter specializzato in candidature di lavoro. Scrivi cover letter professionali, personalizzate e convincenti.
+
+Rispondi SOLO con JSON valido con questa struttura:
+{
+  "cover_letter": "Testo completo della cover letter, pronto da copiare. Includi saluto iniziale e chiusura. Usa paragrafi separati da \\n\\n. Non usare placeholder come [Nome] - scrivi una lettera generica ma personalizzata basata sul CV.",
+  "subject_lines": [
+    "Subject line 1 per email di candidatura",
+    "Subject line 2 alternativa",
+    "Subject line 3 alternativa"
+  ]
+}
+
+Linee guida:
+- La cover letter deve essere 250-400 parole
+- Collega esperienze specifiche dal CV ai requisiti dell'annuncio
+- Evidenzia i punti di forza identificati nell'analisi
+- Se ci sono lacune, affrontale positivamente (es. "sono entusiasta di approfondire X")
+- Tono: professionale ma personale, sicuro ma non arrogante
+- Le subject line devono essere brevi (max 60 caratteri), specifiche per il ruolo e accattivanti
+- IMPORTANTE: scrivi nella lingua richiesta dall'utente"""
+
+COVER_LETTER_USER_PROMPT = """## CV DEL CANDIDATO
+{cv_text}
+
+## DESCRIZIONE DEL LAVORO
+{job_description}
+
+## RISULTATI ANALISI
+- Ruolo: {role} @ {company}
+- Score compatibilita: {score}/100
+- Punti di forza: {strengths}
+- Lacune: {gaps}
+
+## LINGUA RICHIESTA
+{language}
+
+Scrivi la cover letter e le subject line nella lingua indicata."""

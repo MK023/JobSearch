@@ -68,6 +68,21 @@ class JobAnalysis(Base):
     )
 
 
+class CoverLetter(Base):
+    __tablename__ = "cover_letters"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    analysis_id = Column(UUID(as_uuid=True), nullable=False)
+    language = Column(String(20), default="italiano")
+    content = Column(Text, default="")
+    subject_lines = Column(Text, default="")  # JSON list
+    model_used = Column(String(50), default="")
+    tokens_input = Column(Integer, default=0)
+    tokens_output = Column(Integer, default=0)
+    cost_usd = Column(Float, default=0.0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 def init_db():
     Base.metadata.create_all(bind=engine)
 

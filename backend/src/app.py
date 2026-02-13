@@ -9,8 +9,8 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .config import settings
-from .database import init_db, get_db, CVProfile, JobAnalysis
-from .ai_client import analyze_job
+from .database import init_db, get_db, CVProfile, JobAnalysis, CoverLetter
+from .ai_client import analyze_job, generate_cover_letter
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -200,3 +200,68 @@ def update_status(
     if "application/json" in request.headers.get("accept", ""):
         return JSONResponse({"ok": True, "status": new_status})
     return RedirectResponse(url="/", status_code=303)
+
+
+@app.post("/cover-letter", response_class=HTMLResponse)
+def create_cover_letter(
+    request: Request,
+    analysis_id: str = Form(...),
+    language: str = Form("italiano"),
+    model: str = Form("haiku"),
+    db: Session = Depends(get_db),
+):
+    analysis = db.query(JobAnalysis).filter(JobAnalysis.id == analysis_id).first()
+    if not analysis:
+        return templates.TemplateResponse(
+            "index.html",
+            _base_context(request, db, error="Analisi non trovata"),
+        )
+
+    cv = db.query(CVProfile).filter(CVProfile.id == analysis.cv_id).first()
+    if not cv:
+        return templates.TemplateResponse(
+            "index.html",
+            _base_context(request, db, error="CV non trovato"),
+        )
+
+    analysis_data = {
+        "role": analysis.role,
+        "company": analysis.company,
+        "score": analysis.score,
+        "strengths": json.loads(analysis.strengths) if analysis.strengths else [],
+        "gaps": json.loads(analysis.gaps) if analysis.gaps else [],
+    }
+
+    try:
+        result = generate_cover_letter(
+            cv.raw_text, analysis.job_description, analysis_data, language, model
+        )
+    except Exception as e:
+        logger.error(f"Cover letter fallita: {e}")
+        return templates.TemplateResponse(
+            "index.html",
+            _base_context(request, db, error=f"Generazione cover letter fallita: {e}"),
+        )
+
+    cl = CoverLetter(
+        analysis_id=analysis.id,
+        language=language,
+        content=result.get("cover_letter", ""),
+        subject_lines=json.dumps(result.get("subject_lines", []), ensure_ascii=False),
+        model_used=result.get("model_used", ""),
+        tokens_input=result.get("tokens", {}).get("input", 0),
+        tokens_output=result.get("tokens", {}).get("output", 0),
+        cost_usd=result.get("cost_usd", 0.0),
+    )
+    db.add(cl)
+    db.commit()
+
+    return templates.TemplateResponse(
+        "index.html",
+        _base_context(
+            request, db,
+            cover_letter=cl,
+            cover_letter_result=result,
+            message=f"Cover letter generata! ({language})",
+        ),
+    )
