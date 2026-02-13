@@ -47,6 +47,35 @@ document.addEventListener('DOMContentLoaded',function(){if(document.getElementBy
 var clf=document.getElementById('clf');
 if(clf){clf.addEventListener('submit',function(){document.getElementById('cld').classList.add('on');});}
 
+/* === Budget crediti (localStorage) === */
+var budgetEl=document.getElementById('sp-budget');
+if(budgetEl){
+    var saved=localStorage.getItem('anthropic_budget');
+    if(saved) budgetEl.textContent=saved;
+    updateRemain();
+    budgetEl.addEventListener('blur',saveBudget);
+    budgetEl.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();budgetEl.blur();}});
+}
+function saveBudget(){
+    var raw=budgetEl.textContent.replace(/[^0-9.,]/g,'').replace(',','.');
+    var val=parseFloat(raw);
+    if(isNaN(val)||val<0) val=0;
+    budgetEl.textContent=val.toFixed(2);
+    localStorage.setItem('anthropic_budget',val.toFixed(2));
+    updateRemain();
+}
+function updateRemain(){
+    var remainEl=document.getElementById('sp-remain');
+    if(!remainEl) return;
+    var budget=parseFloat(localStorage.getItem('anthropic_budget')||'0');
+    var costText=(document.getElementById('sp-cost').textContent||'0').replace('$','');
+    var spent=parseFloat(costText)||0;
+    if(budget<=0){remainEl.textContent='-';return;}
+    var remain=budget-spent;
+    remainEl.textContent='$'+remain.toFixed(4);
+    remainEl.style.color=remain<1?'#f87171':remain<3?'#fbbf24':'#34d399';
+}
+
 var batchItems=[];
 function batchAdd(){
     var jd=document.getElementById('batch-jd').value.trim();
@@ -132,6 +161,7 @@ function refreshSpending(){
         document.getElementById('sp-count').textContent=d.total_analyses;
         var tok=d.total_tokens_input+d.total_tokens_output;
         document.getElementById('sp-tokens').textContent=tok.toLocaleString('it-IT');
+        updateRemain();
     });
 }
 function deleteAnalysis(id){

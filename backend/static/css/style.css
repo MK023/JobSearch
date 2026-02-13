@@ -10,6 +10,9 @@ a{color:#818cf8;text-decoration:none}a:hover{text-decoration:underline}
 .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px}
 .spend{display:flex;gap:16px;font-size:.78rem;flex-wrap:wrap;align-items:center}
 .spend span{color:#64748b}.spend b{color:#e2e8f0}
+.spend .bal{color:#34d399}
+#sp-budget{cursor:pointer;border-bottom:1px dashed #475569;padding:0 2px;min-width:40px;outline:none}
+#sp-budget:focus{border-bottom-color:#6366f1;color:#f8fafc}
 
 /* Layout */
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;align-items:start}
