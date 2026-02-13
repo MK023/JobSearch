@@ -155,7 +155,7 @@
                     {% if result.gap_timeline %}<span class="ht ht-time">⏱️ {{ result.gap_timeline }}</span>{% endif %}
                     {% if result.confidence %}<span class="ht ht-conf">🎯 {{ result.confidence }}{% if result.confidence_reason %}: {{ result.confidence_reason }}{% endif %}</span>{% endif %}
                     {% if result.company_reputation and result.company_reputation.glassdoor_estimate and result.company_reputation.glassdoor_estimate != 'non disponibile' %}
-                    {% set gr = result.company_reputation.glassdoor_estimate|replace('/5','')|float %}
+                    {% set gr = result.company_reputation.glassdoor_estimate|replace('/5','')|float(0) %}
                     <span class="ht {% if gr >= 4.0 %}ht-sal{% elif gr >= 3.0 %}ht-time{% else %}tag-r{% endif %}" title="{{ result.company_reputation.known_pros|join(', ') }} | {{ result.company_reputation.known_cons|join(', ') }}{% if result.company_reputation.note %} - {{ result.company_reputation.note }}{% endif %}">
                         ⭐ Glassdoor ~{{ result.company_reputation.glassdoor_estimate }}
                     </span>
@@ -175,7 +175,7 @@
             <summary>🏢 Reputazione aziendale
                 {% set gr_str = result.company_reputation.glassdoor_estimate|default('non disponibile') %}
                 {% if gr_str != 'non disponibile' %}
-                {% set gr = gr_str|replace('/5','')|float %}
+                {% set gr = gr_str|replace('/5','')|float(0) %}
                 <span class="rep-rating {% if gr >= 4.0 %}rep-rating-good{% elif gr >= 3.0 %}rep-rating-mid{% else %}rep-rating-low{% endif %}">
                     ⭐ {{ gr_str }}
                 </span>

@@ -11,7 +11,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from .ai_client import _content_hash, analyze_job, generate_cover_letter
+from .ai_client import MODELS, _content_hash, analyze_job, generate_cover_letter
 from .config import settings, setup_logging
 from .database import CoverLetter, CVProfile, JobAnalysis, SessionLocal, get_db, init_db
 
@@ -62,6 +62,20 @@ def _run_batch(batch_id: str):
             logger.info("Batch %s [%d/%d]: analisi in corso", batch_id[:8], idx, total)
             try:
                 batch_content_hash = _content_hash(cv.raw_text, item["job_description"])
+                batch_model_id = MODELS.get(item.get("model", "haiku"), MODELS["haiku"])
+                existing = (
+                    db.query(JobAnalysis)
+                    .filter(
+                        JobAnalysis.content_hash == batch_content_hash,
+                        JobAnalysis.model_used == batch_model_id,
+                    )
+                    .first()
+                )
+                if existing:
+                    item["status"] = "done"
+                    item["result_preview"] = f"{existing.role} @ {existing.company} -- {existing.score}/100 (duplicato)"
+                    logger.info("Batch %s [%d/%d]: duplicato trovato, skip API", batch_id[:8], idx, total)
+                    continue
                 result = analyze_job(cv.raw_text, item["job_description"], item.get("model", "haiku"))
                 analysis = JobAnalysis(
                     cv_id=cv.id,
@@ -182,9 +196,13 @@ def run_analysis(
     # Compute hash and check for existing identical analysis in DB
     content_hash = _content_hash(cv.raw_text, job_description)
 
+    model_id = MODELS.get(model, MODELS["haiku"])
     existing = (
         db.query(JobAnalysis)
-        .filter(JobAnalysis.content_hash == content_hash)
+        .filter(
+            JobAnalysis.content_hash == content_hash,
+            JobAnalysis.model_used == model_id,
+        )
         .order_by(JobAnalysis.created_at.desc())
         .first()
     )
