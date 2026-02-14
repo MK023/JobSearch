@@ -15,6 +15,32 @@ function setStatus(btn){
             var histItem=document.querySelector('[data-hist-id="'+id+'"]');
             if(histItem) histItem.dataset.histStatus=status;
             updateHistTabs();
+            refreshSpending();
+            /* Cover letter: scartato = rimuovi dal dropdown, altri stati = ripristina */
+            var clSelect=document.getElementById('cl-select');
+            if(clSelect){
+                var opt=clSelect.querySelector('option[value="'+id+'"]');
+                if(status==='scartato'){
+                    if(opt) opt.remove();
+                    if(clSelect.options.length===0){
+                        var clCard=document.getElementById('cl-card');
+                        if(clCard) clCard.style.display='none';
+                    }
+                } else if(!opt && histItem){
+                    var role=histItem.querySelector('.hi-role');
+                    var co=histItem.querySelector('.hi-co');
+                    var score=histItem.querySelector('.hi-score');
+                    var label=(role?role.textContent:'Ruolo')+' @ '+(co?co.textContent.split(' · ')[0]:'Azienda')+' ('+(score?score.textContent:'?')+'/100)';
+                    var newOpt=document.createElement('option');
+                    newOpt.value=id;newOpt.textContent=label;
+                    clSelect.appendChild(newOpt);
+                    var clCard=document.getElementById('cl-card');
+                    if(clCard) clCard.style.display='';
+                }
+            }
+            /* Pulisci la pagina: rimuovi il risultato aperto */
+            var resCard=btn.closest('.res');
+            if(resCard) resCard.remove();
         }
     });
 }
@@ -162,9 +188,6 @@ function refreshSpending(){
         var el=document.getElementById('sp-cost');
         if(!el)return;
         el.textContent='$'+d.total_cost_usd.toFixed(4);
-        document.getElementById('sp-count').textContent=d.total_analyses;
-        var tok=d.total_tokens_input+d.total_tokens_output;
-        document.getElementById('sp-tokens').textContent=tok.toLocaleString('it-IT');
         var budgetDisplay=document.getElementById('sp-budget');
         if(budgetDisplay && !budgetDisplay.matches(':focus')) budgetDisplay.textContent='$'+d.budget.toFixed(2);
         var remainEl=document.getElementById('sp-remain');
@@ -193,12 +216,12 @@ function deleteAnalysis(id){
                 var resCard=actionsEl.closest('.res');
                 if(resCard) resCard.remove();
             }
-            var clSelect=document.querySelector('select[name="analysis_id"]');
+            var clSelect=document.getElementById('cl-select');
             if(clSelect){
                 var opt=clSelect.querySelector('option[value="'+id+'"]');
                 if(opt) opt.remove();
                 if(clSelect.options.length===0){
-                    var clCard=clSelect.closest('.card');
+                    var clCard=document.getElementById('cl-card');
                     if(clCard) clCard.remove();
                 }
             }
@@ -207,3 +230,163 @@ function deleteAnalysis(id){
         }
     });
 }
+
+/* === Contatti recruiter === */
+function toggleContacts(id){
+    var el=document.getElementById('contacts-'+id);
+    if(!el)return;
+    if(el.style.display==='none'){
+        el.style.display='';
+        loadContacts(id);
+    } else {
+        el.style.display='none';
+    }
+}
+function loadContacts(id){
+    fetch('/contacts/'+id).then(function(r){return r.json();}).then(function(data){
+        var list=document.getElementById('contacts-list-'+id);
+        if(!list)return;
+        while(list.firstChild)list.removeChild(list.firstChild);
+        (data.contacts||[]).forEach(function(c){
+            var row=document.createElement('div');
+            row.className='contact-row';
+            var name=document.createElement('span');
+            name.className='name';
+            name.textContent=c.name||'Senza nome';
+            row.appendChild(name);
+            var detail=document.createElement('span');
+            detail.className='detail';
+            var parts=[];
+            if(c.email)parts.push(c.email);
+            if(c.phone)parts.push(c.phone);
+            if(c.notes)parts.push(c.notes);
+            detail.textContent=parts.join(' · ');
+            row.appendChild(detail);
+            if(c.linkedin_url){
+                var lnk=document.createElement('a');
+                lnk.href=c.linkedin_url;lnk.target='_blank';lnk.textContent='💼 LinkedIn';
+                lnk.style.cssText='color:#818cf8;font-size:.75rem;margin-left:6px';
+                row.appendChild(lnk);
+            }
+            var del=document.createElement('button');
+            del.className='btn btn-r btn-s';del.textContent='🗑️';
+            del.onclick=function(){deleteContact(String(c.id),id);};
+            row.appendChild(del);
+            list.appendChild(row);
+        });
+    });
+}
+function saveContact(analysisId){
+    var fd=new FormData();
+    fd.append('analysis_id',analysisId);
+    fd.append('name',document.getElementById('ct-name-'+analysisId).value);
+    fd.append('email',document.getElementById('ct-email-'+analysisId).value);
+    fd.append('phone',document.getElementById('ct-phone-'+analysisId).value);
+    fd.append('company',document.getElementById('ct-company-'+analysisId).value);
+    fd.append('linkedin_url',document.getElementById('ct-linkedin-'+analysisId).value);
+    fd.append('notes',document.getElementById('ct-notes-'+analysisId).value);
+    fetch('/contacts',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(data){
+        if(data.ok){
+            loadContacts(analysisId);
+            ['name','email','phone','linkedin','notes'].forEach(function(f){
+                var el=document.getElementById('ct-'+f+'-'+analysisId);
+                if(el && f!=='company')el.value='';
+            });
+        }
+    });
+}
+function deleteContact(contactId,analysisId){
+    fetch('/contacts/'+contactId,{method:'DELETE'}).then(function(r){return r.json();}).then(function(data){
+        if(data.ok)loadContacts(analysisId);
+    });
+}
+
+/* === Follow-up email + LinkedIn message === */
+function _makeGenBox(label,id){
+    var area=document.getElementById('gen-area-'+id);
+    if(!area){
+        var alertEl=document.getElementById('fu-'+id);
+        if(alertEl){
+            area=document.createElement('div');
+            area.id='gen-area-'+id;
+            alertEl.parentNode.insertBefore(area,alertEl.nextSibling);
+        } else return null;
+    }
+    while(area.firstChild)area.removeChild(area.firstChild);
+    var box=document.createElement('div');box.className='gen-box';
+    var lbl=document.createElement('div');lbl.className='gen-label';lbl.textContent=label;
+    box.appendChild(lbl);
+    area.appendChild(box);
+    return {area:area,box:box};
+}
+function _addGenText(parent,text,elId){
+    var d=document.createElement('div');d.className='gen-text';d.textContent=text;
+    if(elId)d.id=elId;
+    parent.appendChild(d);return d;
+}
+function _addCopyBtn(parent,targetId){
+    var btn=document.createElement('button');btn.className='btn btn-muted btn-s';btn.textContent='📋 Copia';
+    btn.onclick=function(){navigator.clipboard.writeText(document.getElementById(targetId).textContent);};
+    parent.appendChild(btn);
+}
+function _addMeta(parent,cost,tokens,extra){
+    var m=document.createElement('div');m.className='gen-meta';
+    m.textContent='💰 $'+(cost||0).toFixed(5)+' | '+(tokens||0)+' tok'+(extra?' · '+extra:'');
+    parent.appendChild(m);
+}
+function genFollowup(id){
+    var g=_makeGenBox('⏳ Generazione email follow-up...',id);
+    if(!g)return;
+    var fd=new FormData();fd.append('analysis_id',id);fd.append('language','italiano');
+    fetch('/followup-email',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(data){
+        while(g.box.firstChild)g.box.removeChild(g.box.firstChild);
+        if(data.error){
+            var lbl=document.createElement('div');lbl.className='gen-label';lbl.textContent='❌ Errore';g.box.appendChild(lbl);
+            _addGenText(g.box,data.error);return;
+        }
+        var lbl=document.createElement('div');lbl.className='gen-label';lbl.textContent='✉️ Email di follow-up';g.box.appendChild(lbl);
+        var subj=document.createElement('div');subj.className='gen-text';subj.style.fontWeight='600';subj.textContent='Oggetto: '+data.subject;g.box.appendChild(subj);
+        _addGenText(g.box,data.body,'fu-body-'+id);
+        _addCopyBtn(g.box,'fu-body-'+id);
+        _addMeta(g.box,data.cost_usd,(data.tokens||{}).total);
+        refreshSpending();
+    });
+}
+function genLinkedin(id){
+    var g=_makeGenBox('⏳ Generazione messaggio LinkedIn...',id);
+    if(!g)return;
+    var fd=new FormData();fd.append('analysis_id',id);fd.append('language','italiano');
+    fetch('/linkedin-message',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(data){
+        while(g.box.firstChild)g.box.removeChild(g.box.firstChild);
+        if(data.error){
+            var lbl=document.createElement('div');lbl.className='gen-label';lbl.textContent='❌ Errore';g.box.appendChild(lbl);
+            _addGenText(g.box,data.error);return;
+        }
+        var lbl=document.createElement('div');lbl.className='gen-label';lbl.textContent='💼 Messaggio LinkedIn';g.box.appendChild(lbl);
+        _addGenText(g.box,data.message,'li-msg-'+id);
+        _addCopyBtn(g.box,'li-msg-'+id);
+        if(data.connection_note){
+            var lbl2=document.createElement('div');lbl2.className='gen-label';lbl2.style.marginTop='8px';lbl2.textContent='🤝 Nota connessione';g.box.appendChild(lbl2);
+            _addGenText(g.box,data.connection_note,'li-conn-'+id);
+            _addCopyBtn(g.box,'li-conn-'+id);
+        }
+        if(data.approach_tip)_addMeta(g.box,0,0,data.approach_tip);
+        _addMeta(g.box,data.cost_usd,(data.tokens||{}).total);
+        refreshSpending();
+    });
+}
+function markFollowupDone(id){
+    fetch('/followup-done/'+id,{method:'POST'}).then(function(r){return r.json();}).then(function(data){
+        if(data.ok){
+            var el=document.getElementById('fu-'+id);
+            if(el)el.remove();
+        }
+    });
+}
+
+/* === Real-time: polling periodico + refresh su focus === */
+setInterval(refreshSpending,30000);
+document.addEventListener('visibilitychange',function(){
+    if(!document.hidden) refreshSpending();
+});
+window.addEventListener('focus',refreshSpending);

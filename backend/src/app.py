@@ -8,12 +8,11 @@ from fastapi import BackgroundTasks, Depends, FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from .ai_client import MODELS, _content_hash, analyze_job, generate_cover_letter
+from .ai_client import MODELS, _content_hash, analyze_job, generate_cover_letter, generate_followup_email, generate_linkedin_message
 from .config import settings, setup_logging
-from .database import AppSettings, CoverLetter, CVProfile, JobAnalysis, SessionLocal, get_db, init_db
+from .database import AppSettings, Contact, CoverLetter, CVProfile, JobAnalysis, SessionLocal, get_db, init_db
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -102,6 +101,7 @@ def _run_batch(batch_id: str):
                     cost_usd=result.get("cost_usd", 0.0),
                 )
                 db.add(analysis)
+                _spending_add(db, result.get("cost_usd", 0.0), result.get("tokens", {}).get("input", 0), result.get("tokens", {}).get("output", 0))
                 db.commit()
                 item["status"] = "done"
                 item["result_preview"] = (
@@ -130,70 +130,178 @@ def _get_or_create_settings(db: Session) -> AppSettings:
     return s
 
 
+def _check_today_reset(s: AppSettings):
+    """Reset contatori giornalieri se la data e' cambiata."""
+    from datetime import date
+    today = date.today().isoformat()
+    if (s.today_date or "") != today:
+        s.today_date = today
+        s.today_cost_usd = 0.0
+        s.today_tokens_input = 0
+        s.today_tokens_output = 0
+        s.today_analyses = 0
+
+
+def _spending_add(db: Session, cost: float, tokens_in: int, tokens_out: int, is_analysis: bool = True):
+    """Aggiorna i totali in app_settings dopo un insert."""
+    s = _get_or_create_settings(db)
+    _check_today_reset(s)
+    s.total_cost_usd = round((s.total_cost_usd or 0) + cost, 6)
+    s.total_tokens_input = (s.total_tokens_input or 0) + tokens_in
+    s.total_tokens_output = (s.total_tokens_output or 0) + tokens_out
+    s.today_cost_usd = round((s.today_cost_usd or 0) + cost, 6)
+    s.today_tokens_input = (s.today_tokens_input or 0) + tokens_in
+    s.today_tokens_output = (s.today_tokens_output or 0) + tokens_out
+    if is_analysis:
+        s.total_analyses = (s.total_analyses or 0) + 1
+        s.today_analyses = (s.today_analyses or 0) + 1
+    else:
+        s.total_cover_letters = (s.total_cover_letters or 0) + 1
+
+
+def _spending_remove(db: Session, cost: float, tokens_in: int, tokens_out: int, is_analysis: bool = True, created_today: bool = False):
+    """Aggiorna i totali in app_settings dopo un delete."""
+    s = _get_or_create_settings(db)
+    _check_today_reset(s)
+    s.total_cost_usd = round(max((s.total_cost_usd or 0) - cost, 0), 6)
+    s.total_tokens_input = max((s.total_tokens_input or 0) - tokens_in, 0)
+    s.total_tokens_output = max((s.total_tokens_output or 0) - tokens_out, 0)
+    if is_analysis:
+        s.total_analyses = max((s.total_analyses or 0) - 1, 0)
+    else:
+        s.total_cover_letters = max((s.total_cover_letters or 0) - 1, 0)
+    if created_today:
+        s.today_cost_usd = round(max((s.today_cost_usd or 0) - cost, 0), 6)
+        s.today_tokens_input = max((s.today_tokens_input or 0) - tokens_in, 0)
+        s.today_tokens_output = max((s.today_tokens_output or 0) - tokens_out, 0)
+        if is_analysis:
+            s.today_analyses = max((s.today_analyses or 0) - 1, 0)
+
+
 def _get_spending(db: Session) -> dict:
-    from datetime import date, datetime, time
-
-    settings_row = _get_or_create_settings(db)
-
-    # Totali
-    a_row = db.query(
-        func.coalesce(func.sum(JobAnalysis.cost_usd), 0.0),
-        func.coalesce(func.sum(JobAnalysis.tokens_input), 0),
-        func.coalesce(func.sum(JobAnalysis.tokens_output), 0),
-        func.count(JobAnalysis.id),
-    ).first()
-    cl_row = db.query(
-        func.coalesce(func.sum(CoverLetter.cost_usd), 0.0),
-        func.coalesce(func.sum(CoverLetter.tokens_input), 0),
-        func.coalesce(func.sum(CoverLetter.tokens_output), 0),
-    ).first()
-    total_cost = float(a_row[0]) + float(cl_row[0])
-    tok_in = int(a_row[1]) + int(cl_row[1])
-    tok_out = int(a_row[2]) + int(cl_row[2])
-
-    # Oggi
-    today_start = datetime.combine(date.today(), time.min)
-    a_today = db.query(
-        func.coalesce(func.sum(JobAnalysis.cost_usd), 0.0),
-        func.coalesce(func.sum(JobAnalysis.tokens_input), 0),
-        func.coalesce(func.sum(JobAnalysis.tokens_output), 0),
-        func.count(JobAnalysis.id),
-    ).filter(JobAnalysis.created_at >= today_start).first()
-    cl_today = db.query(
-        func.coalesce(func.sum(CoverLetter.cost_usd), 0.0),
-        func.coalesce(func.sum(CoverLetter.tokens_input), 0),
-        func.coalesce(func.sum(CoverLetter.tokens_output), 0),
-    ).filter(CoverLetter.created_at >= today_start).first()
-
-    today_cost = float(a_today[0]) + float(cl_today[0])
-    today_tok_in = int(a_today[1]) + int(cl_today[1])
-    today_tok_out = int(a_today[2]) + int(cl_today[2])
-
-    budget = float(settings_row.anthropic_budget or 0)
+    """Legge i totali direttamente da app_settings - nessuna query aggregata."""
+    s = _get_or_create_settings(db)
+    _check_today_reset(s)
+    db.commit()
+    budget = float(s.anthropic_budget or 0)
+    total_cost = float(s.total_cost_usd or 0)
     remaining = round(budget - total_cost, 4) if budget > 0 else None
-
     return {
         "budget": round(budget, 2),
         "total_cost_usd": round(total_cost, 4),
         "remaining": remaining,
-        "total_analyses": int(a_row[3]),
-        "total_tokens_input": tok_in,
-        "total_tokens_output": tok_out,
-        "today_cost_usd": round(today_cost, 4),
-        "today_analyses": int(a_today[3]),
-        "today_tokens_input": today_tok_in,
-        "today_tokens_output": today_tok_out,
+        "total_analyses": int(s.total_analyses or 0),
+        "total_tokens_input": int(s.total_tokens_input or 0),
+        "total_tokens_output": int(s.total_tokens_output or 0),
+        "today_cost_usd": round(float(s.today_cost_usd or 0), 4),
+        "today_analyses": int(s.today_analyses or 0),
+        "today_tokens_input": int(s.today_tokens_input or 0),
+        "today_tokens_output": int(s.today_tokens_output or 0),
     }
 
 
+def _parse_full_response(raw: str) -> dict:
+    """Parse the stored full_response JSON, handling markdown wrapping."""
+    if not raw:
+        return {}
+    text = raw.strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+    try:
+        return json.loads(text)
+    except (json.JSONDecodeError, TypeError):
+        start, end = text.find("{"), text.rfind("}")
+        if start != -1 and end > start:
+            try:
+                return json.loads(text[start : end + 1])
+            except (json.JSONDecodeError, TypeError):
+                pass
+    return {}
+
+
+def _rebuild_result(analysis: JobAnalysis, from_cache: bool = False) -> dict:
+    """Rebuild full result dict from stored analysis row."""
+    result = {
+        "company": analysis.company,
+        "role": analysis.role,
+        "location": analysis.location,
+        "work_mode": analysis.work_mode,
+        "salary_info": analysis.salary_info,
+        "score": analysis.score,
+        "recommendation": analysis.recommendation,
+        "job_summary": analysis.job_summary,
+        "strengths": json.loads(analysis.strengths) if analysis.strengths else [],
+        "gaps": json.loads(analysis.gaps) if analysis.gaps else [],
+        "interview_scripts": json.loads(analysis.interview_scripts) if analysis.interview_scripts else [],
+        "advice": analysis.advice or "",
+        "company_reputation": json.loads(analysis.company_reputation) if analysis.company_reputation else {},
+        "summary": "",
+        "model_used": analysis.model_used,
+        "tokens": {
+            "input": analysis.tokens_input or 0,
+            "output": analysis.tokens_output or 0,
+            "total": (analysis.tokens_input or 0) + (analysis.tokens_output or 0),
+        },
+        "cost_usd": analysis.cost_usd or 0.0,
+        "from_cache": from_cache,
+    }
+
+    # Extract extra fields from full_response (score_label, application_method, etc.)
+    full = _parse_full_response(analysis.full_response)
+    for key in ("score_label", "potential_score", "gap_timeline", "confidence",
+                "confidence_reason", "summary", "application_method"):
+        if key in full:
+            result[key] = full[key]
+
+    return result
+
+
 def _base_context(request: Request, db: Session, **extra) -> dict:
+    from datetime import datetime as dt, timedelta
     cv = db.query(CVProfile).order_by(CVProfile.updated_at.desc()).first()
     analyses = db.query(JobAnalysis).order_by(JobAnalysis.created_at.desc()).limit(50).all()
+
+    # Follow-up alerts: candidature con applied_at > 5 giorni e non followed_up
+    threshold = dt.utcnow() - timedelta(days=5)
+    followup_alerts = (
+        db.query(JobAnalysis)
+        .filter(
+            JobAnalysis.status.in_(["candidato", "colloquio"]),
+            JobAnalysis.applied_at.isnot(None),
+            JobAnalysis.applied_at <= threshold,
+            JobAnalysis.followed_up == False,
+        )
+        .order_by(JobAnalysis.applied_at.asc())
+        .all()
+    )
+
+    # Dashboard motivazionale
+    total_analyses = len(analyses)
+    applied = sum(1 for a in analyses if a.status in ("candidato", "colloquio"))
+    avg_score = round(sum(a.score or 0 for a in analyses) / total_analyses, 1) if total_analyses else 0
+    top_match = max((a for a in analyses if a.status != "scartato"), key=lambda a: a.score or 0, default=None) if analyses else None
+
+    active_apps = [a for a in analyses if a.status in ("candidato", "colloquio")]
+
+    dashboard = {
+        "total": total_analyses,
+        "applied": applied,
+        "interviews": sum(1 for a in analyses if a.status == "colloquio"),
+        "skipped": sum(1 for a in analyses if a.status == "scartato"),
+        "pending": sum(1 for a in analyses if a.status == "da_valutare"),
+        "avg_score": avg_score,
+        "top_match": top_match,
+        "followup_count": len(followup_alerts),
+    }
+
     ctx = {
         "request": request,
         "cv": cv,
         "analyses": analyses,
         "spending": _get_spending(db),
+        "followup_alerts": followup_alerts,
+        "dashboard": dashboard,
+        "active_apps": active_apps,
     }
     ctx.update(extra)
     return ctx
@@ -270,31 +378,7 @@ def run_analysis(
 
     if existing:
         logger.info("Analisi duplicata trovata: id=%s, score=%s", existing.id, existing.score)
-        # Rebuild result dict from stored data (same pattern as view_analysis)
-        result = {
-            "company": existing.company,
-            "role": existing.role,
-            "location": existing.location,
-            "work_mode": existing.work_mode,
-            "salary_info": existing.salary_info,
-            "score": existing.score,
-            "recommendation": existing.recommendation,
-            "job_summary": existing.job_summary,
-            "strengths": json.loads(existing.strengths) if existing.strengths else [],
-            "gaps": json.loads(existing.gaps) if existing.gaps else [],
-            "interview_scripts": json.loads(existing.interview_scripts) if existing.interview_scripts else [],
-            "advice": existing.advice or "",
-            "company_reputation": json.loads(existing.company_reputation) if existing.company_reputation else {},
-            "summary": "",
-            "model_used": existing.model_used,
-            "tokens": {
-                "input": existing.tokens_input or 0,
-                "output": existing.tokens_output or 0,
-                "total": (existing.tokens_input or 0) + (existing.tokens_output or 0),
-            },
-            "cost_usd": existing.cost_usd or 0.0,
-            "from_cache": True,
-        }
+        result = _rebuild_result(existing, from_cache=True)
         return templates.TemplateResponse(
             "index.html",
             _base_context(
@@ -348,6 +432,7 @@ def run_analysis(
         cost_usd=result.get("cost_usd", 0.0),
     )
     db.add(analysis)
+    _spending_add(db, result.get("cost_usd", 0.0), result.get("tokens", {}).get("input", 0), result.get("tokens", {}).get("output", 0))
     db.commit()
     db.refresh(analysis)
 
@@ -363,31 +448,7 @@ def view_analysis(request: Request, analysis_id: str, db: Session = Depends(get_
     if not analysis:
         return RedirectResponse(url="/", status_code=303)
 
-    # Rebuild result dict from stored data
-    result = {
-        "company": analysis.company,
-        "role": analysis.role,
-        "location": analysis.location,
-        "work_mode": analysis.work_mode,
-        "salary_info": analysis.salary_info,
-        "score": analysis.score,
-        "recommendation": analysis.recommendation,
-        "job_summary": analysis.job_summary,
-        "strengths": json.loads(analysis.strengths) if analysis.strengths else [],
-        "gaps": json.loads(analysis.gaps) if analysis.gaps else [],
-        "interview_scripts": json.loads(analysis.interview_scripts) if analysis.interview_scripts else [],
-        "advice": analysis.advice or "",
-        "company_reputation": json.loads(analysis.company_reputation) if analysis.company_reputation else {},
-        "summary": "",
-        "model_used": analysis.model_used,
-        "tokens": {
-            "input": analysis.tokens_input or 0,
-            "output": analysis.tokens_output or 0,
-            "total": (analysis.tokens_input or 0) + (analysis.tokens_output or 0),
-        },
-        "cost_usd": analysis.cost_usd or 0.0,
-        "from_cache": False,
-    }
+    result = _rebuild_result(analysis)
 
     return templates.TemplateResponse(
         "index.html",
@@ -413,6 +474,9 @@ def update_status(
     if analysis:
         old_status = analysis.status
         analysis.status = new_status
+        if new_status in ("candidato", "colloquio") and not analysis.applied_at:
+            from datetime import datetime as dt
+            analysis.applied_at = dt.utcnow()
         db.commit()
         logger.info("Status aggiornato: analysis=%s, %s -> %s", analysis_id, old_status, new_status)
     else:
@@ -434,8 +498,18 @@ def delete_analysis(
             return JSONResponse({"error": "Analisi non trovata"}, status_code=404)
         return RedirectResponse(url="/", status_code=303)
 
-    # Cascade: delete associated cover letters
+    # Aggiorna totali: sottrai cover letters associate
+    from datetime import date
+    today = date.today()
+    cover_letters = db.query(CoverLetter).filter(CoverLetter.analysis_id == analysis.id).all()
+    for cl in cover_letters:
+        cl_today = cl.created_at and cl.created_at.date() == today
+        _spending_remove(db, cl.cost_usd or 0, cl.tokens_input or 0, cl.tokens_output or 0, is_analysis=False, created_today=cl_today)
     db.query(CoverLetter).filter(CoverLetter.analysis_id == analysis.id).delete()
+
+    # Aggiorna totali: sottrai analisi
+    a_today = analysis.created_at and analysis.created_at.date() == today
+    _spending_remove(db, analysis.cost_usd or 0, analysis.tokens_input or 0, analysis.tokens_output or 0, is_analysis=True, created_today=a_today)
     db.delete(analysis)
     db.commit()
     logger.info("Analisi eliminata: id=%s, role=%s @ %s", analysis_id, analysis.role, analysis.company)
@@ -497,6 +571,7 @@ def create_cover_letter(
         cost_usd=result.get("cost_usd", 0.0),
     )
     db.add(cl)
+    _spending_add(db, result.get("cost_usd", 0.0), result.get("tokens", {}).get("input", 0), result.get("tokens", {}).get("output", 0), is_analysis=False)
     db.commit()
 
     return templates.TemplateResponse(
@@ -579,3 +654,183 @@ def update_budget(budget: float = Form(...), db: Session = Depends(get_db)):
     db.commit()
     logger.info("Budget aggiornato: $%.2f", s.anthropic_budget)
     return JSONResponse({"ok": True, "budget": round(s.anthropic_budget, 2)})
+
+
+# ========== CONTACTS ==========
+
+@app.post("/contacts")
+def create_contact(
+    analysis_id: str = Form(""),
+    name: str = Form(""),
+    email: str = Form(""),
+    phone: str = Form(""),
+    company: str = Form(""),
+    linkedin_url: str = Form(""),
+    notes: str = Form(""),
+    source: str = Form("manual"),
+    db: Session = Depends(get_db),
+):
+    contact = Contact(
+        analysis_id=analysis_id if analysis_id else None,
+        name=name, email=email, phone=phone,
+        company=company, linkedin_url=linkedin_url,
+        notes=notes, source=source,
+    )
+    db.add(contact)
+    db.commit()
+    db.refresh(contact)
+    logger.info("Contatto creato: %s (%s) per analisi %s", name, email, analysis_id or "nessuna")
+    return JSONResponse({
+        "ok": True,
+        "contact": {
+            "id": str(contact.id), "name": contact.name, "email": contact.email,
+            "phone": contact.phone, "company": contact.company,
+            "linkedin_url": contact.linkedin_url, "notes": contact.notes,
+        },
+    })
+
+
+@app.get("/contacts/{analysis_id}")
+def get_contacts(analysis_id: str, db: Session = Depends(get_db)):
+    contacts = db.query(Contact).filter(Contact.analysis_id == analysis_id).order_by(Contact.created_at.desc()).all()
+    return JSONResponse({
+        "contacts": [
+            {
+                "id": str(c.id), "name": c.name, "email": c.email,
+                "phone": c.phone, "company": c.company,
+                "linkedin_url": c.linkedin_url, "notes": c.notes, "source": c.source,
+            }
+            for c in contacts
+        ]
+    })
+
+
+@app.delete("/contacts/{contact_id}")
+def delete_contact(contact_id: str, db: Session = Depends(get_db)):
+    contact = db.query(Contact).filter(Contact.id == contact_id).first()
+    if not contact:
+        return JSONResponse({"error": "Contatto non trovato"}, status_code=404)
+    db.delete(contact)
+    db.commit()
+    logger.info("Contatto eliminato: %s", contact_id)
+    return JSONResponse({"ok": True})
+
+
+# ========== FOLLOW-UP EMAIL ==========
+
+@app.post("/followup-email")
+def create_followup_email(
+    request: Request,
+    analysis_id: str = Form(...),
+    language: str = Form("italiano"),
+    model: str = Form("haiku"),
+    db: Session = Depends(get_db),
+):
+    analysis = db.query(JobAnalysis).filter(JobAnalysis.id == analysis_id).first()
+    if not analysis:
+        return JSONResponse({"error": "Analisi non trovata"}, status_code=404)
+
+    cv = db.query(CVProfile).filter(CVProfile.id == analysis.cv_id).first()
+    if not cv:
+        return JSONResponse({"error": "CV non trovato"}, status_code=404)
+
+    from datetime import datetime as dt
+    days_since = (dt.utcnow() - analysis.applied_at).days if analysis.applied_at else 7
+
+    try:
+        result = generate_followup_email(cv.raw_text, analysis.role, analysis.company, days_since, language, model)
+    except Exception as e:
+        logger.error("Follow-up email fallita: %s", e, exc_info=True)
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+    _spending_add(db, result.get("cost_usd", 0.0), result.get("tokens", {}).get("input", 0), result.get("tokens", {}).get("output", 0), is_analysis=False)
+    db.commit()
+    logger.info("Follow-up email generata per %s @ %s, $%.6f", analysis.role, analysis.company, result.get("cost_usd", 0))
+    return JSONResponse({"ok": True, **result})
+
+
+# ========== LINKEDIN MESSAGE ==========
+
+@app.post("/linkedin-message")
+def create_linkedin_message(
+    request: Request,
+    analysis_id: str = Form(...),
+    language: str = Form("italiano"),
+    model: str = Form("haiku"),
+    db: Session = Depends(get_db),
+):
+    analysis = db.query(JobAnalysis).filter(JobAnalysis.id == analysis_id).first()
+    if not analysis:
+        return JSONResponse({"error": "Analisi non trovata"}, status_code=404)
+
+    cv = db.query(CVProfile).filter(CVProfile.id == analysis.cv_id).first()
+    if not cv:
+        return JSONResponse({"error": "CV non trovato"}, status_code=404)
+
+    # Cerca contatto associato per info
+    contact = db.query(Contact).filter(Contact.analysis_id == analysis.id).first()
+    contact_info = ""
+    if contact:
+        parts = []
+        if contact.name:
+            parts.append(f"Nome: {contact.name}")
+        if contact.linkedin_url:
+            parts.append(f"LinkedIn: {contact.linkedin_url}")
+        contact_info = ", ".join(parts)
+
+    try:
+        result = generate_linkedin_message(cv.raw_text, analysis.role, analysis.company, contact_info, language, model)
+    except Exception as e:
+        logger.error("LinkedIn message fallita: %s", e, exc_info=True)
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+    _spending_add(db, result.get("cost_usd", 0.0), result.get("tokens", {}).get("input", 0), result.get("tokens", {}).get("output", 0), is_analysis=False)
+    db.commit()
+    logger.info("LinkedIn message generata per %s @ %s, $%.6f", analysis.role, analysis.company, result.get("cost_usd", 0))
+    return JSONResponse({"ok": True, **result})
+
+
+# ========== FOLLOW-UP MARK ==========
+
+@app.post("/followup-done/{analysis_id}")
+def mark_followup_done(analysis_id: str, db: Session = Depends(get_db)):
+    analysis = db.query(JobAnalysis).filter(JobAnalysis.id == analysis_id).first()
+    if not analysis:
+        return JSONResponse({"error": "Analisi non trovata"}, status_code=404)
+    analysis.followed_up = True
+    db.commit()
+    logger.info("Follow-up segnato come fatto: %s", analysis_id)
+    return JSONResponse({"ok": True})
+
+
+# ========== DASHBOARD ==========
+
+@app.get("/dashboard")
+def dashboard_api(db: Session = Depends(get_db)):
+    from datetime import datetime as dt, timedelta
+    analyses = db.query(JobAnalysis).order_by(JobAnalysis.created_at.desc()).limit(50).all()
+    total = len(analyses)
+    applied = sum(1 for a in analyses if a.status in ("candidato", "colloquio"))
+    avg_score = round(sum(a.score or 0 for a in analyses) / total, 1) if total else 0
+
+    threshold = dt.utcnow() - timedelta(days=5)
+    followup_count = (
+        db.query(JobAnalysis)
+        .filter(
+            JobAnalysis.status.in_(["candidato", "colloquio"]),
+            JobAnalysis.applied_at.isnot(None),
+            JobAnalysis.applied_at <= threshold,
+            JobAnalysis.followed_up == False,
+        )
+        .count()
+    )
+
+    return JSONResponse({
+        "total": total,
+        "applied": applied,
+        "interviews": sum(1 for a in analyses if a.status == "colloquio"),
+        "skipped": sum(1 for a in analyses if a.status == "scartato"),
+        "pending": sum(1 for a in analyses if a.status == "da_valutare"),
+        "avg_score": avg_score,
+        "followup_count": followup_count,
+    })

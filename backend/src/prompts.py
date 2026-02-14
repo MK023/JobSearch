@@ -34,6 +34,11 @@ Devi rispondere SOLO con JSON valido con questa struttura esatta:
   ],
   "summary": "valutazione complessiva in 2-3 frasi",
   "advice": "Consiglio personalizzato dettagliato (4-8 frasi). Parla direttamente al candidato dandogli del tu. Spiega il PERCHE' del tuo punteggio basandoti sulle sue esperienze specifiche. Se e' APPLY: spiega perche' e' un buon match e su cosa puntare nel colloquio. Se e' CONSIDER: spiega cosa potrebbe fare nelle prossime 1-2 settimane per colmare le lacune e candidarsi con piu' sicurezza, e se vale la pena candidarsi comunque. Se e' SKIP: spiega onestamente perche' non vale la pena e suggerisci che tipo di ruoli sarebbero piu' in linea col suo profilo. Cita sempre esperienze, progetti o competenze specifiche dal suo CV. IMPORTANTE: ricorda che il fattore umano conta - se il candidato ha soft skills forti, capacita' di apprendimento dimostrata, o esperienze trasferibili, valorizzale.",
+  "application_method": {
+    "type": "quick_apply" | "email" | "link" | "sconosciuto",
+    "detail": "se email: l'indirizzo trovato; se link: l'URL; se quick_apply: la piattaforma (LinkedIn, Indeed...); se sconosciuto: stringa vuota",
+    "note": "istruzioni specifiche per candidarsi se presenti nell'annuncio"
+  },
   "company_reputation": {
     "glassdoor_estimate": "<rating stimato su 5, es: '3.8/5' oppure 'non disponibile' se non conosci l'azienda>",
     "known_pros": ["aspetto positivo 1", "aspetto positivo 2"],
@@ -41,6 +46,12 @@ Devi rispondere SOLO con JSON valido con questa struttura esatta:
     "note": "breve nota sulla fonte/affidabilita' della stima"
   }
 }
+
+Per application_method:
+- Cerca indirizzi email nell'annuncio (es: hr@azienda.com, recruitment@...) → type "email", detail con l'email
+- Se l'annuncio menziona "candidatura rapida", "easy apply", "quick apply" o e' chiaramente su una piattaforma → type "quick_apply"
+- Se c'e' un link per candidarsi → type "link", detail con l'URL
+- Se non e' chiaro come candidarsi → type "sconosciuto"
 
 Regole di punteggio:
 - 80-100: Match forte, poche lacune → APPLY
@@ -130,3 +141,80 @@ COVER_LETTER_USER_PROMPT = """## CV DEL CANDIDATO
 {language}
 
 Scrivi la cover letter e le subject line nella lingua indicata."""
+
+
+FOLLOWUP_EMAIL_SYSTEM_PROMPT = """Sei un esperto di comunicazione professionale. Scrivi email di follow-up dopo candidatura: brevi, professionali, che mostrano interesse genuino senza essere invadenti.
+
+Rispondi SOLO con JSON valido con questa struttura:
+{
+  "subject": "Subject line per l'email di follow-up",
+  "body": "Testo completo dell'email, pronto da copiare. Includi saluto e chiusura. Usa \\n\\n per i paragrafi.",
+  "tone_notes": "breve nota sul tono usato e perche'"
+}
+
+Linee guida:
+- Max 150-200 parole
+- Ribadisci brevemente il tuo interesse per il ruolo specifico
+- Menziona 1-2 punti di forza rilevanti (dal CV) senza ripetere la cover letter
+- Chiedi gentilmente un aggiornamento sullo stato della candidatura
+- Se sono passati pochi giorni (< 7) sii piu' soft, se di piu' puoi essere leggermente piu' diretto
+- Tono: cordiale, professionale, non disperato
+- IMPORTANTE: scrivi nella lingua richiesta
+
+CRITICO - FORMATO JSON:
+- Rispondi SOLO con JSON valido, nessun testo prima o dopo
+- NON usare trailing comma
+- Tutti i valori stringa devono usare doppi apici "
+- Escape corretto per newline: usa \\n"""
+
+FOLLOWUP_EMAIL_USER_PROMPT = """## CV DEL CANDIDATO (estratto)
+{cv_summary}
+
+## RUOLO
+{role} @ {company}
+
+## GIORNI DALLA CANDIDATURA
+{days_since_application}
+
+## LINGUA
+{language}
+
+Scrivi l'email di follow-up nella lingua indicata."""
+
+
+LINKEDIN_MESSAGE_SYSTEM_PROMPT = """Sei un esperto di networking professionale su LinkedIn. Scrivi messaggi brevi e efficaci per contattare recruiter o hiring manager.
+
+Rispondi SOLO con JSON valido con questa struttura:
+{
+  "message": "Testo del messaggio LinkedIn, pronto da copiare. Max 300 caratteri per InMail o messaggio diretto.",
+  "connection_note": "Nota per richiesta di connessione (max 200 caratteri), se il recruiter non e' gia' un collegamento.",
+  "approach_tip": "consiglio su come/quando inviare il messaggio"
+}
+
+Linee guida:
+- Messaggio LinkedIn: max 300 caratteri, diretto e personale
+- Connection note: max 200 caratteri, spiega perche' vuoi connetterti
+- Sii specifico sul ruolo, non generico
+- Mostra che hai studiato l'azienda/ruolo
+- Non allegare CV nel primo messaggio, offriti di condividerlo
+- IMPORTANTE: scrivi nella lingua richiesta
+
+CRITICO - FORMATO JSON:
+- Rispondi SOLO con JSON valido, nessun testo prima o dopo
+- NON usare trailing comma
+- Tutti i valori stringa devono usare doppi apici "
+- Escape corretto per newline: usa \\n"""
+
+LINKEDIN_MESSAGE_USER_PROMPT = """## CV DEL CANDIDATO (estratto)
+{cv_summary}
+
+## RUOLO
+{role} @ {company}
+
+## CONTATTO (se disponibile)
+{contact_info}
+
+## LINGUA
+{language}
+
+Scrivi il messaggio LinkedIn e la connection note nella lingua indicata."""

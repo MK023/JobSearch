@@ -8,7 +8,12 @@ import anthropic
 import redis
 
 from .config import settings
-from .prompts import ANALYSIS_SYSTEM_PROMPT, ANALYSIS_USER_PROMPT, COVER_LETTER_SYSTEM_PROMPT, COVER_LETTER_USER_PROMPT
+from .prompts import (
+    ANALYSIS_SYSTEM_PROMPT, ANALYSIS_USER_PROMPT,
+    COVER_LETTER_SYSTEM_PROMPT, COVER_LETTER_USER_PROMPT,
+    FOLLOWUP_EMAIL_SYSTEM_PROMPT, FOLLOWUP_EMAIL_USER_PROMPT,
+    LINKEDIN_MESSAGE_SYSTEM_PROMPT, LINKEDIN_MESSAGE_USER_PROMPT,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -268,4 +273,80 @@ def generate_cover_letter(
         except Exception as e:
             logger.warning("Cache write cover letter fallita: %s", e)
 
+    return result
+
+
+def generate_followup_email(
+    cv_text: str, role: str, company: str, days_since: int, language: str, model: str = "haiku"
+) -> dict:
+    model_id = MODELS.get(model, MODELS["haiku"])
+    cv_summary = cv_text[:1500]
+
+    logger.debug("Chiamata API follow-up email: model=%s, lang=%s", model_id, language)
+    t0 = time.monotonic()
+
+    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    message = client.messages.create(
+        model=model_id,
+        max_tokens=1024,
+        system=FOLLOWUP_EMAIL_SYSTEM_PROMPT,
+        messages=[{
+            "role": "user",
+            "content": FOLLOWUP_EMAIL_USER_PROMPT.format(
+                cv_summary=cv_summary, role=role, company=company,
+                days_since_application=days_since, language=language,
+            ),
+        }],
+    )
+
+    elapsed = time.monotonic() - t0
+    raw_text = message.content[0].text
+    result = _extract_and_parse_json(raw_text)
+    result["model_used"] = model_id
+
+    usage = message.usage
+    pricing = PRICING.get(model_id, PRICING["claude-haiku-4-5-20251001"])
+    total_cost = (usage.input_tokens / 1_000_000) * pricing["input"] + (usage.output_tokens / 1_000_000) * pricing["output"]
+    result["tokens"] = {"input": usage.input_tokens, "output": usage.output_tokens, "total": usage.input_tokens + usage.output_tokens}
+    result["cost_usd"] = round(total_cost, 6)
+
+    logger.info("API follow-up email: model=%s, %.1fs, $%.6f", model_id, elapsed, total_cost)
+    return result
+
+
+def generate_linkedin_message(
+    cv_text: str, role: str, company: str, contact_info: str, language: str, model: str = "haiku"
+) -> dict:
+    model_id = MODELS.get(model, MODELS["haiku"])
+    cv_summary = cv_text[:1500]
+
+    logger.debug("Chiamata API LinkedIn message: model=%s, lang=%s", model_id, language)
+    t0 = time.monotonic()
+
+    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    message = client.messages.create(
+        model=model_id,
+        max_tokens=1024,
+        system=LINKEDIN_MESSAGE_SYSTEM_PROMPT,
+        messages=[{
+            "role": "user",
+            "content": LINKEDIN_MESSAGE_USER_PROMPT.format(
+                cv_summary=cv_summary, role=role, company=company,
+                contact_info=contact_info or "Non disponibile", language=language,
+            ),
+        }],
+    )
+
+    elapsed = time.monotonic() - t0
+    raw_text = message.content[0].text
+    result = _extract_and_parse_json(raw_text)
+    result["model_used"] = model_id
+
+    usage = message.usage
+    pricing = PRICING.get(model_id, PRICING["claude-haiku-4-5-20251001"])
+    total_cost = (usage.input_tokens / 1_000_000) * pricing["input"] + (usage.output_tokens / 1_000_000) * pricing["output"]
+    result["tokens"] = {"input": usage.input_tokens, "output": usage.output_tokens, "total": usage.input_tokens + usage.output_tokens}
+    result["cost_usd"] = round(total_cost, 6)
+
+    logger.info("API LinkedIn message: model=%s, %.1fs, $%.6f", model_id, elapsed, total_cost)
     return result
