@@ -34,7 +34,7 @@
             {% endif %}
             <form method="post" action="/cv" id="cv-form">
                 <input type="text" name="cv_name" placeholder="👤 Il tuo nome (opzionale)" value="{{ cv.name if cv else '' }}">
-                <textarea name="cv_text" id="cv-text" placeholder="📋 Incolla qui il tuo CV completo...">{{ cv.raw_text if cv else '' }}</textarea>
+                <textarea name="cv_text" id="cv-text" placeholder="📋 Incolla qui il tuo CV completo..."></textarea>
                 <div class="btns">
                     <button type="submit" class="btn btn-p btn-s">💾 Salva CV</button>
                     <button type="button" class="btn btn-muted btn-s" onclick="uploadCV()">📤 Carica file</button>

@@ -15,12 +15,14 @@ a{color:#818cf8;text-decoration:none}a:hover{text-decoration:underline}
 #sp-budget:focus{border-bottom-color:#6366f1;color:#f8fafc}
 
 /* Layout */
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;align-items:start}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;align-items:stretch}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
 @media(max-width:768px){.grid,.grid2{grid-template-columns:1fr}}
 
 /* Card + form */
-.card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px}
+.card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px;display:flex;flex-direction:column}
+.card form{display:flex;flex-direction:column;flex:1}
+.card form textarea{flex:1}
 .card-mb{margin-bottom:20px}
 textarea{width:100%;min-height:140px;background:#0f172a;border:1px solid #475569;border-radius:6px;padding:10px;color:#e2e8f0;font-size:.85rem;font-family:inherit;resize:vertical}
 textarea:focus{outline:none;border-color:#6366f1}
