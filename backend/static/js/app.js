@@ -13,36 +13,34 @@ function setStatus(btn){
             group.querySelectorAll('.pill-btn').forEach(function(b){b.classList.remove('active');});
             btn.classList.add('active');
             var histItem=document.querySelector('[data-hist-id="'+id+'"]');
-            if(histItem) histItem.dataset.histStatus=status;
-            updateHistTabs();
-            refreshSpending();
-            /* Cover letter: scartato = rimuovi dal dropdown, altri stati = ripristina */
-            var clSelect=document.getElementById('cl-select');
-            if(clSelect){
-                var opt=clSelect.querySelector('option[value="'+id+'"]');
-                if(status==='scartato'){
-                    if(opt) opt.remove();
-                    if(clSelect.options.length===0){
-                        var clCard=document.getElementById('cl-card');
-                        if(clCard) clCard.style.display='none';
-                    }
-                } else if(!opt && histItem){
-                    var role=histItem.querySelector('.hi-role');
-                    var co=histItem.querySelector('.hi-co');
-                    var score=histItem.querySelector('.hi-score');
-                    var label=(role?role.textContent:'Ruolo')+' @ '+(co?co.textContent.split(' · ')[0]:'Azienda')+' ('+(score?score.textContent:'?')+'/100)';
-                    var newOpt=document.createElement('option');
-                    newOpt.value=id;newOpt.textContent=label;
-                    clSelect.appendChild(newOpt);
-                    var clCard=document.getElementById('cl-card');
-                    if(clCard) clCard.style.display='';
+            if(histItem){
+                histItem.dataset.histStatus=status;
+                var stEl=histItem.querySelector('.st');
+                if(stEl){
+                    stEl.className='st st-'+status;
+                    var icons={'da_valutare':'\uD83D\uDD0D','candidato':'\uD83D\uDCE8','colloquio':'\uD83D\uDDE3\uFE0F','scartato':'\u274C'};
+                    stEl.textContent=(icons[status]||'')+' '+status.replace('_',' ');
                 }
             }
-            /* Pulisci la pagina: rimuovi il risultato aperto */
+            updateHistTabs();
+            refreshSpending();
+            refreshDashboard();
+            /* Cover letter: nascondi se scartato */
+            var clCard=document.getElementById('cl-card');
+            var clResult=document.getElementById('cl-result-card');
+            if(status==='scartato'){
+                if(clCard) clCard.style.display='none';
+                if(clResult) clResult.style.display='none';
+            }
+            /* Pulisci la pagina: rimuovi il risultato aperto e nascondi cover letter */
             var resCard=btn.closest('.res');
-            if(resCard) resCard.remove();
+            if(resCard){
+                resCard.remove();
+                if(clCard) clCard.style.display='none';
+                if(clResult) clResult.style.display='none';
+            }
         }
-    });
+    }).catch(function(e){console.error('setStatus error:',e);});
 }
 
 function switchTab(tabEl){
@@ -103,7 +101,7 @@ function saveBudget(){
     if(isNaN(val)||val<0) val=0;
     budgetEl.textContent='$'+val.toFixed(2);
     var fd=new FormData();fd.append('budget',val);
-    fetch('/spending/budget',{method:'PUT',body:fd}).then(function(){refreshSpending();});
+    fetch('/spending/budget',{method:'PUT',body:fd}).then(function(){refreshSpending();}).catch(function(e){console.error('saveBudget error:',e);});
 }
 
 var batchItems=[];
@@ -120,7 +118,7 @@ function batchAdd(){
             document.getElementById('batch-jd').value='';
             document.getElementById('batch-url').value='';
         }
-    });
+    }).catch(function(e){console.error('batchAdd error:',e);});
 }
 function renderBatchQueue(){
     var q=document.getElementById('batch-queue');
@@ -157,7 +155,7 @@ function batchRun(){
             document.getElementById('batch-status-text').textContent='Analisi in corso...';
             pollBatch();
         }
-    });
+    }).catch(function(e){console.error('batchRun error:',e);});
 }
 function pollBatch(){
     fetch('/batch/status').then(function(r){return r.json();}).then(function(data){
@@ -174,14 +172,15 @@ function pollBatch(){
         else if(data.status==='done'){
             document.getElementById('batch-status-text').textContent='Completato! Ricarica la pagina per vedere i risultati.';
             refreshSpending();
+            refreshDashboard();
         }
-    });
+    }).catch(function(e){console.error('pollBatch error:',e);});
 }
 function batchClear(){
     fetch('/batch/clear',{method:'DELETE'}).then(function(r){return r.json();}).then(function(){
         batchItems=[];renderBatchQueue();
         document.getElementById('batch-status-text').textContent='';
-    });
+    }).catch(function(e){console.error('batchClear error:',e);});
 }
 function refreshSpending(){
     fetch('/spending').then(function(r){return r.json();}).then(function(d){
@@ -202,7 +201,42 @@ function refreshSpending(){
             var todayTok=d.today_tokens_input+d.today_tokens_output;
             todayEl.textContent='$'+d.today_cost_usd.toFixed(4)+' ('+d.today_analyses+' analisi, '+todayTok.toLocaleString('it-IT')+' tok)';
         }
-    });
+    }).catch(function(e){console.error('refreshSpending error:',e);});
+}
+function refreshDashboard(){
+    fetch('/dashboard').then(function(r){return r.json();}).then(function(d){
+        var dash=document.getElementById('dash-details');
+        if(!dash)return;
+        if(d.total>0){
+            dash.style.display='';
+        } else {
+            dash.style.display='none';return;
+        }
+        var el=function(id){return document.getElementById(id);};
+        el('dash-total').textContent=d.total;
+        el('dash-applied').textContent=d.applied;
+        el('dash-interviews').textContent=d.interviews;
+        el('dash-avg').textContent=d.avg_score;
+        el('dash-skipped').textContent=d.skipped;
+        var fuBox=el('dash-followup-box');
+        if(fuBox){
+            if(d.followup_count>0){fuBox.style.display='';el('dash-followup').textContent=d.followup_count;}
+            else{fuBox.style.display='none';}
+        }
+        el('dash-summary-stats').textContent=d.total+' analisi \u00b7 '+d.applied+' candidature \u00b7 score medio '+d.avg_score;
+        var mot=el('dash-motivation');
+        if(mot){
+            if(d.top_match){
+                while(mot.firstChild)mot.removeChild(mot.firstChild);
+                mot.appendChild(document.createTextNode('\uD83C\uDFC6 Miglior match: '));
+                var b=document.createElement('b');b.textContent=d.top_match.role;mot.appendChild(b);
+                var suffix=' @ '+d.top_match.company+' ('+d.top_match.score+'/100)';
+                if(d.applied>0) suffix+=' \u00b7 Hai gia\' inviato '+d.applied+' candidatur'+(d.applied===1?'a':'e')+' - continua cosi\'!';
+                mot.appendChild(document.createTextNode(suffix));
+                mot.style.display='';
+            } else {mot.style.display='none';}
+        }
+    }).catch(function(e){console.error('refreshDashboard error:',e);});
 }
 function deleteAnalysis(id){
     if(!confirm('Sei sicuro di voler eliminare questa analisi? Verra\' rimossa anche ogni cover letter associata.'))return;
@@ -216,19 +250,19 @@ function deleteAnalysis(id){
                 var resCard=actionsEl.closest('.res');
                 if(resCard) resCard.remove();
             }
-            var clSelect=document.getElementById('cl-select');
-            if(clSelect){
-                var opt=clSelect.querySelector('option[value="'+id+'"]');
-                if(opt) opt.remove();
-                if(clSelect.options.length===0){
-                    var clCard=document.getElementById('cl-card');
-                    if(clCard) clCard.remove();
-                }
+            /* Nascondi cover letter se era per questa analisi */
+            var clId=document.getElementById('cl-analysis-id');
+            if(clId && clId.value===id){
+                var clCard=document.getElementById('cl-card');
+                if(clCard) clCard.style.display='none';
+                var clResult=document.getElementById('cl-result-card');
+                if(clResult) clResult.style.display='none';
             }
             updateHistTabs();
             refreshSpending();
+            refreshDashboard();
         }
-    });
+    }).catch(function(e){console.error('deleteAnalysis error:',e);});
 }
 
 /* === Contatti recruiter === */
@@ -274,7 +308,7 @@ function loadContacts(id){
             row.appendChild(del);
             list.appendChild(row);
         });
-    });
+    }).catch(function(e){console.error('loadContacts error:',e);});
 }
 function saveContact(analysisId){
     var fd=new FormData();
@@ -293,12 +327,12 @@ function saveContact(analysisId){
                 if(el && f!=='company')el.value='';
             });
         }
-    });
+    }).catch(function(e){console.error('saveContact error:',e);});
 }
 function deleteContact(contactId,analysisId){
     fetch('/contacts/'+contactId,{method:'DELETE'}).then(function(r){return r.json();}).then(function(data){
         if(data.ok)loadContacts(analysisId);
-    });
+    }).catch(function(e){console.error('deleteContact error:',e);});
 }
 
 /* === Follow-up email + LinkedIn message === */
@@ -350,6 +384,10 @@ function genFollowup(id){
         _addCopyBtn(g.box,'fu-body-'+id);
         _addMeta(g.box,data.cost_usd,(data.tokens||{}).total);
         refreshSpending();
+    }).catch(function(e){
+        while(g.box.firstChild)g.box.removeChild(g.box.firstChild);
+        var lbl=document.createElement('div');lbl.className='gen-label';lbl.textContent='❌ Errore di rete';g.box.appendChild(lbl);
+        console.error('genFollowup error:',e);
     });
 }
 function genLinkedin(id){
@@ -373,6 +411,10 @@ function genLinkedin(id){
         if(data.approach_tip)_addMeta(g.box,0,0,data.approach_tip);
         _addMeta(g.box,data.cost_usd,(data.tokens||{}).total);
         refreshSpending();
+    }).catch(function(e){
+        while(g.box.firstChild)g.box.removeChild(g.box.firstChild);
+        var lbl=document.createElement('div');lbl.className='gen-label';lbl.textContent='❌ Errore di rete';g.box.appendChild(lbl);
+        console.error('genLinkedin error:',e);
     });
 }
 function markFollowupDone(id){
@@ -380,13 +422,15 @@ function markFollowupDone(id){
         if(data.ok){
             var el=document.getElementById('fu-'+id);
             if(el)el.remove();
+            refreshDashboard();
         }
-    });
+    }).catch(function(e){console.error('markFollowupDone error:',e);});
 }
 
 /* === Real-time: polling periodico + refresh su focus === */
-setInterval(refreshSpending,30000);
+function refreshAll(){refreshSpending();refreshDashboard();}
+setInterval(refreshAll,30000);
 document.addEventListener('visibilitychange',function(){
-    if(!document.hidden) refreshSpending();
+    if(!document.hidden) refreshAll();
 });
-window.addEventListener('focus',refreshSpending);
+window.addEventListener('focus',refreshAll);

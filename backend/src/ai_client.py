@@ -33,6 +33,19 @@ CACHE_TTL = 86400  # 24h
 _redis = None
 
 
+def _clean_json_text(text: str) -> str:
+    """Apply common fixes for LLM-generated JSON."""
+    # Fix trailing commas before } or ]
+    text = re.sub(r",\s*([}\]])", r"\1", text)
+    # Remove single-line // comments
+    text = re.sub(r"//[^\n]*", "", text)
+    # Fix missing commas between properties: }"key" or ]"key" → },"key" / ],"key"
+    text = re.sub(r'([}\]])\s*\n\s*(")', r"\1,\n\2", text)
+    # Fix missing comma between "value"\n"key" patterns (properties on separate lines)
+    text = re.sub(r'"\s*\n\s*"(?=[^:]*":)', '",\n"', text)
+    return text
+
+
 def _extract_and_parse_json(raw_text: str) -> dict:
     """Extract JSON from AI response, fixing common LLM output issues."""
     text = raw_text.strip()
@@ -48,27 +61,53 @@ def _extract_and_parse_json(raw_text: str) -> dict:
     except json.JSONDecodeError:
         pass
 
-    # Fix trailing commas before } or ] (most common LLM mistake)
-    cleaned = re.sub(r",\s*([}\]])", r"\1", text)
-
-    # Remove single-line // comments
-    cleaned = re.sub(r"//[^\n]*", "", cleaned)
-
+    # Second attempt: common fixes
+    cleaned = _clean_json_text(text)
     try:
         return json.loads(cleaned)
     except json.JSONDecodeError:
         pass
 
-    # Last resort: find the outermost { ... } block
+    # Third: extract outermost { ... } block and clean
     start = text.find("{")
     end = text.rfind("}")
     if start != -1 and end != -1 and end > start:
+        fragment = _clean_json_text(text[start : end + 1])
+        try:
+            return json.loads(fragment)
+        except json.JSONDecodeError:
+            pass
+
+    # Fourth: fix unescaped control characters inside string values
+    if start != -1 and end != -1:
         fragment = text[start : end + 1]
-        fragment = re.sub(r",\s*([}\]])", r"\1", fragment)
-        fragment = re.sub(r"//[^\n]*", "", fragment)
-        return json.loads(fragment)
+        # Replace literal tabs and form-feeds inside strings
+        fragment = fragment.replace("\t", "\\t").replace("\f", "\\f")
+        fragment = _clean_json_text(fragment)
+        try:
+            return json.loads(fragment)
+        except json.JSONDecodeError:
+            pass
 
     raise json.JSONDecodeError("Nessun JSON valido trovato nella risposta AI", text, 0)
+
+
+def _retry_json_fix(client, model_id: str, broken_json: str) -> dict | None:
+    """Ask the AI to fix its own broken JSON output. Returns parsed dict or None."""
+    try:
+        fix_msg = client.messages.create(
+            model=model_id,
+            max_tokens=4096,
+            system="Sei un assistente che corregge JSON malformato. Rispondi SOLO con il JSON corretto, nessun testo prima o dopo. Non cambiare i contenuti, correggi solo la sintassi JSON (virgole mancanti, escape di caratteri, ecc.).",
+            messages=[{"role": "user", "content": f"Correggi questo JSON malformato:\n\n{broken_json}"}],
+        )
+        fixed_text = fix_msg.content[0].text
+        result = _extract_and_parse_json(fixed_text)
+        logger.info("JSON corretto con retry (tokens: %d)", fix_msg.usage.input_tokens + fix_msg.usage.output_tokens)
+        return result
+    except Exception as e:
+        logger.error("Retry JSON fix fallito: %s", e)
+        return None
 
 
 def _get_redis():
@@ -141,15 +180,18 @@ def analyze_job(cv_text: str, job_description: str, model: str = "haiku") -> dic
     try:
         result = _extract_and_parse_json(raw_text)
     except json.JSONDecodeError as e:
-        logger.error("JSON parse fallito per risposta AI: %s (primi 300 char: %s)", e, raw_text[:300])
-        raise
+        logger.warning("JSON parse fallito, retry con fix: %s", e)
+        result = _retry_json_fix(client, model_id, raw_text)
+        if result is None:
+            logger.error("JSON parse fallito anche dopo retry (primi 300 char: %s)", raw_text[:300])
+            raise
 
     result["model_used"] = model_id
     result["full_response"] = raw_text
     result["from_cache"] = False
     result["content_hash"] = ch
 
-    # Token usage and cost
+    # Token usage and cost — include retry tokens if any
     usage = message.usage
     pricing = PRICING.get(model_id, PRICING["claude-haiku-4-5-20251001"])
     input_cost = (usage.input_tokens / 1_000_000) * pricing["input"]
@@ -239,8 +281,11 @@ def generate_cover_letter(
     try:
         result = _extract_and_parse_json(raw_text)
     except json.JSONDecodeError as e:
-        logger.error("JSON parse fallito per cover letter: %s (primi 300 char: %s)", e, raw_text[:300])
-        raise
+        logger.warning("JSON parse fallito per cover letter, retry con fix: %s", e)
+        result = _retry_json_fix(client, model_id, raw_text)
+        if result is None:
+            logger.error("JSON parse cover letter fallito anche dopo retry (primi 300 char: %s)", raw_text[:300])
+            raise
 
     result["model_used"] = model_id
     result["from_cache"] = False
@@ -304,7 +349,16 @@ def generate_followup_email(
 
     elapsed = time.monotonic() - t0
     raw_text = message.content[0].text
-    result = _extract_and_parse_json(raw_text)
+
+    try:
+        result = _extract_and_parse_json(raw_text)
+    except json.JSONDecodeError as e:
+        logger.warning("JSON parse fallito per follow-up email, retry con fix: %s", e)
+        result = _retry_json_fix(client, model_id, raw_text)
+        if result is None:
+            logger.error("JSON parse follow-up email fallito anche dopo retry (primi 300 char: %s)", raw_text[:300])
+            raise
+
     result["model_used"] = model_id
 
     usage = message.usage
@@ -342,7 +396,16 @@ def generate_linkedin_message(
 
     elapsed = time.monotonic() - t0
     raw_text = message.content[0].text
-    result = _extract_and_parse_json(raw_text)
+
+    try:
+        result = _extract_and_parse_json(raw_text)
+    except json.JSONDecodeError as e:
+        logger.warning("JSON parse fallito per LinkedIn message, retry con fix: %s", e)
+        result = _retry_json_fix(client, model_id, raw_text)
+        if result is None:
+            logger.error("JSON parse LinkedIn message fallito anche dopo retry (primi 300 char: %s)", raw_text[:300])
+            raise
+
     result["model_used"] = model_id
 
     usage = message.usage

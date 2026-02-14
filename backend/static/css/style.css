@@ -131,6 +131,7 @@ details[open] summary::before{transform:rotate(90deg)}
 .actions{display:flex;gap:8px;padding:14px;background:#0f172a;border-radius:8px;border:1px solid #334155;align-items:center;flex-wrap:wrap;margin-top:16px}
 
 /* Cover letter result */
+.cl-ref{font-size:.85rem;font-weight:400;color:#818cf8}
 .cl-text{background:#0f172a;padding:14px;border-radius:8px;border:1px solid #334155;color:#cbd5e1;font-size:.85rem;line-height:1.7;white-space:pre-line;margin-bottom:8px}
 .sl-row{display:flex;align-items:center;gap:8px;margin-bottom:4px}
 .sl-text{background:#0f172a;padding:6px 12px;border-radius:6px;border:1px solid #334155;color:#e2e8f0;font-size:.82rem;flex:1}
@@ -212,6 +213,10 @@ details[open] summary::before{transform:rotate(90deg)}
 
 /* Dashboard */
 .dash{margin-top:28px;margin-bottom:24px}
+.dash-summary{font-size:1.05rem;font-weight:600;color:#f8fafc;padding:0;margin-bottom:0;list-style:none;display:flex;align-items:center;gap:10px;cursor:pointer}
+.dash-summary::before{content:'';display:inline-block;width:0;height:0;border-left:6px solid #64748b;border-top:5px solid transparent;border-bottom:5px solid transparent;transition:transform .2s;flex-shrink:0}
+.dash[open] .dash-summary::before{transform:rotate(90deg)}
+.dash-summary-stats{font-size:.75rem;font-weight:400;color:#64748b;margin-left:auto}
 .dash-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:10px}
 .dash-stat{background:#0f172a;border:1px solid #334155;border-radius:8px;padding:12px;text-align:center}
 .dash-num{font-size:1.5rem;font-weight:800;color:#e2e8f0}

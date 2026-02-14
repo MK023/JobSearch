@@ -506,6 +506,7 @@ def delete_analysis(
         cl_today = cl.created_at and cl.created_at.date() == today
         _spending_remove(db, cl.cost_usd or 0, cl.tokens_input or 0, cl.tokens_output or 0, is_analysis=False, created_today=cl_today)
     db.query(CoverLetter).filter(CoverLetter.analysis_id == analysis.id).delete()
+    db.query(Contact).filter(Contact.analysis_id == analysis.id).delete()
 
     # Aggiorna totali: sottrai analisi
     a_today = analysis.created_at and analysis.created_at.date() == today
@@ -574,11 +575,15 @@ def create_cover_letter(
     _spending_add(db, result.get("cost_usd", 0.0), result.get("tokens", {}).get("input", 0), result.get("tokens", {}).get("output", 0), is_analysis=False)
     db.commit()
 
+    # Passa current + result per mantenere visibili sia l'analisi che il form cover letter
+    analysis_result = _rebuild_result(analysis)
     return templates.TemplateResponse(
         "index.html",
         _base_context(
             request,
             db,
+            current=analysis,
+            result=analysis_result,
             cover_letter=cl,
             cover_letter_result=result,
             message=f"Cover letter generata! ({language})",
@@ -825,6 +830,8 @@ def dashboard_api(db: Session = Depends(get_db)):
         .count()
     )
 
+    top = max((a for a in analyses if a.status != "scartato"), key=lambda a: a.score or 0, default=None)
+
     return JSONResponse({
         "total": total,
         "applied": applied,
@@ -833,4 +840,5 @@ def dashboard_api(db: Session = Depends(get_db)):
         "pending": sum(1 for a in analyses if a.status == "da_valutare"),
         "avg_score": avg_score,
         "followup_count": followup_count,
+        "top_match": {"role": top.role, "company": top.company, "score": top.score} if top else None,
     })

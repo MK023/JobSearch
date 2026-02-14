@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🎯 Job Search Command Center</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=4">
+    <link rel="stylesheet" href="/static/css/style.css?v=5">
 </head>
 <body>
 <div class="c">
@@ -59,17 +59,13 @@
         </div>
     </div>
 
-    <!-- ========== COVER LETTER ========== -->
+    <!-- ========== COVER LETTER (visibile solo con analisi aperta) ========== -->
     {% set cl_analyses = analyses|rejectattr('status','equalto','scartato')|list %}
-    {% if cl_analyses %}
+    {% if current and current.status != 'scartato' and cl_analyses %}
     <div class="card card-mb" id="cl-card">
-        <h2>✉️ Cover Letter</h2>
+        <h2>✉️ Cover Letter &mdash; <span class="cl-ref">{{ current.role or 'Ruolo' }} @ {{ current.company or 'Azienda' }}</span></h2>
         <form method="post" action="/cover-letter" id="clf">
-            <select name="analysis_id" class="select select-full" id="cl-select">
-                {% for a in cl_analyses %}
-                <option value="{{ a.id }}">{{ a.role or 'Ruolo' }} @ {{ a.company or 'Azienda' }} ({{ a.score }}/100)</option>
-                {% endfor %}
-            </select>
+            <input type="hidden" name="analysis_id" value="{{ current.id }}" id="cl-analysis-id">
             <div class="btns">
                 <select name="language" class="select select-inline">
                     <option value="italiano">🇮🇹 Italiano</option>
@@ -90,7 +86,7 @@
     {% endif %}
 
     {% if cover_letter_result %}
-    <div class="card card-mb">
+    <div class="card card-mb" id="cl-result-card">
         <h2>✉️ Cover Letter generata</h2>
         <div>
             <div class="advice-title advice-title-green">📝 Lettera</div>
@@ -366,44 +362,41 @@
     </div>
     {% endif %}
 
-    <!-- ========== DASHBOARD ========== -->
-    {% if dashboard and dashboard.total > 0 %}
-    <div class="dash card">
-        <h2>📊 La tua ricerca</h2>
+    <!-- ========== DASHBOARD (collapsible, real-time) ========== -->
+    <details class="dash card" id="dash-details" {% if dashboard and dashboard.total > 0 %}{% else %}style="display:none"{% endif %}>
+        <summary class="dash-summary">📊 La tua ricerca <span class="dash-summary-stats" id="dash-summary-stats">{% if dashboard %}{{ dashboard.total }} analisi · {{ dashboard.applied }} candidature · score medio {{ dashboard.avg_score }}{% endif %}</span></summary>
         <div class="dash-grid">
             <div class="dash-stat">
-                <div class="dash-num">{{ dashboard.total }}</div>
+                <div class="dash-num" id="dash-total">{{ dashboard.total if dashboard else 0 }}</div>
                 <div class="dash-label">Analizzate</div>
             </div>
             <div class="dash-stat dash-stat-blue">
-                <div class="dash-num">{{ dashboard.applied }}</div>
+                <div class="dash-num" id="dash-applied">{{ dashboard.applied if dashboard else 0 }}</div>
                 <div class="dash-label">Candidature</div>
             </div>
             <div class="dash-stat dash-stat-green">
-                <div class="dash-num">{{ dashboard.interviews }}</div>
+                <div class="dash-num" id="dash-interviews">{{ dashboard.interviews if dashboard else 0 }}</div>
                 <div class="dash-label">Colloqui</div>
             </div>
             <div class="dash-stat">
-                <div class="dash-num">{{ dashboard.avg_score }}</div>
+                <div class="dash-num" id="dash-avg">{{ dashboard.avg_score if dashboard else 0 }}</div>
                 <div class="dash-label">Score medio</div>
             </div>
-            {% if dashboard.followup_count > 0 %}
-            <div class="dash-stat dash-stat-amber">
-                <div class="dash-num">{{ dashboard.followup_count }}</div>
+            <div class="dash-stat dash-stat-amber" id="dash-followup-box" {% if not dashboard or dashboard.followup_count == 0 %}style="display:none"{% endif %}>
+                <div class="dash-num" id="dash-followup">{{ dashboard.followup_count if dashboard else 0 }}</div>
                 <div class="dash-label">Follow-up</div>
             </div>
-            {% endif %}
             <div class="dash-stat dash-stat-red">
-                <div class="dash-num">{{ dashboard.skipped }}</div>
+                <div class="dash-num" id="dash-skipped">{{ dashboard.skipped if dashboard else 0 }}</div>
                 <div class="dash-label">Scartate</div>
             </div>
         </div>
-        {% if dashboard.top_match %}
-        <div class="dash-motivation">
+        <div class="dash-motivation" id="dash-motivation" {% if not dashboard or not dashboard.top_match %}style="display:none"{% endif %}>
+            {% if dashboard and dashboard.top_match %}
             🏆 Miglior match: <b>{{ dashboard.top_match.role }}</b> @ {{ dashboard.top_match.company }} ({{ dashboard.top_match.score }}/100)
             {% if dashboard.applied > 0 %} · Hai gia' inviato {{ dashboard.applied }} candidatur{{ 'a' if dashboard.applied == 1 else 'e' }} - continua cosi'!{% endif %}
+            {% endif %}
         </div>
-        {% endif %}
 
         {% if active_apps %}
         <div class="dash-active">
@@ -440,12 +433,11 @@
             {% endfor %}
         </div>
         {% endif %}
-    </div>
-    {% endif %}
+    </details>
 
     <div class="foot">🎯 Job Search Command Center</div>
 </div>
 
-<script src="/static/js/app.js?v=4"></script>
+<script src="/static/js/app.js?v=6"></script>
 </body>
 </html>
