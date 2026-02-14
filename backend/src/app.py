@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from .ai_client import MODELS, _content_hash, analyze_job, generate_cover_letter
 from .config import settings, setup_logging
-from .database import CoverLetter, CVProfile, JobAnalysis, SessionLocal, get_db, init_db
+from .database import AppSettings, CoverLetter, CVProfile, JobAnalysis, SessionLocal, get_db, init_db
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -120,7 +120,22 @@ def _run_batch(batch_id: str):
         db.close()
 
 
+def _get_or_create_settings(db: Session) -> AppSettings:
+    s = db.query(AppSettings).first()
+    if not s:
+        s = AppSettings(id=1, anthropic_budget=0.0)
+        db.add(s)
+        db.commit()
+        db.refresh(s)
+    return s
+
+
 def _get_spending(db: Session) -> dict:
+    from datetime import date, datetime, time
+
+    settings_row = _get_or_create_settings(db)
+
+    # Totali
     a_row = db.query(
         func.coalesce(func.sum(JobAnalysis.cost_usd), 0.0),
         func.coalesce(func.sum(JobAnalysis.tokens_input), 0),
@@ -132,14 +147,42 @@ def _get_spending(db: Session) -> dict:
         func.coalesce(func.sum(CoverLetter.tokens_input), 0),
         func.coalesce(func.sum(CoverLetter.tokens_output), 0),
     ).first()
-    total = float(a_row[0]) + float(cl_row[0])
+    total_cost = float(a_row[0]) + float(cl_row[0])
     tok_in = int(a_row[1]) + int(cl_row[1])
     tok_out = int(a_row[2]) + int(cl_row[2])
+
+    # Oggi
+    today_start = datetime.combine(date.today(), time.min)
+    a_today = db.query(
+        func.coalesce(func.sum(JobAnalysis.cost_usd), 0.0),
+        func.coalesce(func.sum(JobAnalysis.tokens_input), 0),
+        func.coalesce(func.sum(JobAnalysis.tokens_output), 0),
+        func.count(JobAnalysis.id),
+    ).filter(JobAnalysis.created_at >= today_start).first()
+    cl_today = db.query(
+        func.coalesce(func.sum(CoverLetter.cost_usd), 0.0),
+        func.coalesce(func.sum(CoverLetter.tokens_input), 0),
+        func.coalesce(func.sum(CoverLetter.tokens_output), 0),
+    ).filter(CoverLetter.created_at >= today_start).first()
+
+    today_cost = float(a_today[0]) + float(cl_today[0])
+    today_tok_in = int(a_today[1]) + int(cl_today[1])
+    today_tok_out = int(a_today[2]) + int(cl_today[2])
+
+    budget = float(settings_row.anthropic_budget or 0)
+    remaining = round(budget - total_cost, 4) if budget > 0 else None
+
     return {
-        "total_cost_usd": round(total, 4),
+        "budget": round(budget, 2),
+        "total_cost_usd": round(total_cost, 4),
+        "remaining": remaining,
+        "total_analyses": int(a_row[3]),
         "total_tokens_input": tok_in,
         "total_tokens_output": tok_out,
-        "total_analyses": int(a_row[3]),
+        "today_cost_usd": round(today_cost, 4),
+        "today_analyses": int(a_today[3]),
+        "today_tokens_input": today_tok_in,
+        "today_tokens_output": today_tok_out,
     }
 
 
@@ -527,3 +570,12 @@ def batch_clear():
 @app.get("/spending")
 def spending_api(db: Session = Depends(get_db)):
     return JSONResponse(_get_spending(db))
+
+
+@app.put("/spending/budget")
+def update_budget(budget: float = Form(...), db: Session = Depends(get_db)):
+    s = _get_or_create_settings(db)
+    s.anthropic_budget = max(budget, 0)
+    db.commit()
+    logger.info("Budget aggiornato: $%.2f", s.anthropic_budget)
+    return JSONResponse({"ok": True, "budget": round(s.anthropic_budget, 2)})

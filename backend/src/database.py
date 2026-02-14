@@ -72,6 +72,14 @@ class JobAnalysis(Base):
     )
 
 
+class AppSettings(Base):
+    __tablename__ = "app_settings"
+
+    id = Column(Integer, primary_key=True, default=1)
+    anthropic_budget = Column(Float, default=0.0)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class CoverLetter(Base):
     __tablename__ = "cover_letters"
 

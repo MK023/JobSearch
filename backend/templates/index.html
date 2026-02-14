@@ -12,11 +12,12 @@
         <h1>🎯 Job Search Command Center</h1>
         {% if spending %}
         <div class="spend" id="spend-bar">
-            <span>💳 Crediti: <b id="sp-budget" class="bal" contenteditable="true" title="Clicca per impostare i tuoi crediti Anthropic">0.00</b></span>
+            <span>💳 Crediti: <b id="sp-budget" class="bal" contenteditable="true" title="Clicca per impostare i tuoi crediti Anthropic">${{ '%.2f' % spending.budget }}</b></span>
             <span>💰 Speso: <b id="sp-cost">${{ '%.4f' % spending.total_cost_usd }}</b></span>
-            <span>🏦 Rimanente: <b id="sp-remain" class="bal">-</b></span>
+            <span>🏦 Rimanente: <b id="sp-remain" class="bal">{% if spending.remaining is not none %}${{ '%.4f' % spending.remaining }}{% else %}-{% endif %}</b></span>
             <span>📊 Analisi: <b id="sp-count">{{ spending.total_analyses }}</b></span>
             <span>🔤 Token: <b id="sp-tokens">{{ '{:,}'.format(spending.total_tokens_input + spending.total_tokens_output) }}</b></span>
+            <span>📅 Oggi: <b id="sp-today">${{ '%.4f' % spending.today_cost_usd }}</b> ({{ spending.today_analyses }} analisi, {{ '{:,}'.format(spending.today_tokens_input + spending.today_tokens_output) }} tok)</span>
         </div>
         {% endif %}
     </div>
