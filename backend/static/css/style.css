@@ -192,7 +192,31 @@ details[open] summary::before{transform:rotate(90deg)}
 .rep-rating-mid{background:#78350f;color:#fbbf24;border:1px solid #92400e}
 .rep-rating-low{background:#7f1d1d;color:#f87171;border:1px solid #991b1b}
 .rep-rating-na{background:#334155;color:#94a3b8;border:1px solid #475569}
-.rep-note{font-size:.72rem;color:#64748b;margin-top:8px;font-style:italic}
+.rep-note{font-size:.72rem;color:#64748b;font-style:italic}
+.rep-reviews{font-size:.72rem;color:#64748b;margin-left:6px;font-weight:400}
+
+/* Sub-ratings bars */
+.sub-ratings{margin:12px 0;display:flex;flex-direction:column;gap:6px}
+.sr-row{display:flex;align-items:center;gap:8px}
+.sr-label{width:120px;font-size:.75rem;color:#94a3b8;flex-shrink:0;text-align:right}
+.sr-bar-bg{flex:1;height:8px;background:#1e293b;border-radius:4px;overflow:hidden;border:1px solid #334155}
+.sr-bar{height:100%;border-radius:4px;transition:width .3s}
+.sr-bar-good{background:linear-gradient(90deg,#059669,#34d399)}
+.sr-bar-mid{background:linear-gradient(90deg,#d97706,#fbbf24)}
+.sr-bar-low{background:linear-gradient(90deg,#dc2626,#f87171)}
+.sr-val{font-size:.75rem;font-weight:700;color:#e2e8f0;width:28px;flex-shrink:0}
+
+/* CEO info */
+.ceo-info{display:flex;gap:16px;margin:10px 0;font-size:.82rem;color:#94a3b8;flex-wrap:wrap}
+.ceo-name{color:#e2e8f0}.ceo-detail{color:#34d399}
+
+/* Reputation footer */
+.rep-footer{display:flex;align-items:center;gap:12px;margin-top:10px;flex-wrap:wrap}
+.gd-link{font-size:.78rem;color:#818cf8;font-weight:600;text-decoration:none;padding:4px 10px;background:#1e1b4b;border-radius:6px;border:1px solid #312e81;transition:all .15s}
+.gd-link:hover{background:#312e81;color:#c7d2fe;text-decoration:none}
+.rep-badge{font-size:.68rem;font-weight:700;padding:3px 8px;border-radius:4px}
+.rep-badge-verified{background:#064e3b;color:#34d399;border:1px solid #065f46}
+.rep-badge-estimate{background:#334155;color:#94a3b8;border:1px solid #475569}
 
 /* Utility overrides */
 .advice-title-green{color:#059669}

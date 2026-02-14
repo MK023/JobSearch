@@ -109,6 +109,17 @@ class Contact(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class GlassdoorCache(Base):
+    __tablename__ = "glassdoor_cache"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_name = Column(String(255), unique=True, index=True, nullable=False)
+    glassdoor_data = Column(Text, default="")
+    rating = Column(Float, nullable=True)
+    review_count = Column(Integer, nullable=True)
+    fetched_at = Column(DateTime, default=datetime.utcnow)
+
+
 class CoverLetter(Base):
     __tablename__ = "cover_letters"
 

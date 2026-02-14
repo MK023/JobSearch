@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🎯 Job Search Command Center</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=5">
+    <link rel="stylesheet" href="/static/css/style.css?v=6">
 </head>
 <body>
 <div class="c">
@@ -188,8 +188,9 @@
                     {% endif %}
                     {% if result.company_reputation and result.company_reputation.glassdoor_estimate and result.company_reputation.glassdoor_estimate != 'non disponibile' %}
                     {% set gr = result.company_reputation.glassdoor_estimate|replace('/5','')|float(0) %}
-                    <span class="ht {% if gr >= 4.0 %}ht-sal{% elif gr >= 3.0 %}ht-time{% else %}tag-r{% endif %}" title="{{ result.company_reputation.known_pros|join(', ') }} | {{ result.company_reputation.known_cons|join(', ') }}{% if result.company_reputation.note %} - {{ result.company_reputation.note }}{% endif %}">
-                        ⭐ Glassdoor ~{{ result.company_reputation.glassdoor_estimate }}
+                    {% set is_api = result.company_reputation.source|default('') == 'glassdoor_api' %}
+                    <span class="ht {% if gr >= 4.0 %}ht-sal{% elif gr >= 3.0 %}ht-time{% else %}tag-r{% endif %}" title="{{ result.company_reputation.note|default('') }}">
+                        ⭐ Glassdoor {% if not is_api %}~{% endif %}{{ result.company_reputation.glassdoor_estimate }}{% if is_api and result.company_reputation.review_count %} ({{ '{:,}'.format(result.company_reputation.review_count).replace(',', '.') }}){% endif %}
                     </span>
                     {% elif result.company_reputation %}
                     <span class="ht ht-conf" title="{{ result.company_reputation.note|default('') }}">⭐ Glassdoor: n/d</span>
@@ -202,40 +203,79 @@
             </div>
         </div>
 
-        {% if result.company_reputation and (result.company_reputation.known_pros or result.company_reputation.known_cons) %}
+        {% if result.company_reputation and (result.company_reputation.known_pros or result.company_reputation.known_cons or result.company_reputation.source|default('') == 'glassdoor_api') %}
+        {% set rep = result.company_reputation %}
+        {% set is_api = rep.source|default('') == 'glassdoor_api' %}
         <details open>
             <summary>🏢 Reputazione aziendale
-                {% set gr_str = result.company_reputation.glassdoor_estimate|default('non disponibile') %}
+                {% set gr_str = rep.glassdoor_estimate|default('non disponibile') %}
                 {% if gr_str != 'non disponibile' %}
                 {% set gr = gr_str|replace('/5','')|float(0) %}
                 <span class="rep-rating {% if gr >= 4.0 %}rep-rating-good{% elif gr >= 3.0 %}rep-rating-mid{% else %}rep-rating-low{% endif %}">
                     ⭐ {{ gr_str }}
                 </span>
+                {% if is_api and rep.review_count %}
+                <span class="rep-reviews">{{ '{:,}'.format(rep.review_count).replace(',', '.') }} recensioni</span>
+                {% endif %}
                 {% else %}
                 <span class="rep-rating rep-rating-na">⭐ n/d</span>
                 {% endif %}
             </summary>
+
+            {% if is_api and rep.sub_ratings %}
+            <div class="sub-ratings">
+                {% set sr_labels = {'culture': 'Cultura', 'compensation': 'Compenso', 'work_life_balance': 'Work-Life Balance', 'career_opportunities': 'Carriera', 'senior_management': 'Management', 'diversity': 'Diversita\''} %}
+                {% for key, label in sr_labels.items() %}
+                {% if rep.sub_ratings[key] is defined and rep.sub_ratings[key] %}
+                {% set val = rep.sub_ratings[key] %}
+                <div class="sr-row">
+                    <span class="sr-label">{{ label }}</span>
+                    <div class="sr-bar-bg">
+                        <div class="sr-bar {% if val >= 4.0 %}sr-bar-good{% elif val >= 3.0 %}sr-bar-mid{% else %}sr-bar-low{% endif %}" style="width:{{ (val / 5 * 100)|round }}%"></div>
+                    </div>
+                    <span class="sr-val">{{ '%.1f' % val }}</span>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if is_api and (rep.ceo_name or rep.ceo_approval or rep.recommend_to_friend or rep.business_outlook) %}
+            <div class="ceo-info">
+                {% if rep.ceo_name %}<span class="ceo-name">👔 CEO: {{ rep.ceo_name }}{% if rep.ceo_approval %} ({{ rep.ceo_approval }}% approvazione){% endif %}</span>{% endif %}
+                {% if rep.recommend_to_friend %}<span class="ceo-detail">👍 {{ rep.recommend_to_friend }}% consiglia</span>{% endif %}
+                {% if rep.business_outlook %}<span class="ceo-detail">📈 Outlook: {{ rep.business_outlook }}%</span>{% endif %}
+            </div>
+            {% endif %}
+
             <div class="rep-grid">
-                {% if result.company_reputation.known_pros %}
+                {% if rep.known_pros %}
                 <div class="rep-col rep-pros">
                     <div class="rep-label rep-label-pro">👍 Punti di forza</div>
-                    {% for p in result.company_reputation.known_pros %}
+                    {% for p in rep.known_pros %}
                     <div class="rep-item">✅ {{ p }}</div>
                     {% endfor %}
                 </div>
                 {% endif %}
-                {% if result.company_reputation.known_cons %}
+                {% if rep.known_cons %}
                 <div class="rep-col rep-cons">
                     <div class="rep-label rep-label-con">👎 Criticita'</div>
-                    {% for c in result.company_reputation.known_cons %}
+                    {% for c in rep.known_cons %}
                     <div class="rep-item">⚠️ {{ c }}</div>
                     {% endfor %}
                 </div>
                 {% endif %}
             </div>
-            {% if result.company_reputation.note %}
-            <div class="rep-note">⚠️ {{ result.company_reputation.note }}</div>
-            {% endif %}
+
+            <div class="rep-footer">
+                {% if rep.note %}<span class="rep-note">{{ rep.note }}</span>{% endif %}
+                {% if is_api and rep.glassdoor_url %}
+                <a href="{{ rep.glassdoor_url }}" target="_blank" class="gd-link">🔗 Vedi su Glassdoor</a>
+                {% endif %}
+                <span class="rep-badge {% if is_api %}rep-badge-verified{% else %}rep-badge-estimate{% endif %}">
+                    {% if is_api %}✅ Dati Glassdoor verificati{% else %}🤖 Stima AI{% endif %}
+                </span>
+            </div>
         </details>
         {% endif %}
 

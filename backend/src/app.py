@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from .ai_client import MODELS, _content_hash, analyze_job, generate_cover_letter, generate_followup_email, generate_linkedin_message
 from .config import settings, setup_logging
 from .database import AppSettings, Contact, CoverLetter, CVProfile, JobAnalysis, SessionLocal, get_db, init_db
+from .glassdoor import fetch_glassdoor_rating
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -76,6 +77,7 @@ def _run_batch(batch_id: str):
                     logger.info("Batch %s [%d/%d]: duplicato trovato, skip API", batch_id[:8], idx, total)
                     continue
                 result = analyze_job(cv.raw_text, item["job_description"], item.get("model", "haiku"))
+                _merge_glassdoor(result)
                 analysis = JobAnalysis(
                     cv_id=cv.id,
                     job_description=item["job_description"],
@@ -307,6 +309,30 @@ def _base_context(request: Request, db: Session, **extra) -> dict:
     return ctx
 
 
+def _merge_glassdoor(result: dict):
+    """Merge Glassdoor API data into result's company_reputation, if available."""
+    company = result.get("company", "")
+    if not company:
+        return
+    gd = fetch_glassdoor_rating(company)
+    if not gd:
+        return
+    rep = result.get("company_reputation", {}) or {}
+    review_count = gd.get("review_count", 0)
+    rep["glassdoor_estimate"] = f"{gd['glassdoor_rating']:.1f}/5"
+    rep["review_count"] = review_count
+    rep["sub_ratings"] = gd.get("sub_ratings", {})
+    rep["ceo_name"] = gd.get("ceo_name", "")
+    rep["ceo_approval"] = gd.get("ceo_approval")
+    rep["recommend_to_friend"] = gd.get("recommend_to_friend")
+    rep["business_outlook"] = gd.get("business_outlook")
+    rep["glassdoor_url"] = gd.get("glassdoor_url", "")
+    rep["source"] = "glassdoor_api"
+    count_fmt = f"{review_count:,}".replace(",", ".") if review_count else "n/d"
+    rep["note"] = f"Fonte: Glassdoor ({count_fmt} recensioni)"
+    result["company_reputation"] = rep
+
+
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("index.html", _base_context(request, db))
@@ -406,6 +432,9 @@ def run_analysis(
             "index.html",
             _base_context(request, db, error=f"Analisi AI fallita: {e}"),
         )
+
+    # Merge Glassdoor real data into company_reputation
+    _merge_glassdoor(result)
 
     analysis = JobAnalysis(
         cv_id=cv.id,
