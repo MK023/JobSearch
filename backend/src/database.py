@@ -12,7 +12,7 @@ from .config import settings
 logger = logging.getLogger(__name__)
 
 engine = create_engine(
-    settings.database_url,
+    settings.effective_database_url,
     poolclass=QueuePool,
     pool_size=5,
     max_overflow=10,

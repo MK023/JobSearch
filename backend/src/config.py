@@ -10,6 +10,14 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     redis_url: str = "redis://redis:6379/0"
 
+    @property
+    def effective_database_url(self) -> str:
+        """Fly Postgres usa postgres:// ma SQLAlchemy vuole postgresql://"""
+        url = self.database_url
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql://", 1)
+        return url
+
     # Logging
     log_level: str = "INFO"
     log_dir: str = "logs"
