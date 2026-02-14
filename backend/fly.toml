@@ -17,6 +17,7 @@ primary_region = "cdg"  # Parigi - il piu' vicino all'Italia
   auto_stop_machines = "stop"
   auto_start_machines = true
   min_machines_running = 0
+  processes = ["app"]
 
 [[vm]]
   memory = "512mb"
