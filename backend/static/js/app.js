@@ -47,6 +47,24 @@ document.addEventListener('DOMContentLoaded',function(){if(document.getElementBy
 var clf=document.getElementById('clf');
 if(clf){clf.addEventListener('submit',function(){document.getElementById('cld').classList.add('on');});}
 
+/* === Upload CV da file === */
+function uploadCV(){
+    document.getElementById('cv-file').click();
+}
+var cvFile=document.getElementById('cv-file');
+if(cvFile){
+    cvFile.addEventListener('change',function(){
+        var file=this.files[0];
+        if(!file)return;
+        var reader=new FileReader();
+        reader.onload=function(e){
+            document.getElementById('cv-text').value=e.target.result;
+        };
+        reader.readAsText(file);
+        this.value='';
+    });
+}
+
 /* === Budget crediti (localStorage) === */
 var budgetEl=document.getElementById('sp-budget');
 if(budgetEl){

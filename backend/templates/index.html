@@ -32,13 +32,15 @@
             {% else %}
             <div class="cv-st cv-no">⚠️ Nessun CV &mdash; incollalo qui sotto</div>
             {% endif %}
-            <form method="post" action="/cv">
+            <form method="post" action="/cv" id="cv-form">
                 <input type="text" name="cv_name" placeholder="👤 Il tuo nome (opzionale)" value="{{ cv.name if cv else '' }}">
-                <textarea name="cv_text" placeholder="📋 Incolla qui il tuo CV completo..."></textarea>
+                <textarea name="cv_text" id="cv-text" placeholder="📋 Incolla qui il tuo CV completo...">{{ cv.raw_text if cv else '' }}</textarea>
                 <div class="btns">
-                    <button type="submit" class="btn btn-p">💾 Salva CV</button>
-                    {% if cv %}<button type="button" class="btn btn-muted btn-s" disabled title="Prossimamente">📥 Scarica CV</button>{% endif %}
+                    <button type="submit" class="btn btn-p btn-s">💾 Salva CV</button>
+                    <button type="button" class="btn btn-muted btn-s" onclick="uploadCV()">📤 Carica file</button>
+                    {% if cv %}<a href="/cv/download" class="btn btn-muted btn-s">📥 Scarica CV</a>{% endif %}
                 </div>
+                <input type="file" id="cv-file" accept=".txt,.pdf,.doc,.docx,.rtf" hidden>
             </form>
         </div>
         <div class="card">

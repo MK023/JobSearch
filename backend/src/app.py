@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
@@ -181,6 +181,18 @@ def save_cv(
     return templates.TemplateResponse(
         "index.html",
         _base_context(request, db, message="CV salvato!"),
+    )
+
+
+@app.get("/cv/download")
+def download_cv(db: Session = Depends(get_db)):
+    cv = db.query(CVProfile).order_by(CVProfile.updated_at.desc()).first()
+    if not cv:
+        return RedirectResponse(url="/", status_code=303)
+    filename = f"CV_{cv.name or 'senza_nome'}.txt".replace(" ", "_")
+    return PlainTextResponse(
+        cv.raw_text,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
