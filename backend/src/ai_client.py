@@ -74,6 +74,9 @@ def _extract_and_parse_json(raw_text: str) -> dict:
 def _get_redis():
     global _redis
     if _redis is None:
+        if not settings.redis_url:
+            _redis = False
+            return None
         try:
             _redis = redis.from_url(settings.redis_url, decode_responses=True)
             _redis.ping()
