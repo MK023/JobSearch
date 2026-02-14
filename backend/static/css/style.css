@@ -26,6 +26,7 @@ a{color:#818cf8;text-decoration:none}a:hover{text-decoration:underline}
 .card-mb{margin-bottom:20px}
 textarea{width:100%;min-height:140px;background:#0f172a;border:1px solid #475569;border-radius:6px;padding:10px;color:#e2e8f0;font-size:.85rem;font-family:inherit;resize:vertical}
 textarea:focus{outline:none;border-color:#6366f1}
+textarea:focus::placeholder,input:focus::placeholder{color:transparent}
 input[type="text"],input[type="url"]{width:100%;background:#0f172a;border:1px solid #475569;border-radius:6px;padding:8px 10px;color:#e2e8f0;font-size:.85rem;margin-bottom:8px}
 input:focus{outline:none;border-color:#6366f1}
 select{background:#0f172a;border:1px solid #475569;border-radius:6px;padding:8px 10px;color:#e2e8f0;font-size:.85rem}
