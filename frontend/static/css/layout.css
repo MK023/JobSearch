@@ -1,0 +1,138 @@
+/* ============================================================
+   Page-level layout: container, header, grid, footer
+   ============================================================ */
+
+/* ---- Container ---- */
+
+.container {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    padding: var(--space-5xl) var(--space-2xl);
+}
+
+/* ---- Header ---- */
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-4xl);
+    flex-wrap: wrap;
+    gap: var(--space-base);
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: var(--space-lg);
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+/* ---- Spending bar ---- */
+
+.spending-bar {
+    display: flex;
+    gap: var(--space-2xl);
+    font-size: var(--font-size-sm);
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.spending-bar span {
+    color: var(--color-text-dim);
+}
+
+.spending-bar b {
+    color: var(--color-text-body);
+}
+
+.spending-bar .spending-balance {
+    color: var(--color-green);
+}
+
+.spending-budget-editable {
+    cursor: pointer;
+    border-bottom: 1px dashed var(--color-border-hover);
+    padding: 0 2px;
+    min-width: 40px;
+    outline: none;
+}
+
+.spending-budget-editable:focus {
+    border-bottom-color: var(--color-accent);
+    color: var(--color-text-primary);
+}
+
+/* ---- Grid layouts ---- */
+
+.grid-2col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--grid-gap);
+    margin-bottom: var(--space-5xl);
+    align-items: stretch;
+}
+
+.grid-2col-start {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-2xl);
+    align-items: start;
+    margin-bottom: var(--space-4xl);
+}
+
+@media (max-width: 768px) {
+    .grid-2col,
+    .grid-2col-start {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ---- Footer ---- */
+
+.footer {
+    text-align: center;
+    padding: var(--space-5xl) 0 var(--space-md);
+    color: var(--color-border);
+    font-size: var(--font-size-sm);
+}
+
+/* ---- Login layout ---- */
+
+.login-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-5xl);
+}
+
+.login-card {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    padding: 40px 36px;
+    width: 100%;
+    max-width: 400px;
+}
+
+.login-card h1 {
+    text-align: center;
+    margin-bottom: var(--space-5xl);
+    font-size: var(--font-size-3xl);
+}
+
+.login-card form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+}
+
+.login-card .btn {
+    margin-top: var(--space-md);
+}

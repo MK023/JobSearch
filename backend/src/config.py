@@ -1,102 +1,49 @@
-import logging
-import logging.handlers
-from pathlib import Path
+"""Application configuration via environment variables."""
 
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    """Application settings loaded from environment variables / .env file."""
+
     database_url: str = "postgresql://jobsearch:jobsearch@db:5432/jobsearch"
     anthropic_api_key: str = ""
     redis_url: str = "redis://redis:6379/0"
     rapidapi_key: str = ""
 
+    # Authentication
+    secret_key: str = "change-me-to-a-random-string"
+    admin_email: str = ""
+    admin_password: str = ""
+
+    # CORS
+    cors_allowed_origins: str = "http://localhost,http://localhost:80"
+    cors_allow_credentials: bool = True
+
+    # Security
+    trusted_hosts: str = "*"
+    rate_limit_default: str = "60/minute"
+    rate_limit_analyze: str = "10/minute"
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        """Parse comma-separated CORS origins into a list."""
+        return [o.strip() for o in self.cors_allowed_origins.split(",") if o.strip()]
+
+    @property
+    def trusted_hosts_list(self) -> list[str]:
+        """Parse comma-separated trusted hosts into a list."""
+        return [h.strip() for h in self.trusted_hosts.split(",") if h.strip()]
+
     @property
     def effective_database_url(self) -> str:
-        """Fly Postgres usa postgres:// ma SQLAlchemy vuole postgresql://"""
+        """Fly Postgres uses postgres:// but SQLAlchemy requires postgresql://."""
         url = self.database_url
         if url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql://", 1)
         return url
 
-    # Logging
-    log_level: str = "INFO"
-    log_dir: str = "logs"
-    log_max_bytes: int = 10_485_760  # 10 MB
-    log_backup_count: int = 5
-
-    model_config = {"env_file": ".env"}
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
 
 settings = Settings()
-
-
-def setup_logging() -> None:
-    """Configure application-wide logging with rotating file handlers.
-
-    Creates three handlers:
-    - Console: INFO+ with brief format (for docker compose logs)
-    - app.log: DEBUG+ with detailed format, rotated at 10 MB x 5 backups
-    - error.log: ERROR+ only, rotated at 10 MB x 5 backups
-    """
-    log_dir = Path(settings.log_dir)
-    log_dir.mkdir(parents=True, exist_ok=True)
-
-    level = getattr(logging, settings.log_level.upper(), logging.INFO)
-
-    root = logging.getLogger()
-    root.setLevel(level)
-    root.handlers.clear()
-
-    # --- Console handler (brief, for Docker logs / stdout) ---
-    console = logging.StreamHandler()
-    console.setLevel(logging.INFO)
-    console.setFormatter(
-        logging.Formatter(
-            "%(asctime)s %(levelname)-8s %(name)s: %(message)s",
-            datefmt="%H:%M:%S",
-        )
-    )
-    root.addHandler(console)
-
-    # --- Rotating file handler (detailed, all levels) ---
-    detail_fmt = logging.Formatter(
-        "%(asctime)s %(levelname)-8s [%(name)s:%(funcName)s:%(lineno)d] %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-
-    app_handler = logging.handlers.RotatingFileHandler(
-        log_dir / "app.log",
-        maxBytes=settings.log_max_bytes,
-        backupCount=settings.log_backup_count,
-        encoding="utf-8",
-    )
-    app_handler.setLevel(logging.DEBUG)
-    app_handler.setFormatter(detail_fmt)
-    root.addHandler(app_handler)
-
-    # --- Rotating error-only file handler ---
-    err_handler = logging.handlers.RotatingFileHandler(
-        log_dir / "error.log",
-        maxBytes=settings.log_max_bytes,
-        backupCount=settings.log_backup_count,
-        encoding="utf-8",
-    )
-    err_handler.setLevel(logging.ERROR)
-    err_handler.setFormatter(detail_fmt)
-    root.addHandler(err_handler)
-
-    # --- Quiet noisy third-party loggers ---
-    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
-    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
-    logging.getLogger("httpcore").setLevel(logging.WARNING)
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-    logging.getLogger("anthropic").setLevel(logging.WARNING)
-
-    logging.getLogger(__name__).info(
-        "Logging configurato: level=%s, dir=%s, max=%s MB x %d backup",
-        settings.log_level,
-        log_dir,
-        settings.log_max_bytes // 1_048_576,
-        settings.log_backup_count,
-    )

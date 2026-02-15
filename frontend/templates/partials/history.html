@@ -1,0 +1,41 @@
+{# Analysis history with tabs #}
+{% if analyses %}
+<div class="history-section card" x-data="historyTabs()" x-init="init()">
+    <h2>📚 Storico analisi</h2>
+
+    <div class="tabs" id="history-tabs">
+        <div class="tab" :class="{ 'active': activeTab === 'valutazione' }"
+             @click="switchTab('valutazione')">
+            In valutazione <span class="tab-badge" x-text="counts.valutazione">0</span>
+        </div>
+        <div class="tab" :class="{ 'active': activeTab === 'applicato' }"
+             @click="switchTab('applicato')">
+            Candidature <span class="tab-badge" x-text="counts.applicato">0</span>
+        </div>
+        <div class="tab" :class="{ 'active': activeTab === 'skippato' }"
+             @click="switchTab('skippato')">
+            Scartati <span class="tab-badge" x-text="counts.skippato">0</span>
+        </div>
+    </div>
+
+    <div class="history-list" id="history-list">
+        {% for a in analyses %}
+        <div class="history-item"
+             data-hist-id="{{ a.id }}"
+             data-hist-status="{{ a.status.value }}">
+            <a href="/analysis/{{ a.id }}" class="history-item-link">
+                <div class="score-circle score-circle-sm score-{{ a.recommendation|lower }}">{{ a.score }}</div>
+                <div class="history-item-info">
+                    <div class="history-item-role">{{ a.role or 'Ruolo sconosciuto' }}</div>
+                    <div class="history-item-company">{{ a.company or 'Azienda sconosciuta' }}{% if a.work_mode %} · {{ a.work_mode }}{% endif %}{% if a.salary_info %} · {{ a.salary_info }}{% endif %}</div>
+                </div>
+                <span class="status-badge status-badge-{{ a.status.value }}">{% if a.status.value == 'candidato' %}📨{% elif a.status.value == 'colloquio' %}🗣️{% elif a.status.value == 'scartato' %}❌{% else %}🔍{% endif %} {{ a.status.value|replace('_',' ') }}</span>
+                <span class="recommendation-badge recommendation-{{ a.recommendation }} recommendation-badge-sm">{{ a.recommendation }}</span>
+                <span class="history-item-date">${{ '%.4f' % (a.cost_usd or 0) }}<br>{{ a.created_at.strftime('%d/%m %H:%M') if a.created_at else '' }}</span>
+            </a>
+            <button class="btn btn-danger btn-sm" onclick="deleteAnalysis('{{ a.id }}')" title="Elimina">🗑️</button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}

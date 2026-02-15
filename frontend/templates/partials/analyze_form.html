@@ -1,0 +1,28 @@
+{# Job analysis form card #}
+<div class="card">
+    <h2>🔍 Analizza candidatura</h2>
+
+    <form method="post" action="/analyze" id="analyze-form"
+          @submit="analyzeLoading = true">
+        <input type="url" name="job_url" placeholder="🔗 Link annuncio (LinkedIn, Indeed...) - opzionale">
+        <textarea name="job_description" placeholder="📝 Incolla qui la descrizione del lavoro..."></textarea>
+        <div class="button-row">
+            <button type="submit" class="btn btn-warning btn-sm" id="analyze-btn"
+                    :disabled="analyzeLoading">
+                <span x-show="!analyzeLoading">⚡ Analizza</span>
+                <span x-show="analyzeLoading" x-cloak>🤖 Analisi in corso...</span>
+            </button>
+            <div class="toggle">
+                <input type="radio" name="model" value="haiku" id="model-haiku" checked>
+                <label for="model-haiku">🐇 Haiku</label>
+                <input type="radio" name="model" value="sonnet" id="model-sonnet">
+                <label for="model-sonnet">🧠 Sonnet</label>
+            </div>
+        </div>
+    </form>
+
+    <div class="loading" :class="{ 'on': analyzeLoading }">
+        <div class="spinner"></div>
+        <span>🤖 Analisi AI in corso...</span>
+    </div>
+</div>

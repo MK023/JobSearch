@@ -1,0 +1,41 @@
+{# Batch analysis section #}
+<div class="card card-mb" x-data="batchManager()">
+    <h2>📦 Analisi multipla</h2>
+
+    <div>
+        <input type="url" x-model="batchUrl" placeholder="🔗 Link annuncio (opzionale)">
+        <textarea x-model="batchJd" placeholder="📝 Incolla la descrizione del lavoro..." class="batch-textarea"></textarea>
+        <div class="button-row">
+            <button class="btn btn-warning btn-sm" @click="addItem()" :disabled="!batchJd.trim()">➕ Aggiungi alla coda</button>
+            <div class="toggle">
+                <input type="radio" name="batch_model" value="haiku" id="batch-model-haiku" checked x-model="batchModel">
+                <label for="batch-model-haiku">🐇 Haiku</label>
+                <input type="radio" name="batch_model" value="sonnet" id="batch-model-sonnet" x-model="batchModel">
+                <label for="batch-model-sonnet">🧠 Sonnet</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Queue display -->
+    <div id="batch-queue">
+        <template x-for="(item, index) in items" :key="index">
+            <div class="batch-queue-item">
+                <span class="batch-queue-number"
+                      :style="'color:' + statusColor(item.status)"
+                      x-text="'[' + (index + 1) + ']'"></span>
+                <span class="batch-queue-preview" x-text="item.preview"></span>
+                <span class="batch-queue-status"
+                      :style="'color:' + statusColor(item.status)"
+                      x-text="item.status"></span>
+                <span class="batch-queue-result" x-show="item.result_preview" x-text="item.result_preview"></span>
+            </div>
+        </template>
+    </div>
+
+    <!-- Batch actions -->
+    <div class="button-row" x-show="items.length > 0" x-cloak>
+        <button class="btn btn-success btn-sm" @click="runAll()" :disabled="running">🚀 Analizza tutti</button>
+        <button class="btn btn-danger btn-sm" @click="clearQueue()" :disabled="running">🗑️ Svuota coda</button>
+        <span class="batch-status-text" x-text="statusText"></span>
+    </div>
+</div>

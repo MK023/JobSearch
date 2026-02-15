@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}🔐 Login - Job Search Command Center{% endblock %}
+
+{% block body %}
+<div class="login-wrapper">
+    <div class="login-card">
+        <h1>🎯 Job Search</h1>
+
+        {% if error %}
+        <div class="message-banner message-error">❌ {{ error }}</div>
+        {% endif %}
+
+        <form method="post" action="/login">
+            <input type="email" name="email" placeholder="📧 Email" required autofocus>
+            <input type="password" name="password" placeholder="🔒 Password" required>
+            <button type="submit" class="btn btn-primary btn-full">🚀 Accedi</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

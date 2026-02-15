@@ -1,0 +1,37 @@
+{# Cover letter generation form - visible only when viewing a non-rejected analysis #}
+{% set cl_analyses = analyses|rejectattr('status','equalto','scartato')|list %}
+{% if current and current.status.value != 'scartato' and cl_analyses %}
+<div class="card card-mb" id="cover-letter-card">
+    <h2>✉️ Cover Letter &mdash; <span class="cover-letter-ref">{{ current.role or 'Ruolo' }} @ {{ current.company or 'Azienda' }}</span></h2>
+
+    <form method="post" action="/cover-letter" id="cover-letter-form"
+          @submit="coverLetterLoading = true">
+        <input type="hidden" name="analysis_id" value="{{ current.id }}" id="cover-letter-analysis-id">
+        <div class="button-row">
+            <select name="language" class="select-inline">
+                <option value="italiano">🇮🇹 Italiano</option>
+                <option value="english">🇬🇧 English</option>
+                <option value="francais">🇫🇷 Fran&ccedil;ais</option>
+                <option value="deutsch">🇩🇪 Deutsch</option>
+                <option value="espanol">🇪🇸 Espa&ntilde;ol</option>
+            </select>
+            <div class="toggle">
+                <input type="radio" name="model" value="haiku" id="cl-model-haiku" checked>
+                <label for="cl-model-haiku">🐇 Haiku</label>
+                <input type="radio" name="model" value="sonnet" id="cl-model-sonnet">
+                <label for="cl-model-sonnet">🧠 Sonnet</label>
+            </div>
+            <button type="submit" class="btn btn-success btn-sm"
+                    :disabled="coverLetterLoading">
+                <span x-show="!coverLetterLoading">✉️ Genera Cover Letter</span>
+                <span x-show="coverLetterLoading" x-cloak>✍️ Generazione...</span>
+            </button>
+        </div>
+    </form>
+
+    <div class="loading" :class="{ 'on': coverLetterLoading }">
+        <div class="spinner"></div>
+        <span>✍️ Generazione in corso...</span>
+    </div>
+</div>
+{% endif %}

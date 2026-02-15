@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block body_attrs %}x-data="app()" x-init="init()"{% endblock %}
+
+{% block body %}
+<div class="container">
+
+    <!-- ===== HEADER ===== -->
+    {% include "partials/header.html" %}
+
+    <!-- ===== MESSAGES ===== -->
+    {% if message %}<div class="message-banner message-success">✅ {{ message }}</div>{% endif %}
+    {% if error %}<div class="message-banner message-error">❌ {{ error }}</div>{% endif %}
+
+    <!-- ===== CV + ANALYZE FORMS ===== -->
+    <div class="grid-2col">
+        {% include "partials/cv_form.html" %}
+        {% include "partials/analyze_form.html" %}
+    </div>
+
+    <!-- ===== COVER LETTER FORM ===== -->
+    {% include "partials/cover_letter_form.html" %}
+
+    <!-- ===== COVER LETTER RESULT ===== -->
+    {% include "partials/cover_letter_result.html" %}
+
+    <!-- ===== FOLLOW-UP ALERTS ===== -->
+    {% include "partials/followup_alerts.html" %}
+
+    <!-- ===== BATCH ANALYSIS ===== -->
+    {% include "partials/batch.html" %}
+
+    <!-- ===== ANALYSIS RESULT ===== -->
+    {% include "partials/result.html" %}
+
+    <!-- ===== HISTORY ===== -->
+    {% include "partials/history.html" %}
+
+    <!-- ===== DASHBOARD ===== -->
+    {% include "partials/dashboard.html" %}
+
+    <!-- ===== FOOTER ===== -->
+    <div class="footer">🎯 Job Search Command Center</div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/modules/spending.js?v=8"></script>
+<script src="/static/js/modules/dashboard.js?v=8"></script>
+<script src="/static/js/modules/history.js?v=8"></script>
+<script src="/static/js/modules/status.js?v=8"></script>
+<script src="/static/js/modules/batch.js?v=8"></script>
+<script src="/static/js/modules/contacts.js?v=8"></script>
+<script src="/static/js/modules/followup.js?v=8"></script>
+<script src="/static/js/modules/cv.js?v=8"></script>
+<script src="/static/js/app.js?v=8"></script>
+{% endblock %}

@@ -1,0 +1,410 @@
+/* ============================================================
+   Reusable UI components: buttons, cards, messages, pills,
+   tabs, toggles, tags, badges
+   ============================================================ */
+
+/* ---- Cards ---- */
+
+.card {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    padding: var(--space-3xl);
+    display: flex;
+    flex-direction: column;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+.card form {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.card form textarea {
+    flex: 1;
+}
+
+.card-mb {
+    margin-bottom: var(--space-5xl);
+}
+
+/* ---- Buttons ---- */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-md) var(--space-2xl);
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    transition: opacity var(--transition-fast);
+    line-height: 1;
+    vertical-align: middle;
+}
+
+.btn:hover {
+    opacity: .85;
+    text-decoration: none;
+}
+
+.btn-primary   { background: var(--color-accent);     color: #fff; }
+.btn-warning   { background: var(--color-amber-text); color: var(--color-bg-card); }
+.btn-success   { background: var(--color-green-text); color: #fff; }
+.btn-info      { background: var(--color-blue-text);  color: #fff; }
+.btn-danger    { background: var(--color-red-text);   color: #fff; }
+.btn-muted     { background: var(--color-border);     color: var(--color-text-muted); }
+
+.btn-sm {
+    padding: 5px var(--space-lg);
+    font-size: var(--font-size-sm);
+}
+
+.btn-full {
+    width: 100%;
+}
+
+.button-row {
+    display: flex;
+    gap: var(--space-sm);
+    margin-top: var(--space-base);
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* ---- Toggle (radio group) ---- */
+
+.toggle {
+    display: flex;
+    gap: var(--space-xs);
+    background: var(--color-bg-input);
+    border-radius: var(--radius-md);
+    padding: 2px;
+    border: 1px solid var(--color-border);
+}
+
+.toggle label {
+    padding: 5px var(--space-lg);
+    border-radius: 5px;
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.toggle input {
+    display: none;
+}
+
+.toggle input:checked + label {
+    background: var(--color-accent);
+    color: #fff;
+}
+
+/* ---- Messages / alerts ---- */
+
+.message-banner {
+    padding: var(--space-md) var(--space-lg);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-lg);
+    font-size: var(--font-size-md);
+}
+
+.message-success {
+    background: var(--color-green-bg);
+    color: var(--color-green-pale);
+}
+
+.message-error {
+    background: var(--color-red-bg);
+    color: var(--color-red-light);
+}
+
+/* ---- CV status indicator ---- */
+
+.cv-status {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-sm) var(--space-base);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    margin-bottom: var(--space-base);
+}
+
+.cv-status-ok {
+    background: var(--color-green-bg);
+    color: var(--color-green-light);
+}
+
+.cv-status-missing {
+    background: var(--color-amber-bg);
+    color: var(--color-amber);
+}
+
+/* ---- Tags ---- */
+
+.tag {
+    display: inline-block;
+    padding: var(--space-xs) 9px;
+    border-radius: 5px;
+    font-size: var(--font-size-sm);
+    margin: 2px 2px 2px 0;
+}
+
+.tag-danger {
+    background: var(--color-red-bg-deep);
+    color: var(--color-red-light);
+}
+
+/* ---- Hero tags (compact metadata) ---- */
+
+.hero-tag {
+    padding: var(--space-xs) 9px;
+    border-radius: 5px;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+}
+
+.hero-tag-location  { background: var(--color-accent-dim); color: var(--color-accent-bright); }
+.hero-tag-mode      { background: var(--color-accent-dim); color: var(--color-accent-bright); }
+.hero-tag-salary    { background: var(--color-green-bg);   color: var(--color-green-light); }
+.hero-tag-potential  { background: var(--color-green-bg);   color: var(--color-green); }
+.hero-tag-timeline  { background: var(--color-amber-bg);   color: var(--color-amber); }
+.hero-tag-neutral   { background: var(--color-border);     color: var(--color-text-muted); }
+
+/* ---- Pill badge ---- */
+
+.pill {
+    padding: 2px 7px;
+    border-radius: var(--radius-lg);
+    font-size: .7rem;
+    background: var(--color-accent-dim);
+    color: var(--color-accent-text);
+    display: inline-block;
+}
+
+/* ---- Pill button group (status) ---- */
+
+.pill-group {
+    display: flex;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+}
+
+.pill-btn {
+    padding: var(--space-sm) var(--space-xl);
+    border-radius: 20px;
+    border: 2px solid var(--color-border-hover);
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.pill-btn:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent-bright);
+}
+
+.pill-da_valutare.active { background: var(--color-border);  border-color: var(--color-text-dim); color: var(--color-text-body); }
+.pill-candidato.active   { background: var(--color-blue-bg); border-color: var(--color-blue-bright); color: var(--color-blue-light); }
+.pill-colloquio.active   { background: var(--color-lime-bg); border-color: var(--color-lime-border); color: var(--color-lime-light); }
+.pill-scartato.active    { background: var(--color-red-bg-deep); border-color: var(--color-red); color: var(--color-red-light); }
+
+/* ---- Tabs ---- */
+
+.tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: var(--space-lg);
+    background: var(--color-bg-input);
+    border-radius: var(--radius-lg);
+    padding: var(--space-xs);
+    border: 1px solid var(--color-border);
+}
+
+.tab {
+    flex: 1;
+    padding: var(--space-md) var(--space-lg);
+    border-radius: var(--radius-md);
+    text-align: center;
+    cursor: pointer;
+    font-size: .8rem;
+    font-weight: 600;
+    color: var(--color-text-dim);
+    transition: all var(--transition-fast);
+}
+
+.tab:hover {
+    color: var(--color-text-muted);
+}
+
+.tab.active {
+    background: var(--color-bg-card);
+    color: var(--color-text-body);
+}
+
+.tab-badge {
+    display: inline-block;
+    min-width: 18px;
+    padding: 1px var(--space-sm);
+    border-radius: var(--radius-xl);
+    font-size: var(--font-size-xs);
+    margin-left: var(--space-sm);
+    background: var(--color-border);
+    color: var(--color-text-muted);
+}
+
+.tab.active .tab-badge {
+    background: var(--color-accent);
+    color: #fff;
+}
+
+/* ---- Status badge ---- */
+
+.status-badge {
+    padding: 2px var(--space-md);
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-badge-da_valutare { background: var(--color-border);     color: var(--color-text-muted); }
+.status-badge-candidato   { background: var(--color-blue-bg);    color: var(--color-blue); }
+.status-badge-colloquio   { background: var(--color-lime-bg);    color: var(--color-lime); }
+.status-badge-scartato    { background: var(--color-red-bg-deep); color: var(--color-red-light); }
+
+/* ---- Recommendation badge ---- */
+
+.recommendation-badge {
+    padding: var(--space-sm) var(--space-lg);
+    border-radius: var(--radius-pill);
+    font-weight: 700;
+    font-size: var(--font-size-base);
+    letter-spacing: .03em;
+}
+
+.recommendation-badge-sm {
+    font-size: var(--font-size-sm);
+    padding: var(--space-xs) 9px;
+}
+
+.recommendation-APPLY   { background: var(--color-green);     color: var(--color-green-bg); }
+.recommendation-CONSIDER { background: var(--color-amber);     color: var(--color-amber-bg); }
+.recommendation-SKIP    { background: var(--color-red);       color: var(--color-red-bg); }
+
+/* ---- Score circle ---- */
+
+.score-circle {
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    flex-shrink: 0;
+}
+
+.score-circle-lg {
+    width: 72px;
+    height: 72px;
+    font-size: var(--font-size-hero);
+}
+
+.score-circle-sm {
+    width: 36px;
+    height: 36px;
+    font-size: var(--font-size-base);
+    font-weight: 700;
+}
+
+.score-apply   { background: var(--color-green-bg); color: var(--color-green); border: 3px solid var(--color-green); }
+.score-consider { background: var(--color-amber-bg); color: var(--color-amber); border: 3px solid var(--color-amber); }
+.score-skip    { background: var(--color-red-bg);   color: var(--color-red);   border: 3px solid var(--color-red); }
+
+/* ---- Severity badges ---- */
+
+.severity-badge {
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    padding: 2px var(--space-sm);
+    border-radius: var(--radius-sm);
+    text-transform: uppercase;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.severity-bloccante { background: var(--color-red-bg);   color: var(--color-red-light); }
+.severity-importante { background: var(--color-amber-bg); color: var(--color-amber); }
+.severity-minore    { background: var(--color-blue-bg);  color: var(--color-blue); }
+
+.closable-badge {
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    padding: 2px var(--space-sm);
+    border-radius: var(--radius-sm);
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.closable-yes { background: var(--color-green-bg); color: var(--color-green); }
+.closable-no  { background: var(--color-border);   color: var(--color-text-muted); }
+
+/* ---- Tool button (small icon btn) ---- */
+
+.tool-btn {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-sm) var(--space-base);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    color: var(--color-text-muted);
+    transition: all var(--transition-fast);
+}
+
+.tool-btn:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent-bright);
+    background: var(--color-accent-dim);
+}
+
+/* ---- Details / collapsible ---- */
+
+details {
+    margin-bottom: var(--space-2xl);
+}
+
+summary {
+    cursor: pointer;
+    font-size: var(--font-size-md);
+    font-weight: 700;
+    color: var(--color-text-muted);
+    padding: var(--space-base) 0;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+summary::before {
+    content: '';
+    display: inline-block;
+    width: 0;
+    height: 0;
+    border-left: 5px solid var(--color-text-dim);
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    transition: transform var(--transition-base);
+}
+
+details[open] summary::before {
+    transform: rotate(90deg);
+}

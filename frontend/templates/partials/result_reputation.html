@@ -1,0 +1,80 @@
+{# Company reputation details block (inside result card) #}
+{% if result.company_reputation and (result.company_reputation.known_pros or result.company_reputation.known_cons or result.company_reputation.source|default('') == 'glassdoor_api') %}
+{% set rep = result.company_reputation %}
+{% set is_api = rep.source|default('') == 'glassdoor_api' %}
+<details open>
+    <summary>🏢 Reputazione aziendale
+        {% set gr_str = rep.glassdoor_estimate|default('non disponibile') %}
+        {% if gr_str != 'non disponibile' %}
+        {% set gr = gr_str|replace('/5','')|float(0) %}
+        <span class="reputation-rating {% if gr >= 4.0 %}reputation-rating-good{% elif gr >= 3.0 %}reputation-rating-mid{% else %}reputation-rating-low{% endif %}">
+            ⭐ {{ gr_str }}
+        </span>
+        {% if is_api and rep.review_count %}
+        <span class="reputation-reviews">{{ '{:,}'.format(rep.review_count).replace(',', '.') }} recensioni</span>
+        {% endif %}
+        {% else %}
+        <span class="reputation-rating reputation-rating-na">⭐ n/d</span>
+        {% endif %}
+    </summary>
+
+    {# Sub-ratings bars #}
+    {% if is_api and rep.sub_ratings %}
+    <div class="sub-ratings">
+        {% set sr_labels = {'culture': 'Cultura', 'compensation': 'Compenso', 'work_life_balance': 'Work-Life Balance', 'career_opportunities': 'Carriera', 'senior_management': 'Management', 'diversity': "Diversita'"} %}
+        {% for key, label in sr_labels.items() %}
+        {% if rep.sub_ratings[key] is defined and rep.sub_ratings[key] %}
+        {% set val = rep.sub_ratings[key] %}
+        <div class="sub-rating-row">
+            <span class="sub-rating-label">{{ label }}</span>
+            <div class="sub-rating-bar-bg">
+                <div class="sub-rating-bar {% if val >= 4.0 %}sub-rating-bar-good{% elif val >= 3.0 %}sub-rating-bar-mid{% else %}sub-rating-bar-low{% endif %}" style="width:{{ (val / 5 * 100)|round }}%"></div>
+            </div>
+            <span class="sub-rating-value">{{ '%.1f' % val }}</span>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {# CEO info #}
+    {% if is_api and (rep.ceo_name or rep.ceo_approval or rep.recommend_to_friend or rep.business_outlook) %}
+    <div class="ceo-info">
+        {% if rep.ceo_name %}<span class="ceo-name">👔 CEO: {{ rep.ceo_name }}{% if rep.ceo_approval %} ({{ rep.ceo_approval }}% approvazione){% endif %}</span>{% endif %}
+        {% if rep.recommend_to_friend %}<span class="ceo-detail">👍 {{ rep.recommend_to_friend }}% consiglia</span>{% endif %}
+        {% if rep.business_outlook %}<span class="ceo-detail">📈 Outlook: {{ rep.business_outlook }}%</span>{% endif %}
+    </div>
+    {% endif %}
+
+    {# Pros / Cons grid #}
+    <div class="reputation-grid">
+        {% if rep.known_pros %}
+        <div class="reputation-col reputation-pros">
+            <div class="reputation-label reputation-label-pro">👍 Punti di forza</div>
+            {% for p in rep.known_pros %}
+            <div class="reputation-item">✅ {{ p }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% if rep.known_cons %}
+        <div class="reputation-col reputation-cons">
+            <div class="reputation-label reputation-label-con">👎 Criticita'</div>
+            {% for c in rep.known_cons %}
+            <div class="reputation-item">⚠️ {{ c }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    {# Footer #}
+    <div class="reputation-footer">
+        {% if rep.note %}<span class="reputation-note">{{ rep.note }}</span>{% endif %}
+        {% if is_api and rep.glassdoor_url %}
+        <a href="{{ rep.glassdoor_url }}" target="_blank" class="glassdoor-link">🔗 Vedi su Glassdoor</a>
+        {% endif %}
+        <span class="reputation-badge {% if is_api %}reputation-badge-verified{% else %}reputation-badge-estimate{% endif %}">
+            {% if is_api %}✅ Dati Glassdoor verificati{% else %}🤖 Stima AI{% endif %}
+        </span>
+    </div>
+</details>
+{% endif %}

@@ -1,0 +1,143 @@
+/* ============================================================
+   Base reset, typography, links, global elements
+   ============================================================ */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* Alpine.js cloak: hide elements until Alpine initializes */
+[x-cloak] { display: none !important; }
+
+body {
+    font-family: var(--font-family);
+    background: var(--color-bg-deep);
+    color: var(--color-text-body);
+    min-height: 100vh;
+    line-height: var(--line-height-normal);
+}
+
+h1 {
+    font-size: var(--font-size-4xl);
+    font-weight: 700;
+    color: var(--color-text-primary);
+}
+
+h2 {
+    font-size: var(--font-size-2xl);
+    font-weight: 600;
+    margin-bottom: var(--space-lg);
+    color: var(--color-text-primary);
+}
+
+a {
+    color: var(--color-accent-light);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* ---- Form elements ---- */
+
+textarea {
+    width: 100%;
+    min-height: 140px;
+    background: var(--color-bg-input);
+    border: 1px solid var(--color-border-hover);
+    border-radius: var(--radius-md);
+    padding: var(--space-base);
+    color: var(--color-text-body);
+    font-size: var(--font-size-md);
+    font-family: inherit;
+    resize: vertical;
+}
+
+textarea:focus {
+    outline: none;
+    border-color: var(--color-accent);
+}
+
+textarea:focus::placeholder,
+input:focus::placeholder {
+    color: transparent;
+}
+
+input[type="text"],
+input[type="url"],
+input[type="email"],
+input[type="password"],
+input[type="tel"] {
+    width: 100%;
+    background: var(--color-bg-input);
+    border: 1px solid var(--color-border-hover);
+    border-radius: var(--radius-md);
+    padding: var(--space-md) var(--space-base);
+    color: var(--color-text-body);
+    font-size: var(--font-size-md);
+    margin-bottom: var(--space-md);
+}
+
+input:focus {
+    outline: none;
+    border-color: var(--color-accent);
+}
+
+select {
+    background: var(--color-bg-input);
+    border: 1px solid var(--color-border-hover);
+    border-radius: var(--radius-md);
+    padding: var(--space-md) var(--space-base);
+    color: var(--color-text-body);
+    font-size: var(--font-size-md);
+}
+
+select:focus {
+    outline: none;
+    border-color: var(--color-accent);
+}
+
+.select-full {
+    width: 100%;
+    margin-bottom: var(--space-md);
+}
+
+.select-inline {
+    padding: 5px var(--space-base);
+    font-size: var(--font-size-sm);
+}
+
+/* ---- Loading spinner ---- */
+
+.loading {
+    display: none;
+    align-items: center;
+    gap: var(--space-md);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-md);
+    margin-top: var(--space-base);
+}
+
+.loading.on {
+    display: flex;
+}
+
+.spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--color-border-hover);
+    border-top-color: var(--color-accent);
+    border-radius: var(--radius-full);
+    animation: spin .6s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ---- Utility text ---- */
+
+.meta-small {
+    margin-top: var(--space-md);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-faint);
+}

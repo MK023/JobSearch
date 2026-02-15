@@ -1,0 +1,85 @@
+{# Dashboard with stats, motivation, active applications #}
+<details class="dashboard-section card" id="dashboard-details"
+         {% if dashboard and dashboard.total > 0 %}{% else %}style="display:none"{% endif %}>
+    <summary class="dashboard-summary">📊 La tua ricerca
+        <span class="dashboard-summary-stats" id="dashboard-summary-stats">
+            {% if dashboard %}{{ dashboard.total }} analisi · {{ dashboard.applied }} candidature · score medio {{ dashboard.avg_score }}{% endif %}
+        </span>
+    </summary>
+
+    <div class="dashboard-grid">
+        <div class="dashboard-stat">
+            <div class="dashboard-stat-number" id="dashboard-total">{{ dashboard.total if dashboard else 0 }}</div>
+            <div class="dashboard-stat-label">Analizzate</div>
+        </div>
+        <div class="dashboard-stat dashboard-stat-blue">
+            <div class="dashboard-stat-number" id="dashboard-applied">{{ dashboard.applied if dashboard else 0 }}</div>
+            <div class="dashboard-stat-label">Candidature</div>
+        </div>
+        <div class="dashboard-stat dashboard-stat-green">
+            <div class="dashboard-stat-number" id="dashboard-interviews">{{ dashboard.interviews if dashboard else 0 }}</div>
+            <div class="dashboard-stat-label">Colloqui</div>
+        </div>
+        <div class="dashboard-stat">
+            <div class="dashboard-stat-number" id="dashboard-avg">{{ dashboard.avg_score if dashboard else 0 }}</div>
+            <div class="dashboard-stat-label">Score medio</div>
+        </div>
+        <div class="dashboard-stat dashboard-stat-amber" id="dashboard-followup-box"
+             {% if not dashboard or dashboard.followup_count == 0 %}style="display:none"{% endif %}>
+            <div class="dashboard-stat-number" id="dashboard-followup">{{ dashboard.followup_count if dashboard else 0 }}</div>
+            <div class="dashboard-stat-label">Follow-up</div>
+        </div>
+        <div class="dashboard-stat dashboard-stat-red">
+            <div class="dashboard-stat-number" id="dashboard-skipped">{{ dashboard.skipped if dashboard else 0 }}</div>
+            <div class="dashboard-stat-label">Scartate</div>
+        </div>
+    </div>
+
+    <div class="dashboard-motivation" id="dashboard-motivation"
+         {% if not dashboard or not dashboard.top_match %}style="display:none"{% endif %}>
+        {% if dashboard and dashboard.top_match %}
+        🏆 Miglior match: <b>{{ dashboard.top_match.role }}</b> @ {{ dashboard.top_match.company }} ({{ dashboard.top_match.score }}/100)
+        {% if dashboard.applied > 0 %} · Hai gia' inviato {{ dashboard.applied }} candidatur{{ 'a' if dashboard.applied == 1 else 'e' }} - continua cosi'!{% endif %}
+        {% endif %}
+    </div>
+
+    {# Active applications with tools #}
+    {% if active_apps %}
+    <div class="active-applications">
+        <div class="active-applications-title">📬 Candidature attive</div>
+        {% for a in active_apps %}
+        <div class="active-app-row">
+            <a href="/analysis/{{ a.id }}" class="active-app-link">
+                <span class="active-app-role">{{ a.role }}</span>
+                <span class="active-app-company">{{ a.company }}</span>
+                <span class="status-badge status-badge-{{ a.status.value }}">{{ a.status.value|replace('_',' ') }}</span>
+                {% if a.applied_at %}<span class="active-app-date">{{ a.applied_at.strftime('%d/%m') }}</span>{% endif %}
+            </a>
+            <div class="active-app-tools">
+                <button class="tool-btn" onclick="genFollowup('{{ a.id }}')" title="Genera email follow-up">✉️</button>
+                <button class="tool-btn" onclick="genLinkedin('{{ a.id }}')" title="Genera messaggio LinkedIn">💼</button>
+                <button class="tool-btn" onclick="toggleContacts('{{ a.id }}')" title="Gestisci contatti recruiter">👤</button>
+            </div>
+
+            {# Contacts panel (hidden by default) #}
+            <div id="contacts-{{ a.id }}" style="display:none" class="contacts-panel">
+                <div id="contacts-list-{{ a.id }}"></div>
+                <div class="contact-form">
+                    <input type="text" id="ct-name-{{ a.id }}" placeholder="Nome">
+                    <input type="email" id="ct-email-{{ a.id }}" placeholder="Email">
+                    <input type="tel" id="ct-phone-{{ a.id }}" placeholder="Telefono">
+                    <input type="text" id="ct-company-{{ a.id }}" placeholder="Azienda" value="{{ a.company or '' }}">
+                    <input type="url" id="ct-linkedin-{{ a.id }}" placeholder="LinkedIn URL">
+                    <input type="text" id="ct-notes-{{ a.id }}" placeholder="Note">
+                </div>
+                <div class="button-row" style="margin-top:6px">
+                    <button class="btn btn-primary btn-sm" onclick="saveContact('{{ a.id }}')">💾 Salva</button>
+                </div>
+            </div>
+
+            <div id="dash-generated-area-{{ a.id }}"></div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</details>

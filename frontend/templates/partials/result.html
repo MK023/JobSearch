@@ -1,0 +1,150 @@
+{# Full analysis result display #}
+{% if result %}
+<div class="card result-card">
+
+    {# ---- 1. HERO: score + role + quick info ---- #}
+    <div class="result-hero">
+        <div class="score-circle score-circle-lg score-{{ result.recommendation|lower }}">{{ result.score }}</div>
+        <div class="result-hero-info">
+            <div class="result-hero-top">
+                <span class="recommendation-badge recommendation-{{ result.recommendation }}">{% if result.recommendation == 'APPLY' %}🚀{% elif result.recommendation == 'CONSIDER' %}🤔{% else %}⛔{% endif %} {{ result.recommendation }}</span>
+                <span class="result-hero-role">{{ result.role }} @ {{ result.company }}</span>
+            </div>
+            {% if result.score_label %}<div class="result-hero-label">{{ result.score_label }}</div>{% endif %}
+            <div class="result-hero-tags">
+                {% if result.location %}<span class="hero-tag hero-tag-location">📍 {{ result.location }}</span>{% endif %}
+                {% if result.work_mode %}<span class="hero-tag hero-tag-mode">🏢 {{ result.work_mode }}</span>{% endif %}
+                {% if result.salary_info %}<span class="hero-tag hero-tag-salary">💶 {{ result.salary_info }}</span>{% endif %}
+                {% if result.potential_score %}<span class="hero-tag hero-tag-potential">📈 Potenziale: {{ result.potential_score }}/100</span>{% endif %}
+                {% if result.gap_timeline %}<span class="hero-tag hero-tag-timeline">⏱️ {{ result.gap_timeline }}</span>{% endif %}
+                {% if result.confidence %}<span class="hero-tag hero-tag-neutral">🎯 {{ result.confidence }}{% if result.confidence_reason %}: {{ result.confidence_reason }}{% endif %}</span>{% endif %}
+
+                {# Application method #}
+                {% if result.application_method %}
+                {% set am = result.application_method %}
+                {% if am.type == 'email' %}
+                <span class="hero-tag hero-tag-salary">📧 <a href="mailto:{{ am.detail }}" style="color:inherit">{{ am.detail }}</a></span>
+                {% elif am.type == 'quick_apply' %}
+                <span class="hero-tag hero-tag-potential">⚡ Quick Apply{{ ' - ' + am.detail if am.detail else '' }}</span>
+                {% elif am.type == 'link' %}
+                <span class="hero-tag hero-tag-salary">🔗 <a href="{{ am.detail }}" target="_blank" style="color:inherit">Candidati qui</a></span>
+                {% else %}
+                <span class="hero-tag hero-tag-neutral">❓ Metodo candidatura non chiaro</span>
+                {% endif %}
+                {% if am.note %}<span class="hero-tag hero-tag-neutral">📌 {{ am.note }}</span>{% endif %}
+                {% endif %}
+
+                {# Glassdoor rating tag #}
+                {% if result.company_reputation and result.company_reputation.glassdoor_estimate and result.company_reputation.glassdoor_estimate != 'non disponibile' %}
+                {% set gr = result.company_reputation.glassdoor_estimate|replace('/5','')|float(0) %}
+                {% set is_api = result.company_reputation.source|default('') == 'glassdoor_api' %}
+                <span class="hero-tag {% if gr >= 4.0 %}hero-tag-salary{% elif gr >= 3.0 %}hero-tag-timeline{% else %}tag-danger{% endif %}" title="{{ result.company_reputation.note|default('') }}">
+                    ⭐ Glassdoor {% if not is_api %}~{% endif %}{{ result.company_reputation.glassdoor_estimate }}{% if is_api and result.company_reputation.review_count %} ({{ '{:,}'.format(result.company_reputation.review_count).replace(',', '.') }}){% endif %}
+                </span>
+                {% elif result.company_reputation %}
+                <span class="hero-tag hero-tag-neutral" title="{{ result.company_reputation.note|default('') }}">⭐ Glassdoor: n/d</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="result-hero-meta">
+            <span class="pill">💲{{ '%.5f' % result.cost_usd }}</span><br>
+            <span class="meta-small">{{ result.tokens.total }} tok{% if result.from_cache %} · ⚡ cache{% endif %}</span>
+        </div>
+    </div>
+
+    {# ---- Company reputation details ---- #}
+    {% include "partials/result_reputation.html" %}
+
+    {# ---- 2. AI VERDICT ---- #}
+    {% if result.summary %}
+    <div class="result-verdict">🧠 {{ result.summary }}</div>
+    {% endif %}
+
+    {# ---- 3. JOB SUMMARY ---- #}
+    {% if result.job_summary %}
+    <div class="job-summary-box">
+        <div class="job-summary-title">📋 Punti chiave dell'annuncio</div>
+        <div class="job-summary-text">{{ result.job_summary }}</div>
+    </div>
+    {% endif %}
+
+    {# ---- 4. STRENGTHS + GAPS side by side ---- #}
+    <div class="grid-2col-start">
+        <div class="strengths-section">
+            <div class="section-header">
+                <div class="section-title">💪 I tuoi punti di forza</div>
+                <span class="section-count">{{ result.strengths|length }}</span>
+            </div>
+            {% for s in result.strengths %}
+            <div class="strength-item">
+                <span class="strength-icon">✅</span>
+                <span class="strength-text">{{ s }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="gaps-section">
+            <div class="section-header">
+                <div class="section-title">🌱 Aree di crescita</div>
+                <span class="section-count section-count-muted">{{ result.gaps|length }}</span>
+            </div>
+            {% for g in result.gaps %}
+                {% if g is mapping %}
+                <div class="gap-item gap-item-{{ g.severity }}">
+                    <div class="gap-top">
+                        <span class="severity-badge severity-{{ g.severity }}">{% if g.severity == 'bloccante' %}🚫{% elif g.severity == 'importante' %}⚠️{% else %}💡{% endif %} {{ g.severity }}</span>
+                        <span class="gap-name">{{ g.gap }}</span>
+                        {% if g.closable %}<span class="closable-badge closable-yes">✨ colmabile</span>{% else %}<span class="closable-badge closable-no">🔒 difficile</span>{% endif %}
+                    </div>
+                    {% if g.how %}
+                    <div class="gap-how">
+                        <span class="gap-how-icon">🛠️</span>
+                        <span>{{ g.how }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+                {% else %}
+                <span class="tag tag-danger">{{ g }}</span>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+    {# ---- 5. PERSONALIZED ADVICE ---- #}
+    {% if result.advice %}
+    <div class="advice-box">
+        <div class="advice-title">💡 Il mio consiglio per te</div>
+        <div class="advice-text">{{ result.advice }}</div>
+    </div>
+    {% endif %}
+
+    {# ---- 6. INTERVIEW PREP (collapsible) ---- #}
+    {% if result.interview_scripts %}
+    <details>
+        <summary>🎤 Preparazione colloquio ({{ result.interview_scripts|length }} domande)</summary>
+        {% for s in result.interview_scripts %}
+        <div class="interview-script">
+            <div class="interview-question">❓ {{ s.question }}</div>
+            <div class="interview-answer">💬 {{ s.suggested_answer }}</div>
+        </div>
+        {% endfor %}
+    </details>
+    {% endif %}
+
+    {# ---- 7. ACTIONS ---- #}
+    {% if current %}
+    <div class="result-actions" id="actions-{{ current.id }}">
+        {% if current.job_url %}
+        <a href="{{ current.job_url }}" target="_blank" class="btn btn-info btn-sm">🔗 Apri annuncio</a>
+        {% endif %}
+        <div class="pill-group" data-analysis-id="{{ current.id }}">
+            <button class="pill-btn pill-da_valutare {{ 'active' if current.status.value == 'da_valutare' }}" data-status="da_valutare" onclick="setStatus(this)">🔍 Da valutare</button>
+            <button class="pill-btn pill-candidato {{ 'active' if current.status.value == 'candidato' }}" data-status="candidato" onclick="setStatus(this)">📨 Candidato</button>
+            <button class="pill-btn pill-colloquio {{ 'active' if current.status.value == 'colloquio' }}" data-status="colloquio" onclick="setStatus(this)">🗣️ Colloquio</button>
+            <button class="pill-btn pill-scartato {{ 'active' if current.status.value == 'scartato' }}" data-status="scartato" onclick="setStatus(this)">❌ Scartato</button>
+        </div>
+        <button class="btn btn-danger btn-sm" onclick="deleteAnalysis('{{ current.id }}')">🗑️ Elimina</button>
+    </div>
+    {% endif %}
+
+</div>
+{% endif %}
