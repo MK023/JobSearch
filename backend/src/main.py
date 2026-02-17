@@ -22,7 +22,7 @@ from .config import settings
 from .cover_letter.routes import router as cover_letter_router
 from .cv.routes import router as cv_router
 from .dashboard.service import seed_spending_totals
-from .database import Base, SessionLocal, engine, get_db
+from .database import SessionLocal, get_db
 from .dependencies import AuthRequired, get_current_user
 from .integrations.cache import create_cache_service
 from .rate_limit import limiter
@@ -33,13 +33,24 @@ _TEMPLATE_DIR = _BASE_DIR / "frontend" / "templates"
 _STATIC_DIR = _BASE_DIR / "frontend" / "static"
 
 
+def _run_migrations() -> None:
+    """Run Alembic migrations (upgrade head) on startup."""
+    from alembic import command
+    from alembic.config import Config
+
+    alembic_cfg = Config()
+    alembic_cfg.set_main_option("script_location", str(Path(__file__).parent.parent / "alembic"))
+    alembic_cfg.set_main_option("sqlalchemy.url", settings.effective_database_url)
+    command.upgrade(alembic_cfg, "head")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup/shutdown lifecycle."""
     if not settings.anthropic_api_key:
         raise RuntimeError("ANTHROPIC_API_KEY missing. Configure .env file")
 
-    Base.metadata.create_all(bind=engine)
+    _run_migrations()
 
     app.state.cache = create_cache_service()
 
