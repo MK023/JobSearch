@@ -1,7 +1,9 @@
 """Cover letter routes."""
 
+from urllib.parse import quote
+
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from sqlalchemy.orm import Session
 
 from ..analysis.routes import _render_page
@@ -13,7 +15,7 @@ from ..dashboard.service import add_spending
 from ..database import get_db
 from ..dependencies import get_cache, get_current_user
 from ..integrations.cache import CacheService
-from .service import create_cover_letter
+from .service import build_docx, create_cover_letter, get_cover_letter_by_id
 
 router = APIRouter(tags=["cover_letter"])
 
@@ -60,4 +62,33 @@ def generate_cover_letter_route(
         cover_letter=cl,
         cover_letter_result=result,
         message=f"Cover letter generata! ({language})",
+    )
+
+
+@router.get("/cover-letter/{cover_letter_id}/download")
+def download_cover_letter(
+    cover_letter_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Download a cover letter as a formatted DOCX file."""
+    cl = get_cover_letter_by_id(db, cover_letter_id)
+    if not cl:
+        return Response("Cover letter non trovata", status_code=404)
+
+    analysis = get_analysis_by_id(db, str(cl.analysis_id))
+    if not analysis:
+        return Response("Analisi collegata non trovata", status_code=404)
+
+    buf, filename = build_docx(cl, analysis)
+
+    # RFC 5987 encoding for non-ASCII filenames
+    encoded_filename = quote(filename)
+
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={
+            "Content-Disposition": f"attachment; filename=\"{filename}\"; filename*=UTF-8''{encoded_filename}",
+        },
     )

@@ -6,10 +6,17 @@
     <div>
         <div class="advice-title advice-title-green">📝 Lettera</div>
         <div id="cover-letter-text" class="cover-letter-text">{{ cover_letter_result.cover_letter }}</div>
-        <button class="btn btn-muted btn-sm"
-                onclick="navigator.clipboard.writeText(document.getElementById('cover-letter-text').textContent)">
-            📋 Copia lettera
-        </button>
+        <div class="button-row" style="margin-top: 8px; gap: 8px;">
+            <button class="btn btn-muted btn-sm"
+                    onclick="navigator.clipboard.writeText(document.getElementById('cover-letter-text').textContent)">
+                📋 Copia lettera
+            </button>
+            {% if cover_letter %}
+            <a href="/cover-letter/{{ cover_letter.id }}/download" class="btn btn-success btn-sm" style="text-decoration: none;">
+                📄 Scarica DOCX
+            </a>
+            {% endif %}
+        </div>
     </div>
 
     {% if cover_letter_result.subject_lines %}
