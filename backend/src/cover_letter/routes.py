@@ -56,7 +56,9 @@ def generate_cover_letter_route(
 
     analysis_result = rebuild_result(analysis)
     return _render_page(
-        request, db, user,
+        request,
+        db,
+        user,
         current=analysis,
         result=analysis_result,
         cover_letter=cl,

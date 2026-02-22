@@ -34,6 +34,7 @@ class TestGetUserByEmail:
 class TestAuthenticateUser:
     def test_valid_credentials(self, db_session):
         from src.auth.models import User
+
         hashed = hash_password("mypassword")
         user = User(email="auth@test.com", password_hash=hashed)
         db_session.add(user)
@@ -45,6 +46,7 @@ class TestAuthenticateUser:
 
     def test_wrong_password(self, db_session):
         from src.auth.models import User
+
         hashed = hash_password("mypassword")
         user = User(email="auth2@test.com", password_hash=hashed)
         db_session.add(user)

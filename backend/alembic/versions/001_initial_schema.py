@@ -4,16 +4,17 @@ Revision ID: 001
 Revises: None
 Create Date: 2025-02-15
 """
-from typing import Sequence, Union
 
-from alembic import op
+from collections.abc import Sequence
+
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from alembic import op
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 revision: str = "001"
-down_revision: Union[str, None] = None
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -94,7 +95,9 @@ def upgrade() -> None:
     op.create_table(
         "cover_letters",
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("analysis_id", UUID(as_uuid=True), sa.ForeignKey("job_analyses.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "analysis_id", UUID(as_uuid=True), sa.ForeignKey("job_analyses.id", ondelete="CASCADE"), nullable=False
+        ),
         sa.Column("language", sa.String(20), default="italiano"),
         sa.Column("content", sa.Text(), default=""),
         sa.Column("subject_lines", JSONB(), default=[]),
@@ -109,7 +112,9 @@ def upgrade() -> None:
     op.create_table(
         "contacts",
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("analysis_id", UUID(as_uuid=True), sa.ForeignKey("job_analyses.id", ondelete="CASCADE"), nullable=True),
+        sa.Column(
+            "analysis_id", UUID(as_uuid=True), sa.ForeignKey("job_analyses.id", ondelete="CASCADE"), nullable=True
+        ),
         sa.Column("name", sa.String(255), default=""),
         sa.Column("email", sa.String(255), default=""),
         sa.Column("phone", sa.String(50), default=""),

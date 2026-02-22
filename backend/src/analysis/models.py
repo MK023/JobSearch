@@ -2,13 +2,13 @@
 
 import enum
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     Column,
     DateTime,
-    Enum as SQLEnum,
     Float,
     ForeignKey,
     Index,
@@ -16,7 +16,9 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy import JSON
+from sqlalchemy import (
+    Enum as SQLEnum,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -76,7 +78,7 @@ class JobAnalysis(Base):
     # Timestamps
     created_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
     applied_at = Column(DateTime(timezone=True), nullable=True)
     followed_up = Column(Boolean, default=False)
@@ -118,6 +120,6 @@ class AppSettings(Base):
 
     updated_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )

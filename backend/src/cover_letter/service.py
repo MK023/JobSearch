@@ -2,7 +2,7 @@
 
 import io
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from docx import Document
@@ -33,9 +33,7 @@ def create_cover_letter(
         "gaps": analysis.gaps or [],
     }
 
-    result = generate_cover_letter(
-        cv_text, analysis.job_description, analysis_data, language, model, cache
-    )
+    result = generate_cover_letter(cv_text, analysis.job_description, analysis_data, language, model, cache)
 
     cl = CoverLetter(
         analysis_id=analysis.id,
@@ -100,7 +98,7 @@ def build_docx(cover_letter: CoverLetter, analysis: JobAnalysis) -> io.BytesIO:
     # -- Date --
     date_para = doc.add_paragraph()
     date_para.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     date_str = now.strftime("%d/%m/%Y")
     date_run = date_para.add_run(date_str)
     date_run.font.size = Pt(10)

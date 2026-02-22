@@ -9,7 +9,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from ..analysis.service import run_analysis, find_existing_analysis
+from ..analysis.service import find_existing_analysis, run_analysis
 from ..cv.service import get_latest_cv
 from ..dashboard.service import add_spending
 from ..integrations.anthropic_client import MODELS, content_hash
@@ -19,9 +19,7 @@ from ..integrations.cache import CacheService
 _batch_queue: dict[str, dict] = {}
 
 
-def add_to_queue(
-    job_description: str, job_url: str = "", model: str = "haiku"
-) -> tuple[str, int]:
+def add_to_queue(job_description: str, job_url: str = "", model: str = "haiku") -> tuple[str, int]:
     """Add a job to the pending batch queue. Returns (batch_id, queue_size)."""
     active = None
     for bid, b in _batch_queue.items():
@@ -34,13 +32,15 @@ def add_to_queue(
         _batch_queue[bid] = {"items": [], "status": "pending"}
         active = (bid, _batch_queue[bid])
 
-    active[1]["items"].append({
-        "job_description": job_description,
-        "job_url": job_url,
-        "model": model,
-        "status": "pending",
-        "preview": job_description[:80] + "..." if len(job_description) > 80 else job_description,
-    })
+    active[1]["items"].append(
+        {
+            "job_description": job_description,
+            "job_url": job_url,
+            "model": model,
+            "status": "pending",
+            "preview": job_description[:80] + "..." if len(job_description) > 80 else job_description,
+        }
+    )
     return active[0], len(active[1]["items"])
 
 
@@ -77,7 +77,7 @@ def run_batch(batch_id: str, db: Session, user_id: UUID, cache: CacheService | N
         batch["error"] = "No CV found"
         return
 
-    for idx, item in enumerate(batch["items"], 1):
+    for _idx, item in enumerate(batch["items"], 1):
         if item["status"] == "cancelled":
             continue
         item["status"] = "running"
@@ -92,17 +92,25 @@ def run_batch(batch_id: str, db: Session, user_id: UUID, cache: CacheService | N
                 continue
 
             analysis, result = run_analysis(
-                db, cv.raw_text, cv.id, item["job_description"],
-                item.get("job_url", ""), item.get("model", "haiku"), cache,
+                db,
+                cv.raw_text,
+                cv.id,
+                item["job_description"],
+                item.get("job_url", ""),
+                item.get("model", "haiku"),
+                cache,
             )
             add_spending(
-                db, result.get("cost_usd", 0.0),
+                db,
+                result.get("cost_usd", 0.0),
                 result.get("tokens", {}).get("input", 0),
                 result.get("tokens", {}).get("output", 0),
             )
             db.commit()
             item["status"] = "done"
-            item["result_preview"] = f"{result.get('role', '?')} @ {result.get('company', '?')} -- {result.get('score', 0)}/100"
+            item["result_preview"] = (
+                f"{result.get('role', '?')} @ {result.get('company', '?')} -- {result.get('score', 0)}/100"
+            )
 
         except Exception as exc:
             item["status"] = "error"

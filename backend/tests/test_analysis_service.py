@@ -1,6 +1,7 @@
 """Tests for analysis service."""
 
 import uuid
+from datetime import UTC
 
 from src.analysis.models import AnalysisStatus, JobAnalysis
 from src.analysis.service import (
@@ -66,8 +67,9 @@ class TestUpdateStatus:
         assert test_analysis.applied_at is not None
 
     def test_does_not_overwrite_applied_at(self, db_session, test_analysis):
-        from datetime import datetime, timezone
-        original_date = datetime(2025, 1, 1, tzinfo=timezone.utc)
+        from datetime import datetime
+
+        original_date = datetime(2025, 1, 1, tzinfo=UTC)
         test_analysis.applied_at = original_date
         db_session.flush()
 

@@ -59,6 +59,13 @@ async def lifespan(app: FastAPI):
         ensure_admin_user(db)
         seed_spending_totals(db)
         db.commit()
+
+        # Send pending follow-up reminder emails on startup
+        from .notifications.service import check_and_send_followup_reminders
+
+        sent = check_and_send_followup_reminders(db)
+        if sent:
+            db.commit()
     finally:
         db.close()
 
@@ -121,9 +128,7 @@ def create_app() -> FastAPI:
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         if request.url.scheme == "https":
-            response.headers["Strict-Transport-Security"] = (
-                "max-age=63072000; includeSubDomains"
-            )
+            response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
         return response
 
     # --- Templates & static files ---

@@ -47,12 +47,7 @@ def get_contacts_for_analysis(db: Session, analysis_id: str) -> list[Contact]:
     uid = _to_uuid(analysis_id)
     if uid is None:
         return []
-    return (
-        db.query(Contact)
-        .filter(Contact.analysis_id == uid)
-        .order_by(Contact.created_at.desc())
-        .all()
-    )
+    return db.query(Contact).filter(Contact.analysis_id == uid).order_by(Contact.created_at.desc()).all()
 
 
 def delete_contact_by_id(db: Session, contact_id: str) -> bool:

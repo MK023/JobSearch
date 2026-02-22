@@ -7,8 +7,11 @@ requires-python = ">=3.12"
 dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.25",
+    "pytest-cov>=6.0",
     "httpx>=0.27",
     "ruff>=0.8",
+    "bandit>=1.8",
+    "pip-audit>=2.7",
 ]
 
 [tool.ruff]
@@ -25,14 +28,30 @@ select = [
     "B",   # bugbear
     "UP",  # pyupgrade
     "SIM", # simplify
+    "S",   # bandit security rules
+    "T20", # print statements
+    "RET", # return consistency
+    "PTH", # pathlib usage
 ]
 ignore = [
-    "E501",  # line length (handled by formatter)
-    "B008",  # function call in default arg (FastAPI Depends)
+    "E501",   # line length (handled by formatter)
+    "B008",   # function call in default arg (FastAPI Depends)
+    "S104",   # possible binding to all interfaces (dev servers)
+    "S105",   # hardcoded password (false positives on defaults)
+    "S106",   # hardcoded password (false positives on defaults)
+    "RET504", # unnecessary assignment before return
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"backend/tests/*" = ["S101"]  # allow assert in tests
+"backend/alembic/*" = ["S"]   # migrations don't need security linting
 
 [tool.ruff.lint.isort]
 known-first-party = ["src"]
+
+[tool.bandit]
+exclude_dirs = ["backend/tests", "backend/alembic"]
+skips = ["B101"]  # allow assert
 
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]

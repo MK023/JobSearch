@@ -85,14 +85,18 @@ def view_analysis(
 
 def _render_page(request: Request, db: Session, user: User, **extra) -> HTMLResponse:
     """Build the full page context and render index.html."""
-    from ..cv.service import get_latest_cv
     from ..analysis.service import get_recent_analyses
-    from ..dashboard.service import get_spending, get_followup_alerts, get_active_applications, get_dashboard
+    from ..cv.service import get_latest_cv
+    from ..dashboard.service import get_active_applications, get_dashboard, get_followup_alerts, get_spending
+    from ..notifications.service import check_and_send_followup_reminders
 
     cv = get_latest_cv(db, user.id)
     analyses = get_recent_analyses(db)
     followup_alerts = get_followup_alerts(db)
     active_apps = get_active_applications(db)
+
+    # Send any pending email notifications
+    check_and_send_followup_reminders(db)
 
     dashboard = get_dashboard(db)
     spending = get_spending(db)

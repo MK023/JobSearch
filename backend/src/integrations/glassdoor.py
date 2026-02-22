@@ -6,7 +6,7 @@ Graceful degradation: returns None on missing API key, errors, or no match.
 
 import json
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import httpx
 from sqlalchemy import Column, DateTime, Float, Integer, String, Text
@@ -31,7 +31,7 @@ class GlassdoorCache(Base):
     review_count = Column(Integer, nullable=True)
     fetched_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
 
 
@@ -50,7 +50,7 @@ def fetch_glassdoor_rating(company_name: str, db: Session) -> dict | None:
 
     cached = db.query(GlassdoorCache).filter(GlassdoorCache.company_name == normalized).first()
     if cached and cached.fetched_at:
-        age = datetime.now(timezone.utc) - cached.fetched_at
+        age = datetime.now(UTC) - cached.fetched_at
         if age < timedelta(days=CACHE_DAYS):
             return _parse_cached(cached)
 
@@ -69,7 +69,7 @@ def fetch_glassdoor_rating(company_name: str, db: Session) -> dict | None:
             cached.glassdoor_data = json.dumps(company, ensure_ascii=False)
             cached.rating = parsed.get("glassdoor_rating")
             cached.review_count = parsed.get("review_count")
-            cached.fetched_at = datetime.now(timezone.utc)
+            cached.fetched_at = datetime.now(UTC)
         else:
             cached = GlassdoorCache(
                 company_name=normalized,
@@ -127,7 +127,11 @@ def _best_match(data: dict, query: str) -> dict | None:
 
     for r in results:
         name = (r.get("name") or "").lower().strip()
-        if (name.startswith(q) or q.startswith(name)) and r.get("rating") and (r.get("review_count") or 0) >= min_reviews:
+        if (
+            (name.startswith(q) or q.startswith(name))
+            and r.get("rating")
+            and (r.get("review_count") or 0) >= min_reviews
+        ):
             return r
 
     for r in results:
@@ -164,9 +168,7 @@ def _parse_company(c: dict) -> dict:
     company_name_slug = (c.get("name") or "").replace(" ", "-")
     company_id = c.get("company_id", "")
     glassdoor_url = (
-        f"https://www.glassdoor.com/Overview/Working-at-{company_name_slug}-EI_IE{company_id}.htm"
-        if company_id
-        else ""
+        f"https://www.glassdoor.com/Overview/Working-at-{company_name_slug}-EI_IE{company_id}.htm" if company_id else ""
     )
 
     return {

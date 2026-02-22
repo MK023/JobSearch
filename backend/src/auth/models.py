@@ -1,7 +1,7 @@
 """User model for authentication."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import Boolean, Column, DateTime, String
 from sqlalchemy.dialects.postgresql import UUID
@@ -19,7 +19,7 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
 
     cv_profiles = relationship("CVProfile", back_populates="user", cascade="all, delete-orphan")

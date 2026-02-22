@@ -57,10 +57,19 @@ def delete_analysis(
     cover_letters = db.query(CoverLetter).filter(CoverLetter.analysis_id == analysis.id).all()
     for cl in cover_letters:
         cl_today = cl.created_at and cl.created_at.date() == today
-        remove_spending(db, cl.cost_usd or 0, cl.tokens_input or 0, cl.tokens_output or 0, is_analysis=False, created_today=cl_today)
+        remove_spending(
+            db, cl.cost_usd or 0, cl.tokens_input or 0, cl.tokens_output or 0, is_analysis=False, created_today=cl_today
+        )
 
     a_today = analysis.created_at and analysis.created_at.date() == today
-    remove_spending(db, analysis.cost_usd or 0, analysis.tokens_input or 0, analysis.tokens_output or 0, is_analysis=True, created_today=a_today)
+    remove_spending(
+        db,
+        analysis.cost_usd or 0,
+        analysis.tokens_input or 0,
+        analysis.tokens_output or 0,
+        is_analysis=True,
+        created_today=a_today,
+    )
 
     audit(db, request, "delete_analysis", f"id={analysis_id}, {analysis.role} @ {analysis.company}")
     db.delete(analysis)

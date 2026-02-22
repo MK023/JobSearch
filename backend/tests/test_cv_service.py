@@ -30,5 +30,6 @@ class TestGetLatestCV:
 
     def test_returns_none_for_unknown_user(self, db_session):
         import uuid
+
         result = get_latest_cv(db_session, uuid.uuid4())
         assert result is None

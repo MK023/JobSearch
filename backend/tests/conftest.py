@@ -7,18 +7,19 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from src.database.base import Base
-from src.auth.models import User
-from src.cv.models import CVProfile
-from src.analysis.models import AnalysisStatus, JobAnalysis, AppSettings
-from src.cover_letter.models import CoverLetter
-from src.contacts.models import Contact
-from src.integrations.glassdoor import GlassdoorCache
+from src.analysis.models import AnalysisStatus, AppSettings, JobAnalysis
 from src.audit.models import AuditLog
+from src.auth.models import User
+from src.contacts.models import Contact
+from src.cover_letter.models import CoverLetter
+from src.cv.models import CVProfile
+from src.database.base import Base
 from src.integrations.cache import NullCacheService
+from src.integrations.glassdoor import GlassdoorCache
+from src.notifications.models import NotificationLog
 
 # Models must be imported so Base.metadata.create_all() sees all tables.
-_ALL_MODELS = [AppSettings, CoverLetter, Contact, GlassdoorCache, AuditLog]
+_ALL_MODELS = [AppSettings, CoverLetter, Contact, GlassdoorCache, AuditLog, NotificationLog]
 
 
 @pytest.fixture

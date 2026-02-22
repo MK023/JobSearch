@@ -27,18 +27,20 @@ def add_contact(
 ):
     contact = create_contact(db, analysis_id, name, email, phone, company, linkedin_url, notes, source)
     db.commit()
-    return JSONResponse({
-        "ok": True,
-        "contact": {
-            "id": str(contact.id),
-            "name": contact.name,
-            "email": contact.email,
-            "phone": contact.phone,
-            "company": contact.company,
-            "linkedin_url": contact.linkedin_url,
-            "notes": contact.notes,
-        },
-    })
+    return JSONResponse(
+        {
+            "ok": True,
+            "contact": {
+                "id": str(contact.id),
+                "name": contact.name,
+                "email": contact.email,
+                "phone": contact.phone,
+                "company": contact.company,
+                "linkedin_url": contact.linkedin_url,
+                "notes": contact.notes,
+            },
+        }
+    )
 
 
 @router.get("/contacts/{analysis_id}")
@@ -48,21 +50,23 @@ def list_contacts(
     user: User = Depends(get_current_user),
 ):
     contacts = get_contacts_for_analysis(db, analysis_id)
-    return JSONResponse({
-        "contacts": [
-            {
-                "id": str(c.id),
-                "name": c.name,
-                "email": c.email,
-                "phone": c.phone,
-                "company": c.company,
-                "linkedin_url": c.linkedin_url,
-                "notes": c.notes,
-                "source": c.source,
-            }
-            for c in contacts
-        ]
-    })
+    return JSONResponse(
+        {
+            "contacts": [
+                {
+                    "id": str(c.id),
+                    "name": c.name,
+                    "email": c.email,
+                    "phone": c.phone,
+                    "company": c.company,
+                    "linkedin_url": c.linkedin_url,
+                    "notes": c.notes,
+                    "source": c.source,
+                }
+                for c in contacts
+            ]
+        }
+    )
 
 
 @router.delete("/contacts/{contact_id}")

@@ -1,6 +1,6 @@
 """Follow-up email and LinkedIn message routes."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import JSONResponse
@@ -8,12 +8,12 @@ from sqlalchemy.orm import Session
 
 from ..audit.service import audit
 from ..auth.models import User
+from ..contacts.models import Contact
 from ..cv.service import get_latest_cv
 from ..dashboard.service import add_spending
 from ..database import get_db
 from ..dependencies import get_current_user
 from ..integrations.anthropic_client import generate_followup_email, generate_linkedin_message
-from ..contacts.models import Contact
 from .service import get_analysis_by_id
 
 router = APIRouter(tags=["followup"])
@@ -36,11 +36,7 @@ def create_followup_email(
     if not cv:
         return JSONResponse({"error": "CV not found"}, status_code=404)
 
-    days_since = (
-        (datetime.now(timezone.utc) - analysis.applied_at).days
-        if analysis.applied_at
-        else 7
-    )
+    days_since = (datetime.now(UTC) - analysis.applied_at).days if analysis.applied_at else 7
 
     try:
         result = generate_followup_email(cv.raw_text, analysis.role, analysis.company, days_since, language, model)

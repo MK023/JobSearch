@@ -34,10 +34,10 @@ class RedisCacheService:
             return None
 
     def set(self, key: str, value: str, ttl: int) -> None:
-        try:
+        import contextlib
+
+        with contextlib.suppress(Exception):
             self._client.setex(key, ttl, value)
-        except Exception:
-            pass
 
     def get_json(self, key: str) -> dict | None:
         raw = self.get(key)

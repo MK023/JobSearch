@@ -1,7 +1,7 @@
 """Analysis service: job analysis, result building, glassdoor merging."""
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -12,9 +12,7 @@ from ..integrations.glassdoor import fetch_glassdoor_rating
 from .models import AnalysisStatus, JobAnalysis
 
 
-def find_existing_analysis(
-    db: Session, hash_value: str, model_id: str
-) -> JobAnalysis | None:
+def find_existing_analysis(db: Session, hash_value: str, model_id: str) -> JobAnalysis | None:
     """Find an existing analysis with the same content hash and model."""
     return (
         db.query(JobAnalysis)
@@ -99,8 +97,13 @@ def rebuild_result(analysis: JobAnalysis, from_cache: bool = False) -> dict:
     # Extract extra fields from full_response
     full = _parse_full_response(analysis.full_response)
     for key in (
-        "score_label", "potential_score", "gap_timeline", "confidence",
-        "confidence_reason", "summary", "application_method",
+        "score_label",
+        "potential_score",
+        "gap_timeline",
+        "confidence",
+        "confidence_reason",
+        "summary",
+        "application_method",
     ):
         if key in full:
             result[key] = full[key]
@@ -112,7 +115,7 @@ def update_status(db: Session, analysis: JobAnalysis, new_status: AnalysisStatus
     """Update analysis status, setting applied_at when relevant."""
     analysis.status = new_status
     if new_status in (AnalysisStatus.APPLIED, AnalysisStatus.INTERVIEW) and not analysis.applied_at:
-        analysis.applied_at = datetime.now(timezone.utc)
+        analysis.applied_at = datetime.now(UTC)
     db.flush()
 
 

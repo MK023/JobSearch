@@ -1,7 +1,7 @@
 """Recruiter contact model."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import Column, DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
@@ -29,7 +29,7 @@ class Contact(Base):
     source = Column(String(20), default="manual")
     created_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
 
     analysis = relationship("JobAnalysis", back_populates="contacts")

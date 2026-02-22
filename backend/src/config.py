@@ -16,6 +16,14 @@ class Settings(BaseSettings):
     admin_email: str = ""
     admin_password: str = ""
 
+    # Email notifications
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    notification_email: str = "marco.bellingeri@gmail.com"
+    followup_reminder_days: int = 5
+
     # CORS
     cors_allowed_origins: str = "http://localhost,http://localhost:80"
     cors_allow_credentials: bool = True

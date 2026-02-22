@@ -1,6 +1,6 @@
 """Dashboard and spending service."""
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -29,9 +29,7 @@ def _check_today_reset(s: AppSettings) -> None:
         s.today_analyses = 0
 
 
-def add_spending(
-    db: Session, cost: float, tokens_in: int, tokens_out: int, is_analysis: bool = True
-) -> None:
+def add_spending(db: Session, cost: float, tokens_in: int, tokens_out: int, is_analysis: bool = True) -> None:
     """Update running totals after an insert."""
     s = get_or_create_settings(db)
     _check_today_reset(s)
@@ -105,14 +103,12 @@ def update_budget(db: Session, budget: float) -> float:
 
 def get_dashboard(db: Session) -> dict:
     """Build dashboard stats."""
-    analyses = (
-        db.query(JobAnalysis).order_by(JobAnalysis.created_at.desc()).limit(50).all()
-    )
+    analyses = db.query(JobAnalysis).order_by(JobAnalysis.created_at.desc()).limit(50).all()
     total = len(analyses)
     applied = sum(1 for a in analyses if a.status in (AnalysisStatus.APPLIED, AnalysisStatus.INTERVIEW))
     avg_score = round(sum(a.score or 0 for a in analyses) / total, 1) if total else 0
 
-    threshold = datetime.now(timezone.utc) - timedelta(days=5)
+    threshold = datetime.now(UTC) - timedelta(days=5)
     followup_count = (
         db.query(JobAnalysis)
         .filter(
@@ -135,17 +131,13 @@ def get_dashboard(db: Session) -> dict:
         "pending": sum(1 for a in analyses if a.status == AnalysisStatus.PENDING),
         "avg_score": avg_score,
         "followup_count": followup_count,
-        "top_match": (
-            {"role": top.role, "company": top.company, "score": top.score}
-            if top
-            else None
-        ),
+        "top_match": ({"role": top.role, "company": top.company, "score": top.score} if top else None),
     }
 
 
 def get_followup_alerts(db: Session) -> list[JobAnalysis]:
     """Get analyses needing follow-up (applied > 5 days ago, not followed up)."""
-    threshold = datetime.now(timezone.utc) - timedelta(days=5)
+    threshold = datetime.now(UTC) - timedelta(days=5)
     return (
         db.query(JobAnalysis)
         .filter(

@@ -5,17 +5,18 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from src.analysis.models import AppSettings, JobAnalysis  # noqa: F401
+from src.audit.models import AuditLog  # noqa: F401
+from src.auth.models import User  # noqa: F401
 from src.config import settings
+from src.contacts.models import Contact  # noqa: F401
+from src.cover_letter.models import CoverLetter  # noqa: F401
+from src.cv.models import CVProfile  # noqa: F401
 
 # Import all models so Alembic can detect them
 from src.database.base import Base
-from src.auth.models import User  # noqa: F401
-from src.cv.models import CVProfile  # noqa: F401
-from src.analysis.models import JobAnalysis, AppSettings  # noqa: F401
-from src.cover_letter.models import CoverLetter  # noqa: F401
-from src.contacts.models import Contact  # noqa: F401
 from src.integrations.glassdoor import GlassdoorCache  # noqa: F401
-from src.audit.models import AuditLog  # noqa: F401
+from src.notifications.models import NotificationLog  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.effective_database_url)

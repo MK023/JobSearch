@@ -30,11 +30,9 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
         user_id = UUID(user_id_str)
     except (ValueError, AttributeError):
         request.session.clear()
-        raise AuthRequired()
+        raise AuthRequired() from None
     user = db.query(User).filter(User.id == user_id).first()
     if not user or not user.is_active:
         request.session.clear()
         raise AuthRequired()
     return user
-
-
