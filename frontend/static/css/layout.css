@@ -7,30 +7,32 @@
 .container {
     max-width: var(--max-width);
     margin: 0 auto;
-    padding: var(--space-5xl) var(--space-2xl);
+    padding: var(--space-4xl) var(--space-2xl) var(--space-5xl);
 }
 
 /* ---- Header ---- */
 
 .header {
+    margin-bottom: var(--space-5xl);
+}
+
+.header-top {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: var(--space-4xl);
-    flex-wrap: wrap;
-    gap: var(--space-base);
+    gap: var(--space-2xl);
+    margin-bottom: var(--space-lg);
 }
 
-.header-left {
-    display: flex;
-    align-items: center;
-    gap: var(--space-lg);
+.header-top h1 {
+    margin-bottom: 0;
 }
 
 .header-actions {
     display: flex;
     align-items: center;
     gap: var(--space-md);
+    flex-shrink: 0;
 }
 
 /* ---- Spending bar ---- */
@@ -41,6 +43,10 @@
     font-size: var(--font-size-sm);
     flex-wrap: wrap;
     align-items: center;
+    padding: var(--space-md) var(--space-xl);
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
 }
 
 .spending-bar span {
