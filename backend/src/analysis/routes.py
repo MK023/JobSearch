@@ -44,10 +44,7 @@ def analyze(
     if existing:
         audit(db, request, "analyze_cache", f"id={existing.id}")
         result = rebuild_result(existing, from_cache=True)
-        msg = (
-            f"Analisi gia' eseguita il {existing.created_at.strftime('%d/%m/%Y %H:%M')}"
-            " - mostro il risultato salvato"
-        )
+        msg = f"Analisi gia' eseguita il {existing.created_at.strftime('%d/%m/%Y %H:%M')} - mostro il risultato salvato"
         return _render_page(request, db, user, current=existing, result=result, message=msg)
 
     try:
