@@ -42,3 +42,17 @@ function refreshAll() {
     refreshSpending();
     refreshDashboard();
 }
+
+
+/**
+ * Handle 429 rate limit responses from fetch calls.
+ * Returns true if response was a 429 (caller should stop processing).
+ */
+function handleRateLimit(response, msg) {
+    if (response.status === 429) {
+        var retryAfter = response.headers.get('Retry-After') || '60';
+        alert((msg || 'Troppe richieste') + '. Riprova tra ' + retryAfter + ' secondi.');
+        return true;
+    }
+    return false;
+}

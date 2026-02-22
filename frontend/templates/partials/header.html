@@ -3,14 +3,14 @@
     <h1>🎯 Job Search Command Center</h1>
 
     {% if spending %}
-    <div class="spending-bar" id="spending-bar">
+    <div class="spending-bar" id="spending-bar" role="status" aria-label="Riepilogo spese">
         <span>💳 Crediti: <b id="spending-budget" class="spending-balance spending-budget-editable" contenteditable="true" title="Clicca per impostare i tuoi crediti Anthropic">${{ '%.2f' % spending.budget }}</b></span>
         <span>💰 Speso: <b id="spending-cost">${{ '%.4f' % spending.total_cost_usd }}</b></span>
         <span>🏦 Rimanente: <b id="spending-remaining" class="spending-balance">{% if spending.remaining is not none %}${{ '%.4f' % spending.remaining }}{% else %}-{% endif %}</b></span>
         <span>📅 Oggi: <b id="spending-today">${{ '%.4f' % spending.today_cost_usd }} ({{ spending.today_analyses }} analisi, {{ '{:,}'.format(spending.today_tokens_input + spending.today_tokens_output) }} tok)</b></span>
         {% if user %}
         <form method="post" action="/logout" class="spending-logout">
-            <button type="submit" class="btn btn-muted btn-sm">🚪 Esci</button>
+            <button type="submit" class="btn btn-muted btn-sm" aria-label="Esci dall'account">🚪 Esci</button>
         </form>
         {% endif %}
     </div>

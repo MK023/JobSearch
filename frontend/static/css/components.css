@@ -530,3 +530,29 @@ summary::before {
 details[open] summary::before {
     transform: rotate(90deg);
 }
+
+/* ---- Responsive ---- */
+
+@media (width <= 768px) {
+    .btn {
+        min-height: 44px;
+    }
+
+    .tabs {
+        flex-direction: column;
+    }
+
+    .toggle {
+        flex-wrap: wrap;
+    }
+
+    .pill-btn {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    .tool-btn {
+        min-height: 44px;
+        min-width: 44px;
+    }
+}

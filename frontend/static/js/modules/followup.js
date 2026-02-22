@@ -68,8 +68,12 @@ function genFollowup(id) {
     fd.append('language', 'italiano');
 
     fetch('/api/v1/followup-email', { method: 'POST', body: fd })
-        .then(function(r) { return r.json(); })
+        .then(function(r) {
+            if (handleRateLimit(r, 'Troppe richieste')) return null;
+            return r.json();
+        })
         .then(function(data) {
+            if (!data) return;
             while (g.box.firstChild) g.box.removeChild(g.box.firstChild);
 
             if (data.error) {
@@ -117,8 +121,12 @@ function genLinkedin(id) {
     fd.append('language', 'italiano');
 
     fetch('/api/v1/linkedin-message', { method: 'POST', body: fd })
-        .then(function(r) { return r.json(); })
+        .then(function(r) {
+            if (handleRateLimit(r, 'Troppe richieste')) return null;
+            return r.json();
+        })
         .then(function(data) {
+            if (!data) return;
             while (g.box.firstChild) g.box.removeChild(g.box.firstChild);
 
             if (data.error) {

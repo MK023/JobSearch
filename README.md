@@ -57,6 +57,16 @@ An AI-powered job search platform built with a microservices architecture. Paste
 
 ---
 
+## Screenshots
+
+| Dashboard | Analysis Result | Cover Letter |
+|:---------:|:---------------:|:------------:|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Analysis Result](docs/screenshots/analysis_result.png) | ![Cover Letter](docs/screenshots/cover_letter.png) |
+
+> Screenshots not yet captured — see [`docs/screenshots/README.md`](docs/screenshots/README.md) for capture instructions.
+
+---
+
 ## Tech Stack
 
 | Layer | Technology | Purpose |
@@ -227,6 +237,22 @@ JobSearch/
 ---
 
 ## Development
+
+### Pre-commit Hooks
+
+Install pre-commit hooks to catch issues before they reach CI:
+
+```bash
+pip install pre-commit
+pre-commit install
+
+# Run on all files (first time)
+pre-commit run --all-files
+```
+
+Hooks run automatically on `git commit`: Ruff (lint + format), Stylelint (CSS), trailing whitespace, end-of-file fixer, YAML/JSON validation.
+
+### Commands
 
 ```bash
 # Live logs (all containers)

@@ -131,3 +131,35 @@
 .login-card .btn {
     margin-top: var(--space-md);
 }
+
+/* ---- Responsive ---- */
+
+@media (width <= 768px) {
+    .container {
+        padding: var(--space-2xl) var(--space-lg) var(--space-4xl);
+    }
+
+    .header h1 {
+        font-size: var(--font-size-2xl);
+    }
+
+    .spending-bar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-md);
+    }
+
+    .spending-logout {
+        margin-left: 0;
+    }
+
+    .login-card {
+        padding: var(--space-3xl) var(--space-2xl);
+    }
+}
+
+@media (width <= 480px) {
+    .container {
+        padding: var(--space-lg) var(--space-md) var(--space-3xl);
+    }
+}

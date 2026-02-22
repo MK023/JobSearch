@@ -4,8 +4,8 @@
 
     <form method="post" action="/analyze" id="analyze-form"
           @submit="analyzeLoading = true">
-        <input type="url" name="job_url" placeholder="🔗 Link annuncio (LinkedIn, Indeed...) - opzionale">
-        <textarea name="job_description" placeholder="📝 Incolla qui la descrizione del lavoro..."></textarea>
+        <input type="url" name="job_url" placeholder="🔗 Link annuncio (LinkedIn, Indeed...) - opzionale" aria-label="Link annuncio di lavoro">
+        <textarea name="job_description" placeholder="📝 Incolla qui la descrizione del lavoro..." aria-label="Descrizione del lavoro"></textarea>
         <div class="button-row">
             <button type="submit" class="btn btn-warning btn-sm" id="analyze-btn"
                     :disabled="analyzeLoading">
@@ -21,7 +21,7 @@
         </div>
     </form>
 
-    <div class="loading" :class="{ 'on': analyzeLoading }">
+    <div class="loading" :class="{ 'on': analyzeLoading }" role="status">
         <div class="spinner"></div>
         <span>🤖 Analisi AI in corso...</span>
     </div>

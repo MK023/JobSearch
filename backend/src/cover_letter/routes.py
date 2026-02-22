@@ -10,17 +10,20 @@ from ..analysis.routes import _render_page
 from ..analysis.service import get_analysis_by_id, rebuild_result
 from ..audit.service import audit
 from ..auth.models import User
+from ..config import settings
 from ..cv.service import get_latest_cv
 from ..dashboard.service import add_spending
 from ..database import get_db
 from ..dependencies import get_cache, get_current_user
 from ..integrations.cache import CacheService
+from ..rate_limit import limiter
 from .service import build_docx, create_cover_letter, get_cover_letter_by_id
 
 router = APIRouter(tags=["cover_letter"])
 
 
 @router.post("/cover-letter", response_class=HTMLResponse)
+@limiter.limit(settings.rate_limit_analyze)
 def generate_cover_letter_route(
     request: Request,
     analysis_id: str = Form(...),

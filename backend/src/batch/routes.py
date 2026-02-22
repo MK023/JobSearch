@@ -6,9 +6,11 @@ from sqlalchemy.orm import Session
 
 from ..audit.service import audit
 from ..auth.models import User
+from ..config import settings
 from ..database import SessionLocal, get_db
 from ..dependencies import get_cache, get_current_user
 from ..integrations.cache import CacheService
+from ..rate_limit import limiter
 from .service import add_to_queue, clear_completed, get_batch_status, get_pending_batch_id, run_batch
 
 router = APIRouter(prefix="/batch", tags=["batch"])
@@ -30,6 +32,7 @@ def batch_add(
 
 
 @router.post("/run")
+@limiter.limit(settings.rate_limit_analyze)
 def batch_run(
     request: Request,
     background_tasks: BackgroundTasks,

@@ -1,5 +1,7 @@
 """FastAPI application factory with middleware, routers, and lifespan."""
 
+import logging
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -11,7 +13,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+from sqlalchemy import text
 from sqlalchemy.orm import Session
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
 from .analysis.routes import router as analysis_router
@@ -27,10 +31,14 @@ from .dependencies import AuthRequired, get_current_user
 from .integrations.cache import create_cache_service
 from .rate_limit import limiter
 
+logger = logging.getLogger(__name__)
+
 # Template and static file paths (frontend/ is at project root, sibling of backend/)
 _BASE_DIR = Path(__file__).parent.parent.parent
 _TEMPLATE_DIR = _BASE_DIR / "frontend" / "templates"
 _STATIC_DIR = _BASE_DIR / "frontend" / "static"
+
+_startup_time: float = 0.0
 
 
 def _run_migrations() -> None:
@@ -47,6 +55,9 @@ def _run_migrations() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup/shutdown lifecycle."""
+    global _startup_time
+    _startup_time = time.time()
+
     if not settings.anthropic_api_key:
         raise RuntimeError("ANTHROPIC_API_KEY missing. Configure .env file")
 
@@ -75,9 +86,18 @@ async def lifespan(app: FastAPI):
 def _rate_limit_handler(request: Request, exc: RateLimitExceeded) -> Response:
     from fastapi.responses import JSONResponse
 
+    retry_after = "60"
+    headers = {"Retry-After": retry_after}
+
+    # Content negotiation: HTML requests get a redirect, API requests get JSON
+    accept = request.headers.get("accept", "")
+    if "text/html" in accept and "application/json" not in accept:
+        return RedirectResponse(url="/", status_code=303, headers=headers)
+
     return JSONResponse(
-        {"error": "Too many requests", "detail": str(exc.detail)},
+        {"error": "Too many requests", "detail": str(exc.detail), "retry_after": int(retry_after)},
         status_code=429,
+        headers=headers,
     )
 
 
@@ -94,6 +114,21 @@ def create_app() -> FastAPI:
         return RedirectResponse(url="/login", status_code=303)
 
     app.add_exception_handler(RateLimitExceeded, _rate_limit_handler)
+
+    @app.exception_handler(StarletteHTTPException)
+    async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+        if exc.status_code == 404:
+            templates = app.state.templates
+            return templates.TemplateResponse("404.html", {"request": request}, status_code=404)
+        from fastapi.responses import JSONResponse
+
+        return JSONResponse({"error": exc.detail}, status_code=exc.status_code)
+
+    @app.exception_handler(Exception)
+    async def generic_exception_handler(request: Request, exc: Exception):
+        logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+        templates = app.state.templates
+        return templates.TemplateResponse("500.html", {"request": request}, status_code=500)
 
     # --- Middleware stack (LIFO: last added = outermost) ---
 
@@ -159,8 +194,22 @@ def create_app() -> FastAPI:
 
     # --- Health check ---
     @app.get("/health")
-    def health():
-        return {"status": "ok"}
+    def health(db: Session = Depends(get_db)):
+        db_status = "ok"
+        try:
+            db.execute(text("SELECT 1"))
+        except Exception:
+            db_status = "unreachable"
+
+        status = "ok" if db_status == "ok" else "degraded"
+        uptime = round(time.time() - _startup_time, 1) if _startup_time else 0.0
+
+        return {
+            "status": status,
+            "db": db_status,
+            "version": "2.0.0",
+            "uptime_seconds": uptime,
+        }
 
     return app
 

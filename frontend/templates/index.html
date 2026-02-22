@@ -3,14 +3,14 @@
 {% block body_attrs %}x-data="app()" x-init="init()"{% endblock %}
 
 {% block body %}
-<div class="container">
+<div class="container" id="main-content">
 
     <!-- ===== HEADER ===== -->
     {% include "partials/header.html" %}
 
     <!-- ===== MESSAGES ===== -->
-    {% if message %}<div class="message-banner message-success">✅ {{ message }}</div>{% endif %}
-    {% if error %}<div class="message-banner message-error">❌ {{ error }}</div>{% endif %}
+    {% if message %}<div class="message-banner message-success" role="status">✅ {{ message }}</div>{% endif %}
+    {% if error %}<div class="message-banner message-error" role="alert">❌ {{ error }}</div>{% endif %}
 
     <!-- ===== CV + ANALYZE FORMS ===== -->
     <div class="grid-2col">

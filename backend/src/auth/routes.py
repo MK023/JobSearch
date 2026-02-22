@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from ..audit.service import audit
 from ..database import get_db
+from ..rate_limit import limiter
 from .service import authenticate_user
 
 router = APIRouter(tags=["auth"])
@@ -25,6 +26,7 @@ def login_page(request: Request):
 
 
 @router.post("/login")
+@limiter.limit("5/minute")
 def login(
     request: Request,
     email: str = Form(...),

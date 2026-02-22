@@ -32,8 +32,12 @@ function batchManager() {
             fd.append('model', model);
 
             fetch('/api/v1/batch/add', { method: 'POST', body: fd })
-                .then(function(r) { return r.json(); })
+                .then(function(r) {
+                    if (handleRateLimit(r, 'Troppe richieste batch')) return null;
+                    return r.json();
+                })
                 .then(function(data) {
+                    if (!data) return;
                     if (data.ok) {
                         self.items.push({
                             preview: jd.substring(0, 80) + (jd.length > 80 ? '...' : ''),
@@ -53,8 +57,12 @@ function batchManager() {
             self.statusText = 'Analisi in corso...';
 
             fetch('/api/v1/batch/run', { method: 'POST' })
-                .then(function(r) { return r.json(); })
+                .then(function(r) {
+                    if (handleRateLimit(r, 'Troppe richieste batch')) { self.running = false; return null; }
+                    return r.json();
+                })
                 .then(function(data) {
+                    if (!data) return;
                     if (data.ok) {
                         self.pollStatus();
                     }

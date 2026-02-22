@@ -138,10 +138,65 @@ select:focus {
     to { transform: rotate(360deg); }
 }
 
+/* ---- Focus styles ---- */
+
+:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+}
+
+:focus:not(:focus-visible) {
+    outline: none;
+}
+
+/* ---- Accessibility utilities ---- */
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.skip-link {
+    position: absolute;
+    top: -100%;
+    left: var(--space-lg);
+    padding: var(--space-md) var(--space-xl);
+    background: var(--color-accent);
+    color: #fff;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    z-index: 1000;
+    text-decoration: none;
+}
+
+.skip-link:focus {
+    top: var(--space-lg);
+}
+
 /* ---- Utility text ---- */
 
 .meta-small {
     margin-top: var(--space-md);
     font-size: var(--font-size-sm);
     color: var(--color-text-faint);
+}
+
+/* ---- Responsive form elements ---- */
+
+@media (width <= 768px) {
+    input[type="text"],
+    input[type="url"],
+    input[type="email"],
+    input[type="password"],
+    input[type="tel"],
+    textarea {
+        min-height: 44px;
+    }
 }

@@ -12,8 +12,10 @@
         {% endif %}
 
         <form method="post" action="/login">
-            <input type="email" name="email" placeholder="📧 Email" required autofocus>
-            <input type="password" name="password" placeholder="🔒 Password" required>
+            <label for="login-email" class="sr-only">Email</label>
+            <input type="email" name="email" id="login-email" placeholder="📧 Email" aria-label="Email" required autofocus>
+            <label for="login-password" class="sr-only">Password</label>
+            <input type="password" name="password" id="login-password" placeholder="🔒 Password" aria-label="Password" required>
             <button type="submit" class="btn btn-primary btn-full">🚀 Accedi</button>
         </form>
     </div>

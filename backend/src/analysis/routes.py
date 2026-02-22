@@ -6,12 +6,14 @@ from sqlalchemy.orm import Session
 
 from ..audit.service import audit
 from ..auth.models import User
+from ..config import settings
 from ..cv.service import get_latest_cv
 from ..dashboard.service import add_spending
 from ..database import get_db
 from ..dependencies import get_cache, get_current_user
 from ..integrations.anthropic_client import MODELS, content_hash
 from ..integrations.cache import CacheService
+from ..rate_limit import limiter
 from .service import (
     find_existing_analysis,
     get_analysis_by_id,
@@ -23,6 +25,7 @@ router = APIRouter(tags=["analysis"])
 
 
 @router.post("/analyze", response_class=HTMLResponse)
+@limiter.limit(settings.rate_limit_analyze)
 def analyze(
     request: Request,
     job_description: str = Form(...),
