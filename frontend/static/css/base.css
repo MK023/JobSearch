@@ -165,7 +165,7 @@ select:focus {
 
 .skip-link {
     position: absolute;
-    top: -100%;
+    top: -9999px;
     left: var(--space-lg);
     padding: var(--space-md) var(--space-xl);
     background: var(--color-accent);

@@ -154,6 +154,54 @@ Request → SecurityHeaders → CORS → TrustedHost → SlowAPI → Session →
 4. **SlowAPIMiddleware**: rate limiting globale con slowapi
 5. **SessionMiddleware**: sessioni server-side con itsdangerous (TTL 7 giorni)
 
+### Exception Handlers
+
+Tre exception handler custom gestiscono errori specifici:
+
+```python
+# Auth: redirect a login se non autenticato
+@app.exception_handler(AuthRequired)
+async def auth_redirect_handler(request, exc):
+    return RedirectResponse(url="/login", status_code=303)
+
+# HTTP: 404 mostra template custom, altri errori ritornano JSON
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request, exc):
+    if exc.status_code == 404:
+        return templates.TemplateResponse("404.html", ...)
+    return JSONResponse({"error": exc.detail}, status_code=exc.status_code)
+
+# Generic: 500 mostra template custom + logging
+@app.exception_handler(Exception)
+async def generic_exception_handler(request, exc):
+    logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+    return templates.TemplateResponse("500.html", ..., status_code=500)
+```
+
+Le pagine 404 e 500 usano lo stesso layout centrato della pagina di login (`login-wrapper`/`login-card`) con un bottone "Torna alla Home".
+
+### Health Check
+
+```python
+@app.get("/health")
+def health(db: Session = Depends(get_db)):
+    db_status = "ok"
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception:
+        db_status = "unreachable"
+
+    status = "ok" if db_status == "ok" else "degraded"
+    return {
+        "status": status,           # "ok" | "degraded"
+        "db": db_status,            # "ok" | "unreachable"
+        "version": "2.0.0",
+        "uptime_seconds": uptime,   # Secondi dal boot
+    }
+```
+
+L'endpoint `/health` verifica la connessione DB con `SELECT 1` e ritorna `"degraded"` se il database non e' raggiungibile.
+
 ### Rate Limiting
 
 ```python
@@ -167,6 +215,18 @@ def analyze(...):
 ```
 
 `_get_real_ip()` legge `X-Forwarded-For` per funzionare dietro nginx.
+
+Route protette con rate limiting esplicito:
+- `POST /analyze` — `10/minute` (analisi AI)
+- `POST /login` — `5/minute` (brute force protection)
+- `POST /batch/run` — `10/minute` (batch processing)
+- `POST /cover-letter` — `10/minute` (generazione AI)
+
+Il rate limit handler supporta **content negotiation**:
+- Richieste HTML → redirect a `/` con header `Retry-After`
+- Richieste JSON → risposta 429 strutturata con `retry_after` e `Retry-After` header
+
+Sul frontend, `handleRateLimit(response, msg)` in `app.js` cattura le risposte 429 e mostra un alert con i secondi di attesa.
 
 ---
 
@@ -550,9 +610,11 @@ return templates.TemplateResponse("index.html", {"request": request, ...})
 
 ```
 frontend/templates/
-├── base.html           # Layout base (head, CSS imports, footer)
+├── base.html           # Layout base (head, CSS imports, skip-link)
 ├── index.html          # Pagina principale (compone i partials)
 ├── login.html          # Form di login
+├── 404.html            # Pagina errore 404 (layout centrato)
+├── 500.html            # Pagina errore 500 (layout centrato)
 └── partials/           # Componenti riusabili
     ├── header.html          # Title + logout + spending bar
     ├── cv_form.html         # Upload/edit CV
@@ -599,6 +661,36 @@ frontend/static/js/modules/
 ```
 
 Tutti i fetch puntano a `/api/v1/...`. Alpine.js gestisce la UI reattiva (tabs, toggle, x-show/x-cloak). Nessuna dipendenza build-time (no bundler, no npm in frontend).
+
+Il JS gestisce anche il **rate limiting lato client**: `handleRateLimit(response, msg)` in `app.js` cattura le risposte 429 e mostra un alert con i secondi di attesa letti dall'header `Retry-After`.
+
+### Accessibilita' (WCAG)
+
+Il frontend implementa le best practice di accessibilita' web:
+
+- **Skip link**: `<a href="#main-content" class="skip-link">` nascosto visivamente, appare con Tab per saltare al contenuto
+- **Screen reader text**: classe `.sr-only` per testo leggibile solo da screen reader (es. label dei form)
+- **Focus visible**: `:focus-visible` con outline `2px solid` per navigazione da tastiera, rimosso per click
+- **ARIA labels**: `aria-label` su textarea, input, select e bottoni senza testo visibile
+- **ARIA roles**: `role="status"` su messaggi di successo e spinner, `role="alert"` su messaggi di errore
+- **Label association**: `<label for="id">` su tutti i campi del form login
+- **Landmark**: `id="main-content"` sulla pagina principale per lo skip link
+
+### Responsive Design
+
+Layout adattivo con media query a due breakpoint:
+
+**768px** (tablet):
+- Container con padding ridotto, h1 piu' piccolo
+- Spending bar e followup alert passano a layout colonna
+- Bottoni con `min-height: 44px` per touch target
+- Tabs, toggle, pill-btn in layout verticale/wrap
+- Result hero e contact form in colonna singola
+- Input e textarea con `min-height: 44px`
+
+**480px** (mobile):
+- Padding container ulteriormente ridotto
+- Login card con padding minimo
 
 ### Static files
 
@@ -734,9 +826,9 @@ security ───────────────────┘
 - run: pip-audit -r backend/requirements.txt --desc        # CVE check
 ```
 
-**Job 4 - Tests & Coverage**: pytest con coverage minimo
+**Job 4 - Tests & Coverage**: pytest con coverage minimo 50%
 ```yaml
-- run: pytest tests/ -v --tb=short --cov=src --cov-fail-under=25
+- run: pytest tests/ -v --tb=short --cov=src --cov-fail-under=50
   env:
     DATABASE_URL: "sqlite:///test.db"
     ANTHROPIC_API_KEY: "test-key"
@@ -746,6 +838,23 @@ security ───────────────────┘
 ```yaml
 - run: docker compose build
 ```
+
+### Pre-commit Hooks
+
+Il progetto usa **pre-commit** per validazione locale prima dei commit:
+
+```yaml
+# .pre-commit-config.yaml
+- ruff (lint + format)           # Python quality
+- stylelint                      # CSS validation
+- trailing-whitespace            # Pulizia whitespace
+- end-of-file-fixer              # Newline finale
+- check-yaml, check-json         # Syntax check config
+```
+
+La configurazione stylelint e' in `.stylelintrc.json`, condivisa tra pre-commit e CI.
+
+Installazione: `pip install pre-commit && pre-commit install`
 
 ### Test strategy
 
@@ -762,6 +871,35 @@ engine = create_engine(
 Limitazione: SQLite non supporta JSONB e UUID nativi, ma funziona per testare la logica di business.
 
 I servizi esterni (Anthropic API) sono mockati con `unittest.mock.MagicMock`.
+
+### Coverage e test suite
+
+108 test, coverage > 55%, threshold CI: 50%.
+
+```
+tests/
+├── conftest.py                     # Fixture condivise (db_session, test_analysis, etc.)
+├── test_anthropic_client.py        # JSON parsing (7 strategie), content_hash
+├── test_audit_service.py           # Audit log creation, IP extraction
+├── test_batch_service.py           # Queue CRUD, clear, status
+├── test_contacts_service.py        # Contacts CRUD
+├── test_cover_letter_service.py    # get_by_id, build_docx
+├── test_notifications_service.py   # Fernet encrypt/decrypt, already_notified
+└── test_routes.py                  # TestClient: health, 404, login, auth
+```
+
+I test di route usano `FastAPI.TestClient` con lifespan patchato per evitare migrazioni e servizi esterni:
+
+```python
+@asynccontextmanager
+async def _test_lifespan(app):
+    app.state.cache = NullCacheService()
+    yield
+
+with patch("src.main.lifespan", _test_lifespan):
+    app = create_app()
+    with TestClient(app) as client: ...
+```
 
 ---
 
