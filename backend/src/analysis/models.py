@@ -25,7 +25,7 @@ from sqlalchemy.orm import relationship
 from ..database.base import Base
 
 
-class AnalysisStatus(str, enum.Enum):
+class AnalysisStatus(enum.StrEnum):
     """Application tracking status."""
 
     PENDING = "da_valutare"

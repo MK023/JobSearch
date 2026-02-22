@@ -5,7 +5,7 @@ import enum
 from pydantic import BaseModel, Field
 
 
-class CoverLetterLanguage(str, enum.Enum):
+class CoverLetterLanguage(enum.StrEnum):
     ITALIANO = "italiano"
     ENGLISH = "english"
     FRANCAIS = "francais"

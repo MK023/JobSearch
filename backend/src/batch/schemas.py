@@ -5,7 +5,7 @@ import enum
 from pydantic import BaseModel, Field
 
 
-class BatchModelChoice(str, enum.Enum):
+class BatchModelChoice(enum.StrEnum):
     HAIKU = "haiku"
     SONNET = "sonnet"
 
