@@ -156,7 +156,9 @@ JobSearch/
 ├── docker-compose.yml              # 4-service orchestration
 ├── fly.toml                        # Fly.io single-container deploy
 ├── .env.example                    # Environment template
-├── .github/workflows/ci.yml        # CI pipeline
+├── .pre-commit-config.yaml         # Pre-commit hooks (ruff, stylelint)
+├── .stylelintrc.json               # Shared stylelint config
+├── .github/workflows/ci.yml        # CI pipeline (5 jobs)
 │
 ├── frontend/
 │   ├── Dockerfile                  # nginx:1.27-alpine
@@ -165,6 +167,8 @@ JobSearch/
 │   │   ├── base.html
 │   │   ├── index.html
 │   │   ├── login.html
+│   │   ├── 404.html               # Custom error page
+│   │   ├── 500.html               # Custom error page
 │   │   └── partials/              # Reusable template fragments
 │   │       ├── header.html
 │   │       ├── cv_form.html
@@ -231,7 +235,8 @@ JobSearch/
 │
 └── docs/
     ├── architecture.drawio         # Architecture diagram
-    └── technical.md                # Technical documentation
+    ├── technical.md                # Technical documentation
+    └── screenshots/README.md       # Screenshot capture guide
 ```
 
 ---
@@ -321,7 +326,7 @@ Budget tracking is built-in: set a limit, monitor spending in real-time.
 - CORS with configurable origins
 - TrustedHost middleware
 - Security headers (X-Content-Type-Options, X-Frame-Options, HSTS, Referrer-Policy)
-- Rate limiting (60/min global, 10/min on `/analyze`)
+- Rate limiting (60/min global, 10/min on AI routes, 5/min on login)
 - bcrypt password hashing
 - Session-based auth with configurable TTL
 - Nginx as reverse proxy (backend not exposed to host)
