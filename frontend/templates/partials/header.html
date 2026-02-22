@@ -1,15 +1,6 @@
 {# Header with title, spending bar, and logout #}
 <div class="header">
-    <div class="header-top">
-        <h1>🎯 Job Search Command Center</h1>
-        <div class="header-actions">
-            {% if user %}
-            <form method="post" action="/logout">
-                <button type="submit" class="btn btn-muted btn-sm">🚪 Esci</button>
-            </form>
-            {% endif %}
-        </div>
-    </div>
+    <h1>🎯 Job Search Command Center</h1>
 
     {% if spending %}
     <div class="spending-bar" id="spending-bar">
@@ -17,6 +8,11 @@
         <span>💰 Speso: <b id="spending-cost">${{ '%.4f' % spending.total_cost_usd }}</b></span>
         <span>🏦 Rimanente: <b id="spending-remaining" class="spending-balance">{% if spending.remaining is not none %}${{ '%.4f' % spending.remaining }}{% else %}-{% endif %}</b></span>
         <span>📅 Oggi: <b id="spending-today">${{ '%.4f' % spending.today_cost_usd }} ({{ spending.today_analyses }} analisi, {{ '{:,}'.format(spending.today_tokens_input + spending.today_tokens_output) }} tok)</b></span>
+        {% if user %}
+        <form method="post" action="/logout" class="spending-logout">
+            <button type="submit" class="btn btn-muted btn-sm">🚪 Esci</button>
+        </form>
+        {% endif %}
     </div>
     {% endif %}
 </div>

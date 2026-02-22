@@ -16,23 +16,8 @@
     margin-bottom: var(--space-5xl);
 }
 
-.header-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-2xl);
+.header h1 {
     margin-bottom: var(--space-lg);
-}
-
-.header-top h1 {
-    margin-bottom: 0;
-}
-
-.header-actions {
-    display: flex;
-    align-items: center;
-    gap: var(--space-md);
-    flex-shrink: 0;
 }
 
 /* ---- Spending bar ---- */
@@ -72,6 +57,10 @@
 .spending-budget-editable:focus {
     border-bottom-color: var(--color-accent);
     color: var(--color-text-primary);
+}
+
+.spending-logout {
+    margin-left: auto;
 }
 
 /* ---- Grid layouts ---- */
