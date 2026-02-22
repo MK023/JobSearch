@@ -44,8 +44,8 @@ jobs:
 
       - name: Lint CSS
         run: |
-          echo '{"extends":"stylelint-config-standard","rules":{"custom-property-pattern":null,"selector-class-pattern":null,"no-descending-specificity":null,"declaration-block-no-redundant-longhand-properties":null,"shorthand-property-no-redundant-values":null}}' > .stylelintrc.json
-          stylelint "frontend/static/css/**/*.css" --formatter compact || true
+          echo '{"extends":"stylelint-config-standard","rules":{"custom-property-pattern":null,"selector-class-pattern":null,"no-descending-specificity":null,"declaration-block-no-redundant-longhand-properties":null,"shorthand-property-no-redundant-values":null,"value-keyword-case":["lower",{"ignoreKeywords":["BlinkMacSystemFont"]}]}}' > .stylelintrc.json
+          stylelint "frontend/static/css/**/*.css" --formatter compact
 
       - name: Validate HTML templates (syntax check)
         run: |

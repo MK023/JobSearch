@@ -51,6 +51,7 @@ An AI-powered job search platform built with a microservices architecture. Paste
 | **Recruiter Contacts** | CRM per application: name, email, phone, LinkedIn |
 | **Company Reputation** | Glassdoor ratings via RapidAPI with 30-day DB cache |
 | **Cost Tracking** | Per-analysis cost, daily totals, configurable budget |
+| **Email Notifications** | SMTP email alerts for new APPLY analyses, Fernet-encrypted credentials |
 | **Audit Trail** | DB-logged user actions (login, analyze, delete, etc.) |
 | **Dashboard** | Stats, top matches, active applications at a glance |
 
@@ -66,11 +67,12 @@ An AI-powered job search platform built with a microservices architecture. Paste
 | **Migrations** | Alembic | Versioned schema migrations |
 | **Database** | PostgreSQL 16 | Persistent storage |
 | **Cache** | Redis 7 | API response caching (graceful degradation) |
-| **AI** | Anthropic Claude | Analysis, generation, with JSON retry logic |
+| **AI** | Anthropic Claude | Analysis, generation, 7-strategy JSON parsing + Pydantic validation |
 | **Auth** | Session + bcrypt | Server-side sessions, password hashing |
 | **Rate Limiting** | slowapi | Per-IP limits, X-Forwarded-For aware |
 | **Security** | Custom middleware | CORS, HSTS, CSP headers, trusted hosts |
-| **CI/CD** | GitHub Actions | Lint (pyflakes) + Test (pytest) + Docker build |
+| **Encryption** | Fernet (cryptography) | SMTP credential encryption at rest |
+| **CI/CD** | GitHub Actions | Lint (ruff) + Frontend lint + Security audit + Test + Docker build |
 | **Deploy** | Fly.io / Docker Compose | Single-container PaaS or multi-container local |
 
 ---
@@ -152,16 +154,35 @@ JobSearch/
 │   ├── templates/                  # Jinja2 SSR templates
 │   │   ├── base.html
 │   │   ├── index.html
-│   │   └── login.html
+│   │   ├── login.html
+│   │   └── partials/              # Reusable template fragments
+│   │       ├── header.html
+│   │       ├── cv_form.html
+│   │       ├── analyze_form.html
+│   │       ├── result.html
+│   │       ├── result_reputation.html
+│   │       ├── cover_letter_form.html
+│   │       ├── cover_letter_result.html
+│   │       ├── followup_alerts.html
+│   │       ├── batch.html
+│   │       ├── dashboard.html
+│   │       └── history.html
 │   └── static/
-│       ├── css/style.css
-│       └── js/modules/             # Vanilla JS (fetch-based)
+│       ├── css/                    # Modular CSS (stylelint-validated)
+│       │   ├── variables.css       # Design tokens
+│       │   ├── base.css            # Reset, typography, forms
+│       │   ├── layout.css          # Container, header, grid, footer
+│       │   ├── components.css      # Buttons, cards, badges, tabs
+│       │   └── sections.css        # Page-specific sections
+│       └── js/modules/             # Vanilla JS + Alpine.js
 │           ├── status.js
 │           ├── spending.js
 │           ├── dashboard.js
 │           ├── batch.js
 │           ├── contacts.js
-│           └── followup.js
+│           ├── followup.js
+│           ├── cv.js
+│           └── history.js
 │
 ├── backend/
 │   ├── Dockerfile                  # python:3.12-slim
@@ -171,10 +192,11 @@ JobSearch/
 │   │   ├── env.py
 │   │   └── versions/
 │   │       ├── 001_initial_schema.py
-│   │       └── 002_add_audit_logs.py
+│   │       ├── 002_add_audit_logs.py
+│   │       └── 003_add_notification_logs.py
 │   ├── tests/
 │   │   ├── conftest.py             # Fixtures (SQLite in-memory)
-│   │   └── test_*.py               # 41 unit tests
+│   │   └── test_*.py               # Unit tests (pytest + coverage)
 │   └── src/
 │       ├── main.py                 # App factory + middleware
 │       ├── config.py               # Pydantic settings
@@ -185,14 +207,15 @@ JobSearch/
 │       ├── database/               # Engine, session, Base
 │       ├── auth/                   # Login/logout, bcrypt
 │       ├── cv/                     # CV upload/storage
-│       ├── analysis/               # Core AI analysis
+│       ├── analysis/               # Core AI analysis + Pydantic schemas
 │       ├── cover_letter/           # AI cover letter gen
 │       ├── contacts/               # Recruiter CRM
 │       ├── dashboard/              # Spending + stats
 │       ├── batch/                  # Queue + batch processing
 │       ├── audit/                  # DB audit trail
+│       ├── notifications/          # Email alerts (SMTP + Fernet encryption)
 │       └── integrations/
-│           ├── anthropic_client.py # Claude API + JSON retry
+│           ├── anthropic_client.py # Claude API + 7-strategy JSON parsing
 │           ├── cache.py            # Redis/Null cache protocol
 │           └── glassdoor.py        # Company ratings API
 │
@@ -212,11 +235,12 @@ docker compose logs -f
 # Rebuild after changes
 docker compose up -d --build
 
-# Run tests
-cd backend && pytest tests/ -v
+# Run tests with coverage
+cd backend && pytest tests/ -v --cov=src --cov-report=term-missing
 
 # Lint check
-cd backend && pyflakes src/ tests/
+ruff check backend/src/ backend/tests/
+ruff format --check backend/src/ backend/tests/
 
 # Database shell
 docker compose exec db psql -U jobsearch
@@ -275,7 +299,9 @@ Budget tracking is built-in: set a limit, monitor spending in real-time.
 - bcrypt password hashing
 - Session-based auth with configurable TTL
 - Nginx as reverse proxy (backend not exposed to host)
+- Fernet encryption for SMTP credentials at rest
 - DB audit trail for all user actions
+- Bandit security scanning + pip-audit dependency audit in CI
 
 ---
 

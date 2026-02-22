@@ -733,10 +733,29 @@
     margin-left: var(--space-md);
 }
 
-.reputation-rating-good { background: var(--color-green-bg); color: var(--color-green); border: 1px solid var(--color-green-border); }
-.reputation-rating-mid  { background: var(--color-amber-bg); color: var(--color-amber); border: 1px solid var(--color-amber-border); }
-.reputation-rating-low  { background: var(--color-red-bg);   color: var(--color-red);   border: 1px solid var(--color-red-border); }
-.reputation-rating-na   { background: var(--color-border);   color: var(--color-text-muted); border: 1px solid var(--color-border-hover); }
+.reputation-rating-good {
+    background: var(--color-green-bg);
+    color: var(--color-green);
+    border: 1px solid var(--color-green-border);
+}
+
+.reputation-rating-mid {
+    background: var(--color-amber-bg);
+    color: var(--color-amber);
+    border: 1px solid var(--color-amber-border);
+}
+
+.reputation-rating-low {
+    background: var(--color-red-bg);
+    color: var(--color-red);
+    border: 1px solid var(--color-red-border);
+}
+
+.reputation-rating-na {
+    background: var(--color-border);
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-border-hover);
+}
 
 .reputation-reviews {
     font-size: var(--font-size-sm);

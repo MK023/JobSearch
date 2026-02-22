@@ -2,7 +2,11 @@
    Base reset, typography, links, global elements
    ============================================================ */
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
 
 /* Alpine.js cloak: hide elements until Alpine initializes */
 [x-cloak] { display: none !important; }

@@ -63,7 +63,8 @@ backend/src/
 │   └── routes.py        # /cv (HTML)
 │
 ├── analysis/            # Core: analisi AI
-│   ├── models.py        # JobAnalysis, AppSettings, AnalysisStatus
+│   ├── models.py        # JobAnalysis, AppSettings, AnalysisStatus (StrEnum)
+│   ├── schemas.py       # Pydantic validation schemas (AnalysisResponse)
 │   ├── service.py       # run_analysis, rebuild_result
 │   ├── routes.py        # /analyze, /analysis/{id} (HTML)
 │   ├── api_routes.py    # /status, /analysis (JSON API)
@@ -91,8 +92,12 @@ backend/src/
 │   ├── models.py        # AuditLog model
 │   └── service.py       # audit() helper
 │
+├── notifications/       # Email alerts
+│   ├── models.py        # NotificationLog model
+│   └── service.py       # SMTP + Fernet encryption
+│
 └── integrations/        # Client esterni
-    ├── anthropic_client.py  # Claude API + JSON retry
+    ├── anthropic_client.py  # Claude API + 7-strategy JSON parsing
     ├── cache.py             # Redis/Null cache (Protocol)
     └── glassdoor.py         # Company ratings (RapidAPI)
 ```
@@ -206,6 +211,7 @@ Tutte le tabelle ereditano da `Base`. I modelli usano:
 | `app_settings` | Budget e spese (singleton) | Nessuna FK |
 | `glassdoor_cache` | Cache rating aziende | Nessuna FK |
 | `audit_logs` | Trail azioni utente | FK user_id (SET NULL) |
+| `notification_logs` | Log email inviate | FK analysis_id (CASCADE) |
 
 ### Indici
 
@@ -225,8 +231,9 @@ backend/alembic/
 ├── alembic.ini         # Config (sqlalchemy.url da settings)
 ├── env.py              # Import tutti i modelli
 └── versions/
-    ├── 001_initial_schema.py   # Tutte le tabelle originali
-    └── 002_add_audit_logs.py   # Tabella audit aggiunta dopo
+    ├── 001_initial_schema.py        # Tutte le tabelle originali
+    ├── 002_add_audit_logs.py        # Tabella audit
+    └── 003_add_notification_logs.py # Tabella notification_logs
 ```
 
 `env.py` importa tutti i modelli per farli "vedere" ad Alembic:
@@ -348,14 +355,17 @@ _call_api() → messages.create() → raw_text → _extract_and_parse_json() →
                                               _retry_json_fix() → AI corregge il JSON
 ```
 
-### Parsing JSON robusto (4 + 1 tentativi)
+### Parsing JSON robusto (7 + 1 strategie)
 
-L'AI non sempre produce JSON valido. `_extract_and_parse_json()` tenta 4 strategie:
+L'AI non sempre produce JSON valido. `_extract_and_parse_json()` tenta 7 strategie in cascata:
 
 1. **Parse diretto**: `json.loads(text)` — funziona nel 90% dei casi
-2. **Clean JSON**: rimuove trailing comma, commenti `//`, aggiunge virgole mancanti
-3. **Estrai frammento**: trova il primo `{` e l'ultimo `}`, estrae il frammento
-4. **Fix control chars**: sostituisce `\t`, `\f` non escapati
+2. **Estrai da code block**: trova JSON dentro ` ```json ... ``` `
+3. **Clean JSON**: rimuove trailing comma, commenti `//`, NaN/Infinity, aggiunge virgole mancanti tra oggetti adiacenti
+4. **Estrai frammento**: trova il primo `{` e l'ultimo `}`, estrae il frammento
+5. **Fix control chars**: sostituisce `\t`, `\f`, `\r` non escapati
+6. **Fix single quotes**: converte `'key': 'value'` in `"key": "value"`
+7. **Fix trailing text**: rimuove testo dopo la chiusura del JSON (`}...garbage`)
 
 Se tutti falliscono, `_retry_json_fix()` chiede all'AI stessa di correggere il JSON rotto:
 
@@ -367,6 +377,22 @@ def _retry_json_fix(model_id, broken_json):
     )
     return _extract_and_parse_json(fix_msg.content[0].text)
 ```
+
+### Validazione Pydantic
+
+Dopo il parsing JSON, le risposte AI vengono validate tramite schema Pydantic (`analysis/schemas.py`):
+
+```python
+class AnalysisResponse(BaseModel):
+    score: int = Field(ge=0, le=100)
+    recommendation: Literal["APPLY", "CONSIDER", "SKIP"]
+    strengths: list[StrengthItem]
+    gaps: list[GapItem]
+    interview_scripts: list[InterviewScript]
+    # ...
+```
+
+La validazione garantisce che campi obbligatori, range numerici e valori enum siano corretti prima di persistere i risultati nel DB. In caso di errore di validazione, il sistema logga il warning e tenta comunque di salvare i dati raw.
 
 ### Deduplicazione con content hash
 
@@ -524,28 +550,55 @@ return templates.TemplateResponse("index.html", {"request": request, ...})
 
 ```
 frontend/templates/
-├── base.html       # Layout base (head, nav, footer)
-├── index.html      # Pagina principale (CV + analisi + dashboard)
-└── login.html      # Form di login
+├── base.html           # Layout base (head, CSS imports, footer)
+├── index.html          # Pagina principale (compone i partials)
+├── login.html          # Form di login
+└── partials/           # Componenti riusabili
+    ├── header.html          # Title + logout + spending bar
+    ├── cv_form.html         # Upload/edit CV
+    ├── analyze_form.html    # Form analisi (job + model)
+    ├── result.html          # Risultati analisi (score, gaps, interview)
+    ├── result_reputation.html  # Reputazione aziendale (Glassdoor)
+    ├── cover_letter_form.html  # Generazione cover letter
+    ├── cover_letter_result.html # Cover letter renderizzata
+    ├── followup_alerts.html # Alert follow-up email
+    ├── batch.html           # Coda analisi batch
+    ├── dashboard.html       # Statistiche e metriche
+    └── history.html         # Storico analisi con filtri
 ```
 
-`base.html` definisce i blocchi Jinja2 (`{% block content %}`) che i template figli sovrascrivono.
+`base.html` definisce i blocchi Jinja2 (`{% block content %}`) che i template figli sovrascrivono. I partials vengono inclusi con `{% include "partials/nome.html" %}`.
+
+### CSS modulare
+
+Il CSS e' suddiviso in file tematici, validati con **stylelint** in CI:
+
+```
+frontend/static/css/
+├── variables.css    # Design tokens (colori, spacing, radius, font)
+├── base.css         # Reset, tipografia, form, spinner
+├── layout.css       # Container, header, grid, footer, login
+├── components.css   # Buttons, cards, badges, tabs, pills, toggles
+└── sections.css     # Sezioni specifiche (result, reputation, history)
+```
 
 ### JavaScript modules
 
-Vanilla JS con `fetch()` per le operazioni asincrone:
+Vanilla JS con `fetch()` + **Alpine.js** per reattivita' dichiarativa:
 
 ```
 frontend/static/js/modules/
 ├── status.js      # Cambio stato analisi (candidato/colloquio/scartato)
-├── spending.js    # Aggiornamento budget
+├── spending.js    # Aggiornamento budget (inline edit)
 ├── dashboard.js   # Caricamento statistiche
 ├── batch.js       # Gestione coda batch
 ├── contacts.js    # CRUD contatti recruiter
-└── followup.js    # Generazione email/LinkedIn
+├── followup.js    # Generazione email/LinkedIn
+├── cv.js          # Upload e download CV
+└── history.js     # Filtri e ordinamento storico
 ```
 
-Tutti i fetch puntano a `/api/v1/...`. Nessuna dipendenza esterna (no jQuery, no htmx).
+Tutti i fetch puntano a `/api/v1/...`. Alpine.js gestisce la UI reattiva (tabs, toggle, x-show/x-cloak). Nessuna dipendenza build-time (no bundler, no npm in frontend).
 
 ### Static files
 
@@ -652,28 +705,44 @@ Visualizzazione: `docker compose logs -f backend`
 
 ### GitHub Actions (`.github/workflows/ci.yml`)
 
-Pipeline a 3 stage:
+Pipeline a 5 job paralleli con dipendenze:
 
 ```
-lint → test → docker
+lint ────────┐
+             ├──→ test ──→ docker
+frontend ────┘              ↑
+security ───────────────────┘
 ```
 
-**Stage 1 - Lint**: pyflakes su tutto il codice
+**Job 1 - Ruff Lint & Format**: linting e formattazione Python
 ```yaml
-- run: pip install pyflakes
-- run: pyflakes src/ tests/
+- run: pip install ruff
+- run: ruff check backend/src/ backend/tests/
+- run: ruff format --check backend/src/ backend/tests/
 ```
 
-**Stage 2 - Test**: pytest con SQLite in-memory
+**Job 2 - Frontend Lint**: CSS, HTML e JS validation
 ```yaml
-- run: pip install -r requirements.txt pytest
-- run: pytest tests/ -v --tb=short
+- run: stylelint "frontend/static/css/**/*.css"   # CSS lint (blocking)
+- run: # HTML tag validation (div open/close matching)
+- run: node --check "$f"                          # JS syntax check
+```
+
+**Job 3 - Security Audit**: analisi statica e dipendenze
+```yaml
+- run: bandit -r backend/src/ -c pyproject.toml -ll -ii   # High severity
+- run: pip-audit -r backend/requirements.txt --desc        # CVE check
+```
+
+**Job 4 - Tests & Coverage**: pytest con coverage minimo
+```yaml
+- run: pytest tests/ -v --tb=short --cov=src --cov-fail-under=25
   env:
     DATABASE_URL: "sqlite:///test.db"
     ANTHROPIC_API_KEY: "test-key"
 ```
 
-**Stage 3 - Docker**: verifica che le immagini si buildano
+**Job 5 - Docker Build**: verifica che le immagini si buildano
 ```yaml
 - run: docker compose build
 ```
@@ -827,9 +896,24 @@ Questo sopravvive ai riavvii e riduce le chiamate API a pagamento.
 
 Il client Anthropic gestisce gli errori a piu' livelli:
 
-1. **JSON parsing**: 4 strategie di fallback + retry con AI
-2. **Cache**: evita chiamate duplicate
-3. **Content hash**: evita rianalisi dello stesso contenuto
-4. **Graceful degradation**: se Glassdoor fallisce, l'analisi prosegue senza reputation data
+1. **JSON parsing**: 7 strategie di fallback + retry con AI (8° tentativo)
+2. **Pydantic validation**: schema validation post-parsing con warning log
+3. **Cache**: evita chiamate duplicate
+4. **Content hash**: evita rianalisi dello stesso contenuto
+5. **Graceful degradation**: se Glassdoor fallisce, l'analisi prosegue senza reputation data
 
 Non ci sono `try/except` generici che "mangiano" errori — ogni fallback e' intenzionale e documentato.
+
+### Notifiche Email
+
+Il modulo `notifications/` invia email SMTP quando un'analisi con raccomandazione APPLY viene completata:
+
+```python
+# Le credenziali SMTP sono criptate con Fernet
+def encrypt_credential(value: str) -> str:
+    return Fernet(settings.fernet_key).encrypt(value.encode()).decode()
+```
+
+- **Anti-spam**: header compliant (List-Unsubscribe, Message-ID, MIME multipart)
+- **Rate limiting**: massimo 1 email per analisi (deduplicazione via `notification_logs`)
+- **Graceful degradation**: se SMTP non configurato, le notifiche vengono silenziosamente skippate

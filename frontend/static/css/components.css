@@ -12,8 +12,7 @@
     padding: var(--space-3xl);
     display: flex;
     flex-direction: column;
-    overflow-wrap: break-word;
-    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 .card form {
@@ -53,12 +52,35 @@
     text-decoration: none;
 }
 
-.btn-primary   { background: var(--color-accent);     color: #fff; }
-.btn-warning   { background: var(--color-amber-text); color: var(--color-bg-card); }
-.btn-success   { background: var(--color-green-text); color: #fff; }
-.btn-info      { background: var(--color-blue-text);  color: #fff; }
-.btn-danger    { background: var(--color-red-text);   color: #fff; }
-.btn-muted     { background: var(--color-border);     color: var(--color-text-muted); }
+.btn-primary {
+    background: var(--color-accent);
+    color: #fff;
+}
+
+.btn-warning {
+    background: var(--color-amber-text);
+    color: var(--color-bg-card);
+}
+
+.btn-success {
+    background: var(--color-green-text);
+    color: #fff;
+}
+
+.btn-info {
+    background: var(--color-blue-text);
+    color: #fff;
+}
+
+.btn-danger {
+    background: var(--color-red-text);
+    color: #fff;
+}
+
+.btn-muted {
+    background: var(--color-border);
+    color: var(--color-text-muted);
+}
 
 .btn-sm {
     padding: 5px var(--space-lg);
@@ -170,12 +192,35 @@
     font-weight: 500;
 }
 
-.hero-tag-location  { background: var(--color-accent-dim); color: var(--color-accent-bright); }
-.hero-tag-mode      { background: var(--color-accent-dim); color: var(--color-accent-bright); }
-.hero-tag-salary    { background: var(--color-green-bg);   color: var(--color-green-light); }
-.hero-tag-potential  { background: var(--color-green-bg);   color: var(--color-green); }
-.hero-tag-timeline  { background: var(--color-amber-bg);   color: var(--color-amber); }
-.hero-tag-neutral   { background: var(--color-border);     color: var(--color-text-muted); }
+.hero-tag-location {
+    background: var(--color-accent-dim);
+    color: var(--color-accent-bright);
+}
+
+.hero-tag-mode {
+    background: var(--color-accent-dim);
+    color: var(--color-accent-bright);
+}
+
+.hero-tag-salary {
+    background: var(--color-green-bg);
+    color: var(--color-green-light);
+}
+
+.hero-tag-potential {
+    background: var(--color-green-bg);
+    color: var(--color-green);
+}
+
+.hero-tag-timeline {
+    background: var(--color-amber-bg);
+    color: var(--color-amber);
+}
+
+.hero-tag-neutral {
+    background: var(--color-border);
+    color: var(--color-text-muted);
+}
 
 /* ---- Pill badge ---- */
 
@@ -213,10 +258,29 @@
     color: var(--color-accent-bright);
 }
 
-.pill-da_valutare.active { background: var(--color-border);  border-color: var(--color-text-dim); color: var(--color-text-body); }
-.pill-candidato.active   { background: var(--color-blue-bg); border-color: var(--color-blue-bright); color: var(--color-blue-light); }
-.pill-colloquio.active   { background: var(--color-lime-bg); border-color: var(--color-lime-border); color: var(--color-lime-light); }
-.pill-scartato.active    { background: var(--color-red-bg-deep); border-color: var(--color-red); color: var(--color-red-light); }
+.pill-da_valutare.active {
+    background: var(--color-border);
+    border-color: var(--color-text-dim);
+    color: var(--color-text-body);
+}
+
+.pill-candidato.active {
+    background: var(--color-blue-bg);
+    border-color: var(--color-blue-bright);
+    color: var(--color-blue-light);
+}
+
+.pill-colloquio.active {
+    background: var(--color-lime-bg);
+    border-color: var(--color-lime-border);
+    color: var(--color-lime-light);
+}
+
+.pill-scartato.active {
+    background: var(--color-red-bg-deep);
+    border-color: var(--color-red);
+    color: var(--color-red-light);
+}
 
 /* ---- Tabs ---- */
 
@@ -277,10 +341,25 @@
     text-transform: uppercase;
 }
 
-.status-badge-da_valutare { background: var(--color-border);     color: var(--color-text-muted); }
-.status-badge-candidato   { background: var(--color-blue-bg);    color: var(--color-blue); }
-.status-badge-colloquio   { background: var(--color-lime-bg);    color: var(--color-lime); }
-.status-badge-scartato    { background: var(--color-red-bg-deep); color: var(--color-red-light); }
+.status-badge-da_valutare {
+    background: var(--color-border);
+    color: var(--color-text-muted);
+}
+
+.status-badge-candidato {
+    background: var(--color-blue-bg);
+    color: var(--color-blue);
+}
+
+.status-badge-colloquio {
+    background: var(--color-lime-bg);
+    color: var(--color-lime);
+}
+
+.status-badge-scartato {
+    background: var(--color-red-bg-deep);
+    color: var(--color-red-light);
+}
 
 /* ---- Recommendation badge ---- */
 
@@ -297,9 +376,20 @@
     padding: var(--space-xs) 9px;
 }
 
-.recommendation-APPLY   { background: var(--color-green);     color: var(--color-green-bg); }
-.recommendation-CONSIDER { background: var(--color-amber);     color: var(--color-amber-bg); }
-.recommendation-SKIP    { background: var(--color-red);       color: var(--color-red-bg); }
+.recommendation-APPLY {
+    background: var(--color-green);
+    color: var(--color-green-bg);
+}
+
+.recommendation-CONSIDER {
+    background: var(--color-amber);
+    color: var(--color-amber-bg);
+}
+
+.recommendation-SKIP {
+    background: var(--color-red);
+    color: var(--color-red-bg);
+}
 
 /* ---- Score circle ---- */
 
@@ -325,9 +415,23 @@
     font-weight: 700;
 }
 
-.score-apply   { background: var(--color-green-bg); color: var(--color-green); border: 3px solid var(--color-green); }
-.score-consider { background: var(--color-amber-bg); color: var(--color-amber); border: 3px solid var(--color-amber); }
-.score-skip    { background: var(--color-red-bg);   color: var(--color-red);   border: 3px solid var(--color-red); }
+.score-apply {
+    background: var(--color-green-bg);
+    color: var(--color-green);
+    border: 3px solid var(--color-green);
+}
+
+.score-consider {
+    background: var(--color-amber-bg);
+    color: var(--color-amber);
+    border: 3px solid var(--color-amber);
+}
+
+.score-skip {
+    background: var(--color-red-bg);
+    color: var(--color-red);
+    border: 3px solid var(--color-red);
+}
 
 /* ---- Severity badges ---- */
 
@@ -341,9 +445,20 @@
     white-space: nowrap;
 }
 
-.severity-bloccante { background: var(--color-red-bg);   color: var(--color-red-light); }
-.severity-importante { background: var(--color-amber-bg); color: var(--color-amber); }
-.severity-minore    { background: var(--color-blue-bg);  color: var(--color-blue); }
+.severity-bloccante {
+    background: var(--color-red-bg);
+    color: var(--color-red-light);
+}
+
+.severity-importante {
+    background: var(--color-amber-bg);
+    color: var(--color-amber);
+}
+
+.severity-minore {
+    background: var(--color-blue-bg);
+    color: var(--color-blue);
+}
 
 .closable-badge {
     font-size: var(--font-size-xs);
@@ -354,8 +469,15 @@
     white-space: nowrap;
 }
 
-.closable-yes { background: var(--color-green-bg); color: var(--color-green); }
-.closable-no  { background: var(--color-border);   color: var(--color-text-muted); }
+.closable-yes {
+    background: var(--color-green-bg);
+    color: var(--color-green);
+}
+
+.closable-no {
+    background: var(--color-border);
+    color: var(--color-text-muted);
+}
 
 /* ---- Tool button (small icon btn) ---- */
 
