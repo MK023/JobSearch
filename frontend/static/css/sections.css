@@ -685,7 +685,7 @@
     margin-top: var(--space-base);
 }
 
-@media (max-width: 768px) {
+@media (width <= 768px) {
     .reputation-grid {
         grid-template-columns: 1fr;
     }
