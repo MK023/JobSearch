@@ -1,8 +1,8 @@
-fastapi==0.129.0
+fastapi==0.131.0
 uvicorn[standard]==0.41.0
 sqlalchemy==2.0.46
 psycopg2-binary==2.9.11
-anthropic==0.82.0
+anthropic==0.83.0
 pydantic-settings==2.13.1
 pydantic[email]==2.12.5
 jinja2==3.1.6
