@@ -16,9 +16,7 @@ from src.interview.service import (
 class TestCreateOrUpdateInterview:
     def test_creates_new_interview(self, db_session, test_analysis):
         scheduled = datetime(2026, 3, 10, 11, 30, tzinfo=UTC)
-        interview = create_or_update_interview(
-            db_session, test_analysis.id, scheduled_at=scheduled
-        )
+        interview = create_or_update_interview(db_session, test_analysis.id, scheduled_at=scheduled)
         assert interview is not None
         assert interview.analysis_id == test_analysis.id
         assert interview.scheduled_at == scheduled
@@ -60,9 +58,7 @@ class TestCreateOrUpdateInterview:
 
     def test_returns_none_for_missing_analysis(self, db_session):
         fake_id = uuid.uuid4()
-        result = create_or_update_interview(
-            db_session, fake_id, scheduled_at=datetime.now(UTC)
-        )
+        result = create_or_update_interview(db_session, fake_id, scheduled_at=datetime.now(UTC))
         assert result is None
 
 

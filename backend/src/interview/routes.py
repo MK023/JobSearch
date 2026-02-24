@@ -93,19 +93,21 @@ def get_interview(
     if not interview:
         return JSONResponse({"error": "No interview found"}, status_code=404)
 
-    return JSONResponse({
-        "analysis_id": str(interview.analysis_id),
-        "scheduled_at": interview.scheduled_at.isoformat(),
-        "ends_at": interview.ends_at.isoformat() if interview.ends_at else None,
-        "interview_type": interview.interview_type,
-        "recruiter_name": interview.recruiter_name,
-        "recruiter_email": interview.recruiter_email,
-        "meeting_link": interview.meeting_link,
-        "phone_number": interview.phone_number,
-        "phone_pin": interview.phone_pin,
-        "location": interview.location,
-        "notes": interview.notes,
-    })
+    return JSONResponse(
+        {
+            "analysis_id": str(interview.analysis_id),
+            "scheduled_at": interview.scheduled_at.isoformat(),
+            "ends_at": interview.ends_at.isoformat() if interview.ends_at else None,
+            "interview_type": interview.interview_type,
+            "recruiter_name": interview.recruiter_name,
+            "recruiter_email": interview.recruiter_email,
+            "meeting_link": interview.meeting_link,
+            "phone_number": interview.phone_number,
+            "phone_pin": interview.phone_pin,
+            "location": interview.location,
+            "notes": interview.notes,
+        }
+    )
 
 
 @router.delete("/interviews/{analysis_id}")

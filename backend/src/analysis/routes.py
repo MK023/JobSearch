@@ -94,6 +94,7 @@ def _render_page(request: Request, db: Session, user: User, **extra) -> HTMLResp
     analyses = get_recent_analyses(db)
     followup_alerts = get_followup_alerts(db)
     from ..interview.service import get_upcoming_interviews
+
     upcoming_interviews = get_upcoming_interviews(db)
     active_apps = get_active_applications(db)
 

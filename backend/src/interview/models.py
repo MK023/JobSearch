@@ -41,6 +41,4 @@ class Interview(Base):
 
     analysis = relationship("JobAnalysis", back_populates="interview")
 
-    __table_args__ = (
-        Index("idx_interviews_scheduled", "scheduled_at"),
-    )
+    __table_args__ = (Index("idx_interviews_scheduled", "scheduled_at"),)
