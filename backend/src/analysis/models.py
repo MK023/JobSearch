@@ -87,6 +87,7 @@ class JobAnalysis(Base):
     cv = relationship("CVProfile", back_populates="analyses")
     cover_letters = relationship("CoverLetter", back_populates="analysis", cascade="all, delete-orphan")
     contacts = relationship("Contact", back_populates="analysis", cascade="all, delete-orphan")
+    interview = relationship("Interview", back_populates="analysis", uselist=False, cascade="all, delete-orphan")
 
     __table_args__ = (
         Index("idx_analyses_score", "score"),

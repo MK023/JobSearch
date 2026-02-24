@@ -17,9 +17,10 @@ from src.database.base import Base
 from src.integrations.cache import NullCacheService
 from src.integrations.glassdoor import GlassdoorCache
 from src.notifications.models import NotificationLog
+from src.interview.models import Interview
 
 # Models must be imported so Base.metadata.create_all() sees all tables.
-_ALL_MODELS = [AppSettings, CoverLetter, Contact, GlassdoorCache, AuditLog, NotificationLog]
+_ALL_MODELS = [AppSettings, CoverLetter, Contact, GlassdoorCache, AuditLog, NotificationLog, Interview]
 
 
 @pytest.fixture
