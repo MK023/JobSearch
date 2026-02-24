@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from ..audit.service import audit
 from ..auth.models import User
+from ..config import settings
 from ..database import get_db
 from ..dependencies import get_current_user
 from .service import get_latest_cv, save_cv
@@ -22,6 +23,8 @@ def save_cv_route(
     user: User = Depends(get_current_user),
 ):
     if len(cv_text) < 20:
+        return RedirectResponse(url="/", status_code=303)
+    if len(cv_text) > settings.max_cv_size:
         return RedirectResponse(url="/", status_code=303)
 
     save_cv(db, user.id, cv_text, cv_name)

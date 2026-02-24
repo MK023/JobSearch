@@ -8,7 +8,7 @@ from ..audit.service import audit
 from ..auth.models import User
 from ..config import settings
 from ..cv.service import get_latest_cv
-from ..dashboard.service import add_spending
+from ..dashboard.service import add_spending, check_budget_available
 from ..database import get_db
 from ..dependencies import get_cache, get_current_user
 from ..integrations.anthropic_client import MODELS, content_hash
@@ -40,6 +40,17 @@ def analyze(
     if not cv:
         return _render_page(request, db, user, error="Salva prima il tuo CV!")
 
+    # Input size validation
+    if len(job_description) > settings.max_job_desc_size:
+        return _render_page(
+            request, db, user, error=f"Descrizione troppo lunga (max {settings.max_job_desc_size} caratteri)"
+        )
+
+    # Budget check
+    budget_ok, budget_msg = check_budget_available(db)
+    if not budget_ok:
+        return _render_page(request, db, user, error=budget_msg)
+
     ch = content_hash(cv.raw_text, job_description)
     model_id = MODELS.get(model, MODELS["haiku"])
     existing = find_existing_analysis(db, ch, model_id)
@@ -61,6 +72,7 @@ def analyze(
         audit(db, request, "analyze", f"id={analysis.id}, company={analysis.company}, score={analysis.score}")
         db.commit()
     except Exception as exc:
+        db.rollback()
         audit(db, request, "analyze_error", str(exc))
         db.commit()
         return _render_page(request, db, user, error=f"Analisi AI fallita: {exc}")

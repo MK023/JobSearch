@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from ..audit.service import audit
 from ..auth.models import User
 from ..config import settings
+from ..dashboard.service import check_budget_available
 from ..database import SessionLocal, get_db
 from ..dependencies import get_cache, get_current_user
 from ..integrations.cache import CacheService
@@ -25,6 +26,11 @@ def batch_add(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if len(job_description) > settings.max_job_desc_size:
+        return JSONResponse(
+            {"error": f"Descrizione troppo lunga (max {settings.max_job_desc_size} caratteri)"}, status_code=400
+        )
+
     batch_id, count = add_to_queue(job_description, job_url, model)
     audit(db, request, "batch_add", f"batch={batch_id}, count={count}")
     db.commit()
@@ -43,6 +49,11 @@ def batch_run(
     batch_id = get_pending_batch_id()
     if not batch_id:
         return JSONResponse({"error": "No pending batch"}, status_code=400)
+
+    # Budget check before starting batch
+    budget_ok, budget_msg = check_budget_available(db)
+    if not budget_ok:
+        return JSONResponse({"error": budget_msg}, status_code=400)
 
     def _run_in_background():
         bg_db = SessionLocal()

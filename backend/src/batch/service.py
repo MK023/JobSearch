@@ -113,6 +113,7 @@ def run_batch(batch_id: str, db: Session, user_id: UUID, cache: CacheService | N
             )
 
         except Exception as exc:
+            db.rollback()
             item["status"] = "error"
             item["error"] = str(exc)
 

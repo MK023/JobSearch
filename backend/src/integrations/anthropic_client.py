@@ -46,7 +46,11 @@ def get_client() -> anthropic.Anthropic:
     """Get or create the singleton Anthropic client."""
     global _client
     if _client is None:
-        _client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        _client = anthropic.Anthropic(
+            api_key=settings.anthropic_api_key,
+            timeout=120.0,
+            max_retries=3,
+        )
     return _client
 
 

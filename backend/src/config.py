@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     notification_email: str = "marco.bellingeri@gmail.com"
     followup_reminder_days: int = 5
 
+    # Input limits
+    max_cv_size: int = 100_000  # ~100KB chars
+    max_job_desc_size: int = 50_000  # ~50KB chars
+
     # CORS
     cors_allowed_origins: str = "http://localhost,http://localhost:80"
     cors_allow_credentials: bool = True

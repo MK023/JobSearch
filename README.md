@@ -343,6 +343,11 @@ Budget tracking is built-in: set a limit, monitor spending in real-time.
 - Fernet encryption for SMTP credentials at rest
 - DB audit trail for all user actions
 - Bandit security scanning + pip-audit dependency audit in CI
+- Input size limits (CV 100KB, job description 50KB) to prevent token explosion
+- Budget hard stop: analysis blocked when budget is exhausted
+- Anthropic API client with 120s timeout and 3 automatic retries (exponential backoff)
+- Atomic transactions with rollback on error (no partial state persistence)
+- Interview datetime validation (no past dates, end > start, field length limits via Pydantic)
 
 ---
 

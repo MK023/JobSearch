@@ -12,7 +12,7 @@ from ..audit.service import audit
 from ..auth.models import User
 from ..config import settings
 from ..cv.service import get_latest_cv
-from ..dashboard.service import add_spending
+from ..dashboard.service import add_spending, check_budget_available
 from ..database import get_db
 from ..dependencies import get_cache, get_current_user
 from ..integrations.cache import CacheService
@@ -41,6 +41,11 @@ def generate_cover_letter_route(
     if not cv:
         return _render_page(request, db, user, error="CV non trovato")
 
+    # Budget check
+    budget_ok, budget_msg = check_budget_available(db)
+    if not budget_ok:
+        return _render_page(request, db, user, error=budget_msg)
+
     try:
         cl, result = create_cover_letter(db, analysis, cv.raw_text, language, model, cache)
         add_spending(
@@ -53,6 +58,7 @@ def generate_cover_letter_route(
         audit(db, request, "cover_letter", f"analysis={analysis_id}, lang={language}")
         db.commit()
     except Exception as exc:
+        db.rollback()
         audit(db, request, "cover_letter_error", str(exc))
         db.commit()
         return _render_page(request, db, user, error=f"Generazione cover letter fallita: {exc}")

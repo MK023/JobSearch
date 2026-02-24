@@ -1,10 +1,10 @@
 """Interview JSON API routes."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from ..analysis.models import AnalysisStatus
@@ -26,14 +26,14 @@ router = APIRouter(tags=["interviews"])
 class InterviewPayload(BaseModel):
     scheduled_at: str
     ends_at: str | None = None
-    interview_type: str | None = None
-    recruiter_name: str | None = None
-    recruiter_email: str | None = None
-    meeting_link: str | None = None
-    phone_number: str | None = None
-    phone_pin: str | None = None
-    location: str | None = None
-    notes: str | None = None
+    interview_type: str | None = Field(None, max_length=20)
+    recruiter_name: str | None = Field(None, max_length=255)
+    recruiter_email: str | None = Field(None, max_length=255)
+    meeting_link: str | None = Field(None, max_length=500)
+    phone_number: str | None = Field(None, max_length=50)
+    phone_pin: str | None = Field(None, max_length=20)
+    location: str | None = Field(None, max_length=500)
+    notes: str | None = Field(None, max_length=2000)
 
 
 @router.post("/interviews/{analysis_id}")
@@ -53,12 +53,18 @@ def upsert_interview(
     except ValueError:
         return JSONResponse({"error": "Invalid scheduled_at format"}, status_code=400)
 
+    # No scheduling far in the past (allow 24h buffer for timezone edge cases)
+    if scheduled < datetime.now() - timedelta(hours=24):
+        return JSONResponse({"error": "Non puoi prenotare un colloquio nel passato"}, status_code=400)
+
     ends = None
     if payload.ends_at:
         try:
             ends = datetime.fromisoformat(payload.ends_at)
         except ValueError:
             return JSONResponse({"error": "Invalid ends_at format"}, status_code=400)
+        if ends <= scheduled:
+            return JSONResponse({"error": "L'ora di fine deve essere dopo l'ora di inizio"}, status_code=400)
 
     create_or_update_interview(
         db,

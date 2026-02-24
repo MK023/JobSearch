@@ -1058,6 +1058,30 @@ Il client Anthropic gestisce gli errori a piu' livelli:
 
 Non ci sono `try/except` generici che "mangiano" errori — ogni fallback e' intenzionale e documentato.
 
+### Robustezza della Logica Core
+
+Il sistema implementa diverse protezioni per garantire l'integrita' dei dati e prevenire costi imprevisti:
+
+**Input validation:**
+- CV max 100KB, job description max 50KB (configurabili via `config.py`)
+- Campi interview con limiti Pydantic (`max_length` per tipo, nome, email, link, note)
+- Datetime colloqui: no date nel passato, `ends_at > scheduled_at`
+
+**Budget enforcement:**
+- `check_budget_available()` verifica il budget residuo prima di ogni chiamata AI
+- Se il budget e' esaurito, analisi, batch e cover letter vengono bloccati con messaggio
+- Lo spending tracker si aggiorna atomicamente con l'analisi
+
+**Transazioni atomiche:**
+- `db.rollback()` in tutti i catch block delle route (analisi, cover letter, batch)
+- Impedisce la persistenza di stato inconsistente (es. analisi salvata ma spending non aggiornato)
+- L'audit log viene scritto dopo il rollback in una transazione separata
+
+**Anthropic API resilience:**
+- Client con timeout 120s e 3 retry automatici con backoff esponenziale (SDK built-in)
+- 7 strategie di JSON parsing + AI-assisted repair come 8° tentativo
+- Cache Redis per evitare chiamate duplicate
+
 ### Notifiche Email
 
 Il modulo `notifications/` invia email SMTP quando un'analisi con raccomandazione APPLY viene completata:

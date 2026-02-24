@@ -29,6 +29,19 @@ def _check_today_reset(s: AppSettings) -> None:
         s.today_analyses = 0
 
 
+def check_budget_available(db: Session) -> tuple[bool, str]:
+    """Check if budget allows further spending. Returns (ok, message)."""
+    s = get_or_create_settings(db)
+    budget = float(s.anthropic_budget or 0)
+    if budget <= 0:
+        return True, ""  # No budget set = no limit
+    total_cost = float(s.total_cost_usd or 0)
+    remaining = budget - total_cost
+    if remaining <= 0:
+        return False, f"Budget esaurito! Speso ${total_cost:.4f} su ${budget:.2f}"
+    return True, ""
+
+
 def add_spending(db: Session, cost: float, tokens_in: int, tokens_out: int, is_analysis: bool = True) -> None:
     """Update running totals after an insert."""
     s = get_or_create_settings(db)

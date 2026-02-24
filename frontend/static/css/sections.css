@@ -587,6 +587,10 @@
 }
 
 .active-app-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-sm) var(--space-md);
     margin-bottom: var(--space-sm);
 }
 
@@ -594,6 +598,8 @@
     display: flex;
     align-items: center;
     gap: var(--space-md);
+    flex: 1;
+    min-width: 0;
     padding: var(--space-md) var(--space-base);
     background: var(--color-bg-input);
     border: 1px solid var(--color-border);
@@ -612,29 +618,39 @@
     font-weight: 600;
     font-size: var(--font-size-md);
     color: var(--color-text-body);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
 }
 
 .active-app-company {
     color: var(--color-text-dim);
     font-size: var(--font-size-sm);
     flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
 }
 
 .active-app-date {
     color: var(--color-text-faint);
     font-size: var(--font-size-sm);
+    flex-shrink: 0;
 }
 
 .active-app-tools {
     display: flex;
     gap: var(--space-sm);
-    margin: var(--space-sm) 0 0 var(--space-base);
+    flex-shrink: 0;
 }
 
 /* ---- Contacts panel ---- */
 
 .contacts-panel {
-    margin: var(--space-sm) 0 0 var(--space-base);
+    flex-basis: 100%;
+    margin: var(--space-sm) 0 0 0;
     padding: var(--space-base);
     background: var(--color-bg-input);
     border: 1px solid var(--color-border);
@@ -1026,6 +1042,10 @@
 
     .history-item {
         padding: var(--space-md) var(--space-base);
+    }
+
+    .active-app-link {
+        flex-basis: 100%;
     }
 
     .upcoming-interview-banner {

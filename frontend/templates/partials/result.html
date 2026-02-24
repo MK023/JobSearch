@@ -120,8 +120,8 @@
     {# ---- Interview details (after advice) ---- #}
     {% include "partials/interview_detail.html" %}
 
-    {# ---- 6. INTERVIEW PREP (collapsible) ---- #}
-    {% if result.interview_scripts %}
+    {# ---- 6. INTERVIEW PREP (only when interview is booked) ---- #}
+    {% if current and current.interview and result.interview_scripts %}
     <details>
         <summary>🎤 Preparazione colloquio ({{ result.interview_scripts|length }} domande)</summary>
         {% for s in result.interview_scripts %}
