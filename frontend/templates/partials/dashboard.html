@@ -1,3 +1,17 @@
+{# Upcoming interview banners #}
+{% if upcoming_interviews %}
+{% for iv in upcoming_interviews %}
+<div class="upcoming-interview-banner" id="upcoming-banner">
+    <div class="upcoming-interview-info">
+        <div class="upcoming-interview-title">Colloquio in arrivo — {{ iv.company }}</div>
+        <div class="upcoming-interview-meta">
+            {{ iv.role }} &middot; {{ iv.scheduled_at[:16]|replace('T', ' ') }}{% if iv.interview_type %} &middot; {% if iv.interview_type == 'virtual' %}Video call{% elif iv.interview_type == 'phone' %}Telefonico{% else %}In presenza{% endif %}{% endif %}
+        </div>
+    </div>
+    <a href="/analysis/{{ iv.analysis_id }}" class="btn btn-sm btn-primary">Apri dettaglio</a>
+</div>
+{% endfor %}
+{% endif %}
 {# Dashboard with stats, motivation, active applications #}
 <details class="dashboard-section card" id="dashboard-details"
          {% if dashboard and dashboard.total > 0 %}{% else %}style="display:none"{% endif %}>
