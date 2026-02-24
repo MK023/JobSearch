@@ -915,6 +915,91 @@
     margin-top: var(--space-sm);
 }
 
+/* ---- Interview detail card ---- */
+
+.interview-detail-card {
+    background: var(--color-lime-bg);
+    border: 1px solid var(--color-lime-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-xl);
+    margin-bottom: var(--space-xl);
+}
+
+.interview-detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-lg);
+}
+
+.interview-detail-title {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--color-lime-light);
+}
+
+.interview-detail-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--space-sm) var(--space-lg);
+    align-items: baseline;
+}
+
+.interview-detail-icon {
+    font-size: 1rem;
+    min-width: 24px;
+    text-align: center;
+}
+
+.interview-detail-value {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-body);
+    word-break: break-word;
+}
+
+.interview-detail-value a {
+    color: var(--color-lime-light);
+    text-decoration: underline;
+}
+
+.interview-detail-actions {
+    display: flex;
+    gap: var(--space-md);
+    margin-top: var(--space-lg);
+    padding-top: var(--space-md);
+    border-top: 1px solid var(--color-lime-border);
+}
+
+/* ---- Upcoming interview banner ---- */
+
+.upcoming-interview-banner {
+    background: var(--color-lime-bg);
+    border: 1px solid var(--color-lime-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg) var(--space-xl);
+    margin-bottom: var(--space-lg);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-lg);
+}
+
+.upcoming-interview-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+}
+
+.upcoming-interview-title {
+    font-weight: 700;
+    color: var(--color-lime-light);
+}
+
+.upcoming-interview-meta {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+}
+
 /* ---- Responsive ---- */
 
 @media (width <= 768px) {
@@ -941,5 +1026,14 @@
 
     .history-item {
         padding: var(--space-md) var(--space-base);
+    }
+
+    .upcoming-interview-banner {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .interview-detail-grid {
+        grid-template-columns: auto 1fr;
     }
 }
