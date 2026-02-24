@@ -954,7 +954,7 @@
 .interview-detail-value {
     font-size: var(--font-size-sm);
     color: var(--color-text-body);
-    word-break: break-word;
+    overflow-wrap: break-word;
 }
 
 .interview-detail-value a {
