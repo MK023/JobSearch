@@ -60,7 +60,7 @@ def upsert_interview(
         except ValueError:
             return JSONResponse({"error": "Invalid ends_at format"}, status_code=400)
 
-    interview = create_or_update_interview(
+    create_or_update_interview(
         db,
         analysis.id,
         scheduled_at=scheduled,

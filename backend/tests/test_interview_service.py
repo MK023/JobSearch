@@ -3,8 +3,6 @@
 import uuid
 from datetime import UTC, datetime, timedelta
 
-import pytest
-
 from src.analysis.models import AnalysisStatus
 from src.interview.models import Interview
 from src.interview.service import (
