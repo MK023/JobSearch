@@ -539,7 +539,16 @@ details[open] summary::before {
     }
 
     .tabs {
-        flex-direction: column;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        flex-wrap: nowrap;
+    }
+
+    .tab {
+        flex: 0 0 auto;
+        white-space: nowrap;
+        font-size: .72rem;
+        padding: var(--space-md) var(--space-base);
     }
 
     .toggle {

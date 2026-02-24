@@ -12,8 +12,9 @@ function historyTabs() {
 
         counts: {
             valutazione: 0,
-            applicato: 0,
-            skippato: 0
+            candidature: 0,
+            colloqui: 0,
+            scartati: 0
         },
 
         init: function() {
@@ -27,28 +28,24 @@ function historyTabs() {
 
         filterItems: function() {
             var tab = this.activeTab;
-            var countVal = 0, countApp = 0, countSkip = 0;
+            var cVal = 0, cCand = 0, cColl = 0, cScar = 0;
 
             document.querySelectorAll('.history-item[data-hist-status]').forEach(function(item) {
                 var st = item.dataset.histStatus || 'da_valutare';
-                var isVal = st === 'da_valutare';
-                var isApp = st === 'candidato' || st === 'colloquio';
-                var isSkip = st === 'scartato';
 
-                // Show/hide based on active tab
-                if (tab === 'valutazione') item.style.display = isVal ? '' : 'none';
-                else if (tab === 'applicato') item.style.display = isApp ? '' : 'none';
-                else item.style.display = isSkip ? '' : 'none';
+                var bucket;
+                if (st === 'da_valutare') { cVal++; bucket = 'valutazione'; }
+                else if (st === 'candidato') { cCand++; bucket = 'candidature'; }
+                else if (st === 'colloquio') { cColl++; bucket = 'colloqui'; }
+                else { cScar++; bucket = 'scartati'; }
 
-                // Count
-                if (isVal) countVal++;
-                if (isApp) countApp++;
-                if (isSkip) countSkip++;
+                item.style.display = (tab === bucket) ? '' : 'none';
             });
 
-            this.counts.valutazione = countVal;
-            this.counts.applicato = countApp;
-            this.counts.skippato = countSkip;
+            this.counts.valutazione = cVal;
+            this.counts.candidature = cCand;
+            this.counts.colloqui = cColl;
+            this.counts.scartati = cScar;
         }
     };
 }
