@@ -1,11 +1,29 @@
 /**
  * Interview modal: open, close, submit, populate.
+ * Uses flatpickr for date/time input (Italian locale, dark theme).
  */
+
+var fpScheduled = null;
+var fpEnds = null;
 
 function openInterviewModal(analysisId) {
     var modal = document.getElementById('interview-modal');
     document.getElementById('iv-analysis-id').value = analysisId;
     document.getElementById('interview-modal-title').textContent = 'Prenota colloquio';
+
+    // Initialize flatpickr date/time pickers
+    destroyFlatpickrInstances();
+    var fpConfig = {
+        enableTime: true,
+        time_24hr: true,
+        dateFormat: "Y-m-dTH:i",
+        altInput: true,
+        altFormat: "l j F Y, H:i",
+        locale: "it",
+        minDate: "today"
+    };
+    fpScheduled = flatpickr('#iv-scheduled', Object.assign({}, fpConfig));
+    fpEnds = flatpickr('#iv-ends', Object.assign({}, fpConfig, { minDate: null }));
 
     // Try to load existing interview data
     fetch('/api/v1/interviews/' + analysisId, {
@@ -28,9 +46,16 @@ function openInterviewModal(analysisId) {
 }
 
 
+function destroyFlatpickrInstances() {
+    if (fpScheduled) { fpScheduled.destroy(); fpScheduled = null; }
+    if (fpEnds) { fpEnds.destroy(); fpEnds = null; }
+}
+
+
 function closeInterviewModal() {
     var modal = document.getElementById('interview-modal');
     modal.style.display = 'none';
+    destroyFlatpickrInstances();
     resetInterviewForm();
 }
 
@@ -42,11 +67,11 @@ function resetInterviewForm() {
 
 
 function populateInterviewForm(data) {
-    if (data.scheduled_at) {
-        document.getElementById('iv-scheduled').value = isoToLocalInput(data.scheduled_at);
+    if (data.scheduled_at && fpScheduled) {
+        fpScheduled.setDate(isoToLocalInput(data.scheduled_at), true, "Y-m-dTH:i");
     }
-    if (data.ends_at) {
-        document.getElementById('iv-ends').value = isoToLocalInput(data.ends_at);
+    if (data.ends_at && fpEnds) {
+        fpEnds.setDate(isoToLocalInput(data.ends_at), true, "Y-m-dTH:i");
     }
     if (data.interview_type) document.getElementById('iv-type').value = data.interview_type;
     if (data.recruiter_name) document.getElementById('iv-recruiter-name').value = data.recruiter_name;
@@ -60,11 +85,8 @@ function populateInterviewForm(data) {
 
 
 function isoToLocalInput(iso) {
-    // Convert ISO string to datetime-local input value (YYYY-MM-DDTHH:MM)
-    var d = new Date(iso);
-    var pad = function(n) { return n < 10 ? '0' + n : n; };
-    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
-           'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    // Extract YYYY-MM-DDTHH:MM from ISO string, ignoring any timezone offset
+    return iso.substring(0, 16);
 }
 
 
@@ -76,7 +98,7 @@ function submitInterview(e) {
     if (!scheduled) return false;
 
     var payload = {
-        scheduled_at: new Date(scheduled).toISOString(),
+        scheduled_at: scheduled,
         ends_at: null,
         interview_type: document.getElementById('iv-type').value || null,
         recruiter_name: document.getElementById('iv-recruiter-name').value || null,
@@ -90,7 +112,7 @@ function submitInterview(e) {
 
     var endsVal = document.getElementById('iv-ends').value;
     if (endsVal) {
-        payload.ends_at = new Date(endsVal).toISOString();
+        payload.ends_at = endsVal;
     }
 
     fetch('/api/v1/interviews/' + analysisId, {

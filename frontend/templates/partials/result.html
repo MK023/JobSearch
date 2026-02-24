@@ -55,9 +55,6 @@
     {# ---- Company reputation details ---- #}
     {% include "partials/result_reputation.html" %}
 
-    {# ---- Interview details ---- #}
-    {% include "partials/interview_detail.html" %}
-
     {# ---- 2. AI VERDICT ---- #}
     {% if result.summary %}
     <div class="result-verdict">🧠 {{ result.summary }}</div>
@@ -119,6 +116,9 @@
         <div class="advice-text">{{ result.advice }}</div>
     </div>
     {% endif %}
+
+    {# ---- Interview details (after advice) ---- #}
+    {% include "partials/interview_detail.html" %}
 
     {# ---- 6. INTERVIEW PREP (collapsible) ---- #}
     {% if result.interview_scripts %}
