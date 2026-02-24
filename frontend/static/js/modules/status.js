@@ -7,6 +7,12 @@ function setStatus(btn) {
     var id = group.dataset.analysisId;
     var status = btn.dataset.status;
 
+    // Intercept colloquio: open modal instead of direct status change
+    if (status === 'colloquio') {
+        openInterviewModal(id);
+        return;
+    }
+
     fetch('/api/v1/status/' + id + '/' + status, {
         method: 'POST',
         headers: { 'Accept': 'application/json' }
