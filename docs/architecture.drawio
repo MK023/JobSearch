@@ -69,12 +69,12 @@
         <mxCell id="html_routes" value="HTML Routes&#xa;/ /login /logout&#xa;/cv /analyze&#xa;/analysis/{id}&#xa;/cover-letter" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="docker_group">
           <mxGeometry x="330" y="295" width="130" height="100" as="geometry" />
         </mxCell>
-        <mxCell id="api_routes" value="API v1 (JSON)&#xa;/api/v1/status&#xa;/api/v1/batch/*&#xa;/api/v1/contacts&#xa;/api/v1/spending&#xa;/api/v1/dashboard&#xa;/api/v1/followup-*" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="docker_group">
-          <mxGeometry x="480" y="290" width="140" height="110" as="geometry" />
+        <mxCell id="api_routes" value="API v1 (JSON)&#xa;/api/v1/status&#xa;/api/v1/batch/*&#xa;/api/v1/contacts&#xa;/api/v1/spending&#xa;/api/v1/dashboard&#xa;/api/v1/interviews/*&#xa;/api/v1/followup-*" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="docker_group">
+          <mxGeometry x="480" y="290" width="140" height="120" as="geometry" />
         </mxCell>
 
         <!-- Service Layer -->
-        <mxCell id="services" value="Service Layer&#xa;analysis / cv / auth&#xa;cover_letter / contacts&#xa;dashboard / batch / audit" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6d0de;strokeColor=#996185;fontSize=10;" vertex="1" parent="docker_group">
+        <mxCell id="services" value="Service Layer&#xa;analysis / cv / auth&#xa;cover_letter / contacts&#xa;dashboard / batch / audit&#xa;interview" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6d0de;strokeColor=#996185;fontSize=10;" vertex="1" parent="docker_group">
           <mxGeometry x="645" y="295" width="160" height="100" as="geometry" />
         </mxCell>
 
@@ -90,7 +90,7 @@
         <mxCell id="db" value="db&#xa;PostgreSQL 16&#xa;(pgdata volume)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;fontStyle=1;" vertex="1" parent="docker_group">
           <mxGeometry x="300" y="520" width="180" height="120" as="geometry" />
         </mxCell>
-        <mxCell id="db_tables" value="users | cv_profiles | job_analyses&#xa;cover_letters | contacts | app_settings&#xa;glassdoor_cache | audit_logs" style="text;html=1;align=center;verticalAlign=top;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=10;fontColor=#666;" vertex="1" parent="docker_group">
+        <mxCell id="db_tables" value="users | cv_profiles | job_analyses&#xa;cover_letters | contacts | app_settings&#xa;glassdoor_cache | audit_logs | interviews" style="text;html=1;align=center;verticalAlign=top;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=10;fontColor=#666;" vertex="1" parent="docker_group">
           <mxGeometry x="250" y="645" width="280" height="50" as="geometry" />
         </mxCell>
 

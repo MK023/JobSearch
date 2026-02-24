@@ -96,6 +96,11 @@ backend/src/
 │   ├── models.py        # NotificationLog model
 │   └── service.py       # SMTP + Fernet encryption
 │
+├── interview/           # Prenotazione colloqui
+│   ├── models.py        # Interview model (1:1 con JobAnalysis)
+│   ├── service.py       # CRUD + upcoming interviews
+│   └── routes.py        # /interviews (JSON API)
+│
 └── integrations/        # Client esterni
     ├── anthropic_client.py  # Claude API + 7-strategy JSON parsing
     ├── cache.py             # Redis/Null cache (Protocol)
@@ -272,6 +277,7 @@ Tutte le tabelle ereditano da `Base`. I modelli usano:
 | `glassdoor_cache` | Cache rating aziende | Nessuna FK |
 | `audit_logs` | Trail azioni utente | FK user_id (SET NULL) |
 | `notification_logs` | Log email inviate | FK analysis_id (CASCADE) |
+| `interviews` | Colloqui prenotati (1:1) | FK analysis_id (CASCADE, UNIQUE) |
 
 ### Indici
 
@@ -293,7 +299,8 @@ backend/alembic/
 └── versions/
     ├── 001_initial_schema.py        # Tutte le tabelle originali
     ├── 002_add_audit_logs.py        # Tabella audit
-    └── 003_add_notification_logs.py # Tabella notification_logs
+    ├── 003_add_notification_logs.py # Tabella notification_logs
+    └── 004_add_interviews.py      # Tabella interviews
 ```
 
 `env.py` importa tutti i modelli per farli "vedere" ad Alembic:
@@ -570,6 +577,10 @@ DELETE /api/v1/contacts/{cid}
 GET    /api/v1/spending
 PUT    /api/v1/spending/budget
 GET    /api/v1/dashboard
+POST   /api/v1/interviews/{id}
+GET    /api/v1/interviews/{id}
+DELETE /api/v1/interviews/{id}
+GET    /api/v1/interviews-upcoming
 POST   /api/v1/batch/add
 POST   /api/v1/batch/run
 GET    /api/v1/batch/status
@@ -586,6 +597,7 @@ api_v1_router.include_router(followup_router)
 api_v1_router.include_router(contacts_router)
 api_v1_router.include_router(dashboard_router)
 api_v1_router.include_router(batch_router)
+api_v1_router.include_router(interview_router)
 ```
 
 ### Swagger autodocumentazione
@@ -626,7 +638,9 @@ frontend/templates/
     ├── followup_alerts.html # Alert follow-up email
     ├── batch.html           # Coda analisi batch
     ├── dashboard.html       # Statistiche e metriche
-    └── history.html         # Storico analisi con filtri
+    ├── history.html         # Storico analisi con filtri (4 tab)
+    ├── interview_modal.html # Modale prenotazione colloquio
+    └── interview_detail.html # Card dettaglio colloquio
 ```
 
 `base.html` definisce i blocchi Jinja2 (`{% block content %}`) che i template figli sovrascrivono. I partials vengono inclusi con `{% include "partials/nome.html" %}`.
@@ -650,7 +664,8 @@ Vanilla JS con `fetch()` + **Alpine.js** per reattivita' dichiarativa:
 
 ```
 frontend/static/js/modules/
-├── status.js      # Cambio stato analisi (candidato/colloquio/scartato)
+├── interview.js   # Modale colloquio (open, submit, delete)
+├── status.js      # Cambio stato analisi (intercetta colloquio -> modale)
 ├── spending.js    # Aggiornamento budget (inline edit)
 ├── dashboard.js   # Caricamento statistiche
 ├── batch.js       # Gestione coda batch
@@ -874,7 +889,7 @@ I servizi esterni (Anthropic API) sono mockati con `unittest.mock.MagicMock`.
 
 ### Coverage e test suite
 
-108 test, coverage > 55%, threshold CI: 50%.
+119 test, coverage > 55%, threshold CI: 50%.
 
 ```
 tests/
@@ -885,6 +900,7 @@ tests/
 ├── test_contacts_service.py        # Contacts CRUD
 ├── test_cover_letter_service.py    # get_by_id, build_docx
 ├── test_notifications_service.py   # Fernet encrypt/decrypt, already_notified
+├── test_interview_service.py      # Interview CRUD, upcoming filter
 └── test_routes.py                  # TestClient: health, 404, login, auth
 ```
 

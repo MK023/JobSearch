@@ -53,7 +53,8 @@ An AI-powered job search platform built with a microservices architecture. Paste
 | **Cost Tracking** | Per-analysis cost, daily totals, configurable budget |
 | **Email Notifications** | SMTP email alerts for new APPLY analyses, Fernet-encrypted credentials |
 | **Audit Trail** | DB-logged user actions (login, analyze, delete, etc.) |
-| **Dashboard** | Stats, top matches, active applications at a glance |
+| **Interview Scheduling** | Book interviews with date, recruiter, meeting link; upcoming banner on dashboard |
+| **Dashboard** | Stats, top matches, active applications, upcoming interviews at a glance |
 
 ---
 
@@ -146,6 +147,10 @@ http://localhost/api/v1/docs
 | POST | `/api/v1/batch/run` | Run batch analysis |
 | GET | `/api/v1/batch/status` | Batch queue status |
 | DELETE | `/api/v1/batch/clear` | Clear batch queue |
+| POST | `/api/v1/interviews/{id}` | Create/update interview |
+| GET | `/api/v1/interviews/{id}` | Get interview details |
+| DELETE | `/api/v1/interviews/{id}` | Delete interview |
+| GET | `/api/v1/interviews-upcoming` | Upcoming interviews (48h) |
 
 ---
 
@@ -180,7 +185,9 @@ JobSearch/
 │   │       ├── followup_alerts.html
 │   │       ├── batch.html
 │   │       ├── dashboard.html
-│   │       └── history.html
+│   │       ├── history.html
+│   │       ├── interview_modal.html
+│   │       └── interview_detail.html
 │   └── static/
 │       ├── css/                    # Modular CSS (stylelint-validated)
 │       │   ├── variables.css       # Design tokens
@@ -196,7 +203,8 @@ JobSearch/
 │           ├── contacts.js
 │           ├── followup.js
 │           ├── cv.js
-│           └── history.js
+│           ├── history.js
+│           └── interview.js
 │
 ├── backend/
 │   ├── Dockerfile                  # python:3.12-slim
@@ -207,7 +215,8 @@ JobSearch/
 │   │   └── versions/
 │   │       ├── 001_initial_schema.py
 │   │       ├── 002_add_audit_logs.py
-│   │       └── 003_add_notification_logs.py
+│   │       ├── 003_add_notification_logs.py
+│   │       └── 004_add_interviews.py
 │   ├── tests/
 │   │   ├── conftest.py             # Fixtures (SQLite in-memory)
 │   │   └── test_*.py               # Unit tests (pytest + coverage)
@@ -228,6 +237,7 @@ JobSearch/
 │       ├── batch/                  # Queue + batch processing
 │       ├── audit/                  # DB audit trail
 │       ├── notifications/          # Email alerts (SMTP + Fernet encryption)
+│       ├── interview/              # Interview scheduling (1:1 with analysis)
 │       └── integrations/
 │           ├── anthropic_client.py # Claude API + 7-strategy JSON parsing
 │           ├── cache.py            # Redis/Null cache protocol
