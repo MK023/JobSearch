@@ -56,6 +56,58 @@ function refreshDashboard() {
                     mot.style.display = 'none';
                 }
             }
+            refreshUpcomingBanners();
         })
         .catch(function(e) { console.error('refreshDashboard error:', e); });
+}
+
+function refreshUpcomingBanners() {
+    fetch('/api/v1/interviews-upcoming')
+        .then(function(r) { return r.json(); })
+        .then(function(interviews) {
+            // Remove old banners
+            document.querySelectorAll('.upcoming-interview-banner').forEach(function(el) {
+                el.remove();
+            });
+
+            if (!interviews.length) return;
+
+            // Find insertion point (before dashboard-details)
+            var dashboard = document.getElementById('dashboard-details');
+            if (!dashboard) return;
+
+            interviews.forEach(function(iv) {
+                var banner = document.createElement('div');
+                banner.className = 'upcoming-interview-banner';
+
+                var info = document.createElement('div');
+                info.className = 'upcoming-interview-info';
+
+                var title = document.createElement('div');
+                title.className = 'upcoming-interview-title';
+                title.textContent = 'Colloquio in arrivo \u2014 ' + iv.company;
+                info.appendChild(title);
+
+                var meta = document.createElement('div');
+                meta.className = 'upcoming-interview-meta';
+                var dateStr = iv.scheduled_at.substring(0, 16).replace('T', ' ');
+                var metaText = iv.role + ' \u00b7 ' + dateStr;
+                if (iv.interview_type === 'virtual') metaText += ' \u00b7 Video call';
+                else if (iv.interview_type === 'phone') metaText += ' \u00b7 Telefonico';
+                else if (iv.interview_type === 'in_person') metaText += ' \u00b7 In presenza';
+                meta.textContent = metaText;
+                info.appendChild(meta);
+
+                banner.appendChild(info);
+
+                var link = document.createElement('a');
+                link.href = '/analysis/' + encodeURIComponent(iv.analysis_id);
+                link.className = 'btn btn-sm btn-primary';
+                link.textContent = 'Apri dettaglio';
+                banner.appendChild(link);
+
+                dashboard.parentNode.insertBefore(banner, dashboard);
+            });
+        })
+        .catch(function(e) { console.error('refreshUpcomingBanners error:', e); });
 }

@@ -8,13 +8,17 @@
              @click="switchTab('valutazione')">
             In valutazione <span class="tab-badge" x-text="counts.valutazione">0</span>
         </div>
-        <div class="tab" :class="{ 'active': activeTab === 'applicato' }"
-             @click="switchTab('applicato')">
-            Candidature <span class="tab-badge" x-text="counts.applicato">0</span>
+        <div class="tab" :class="{ 'active': activeTab === 'candidature' }"
+             @click="switchTab('candidature')">
+            Candidature <span class="tab-badge" x-text="counts.candidature">0</span>
         </div>
-        <div class="tab" :class="{ 'active': activeTab === 'skippato' }"
-             @click="switchTab('skippato')">
-            Scartati <span class="tab-badge" x-text="counts.skippato">0</span>
+        <div class="tab" :class="{ 'active': activeTab === 'colloqui' }"
+             @click="switchTab('colloqui')">
+            Colloqui <span class="tab-badge" x-text="counts.colloqui">0</span>
+        </div>
+        <div class="tab" :class="{ 'active': activeTab === 'scartati' }"
+             @click="switchTab('scartati')">
+            Scartati <span class="tab-badge" x-text="counts.scartati">0</span>
         </div>
     </div>
 

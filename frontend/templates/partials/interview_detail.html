@@ -1,0 +1,57 @@
+{# Interview detail card - shown when status is colloquio and interview exists #}
+{% if current and current.interview and current.status.value == 'colloquio' %}
+<div class="interview-detail-card">
+    <div class="interview-detail-header">
+        <span class="interview-detail-title">Colloquio prenotato</span>
+        <span class="status-badge status-badge-colloquio">colloquio</span>
+    </div>
+
+    {% set iv = current.interview %}
+    <div class="interview-detail-grid">
+        <span class="interview-detail-icon">📅</span>
+        <span class="interview-detail-value">
+            {{ iv.scheduled_at.strftime('%A %d %B %Y, %H:%M') }}{% if iv.ends_at %} – {{ iv.ends_at.strftime('%H:%M') }}{% endif %}
+        </span>
+
+        {% if iv.interview_type %}
+        <span class="interview-detail-icon">{% if iv.interview_type == 'virtual' %}💻{% elif iv.interview_type == 'phone' %}📞{% else %}🏢{% endif %}</span>
+        <span class="interview-detail-value">{% if iv.interview_type == 'virtual' %}Video call{% elif iv.interview_type == 'phone' %}Telefonico{% else %}In presenza{% endif %}</span>
+        {% endif %}
+
+        {% if iv.recruiter_name %}
+        <span class="interview-detail-icon">👤</span>
+        <span class="interview-detail-value">{{ iv.recruiter_name }}</span>
+        {% endif %}
+
+        {% if iv.recruiter_email %}
+        <span class="interview-detail-icon">✉️</span>
+        <span class="interview-detail-value"><a href="mailto:{{ iv.recruiter_email }}">{{ iv.recruiter_email }}</a></span>
+        {% endif %}
+
+        {% if iv.meeting_link %}
+        <span class="interview-detail-icon">🔗</span>
+        <span class="interview-detail-value"><a href="{{ iv.meeting_link }}" target="_blank" rel="noopener noreferrer">{{ iv.meeting_link }}</a></span>
+        {% endif %}
+
+        {% if iv.phone_number %}
+        <span class="interview-detail-icon">📞</span>
+        <span class="interview-detail-value">{{ iv.phone_number }}{% if iv.phone_pin %} (PIN: {{ iv.phone_pin }}){% endif %}</span>
+        {% endif %}
+
+        {% if iv.location %}
+        <span class="interview-detail-icon">📍</span>
+        <span class="interview-detail-value">{{ iv.location }}</span>
+        {% endif %}
+
+        {% if iv.notes %}
+        <span class="interview-detail-icon">📝</span>
+        <span class="interview-detail-value">{{ iv.notes }}</span>
+        {% endif %}
+    </div>
+
+    <div class="interview-detail-actions">
+        <button class="btn btn-sm btn-primary" onclick="openInterviewModal('{{ current.id }}')">Modifica</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteInterviewFromDetail('{{ current.id }}')">Rimuovi</button>
+    </div>
+</div>
+{% endif %}

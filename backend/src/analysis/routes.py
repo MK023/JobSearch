@@ -93,6 +93,8 @@ def _render_page(request: Request, db: Session, user: User, **extra) -> HTMLResp
     cv = get_latest_cv(db, user.id)
     analyses = get_recent_analyses(db)
     followup_alerts = get_followup_alerts(db)
+    from ..interview.service import get_upcoming_interviews
+    upcoming_interviews = get_upcoming_interviews(db)
     active_apps = get_active_applications(db)
 
     # Send any pending email notifications
@@ -110,6 +112,7 @@ def _render_page(request: Request, db: Session, user: User, **extra) -> HTMLResp
         "followup_alerts": followup_alerts,
         "dashboard": dashboard,
         "active_apps": active_apps,
+        "upcoming_interviews": upcoming_interviews,
     }
     ctx.update(extra)
 
