@@ -7,6 +7,7 @@ from .analysis.followup_routes import router as followup_router
 from .batch.routes import router as batch_router
 from .contacts.routes import router as contacts_router
 from .dashboard.routes import router as dashboard_router
+from .interview.routes import router as interview_router
 
 api_v1_router = APIRouter(prefix="/api/v1", tags=["api-v1"])
 
@@ -15,3 +16,4 @@ api_v1_router.include_router(followup_router)
 api_v1_router.include_router(contacts_router)
 api_v1_router.include_router(dashboard_router)
 api_v1_router.include_router(batch_router)
+api_v1_router.include_router(interview_router)
