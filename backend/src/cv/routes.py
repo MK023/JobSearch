@@ -23,14 +23,17 @@ def save_cv_route(
     user: User = Depends(get_current_user),
 ):
     if len(cv_text) < 20:
-        return RedirectResponse(url="/", status_code=303)
+        request.session["flash_error"] = "CV troppo corto (minimo 20 caratteri)"
+        return RedirectResponse(url="/settings", status_code=303)
     if len(cv_text) > settings.max_cv_size:
-        return RedirectResponse(url="/", status_code=303)
+        request.session["flash_error"] = f"CV troppo lungo (max {settings.max_cv_size} caratteri)"
+        return RedirectResponse(url="/settings", status_code=303)
 
     save_cv(db, user.id, cv_text, cv_name)
     audit(db, request, "cv_save", f"name={cv_name}, len={len(cv_text)}")
     db.commit()
-    return RedirectResponse(url="/", status_code=303)
+    request.session["flash_message"] = "CV salvato con successo!"
+    return RedirectResponse(url="/settings", status_code=303)
 
 
 @router.get("/cv/download")

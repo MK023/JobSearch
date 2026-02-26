@@ -71,3 +71,27 @@ class TestAuthRoutes:
         response = app_client.get("/", follow_redirects=False)
         assert response.status_code == 303
         assert "/login" in response.headers.get("location", "")
+
+
+class TestPageRoutesRequireAuth:
+    """All page routes must redirect unauthenticated users to /login."""
+
+    def test_analyze_page_requires_auth(self, app_client):
+        resp = app_client.get("/analyze", follow_redirects=False)
+        assert resp.status_code == 303
+        assert "/login" in resp.headers["location"]
+
+    def test_history_page_requires_auth(self, app_client):
+        resp = app_client.get("/history", follow_redirects=False)
+        assert resp.status_code == 303
+        assert "/login" in resp.headers["location"]
+
+    def test_interviews_page_requires_auth(self, app_client):
+        resp = app_client.get("/interviews", follow_redirects=False)
+        assert resp.status_code == 303
+        assert "/login" in resp.headers["location"]
+
+    def test_settings_page_requires_auth(self, app_client):
+        resp = app_client.get("/settings", follow_redirects=False)
+        assert resp.status_code == 303
+        assert "/login" in resp.headers["location"]

@@ -8,7 +8,7 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from slowapi.errors import RateLimitExceeded
@@ -19,7 +19,6 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
 from .analysis.routes import router as analysis_router
-from .auth.models import User
 from .auth.routes import router as auth_router
 from .auth.service import ensure_admin_user
 from .config import settings
@@ -27,8 +26,9 @@ from .cover_letter.routes import router as cover_letter_router
 from .cv.routes import router as cv_router
 from .dashboard.service import seed_spending_totals
 from .database import SessionLocal, get_db
-from .dependencies import AuthRequired, get_current_user
+from .dependencies import AuthRequired
 from .integrations.cache import create_cache_service
+from .pages import router as pages_router
 from .rate_limit import limiter
 
 logger = logging.getLogger(__name__)
@@ -170,18 +170,9 @@ def create_app() -> FastAPI:
     app.state.templates = Jinja2Templates(directory=str(_TEMPLATE_DIR))
     app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
-    # --- Root route ---
-    @app.get("/", response_class=HTMLResponse)
-    def home(
-        request: Request,
-        db: Session = Depends(get_db),
-        user: User = Depends(get_current_user),
-    ):
-        from .analysis.routes import _render_page
-
-        return _render_page(request, db, user)
-
     # --- HTML routers (root level) ---
+    # Pages router first so GET / maps to the new dashboard handler
+    app.include_router(pages_router)
     app.include_router(auth_router)
     app.include_router(cv_router)
     app.include_router(analysis_router)
