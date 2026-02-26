@@ -33,7 +33,7 @@ An AI-powered job search platform built with a microservices architecture. Paste
            └──────────────┘     └───────────────┘
 ```
 
-**4 containers** on a bridge network. Nginx serves static files directly and reverse-proxies everything else to the backend. The backend exposes SSR routes at root level and a versioned JSON API at `/api/v1/` with auto-generated Swagger docs.
+**4 containers** on a bridge network. Nginx serves static files directly and reverse-proxies everything else to the backend. The backend serves a multi-page SSR frontend (sidebar navigation with 5 pages) at root level and a versioned JSON API at `/api/v1/` with auto-generated Swagger docs.
 
 ---
 
@@ -112,8 +112,8 @@ Open `http://localhost` — the app is served by nginx on port 80.
 ### First Use
 
 1. Login with your admin credentials
-2. Paste your CV in the left panel, click "Salva CV"
-3. Paste a job listing in the right panel
+2. Go to Settings, paste your CV, click "Salva CV"
+3. Go to "Nuova Analisi", paste a job listing
 4. Pick a model: Haiku (~$0.005/analysis) or Sonnet (~$0.02/analysis)
 5. Click "Analizza" and review results
 6. Use tools: cover letter, follow-up email, LinkedIn message, contacts
@@ -168,43 +168,49 @@ JobSearch/
 ├── frontend/
 │   ├── Dockerfile                  # nginx:1.27-alpine
 │   ├── nginx.conf                  # Reverse proxy config
-│   ├── templates/                  # Jinja2 SSR templates
-│   │   ├── base.html
-│   │   ├── index.html
-│   │   ├── login.html
-│   │   ├── 404.html               # Custom error page
-│   │   ├── 500.html               # Custom error page
-│   │   └── partials/              # Reusable template fragments
-│   │       ├── header.html
-│   │       ├── cv_form.html
-│   │       ├── analyze_form.html
-│   │       ├── result.html
-│   │       ├── result_reputation.html
-│   │       ├── cover_letter_form.html
-│   │       ├── cover_letter_result.html
-│   │       ├── followup_alerts.html
-│   │       ├── batch.html
-│   │       ├── dashboard.html
-│   │       ├── history.html
-│   │       ├── interview_modal.html
-│   │       └── interview_detail.html
+│   ├── templates/                  # Jinja2 SSR templates (multi-page)
+│   │   ├── base.html               # Layout: sidebar + content + toast
+│   │   ├── dashboard.html          # Home: metrics, alerts, recent
+│   │   ├── analyze.html            # Single + batch analysis tabs
+│   │   ├── history.html            # Analysis history, 4 status tabs
+│   │   ├── analysis_detail.html    # Full analysis with score ring
+│   │   ├── interviews.html         # Upcoming + past interviews
+│   │   ├── settings.html           # CV management + API credits
+│   │   ├── login.html              # Standalone login (no sidebar)
+│   │   ├── 404.html                # Custom error page
+│   │   ├── 500.html                # Custom error page
+│   │   └── partials/               # Reusable template fragments
+│   │       ├── sidebar.html             # SVG icon navigation
+│   │       ├── score_ring.html          # SVG score ring component
+│   │       ├── job_card.html            # Compact analysis row
+│   │       ├── metric_card.html         # Big number + label card
+│   │       ├── result_reputation.html   # Glassdoor company rating
+│   │       ├── cover_letter_form.html   # Cover letter generation
+│   │       ├── cover_letter_result.html # Cover letter display
+│   │       ├── followup_alerts.html     # Follow-up email alerts
+│   │       ├── batch.html               # Batch analysis queue
+│   │       ├── interview_modal.html     # Interview booking modal
+│   │       └── interview_detail.html    # Interview detail card
 │   └── static/
 │       ├── css/                    # Modular CSS (stylelint-validated)
-│       │   ├── variables.css       # Design tokens
-│       │   ├── base.css            # Reset, typography, forms
-│       │   ├── layout.css          # Container, header, grid, footer
-│       │   ├── components.css      # Buttons, cards, badges, tabs
-│       │   └── sections.css        # Page-specific sections
-│       └── js/modules/             # Vanilla JS + Alpine.js
-│           ├── status.js
-│           ├── spending.js
-│           ├── dashboard.js
-│           ├── batch.js
-│           ├── contacts.js
-│           ├── followup.js
-│           ├── cv.js
-│           ├── history.js
-│           └── interview.js
+│       │   ├── variables.css       # Apple dark palette tokens
+│       │   ├── base.css            # Reset, typography, animations
+│       │   ├── layout.css          # Sidebar, content area, responsive
+│       │   ├── components.css      # Cards, buttons, score ring, toast
+│       │   └── sections.css        # Page-specific styles
+│       └── js/
+│           ├── app.js              # Init, conditional module loading
+│           └── modules/            # Vanilla JS + Alpine.js
+│               ├── toast.js        # Toast notification system
+│               ├── status.js
+│               ├── spending.js
+│               ├── dashboard.js
+│               ├── batch.js
+│               ├── contacts.js
+│               ├── followup.js
+│               ├── cv.js
+│               ├── history.js
+│               └── interview.js
 │
 ├── backend/
 │   ├── Dockerfile                  # python:3.12-slim
@@ -222,6 +228,7 @@ JobSearch/
 │   │   └── test_*.py               # Unit tests (pytest + coverage)
 │   └── src/
 │       ├── main.py                 # App factory + middleware
+│       ├── pages.py                # Multi-page SSR route handlers
 │       ├── config.py               # Pydantic settings
 │       ├── api_v1.py               # JSON API router aggregator
 │       ├── prompts.py              # Token-optimized AI prompts

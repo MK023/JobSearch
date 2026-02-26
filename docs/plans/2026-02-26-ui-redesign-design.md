@@ -1,7 +1,7 @@
 # JobSearch UI Redesign — Design Document
 
 **Data**: 2026-02-26
-**Stato**: Approvato
+**Stato**: Completato (merged PR #9)
 **Approccio**: Rewrite in-place su branch `redesign`
 
 ---

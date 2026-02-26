@@ -11,15 +11,22 @@
 
 ## Required screenshots
 
-| File | What to capture |
-|------|-----------------|
-| `dashboard.png` | Main dashboard with spending bar, CV loaded, analysis history |
-| `analysis_result.png` | A completed analysis showing score, strengths, gaps |
-| `cover_letter.png` | A generated cover letter with subject lines |
+| File | Page | What to capture |
+|------|------|-----------------|
+| `dashboard.png` | `/` | Dashboard with metric cards, follow-up alerts, recent analyses |
+| `analyze.png` | `/analyze` | Analysis form with CV status, job description textarea, model selector |
+| `analysis_result.png` | `/analysis/{id}` | Score ring, strengths/gaps columns, recommendation badge |
+| `history.png` | `/history` | History page with 4 status tabs and job cards |
+| `interviews.png` | `/interviews` | Upcoming interviews with prep scripts, past collapsed |
+| `settings.png` | `/settings` | CV management card, API credit tracking |
+| `cover_letter.png` | `/analysis/{id}` | Generated cover letter section within analysis detail |
+| `login.png` | `/login` | Standalone login page (dark theme) |
 
 ## Tips
 
 - Use realistic data (not "test" placeholders)
-- Ensure the dark theme renders cleanly
+- Ensure the Apple dark theme renders cleanly (#0D0D0F background)
+- Sidebar should be visible on all pages except login
 - Crop unnecessary browser chrome
 - Aim for ~1280px width for consistency
+- For mobile screenshots, set viewport to 375 x 812 to show bottom bar

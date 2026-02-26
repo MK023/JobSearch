@@ -42,6 +42,7 @@ Browser → Nginx (reverse proxy) → FastAPI (backend) → PostgreSQL + Redis
 ```
 backend/src/
 ├── main.py              # App factory (create_app)
+├── pages.py             # Multi-page SSR route handlers (5 pages)
 ├── config.py            # Settings da env con Pydantic
 ├── api_v1.py            # Aggregatore router JSON
 ├── prompts.py           # Prompt AI ottimizzati per token
@@ -183,7 +184,7 @@ async def generic_exception_handler(request, exc):
     return templates.TemplateResponse("500.html", ..., status_code=500)
 ```
 
-Le pagine 404 e 500 usano lo stesso layout centrato della pagina di login (`login-wrapper`/`login-card`) con un bottone "Torna alla Home".
+Le pagine 404 e 500 estendono `base.html` (con sidebar visibile) e mostrano un messaggio centrato con un link "Torna alla Dashboard".
 
 ### Health Check
 
@@ -228,7 +229,7 @@ Route protette con rate limiting esplicito:
 - `POST /cover-letter` — `10/minute` (generazione AI)
 
 Il rate limit handler supporta **content negotiation**:
-- Richieste HTML → redirect a `/` con header `Retry-After`
+- Richieste HTML → redirect alla pagina corrente con header `Retry-After`
 - Richieste JSON → risposta 429 strutturata con `retry_after` e `Retry-After` header
 
 Sul frontend, `handleRateLimit(response, msg)` in `app.js` cattura le risposte 429 e mostra un alert con i secondi di attesa.
@@ -552,16 +553,20 @@ engine = create_engine(
 
 Le route sono divise in due gruppi:
 
-**Route HTML** (root level): servono pagine Jinja2
+**Route HTML** (root level): servono pagine Jinja2 (multi-page con sidebar)
 ```
-GET  /              → pagina principale
-GET  /login         → form login
+GET  /              → dashboard.html (metriche, alert, recenti)
+GET  /analyze       → analyze.html (tab singola/multipla)
+GET  /history       → history.html (storico, 4 tab stato)
+GET  /analysis/{id} → analysis_detail.html (dettaglio candidatura)
+GET  /interviews    → interviews.html (prossimi + passati)
+GET  /settings      → settings.html (CV + crediti API)
+GET  /login         → login.html (standalone, no sidebar)
 POST /login         → autenticazione
 POST /logout        → logout
-POST /cv            → salva CV
-POST /analyze       → avvia analisi
-GET  /analysis/{id} → dettaglio analisi
-POST /cover-letter  → genera cover letter
+POST /cv            → salva CV → redirect /settings
+POST /analyze       → avvia analisi → redirect /analysis/{id}
+POST /cover-letter  → genera cover letter → redirect /analysis/{id}
 ```
 
 **Route JSON** (sotto `/api/v1/`): rispondono con JSON
@@ -610,7 +615,7 @@ FastAPI genera automaticamente la documentazione Swagger su `/api/v1/docs`. Ness
 
 ### Server-Side Rendering con Jinja2
 
-Il frontend e' **server-side rendered**: FastAPI genera l'HTML completo e lo invia al browser. Non c'e' un framework JS (React, Vue, etc.).
+Il frontend e' **server-side rendered** con architettura **multi-page**: ogni sezione ha la sua route e template dedicato (dashboard, analyze, history, interviews, settings). FastAPI genera l'HTML completo tramite Jinja2. La navigazione usa una sidebar fissa (60px, icon-only) su desktop e una bottom bar su mobile (≤768px). Non c'e' un framework JS (React, Vue, etc.).
 
 ```python
 # Nelle route:
@@ -622,28 +627,31 @@ return templates.TemplateResponse("index.html", {"request": request, ...})
 
 ```
 frontend/templates/
-├── base.html           # Layout base (head, CSS imports, skip-link)
-├── index.html          # Pagina principale (compone i partials)
-├── login.html          # Form di login
-├── 404.html            # Pagina errore 404 (layout centrato)
-├── 500.html            # Pagina errore 500 (layout centrato)
-└── partials/           # Componenti riusabili
-    ├── header.html          # Title + logout + spending bar
-    ├── cv_form.html         # Upload/edit CV
-    ├── analyze_form.html    # Form analisi (job + model)
-    ├── result.html          # Risultati analisi (score, gaps, interview)
-    ├── result_reputation.html  # Reputazione aziendale (Glassdoor)
-    ├── cover_letter_form.html  # Generazione cover letter
-    ├── cover_letter_result.html # Cover letter renderizzata
-    ├── followup_alerts.html # Alert follow-up email
-    ├── batch.html           # Coda analisi batch
-    ├── dashboard.html       # Statistiche e metriche
-    ├── history.html         # Storico analisi con filtri (4 tab)
-    ├── interview_modal.html # Modale prenotazione colloquio
-    └── interview_detail.html # Card dettaglio colloquio
+├── base.html                # Layout: sidebar + content area + toast container
+├── dashboard.html           # Home: metrics, alerts, recent analyses
+├── analyze.html             # Single + batch analysis (tab toggle)
+├── history.html             # Analysis history with 4 status tabs
+├── analysis_detail.html     # Full analysis: score ring, strengths/gaps, actions
+├── interviews.html          # Upcoming (with prep) + past (collapsed)
+├── settings.html            # CV management + API credit tracking
+├── login.html               # Standalone login page (no sidebar)
+├── 404.html                 # Error page (extends base, with sidebar)
+├── 500.html                 # Error page (extends base, with sidebar)
+└── partials/                # Reusable components
+    ├── sidebar.html             # 5 SVG icon nav items
+    ├── score_ring.html          # SVG ring with color tiers
+    ├── job_card.html            # Compact analysis row for lists
+    ├── metric_card.html         # Big number + label card
+    ├── result_reputation.html   # Glassdoor company rating
+    ├── cover_letter_form.html   # Cover letter generation
+    ├── cover_letter_result.html # Cover letter display
+    ├── followup_alerts.html     # Follow-up email alerts
+    ├── batch.html               # Batch analysis queue
+    ├── interview_modal.html     # Interview booking modal
+    └── interview_detail.html    # Interview detail card
 ```
 
-`base.html` definisce i blocchi Jinja2 (`{% block content %}`) che i template figli sovrascrivono. I partials vengono inclusi con `{% include "partials/nome.html" %}`.
+`base.html` definisce sidebar, content-area wrapper e toast container. I template figli sovrascrivono `{% block content %}` e opzionalmente `{% block head_extra %}` e `{% block scripts_extra %}`. `login.html` e' standalone (non estende base.html) perche' non ha sidebar.
 
 ### CSS modulare
 
@@ -651,11 +659,11 @@ Il CSS e' suddiviso in file tematici, validati con **stylelint** in CI:
 
 ```
 frontend/static/css/
-├── variables.css    # Design tokens (colori, spacing, radius, font)
-├── base.css         # Reset, tipografia, form, spinner
-├── layout.css       # Container, header, grid, footer, login
-├── components.css   # Buttons, cards, badges, tabs, pills, toggles
-└── sections.css     # Sezioni specifiche (result, reputation, history)
+├── variables.css    # Apple dark palette tokens (colori, spacing, radius, font)
+├── base.css         # Reset, tipografia, fadeIn animation, shimmer
+├── layout.css       # Sidebar (60px fixed), content area, responsive grid
+├── components.css   # Score ring, cards, buttons, toast, modal, pills
+└── sections.css     # Stili specifici per ogni pagina (dashboard, analyze, etc.)
 ```
 
 ### JavaScript modules
@@ -664,6 +672,7 @@ Vanilla JS con `fetch()` + **Alpine.js** per reattivita' dichiarativa:
 
 ```
 frontend/static/js/modules/
+├── toast.js       # Toast notification system
 ├── interview.js   # Modale colloquio (open, submit, delete)
 ├── status.js      # Cambio stato analisi (intercetta colloquio -> modale)
 ├── spending.js    # Aggiornamento budget (inline edit)
@@ -675,7 +684,7 @@ frontend/static/js/modules/
 └── history.js     # Filtri e ordinamento storico
 ```
 
-Tutti i fetch puntano a `/api/v1/...`. Alpine.js gestisce la UI reattiva (tabs, toggle, x-show/x-cloak). Nessuna dipendenza build-time (no bundler, no npm in frontend).
+Tutti i fetch puntano a `/api/v1/...`. I moduli JS si caricano condizionalmente in base alla pagina attiva (typeof guards in app.js). Alpine.js gestisce la UI reattiva (tabs, toggle, x-show/x-cloak). Nessuna dipendenza build-time (no bundler, no npm in frontend).
 
 Il JS gestisce anche il **rate limiting lato client**: `handleRateLimit(response, msg)` in `app.js` cattura le risposte 429 e mostra un alert con i secondi di attesa letti dall'header `Retry-After`.
 
@@ -889,7 +898,7 @@ I servizi esterni (Anthropic API) sono mockati con `unittest.mock.MagicMock`.
 
 ### Coverage e test suite
 
-119 test, coverage > 55%, threshold CI: 50%.
+130 tests, coverage > 55%, threshold CI: 50%.
 
 ```
 tests/
@@ -901,7 +910,7 @@ tests/
 ├── test_cover_letter_service.py    # get_by_id, build_docx
 ├── test_notifications_service.py   # Fernet encrypt/decrypt, already_notified
 ├── test_interview_service.py      # Interview CRUD, upcoming filter
-└── test_routes.py                  # TestClient: health, 404, login, auth
+└── test_routes.py                  # TestClient: health, 404, login, auth, multi-page rendering
 ```
 
 I test di route usano `FastAPI.TestClient` con lifespan patchato per evitare migrazioni e servizi esterni:

@@ -1,7 +1,7 @@
 # Design: Sezione Colloqui + Revisione Logica Status
 
 **Data:** 2026-02-24
-**Stato:** Approvato
+**Stato:** Completato (merged PR #8)
 
 ## Problema
 
