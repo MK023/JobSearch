@@ -6,6 +6,7 @@
     "no-descending-specificity": null,
     "declaration-block-no-redundant-longhand-properties": null,
     "shorthand-property-no-redundant-values": null,
-    "value-keyword-case": ["lower", { "ignoreKeywords": ["BlinkMacSystemFont", "Roboto"] }]
+    "value-keyword-case": ["lower", { "ignoreKeywords": ["BlinkMacSystemFont", "Roboto"] }],
+    "property-no-vendor-prefix": [true, { "ignoreProperties": ["backdrop-filter"] }]
   }
 }
