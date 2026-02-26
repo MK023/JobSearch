@@ -36,6 +36,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: var(--space-xs);
   padding: 10px 20px;
   border: none;
   border-radius: var(--radius-md);
@@ -46,6 +47,10 @@
   line-height: 1;
   vertical-align: middle;
   transition: filter var(--transition-fast), transform var(--transition-fast);
+}
+
+.btn svg {
+  flex-shrink: 0;
 }
 
 .btn:hover {
@@ -109,7 +114,7 @@
 }
 
 .btn-muted {
-  background: var(--border-medium);
+  background: var(--bg-tertiary);
   color: var(--text-secondary);
 }
 
@@ -125,6 +130,32 @@
 
 .btn-full {
   width: 100%;
+}
+
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.btn-icon:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.btn-icon-danger:hover {
+  background: rgb(255 69 58 / 15%);
+  color: var(--accent-red);
 }
 
 .button-row {
@@ -190,7 +221,7 @@
   display: flex;
   gap: var(--space-xs);
   margin-bottom: var(--space-lg);
-  background: var(--bg-tertiary);
+  background: var(--bg-secondary);
   border-radius: var(--radius-lg);
   padding: var(--space-xs);
   border: 1px solid var(--border-subtle);
@@ -216,7 +247,7 @@
 .tab.active {
   color: var(--text-primary);
   border-bottom-color: var(--accent-blue);
-  background: var(--bg-secondary);
+  background: var(--bg-tertiary);
 }
 
 .tab-badge {
@@ -227,7 +258,7 @@
   font-size: var(--text-xs);
   margin-left: var(--space-xs);
   background: var(--bg-tertiary);
-  color: var(--text-secondary);
+  color: var(--text-tertiary);
 }
 
 .tab.active .tab-badge {

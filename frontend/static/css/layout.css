@@ -82,6 +82,20 @@
   flex-shrink: 0;
 }
 
+/* === Theme toggle icons === */
+
+.theme-icon-moon {
+  display: none;
+}
+
+html[data-theme="light"] .theme-icon-sun {
+  display: none;
+}
+
+html[data-theme="light"] .theme-icon-moon {
+  display: block;
+}
+
 /* === Content area === */
 .content-area {
   margin-left: var(--sidebar-width);

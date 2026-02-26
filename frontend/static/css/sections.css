@@ -1085,6 +1085,69 @@
 
 
 /* ================================================================
+   FLATPICKR LIGHT MODE OVERRIDES
+   ================================================================ */
+
+html[data-theme="light"] .flatpickr-calendar {
+  background: var(--bg-secondary);
+  border-color: var(--border-medium);
+  box-shadow: var(--shadow-card);
+}
+
+html[data-theme="light"] .flatpickr-months,
+html[data-theme="light"] .flatpickr-weekdays,
+html[data-theme="light"] .flatpickr-month {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+html[data-theme="light"] span.flatpickr-weekday {
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+}
+
+html[data-theme="light"] .flatpickr-day {
+  color: var(--text-primary);
+}
+
+html[data-theme="light"] .flatpickr-day:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--bg-tertiary);
+}
+
+html[data-theme="light"] .flatpickr-day.today {
+  border-color: var(--accent-blue);
+}
+
+html[data-theme="light"] .flatpickr-day.selected {
+  background: var(--accent-blue);
+  border-color: var(--accent-blue);
+  color: #fff;
+}
+
+html[data-theme="light"] .flatpickr-day.prevMonthDay,
+html[data-theme="light"] .flatpickr-day.nextMonthDay {
+  color: var(--text-tertiary);
+}
+
+html[data-theme="light"] .flatpickr-current-month .flatpickr-monthDropdown-months,
+html[data-theme="light"] .flatpickr-current-month input.cur-year {
+  color: var(--text-primary);
+}
+
+html[data-theme="light"] .flatpickr-time input,
+html[data-theme="light"] .flatpickr-time .flatpickr-am-pm {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+}
+
+html[data-theme="light"] .flatpickr-time input:hover,
+html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
+  background: var(--bg-tertiary);
+}
+
+
+/* ================================================================
    RESPONSIVE
    ================================================================ */
 

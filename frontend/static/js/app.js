@@ -40,6 +40,19 @@ function app() {
 
 
 /**
+ * Toggle between dark and light themes.
+ * Persists choice in localStorage. Default is dark.
+ */
+function toggleTheme() {
+    var html = document.documentElement;
+    var current = html.getAttribute('data-theme') || 'dark';
+    var next = current === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+}
+
+
+/**
  * Handle 429 rate limit responses from fetch calls.
  * Returns true if response was a 429 (caller should stop processing).
  */

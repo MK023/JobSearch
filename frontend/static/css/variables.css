@@ -1,25 +1,25 @@
-/* === JobSearch Design Tokens — Apple-inspired Dark === */
+/* === JobSearch Design Tokens — Apple-inspired === */
 
 :root {
-  /* Backgrounds */
+  /* Backgrounds — Dark (default) */
   --bg-primary: #0D0D0F;
   --bg-secondary: #1C1C1E;
   --bg-tertiary: #2C2C2E;
   --bg-glass: rgb(28 28 30 / 85%);
 
-  /* Accent colors */
+  /* Accent colors — Dark */
   --accent-blue: #0A84FF;
   --accent-green: #30D158;
   --accent-orange: #FF9F0A;
   --accent-red: #FF453A;
   --accent-lime: #30D158;
 
-  /* Text */
+  /* Text — Dark */
   --text-primary: #F5F5F7;
   --text-secondary: #8E8E93;
   --text-tertiary: #48484A;
 
-  /* Borders */
+  /* Borders — Dark */
   --border-subtle: rgb(255 255 255 / 6%);
   --border-medium: rgb(255 255 255 / 10%);
 
@@ -54,7 +54,7 @@
   --radius-xl: 20px;
   --radius-full: 9999px;
 
-  /* Shadows */
+  /* Shadows — Dark */
   --shadow-card: 0 2px 12px rgb(0 0 0 / 30%);
   --shadow-hover: 0 8px 24px rgb(0 0 0 / 40%);
   --shadow-focus: 0 0 0 3px rgb(10 132 255 / 15%);
@@ -82,10 +82,31 @@
   --status-candidato: var(--accent-blue);
   --status-colloquio: var(--accent-green);
   --status-scartato: var(--accent-red);
+
+  /* Color scheme hint for browser controls */
+  color-scheme: dark;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    /* Light mode overrides — future, keep dark for now */
-  }
+/* === Light Theme === */
+
+html[data-theme="light"] {
+  --bg-primary: #f5f5f7;
+  --bg-secondary: #fff;
+  --bg-tertiary: #e8e8ed;
+  --bg-glass: rgb(255 255 255 / 85%);
+  --accent-blue: #007aff;
+  --accent-green: #34c759;
+  --accent-orange: #ff9500;
+  --accent-red: #ff3b30;
+  --accent-lime: #34c759;
+  --text-primary: #1c1c1e;
+  --text-secondary: #636366;
+  --text-tertiary: #aeaeb2;
+  --border-subtle: rgb(0 0 0 / 6%);
+  --border-medium: rgb(0 0 0 / 12%);
+  --shadow-card: 0 2px 12px rgb(0 0 0 / 8%);
+  --shadow-hover: 0 8px 24px rgb(0 0 0 / 12%);
+  --shadow-focus: 0 0 0 3px rgb(0 122 255 / 20%);
+
+  color-scheme: light;
 }
