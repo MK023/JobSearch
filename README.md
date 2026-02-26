@@ -2,12 +2,15 @@
 
 An AI-powered job search platform built with a microservices architecture. Paste your CV once, then analyze any job listing to get compatibility scores, skill gap analysis, interview preparation, and automated outreach tools.
 
+**[Live Demo](https://jobsearch.fly.dev)** (auto-sleeps when idle, cold-starts in ~3s)
+
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
 ![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 ![CI](https://img.shields.io/badge/CI-GitHub_Actions-2088FF?logo=githubactions&logoColor=white)
+![Tests](https://img.shields.io/badge/Tests-130_passed-30D158)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
 ---
@@ -60,11 +63,9 @@ An AI-powered job search platform built with a microservices architecture. Paste
 
 ## Screenshots
 
-| Dashboard | Analysis Result | Cover Letter |
-|:---------:|:---------------:|:------------:|
-| ![Dashboard](docs/screenshots/dashboard.png) | ![Analysis Result](docs/screenshots/analysis_result.png) | ![Cover Letter](docs/screenshots/cover_letter.png) |
-
-> Screenshots not yet captured — see [`docs/screenshots/README.md`](docs/screenshots/README.md) for capture instructions.
+| Dashboard | Analysis Result | History |
+|:---------:|:---------------:|:-------:|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Analysis Result](docs/screenshots/analysis_result.png) | ![History](docs/screenshots/history.png) |
 
 ---
 
