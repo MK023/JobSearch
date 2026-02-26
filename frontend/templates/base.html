@@ -24,6 +24,7 @@
   <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
   <script src="https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js" defer></script>
+  <script src="{{ url_for('static', path='js/modules/toast.js') }}?v=10"></script>
   <script src="{{ url_for('static', path='js/app.js') }}?v=10"></script>
   {% block scripts_extra %}{% endblock %}
 </body>
