@@ -350,6 +350,7 @@ Budget tracking is built-in: set a limit, monitor spending in real-time.
 - bcrypt password hashing
 - Session-based auth with configurable TTL
 - Nginx as reverse proxy (backend not exposed to host)
+- ProxyHeadersMiddleware for correct HTTPS URL generation behind load balancer
 - Fernet encryption for SMTP credentials at rest
 - DB audit trail for all user actions
 - ARIA accessibility: `role="alert"` on toasts, `role="dialog"` + `aria-modal` on modals

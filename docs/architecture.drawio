@@ -55,17 +55,20 @@
         <mxCell id="mw_stack" value="Middleware Stack" style="text;html=1;align=center;verticalAlign=middle;fontSize=11;fontStyle=5;fontColor=#666;" vertex="1" parent="docker_group">
           <mxGeometry x="195" y="290" width="120" height="20" as="geometry" />
         </mxCell>
-        <mxCell id="mw1" value="SecurityHeaders" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="docker_group">
+        <mxCell id="mw0" value="ProxyHeaders" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="docker_group">
           <mxGeometry x="195" y="312" width="110" height="28" as="geometry" />
         </mxCell>
+        <mxCell id="mw1" value="SecurityHeaders" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="docker_group">
+          <mxGeometry x="195" y="342" width="110" height="28" as="geometry" />
+        </mxCell>
         <mxCell id="mw2" value="CORS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="docker_group">
-          <mxGeometry x="195" y="344" width="110" height="28" as="geometry" />
+          <mxGeometry x="195" y="372" width="110" height="28" as="geometry" />
         </mxCell>
         <mxCell id="mw3" value="TrustedHost" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="docker_group">
-          <mxGeometry x="195" y="376" width="110" height="28" as="geometry" />
+          <mxGeometry x="195" y="402" width="110" height="28" as="geometry" />
         </mxCell>
         <mxCell id="mw4" value="SlowAPI (rate limit)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="docker_group">
-          <mxGeometry x="195" y="408" width="110" height="28" as="geometry" />
+          <mxGeometry x="195" y="432" width="110" height="28" as="geometry" />
         </mxCell>
 
         <!-- Validation Layer -->

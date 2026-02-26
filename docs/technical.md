@@ -151,14 +151,15 @@ async def lifespan(app: FastAPI):
 I middleware sono applicati in ordine LIFO (ultimo aggiunto = piu' esterno):
 
 ```
-Request → SecurityHeaders → CORS → TrustedHost → SlowAPI → Session → Route Handler
+Request → ProxyHeaders → SecurityHeaders → CORS → TrustedHost → SlowAPI → Session → Route Handler
 ```
 
-1. **SecurityHeaders** (custom `@app.middleware`): aggiunge X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy, HSTS
-2. **CORSMiddleware**: origins configurabili via `CORS_ALLOWED_ORIGINS`
-3. **TrustedHostMiddleware**: attivo solo se `TRUSTED_HOSTS != "*"`
-4. **SlowAPIMiddleware**: rate limiting globale con slowapi
-5. **SessionMiddleware**: sessioni server-side con itsdangerous (TTL 7 giorni)
+1. **ProxyHeadersMiddleware** (uvicorn): legge `X-Forwarded-Proto`/`X-Forwarded-For` dal reverse proxy per generare URL corretti (HTTPS) dietro load balancer
+2. **SecurityHeaders** (custom `@app.middleware`): aggiunge X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy, HSTS
+3. **CORSMiddleware**: origins configurabili via `CORS_ALLOWED_ORIGINS`
+4. **TrustedHostMiddleware**: attivo solo se `TRUSTED_HOSTS != "*"`
+5. **SlowAPIMiddleware**: rate limiting globale con slowapi
+6. **SessionMiddleware**: sessioni server-side con itsdangerous (TTL 7 giorni)
 
 ### Exception Handlers
 
@@ -630,16 +631,16 @@ frontend/templates/
 ├── base.html                # Layout: sidebar + content area + toast container
 ├── dashboard.html           # Home: metrics, alerts, recent analyses
 ├── analyze.html             # Single + batch analysis (tab toggle)
-├── history.html             # Analysis history with 4 status tabs
-├── analysis_detail.html     # Full analysis: score ring, strengths/gaps, actions
-├── interviews.html          # Upcoming (with prep) + past (collapsed)
+├── history.html             # Analysis history with 4 status tabs (URL hash + sessionStorage persistence)
+├── analysis_detail.html     # Full analysis: score ring, strengths/gaps, SVG icon action bar
+├── interviews.html          # All upcoming interviews + past (collapsed)
 ├── settings.html            # CV management + API credit tracking
 ├── login.html               # Standalone login page (no sidebar)
 ├── 404.html                 # Error page (extends base, with sidebar)
 ├── 500.html                 # Error page (extends base, with sidebar)
 └── partials/                # Reusable components
-    ├── sidebar.html             # 5 SVG icon nav items
-    ├── score_ring.html          # SVG ring with color tiers
+    ├── sidebar.html             # 5 SVG icon nav items + theme toggle
+    ├── score_ring.html          # SVG ring with color tiers (CSS-driven responsive sizing: 140px/100px)
     ├── job_card.html            # Compact analysis row for lists
     ├── metric_card.html         # Big number + label card
     ├── result_reputation.html   # Glassdoor company rating
@@ -690,7 +691,7 @@ frontend/static/js/modules/
 ├── contacts.js    # CRUD contatti recruiter
 ├── followup.js    # Generazione email/LinkedIn
 ├── cv.js          # Upload e download CV
-└── history.js     # Filtri e ordinamento storico
+└── history.js     # Filtri, ordinamento storico, tab persistence (hash + sessionStorage)
 ```
 
 Tutti i fetch puntano a `/api/v1/...`. I moduli JS si caricano condizionalmente in base alla pagina attiva (typeof guards in app.js). Alpine.js gestisce la UI reattiva (tabs, toggle, x-show/x-cloak). Nessuna dipendenza build-time (no bundler, no npm in frontend).
