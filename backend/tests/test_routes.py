@@ -21,7 +21,11 @@ def app_client():
         app.state.cache = NullCacheService()
         yield
 
-    with patch("src.main.lifespan", _test_lifespan):
+    with patch("src.main.lifespan", _test_lifespan), patch("src.main.settings") as mock_settings:
+        mock_settings.trusted_hosts_list = ["*"]
+        mock_settings.cors_origins_list = ["*"]
+        mock_settings.cors_allow_credentials = True
+        mock_settings.secret_key = "test-secret"
         app = create_app()
         with TestClient(app, raise_server_exceptions=False) as client:
             yield client
@@ -56,7 +60,11 @@ def auth_client():
     def _fake_db():
         yield mock_session
 
-    with patch("src.main.lifespan", _test_lifespan):
+    with patch("src.main.lifespan", _test_lifespan), patch("src.main.settings") as mock_settings:
+        mock_settings.trusted_hosts_list = ["*"]
+        mock_settings.cors_origins_list = ["*"]
+        mock_settings.cors_allow_credentials = True
+        mock_settings.secret_key = "test-secret"
         app = create_app()
         app.dependency_overrides[get_current_user] = lambda: fake_user
         app.dependency_overrides[get_db] = _fake_db
