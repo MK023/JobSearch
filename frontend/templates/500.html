@@ -2,14 +2,10 @@
 
 {% block title %}500 - Errore interno{% endblock %}
 
-{% block body %}
-<div class="login-wrapper">
-    <div class="login-card">
-        <h1>500</h1>
-        <p style="text-align: center; color: var(--color-text-muted); margin-bottom: var(--space-3xl);">
-            Errore interno del server
-        </p>
-        <a href="/" class="btn btn-primary btn-full">Torna alla Home</a>
-    </div>
+{% block content %}
+<div class="error-page">
+    <div class="error-code">500</div>
+    <p class="error-description">Errore interno del server</p>
+    <a href="/dashboard" class="btn btn-primary">Torna alla Dashboard</a>
 </div>
 {% endblock %}

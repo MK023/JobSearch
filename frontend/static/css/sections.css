@@ -5,6 +5,35 @@
 
 
 /* ================================================================
+   ERROR PAGE (404, 500)
+   ================================================================ */
+
+.error-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  text-align: center;
+  padding: var(--space-3xl);
+}
+
+.error-code {
+  font-size: 6rem;
+  font-weight: var(--weight-bold);
+  color: var(--text-primary);
+  line-height: 1;
+  margin-bottom: var(--space-md);
+}
+
+.error-description {
+  font-size: var(--text-lg);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-3xl);
+}
+
+
+/* ================================================================
    GRID HELPERS (supplement to layout.css)
    ================================================================ */
 
