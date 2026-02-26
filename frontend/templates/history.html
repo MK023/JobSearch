@@ -67,8 +67,8 @@
         </div>
         {% endfor %}
       {% else %}
-        <div class="card" style="text-align:center;padding:var(--space-3xl)">
-          <p style="color:var(--text-secondary);margin-bottom:var(--space-lg)">Nessuna candidatura trovata</p>
+        <div class="card empty-state">
+          <p class="mb-lg">Nessuna candidatura trovata</p>
           <a href="/analyze" class="btn btn-primary">Analizza un'offerta &rarr;</a>
         </div>
       {% endif %}
@@ -78,5 +78,5 @@
 </div>
 {% endblock %}
 {% block scripts_extra %}
-<script src="{{ url_for('static', path='js/modules/history.js') }}?v=11"></script>
+<script src="{{ url_for('static', path='js/modules/history.js') }}?v=12"></script>
 {% endblock %}

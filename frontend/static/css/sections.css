@@ -85,9 +85,6 @@
   border-radius: var(--radius-full);
 }
 
-.section-count-muted {
-  background: var(--bg-tertiary);
-}
 
 .meta-small {
   font-size: var(--text-xs);
@@ -143,6 +140,14 @@
 /* ================================================================
    ANALYZE PAGE
    ================================================================ */
+
+.analyze-tabs {
+  max-width: 320px;
+}
+
+.button-row-between {
+  justify-content: space-between;
+}
 
 /* CV status is in components.css */
 
@@ -797,6 +802,13 @@
   margin-bottom: var(--space-md);
 }
 
+.cv-status-label {
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
 .cv-form {
   margin-top: var(--space-md);
 }
@@ -828,6 +840,18 @@
   font-size: var(--text-xl);
   font-weight: var(--weight-bold);
   color: var(--text-primary);
+}
+
+.credit-value-editable {
+  cursor: text;
+  outline: none;
+  padding: var(--space-xs);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+.credit-value-editable:focus {
+  background: var(--bg-secondary);
 }
 
 .credit-remaining-ok { color: var(--accent-green); }
@@ -1036,32 +1060,6 @@
   border: 1px solid var(--border-medium);
 }
 
-
-/* ================================================================
-   LOADING INDICATOR
-   ================================================================ */
-
-.loading {
-  display: none;
-  align-items: center;
-  gap: var(--space-md);
-  padding: var(--space-md);
-  color: var(--text-secondary);
-  font-size: var(--text-sm);
-}
-
-.loading.on {
-  display: flex;
-}
-
-.spinner {
-  width: 18px;
-  height: 18px;
-  border: 2px solid var(--border-medium);
-  border-top-color: var(--accent-blue);
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-}
 
 /* ================================================================
    SELECT INLINE (cover letter language picker)

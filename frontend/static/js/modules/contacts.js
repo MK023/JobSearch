@@ -6,11 +6,11 @@ function toggleContacts(id) {
     var el = document.getElementById('contacts-' + id);
     if (!el) return;
 
-    if (el.style.display === 'none') {
-        el.style.display = '';
+    if (el.classList.contains('hidden')) {
+        el.classList.remove('hidden');
         loadContacts(id);
     } else {
-        el.style.display = 'none';
+        el.classList.add('hidden');
     }
 }
 
@@ -46,7 +46,7 @@ function loadContacts(id) {
                     lnk.href = c.linkedin_url;
                     lnk.target = '_blank';
                     lnk.textContent = '\uD83D\uDCBC LinkedIn';
-                    lnk.style.cssText = 'color:#818cf8;font-size:.75rem;margin-left:6px';
+                    lnk.className = 'link-subtle';
                     row.appendChild(lnk);
                 }
 

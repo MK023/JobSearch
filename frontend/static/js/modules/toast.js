@@ -10,6 +10,7 @@ function showToast(message, type) {
 
   var toast = document.createElement("div");
   toast.className = "toast toast-" + type;
+  toast.setAttribute("role", "alert");
   toast.textContent = message;
   container.appendChild(toast);
 

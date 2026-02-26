@@ -28,7 +28,7 @@
 
   {# Tab toggle: Singola / Multipla — Alpine.js #}
   <div x-data="{ tab: 'single', analyzeLoading: false }">
-    <div class="tabs" style="max-width:320px;margin-bottom:var(--space-xl)">
+    <div class="tabs analyze-tabs mb-xl">
       <button class="tab" :class="{ active: tab === 'single' }" @click="tab = 'single'">Singola</button>
       <button class="tab" :class="{ active: tab === 'batch' }" @click="tab = 'batch'">Multipla</button>
     </div>
@@ -45,7 +45,7 @@
           <label for="job_description" class="form-label">Descrizione del lavoro</label>
           <textarea id="job_description" name="job_description" class="textarea" placeholder="Incolla la descrizione del lavoro..." required rows="10"></textarea>
         </div>
-        <div class="button-row" style="justify-content:space-between">
+        <div class="button-row button-row-between">
           <div class="toggle">
             <input type="radio" name="model" value="haiku" id="model-haiku" checked>
             <label for="model-haiku">Haiku</label>
@@ -69,6 +69,6 @@
 </div>
 {% endblock %}
 {% block scripts_extra %}
-<script src="{{ url_for('static', path='js/modules/spending.js') }}?v=11"></script>
-<script src="{{ url_for('static', path='js/modules/batch.js') }}?v=11"></script>
+<script src="{{ url_for('static', path='js/modules/spending.js') }}?v=12"></script>
+<script src="{{ url_for('static', path='js/modules/batch.js') }}?v=12"></script>
 {% endblock %}

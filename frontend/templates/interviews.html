@@ -18,10 +18,10 @@
 
   {# ---- Upcoming interviews ---- #}
   {% if upcoming_interviews %}
-  <section style="margin-bottom:var(--space-xl)">
+  <section class="mb-xl">
     <h2 class="section-title">Prossimi colloqui</h2>
     {% for iv in upcoming_interviews %}
-    <div class="card interview-card" style="margin-bottom:var(--space-md)">
+    <div class="card interview-card mb-md">
       <div class="interview-card-header">
         <div>
           <span class="interview-date">{{ iv.scheduled_at[:10] }}</span>
@@ -42,17 +42,17 @@
     {% endfor %}
   </section>
   {% else %}
-  <div class="card" style="text-align:center;padding:var(--space-3xl)">
-    <p style="color:var(--text-secondary)">Nessun colloquio pianificato</p>
+  <div class="card empty-state">
+    <p>Nessun colloquio pianificato</p>
   </div>
   {% endif %}
 
   {# ---- Past interviews ---- #}
   {% if past_interviews %}
-  <details class="past-section" style="margin-top:var(--space-xl)">
-    <summary class="section-title" style="cursor:pointer">Colloqui passati ({{ past_interviews|length }})</summary>
+  <details class="past-section mt-xl">
+    <summary class="section-title">Colloqui passati ({{ past_interviews|length }})</summary>
     {% for iv in past_interviews %}
-    <div class="card interview-card" style="margin-top:var(--space-md);opacity:0.75">
+    <div class="card interview-card mt-md opacity-75">
       <div class="interview-card-header">
         <div>
           <span class="interview-date">{{ iv.scheduled_at.strftime('%d %b %Y') }}</span>

@@ -49,9 +49,11 @@ function refreshSpending() {
             if (remainEl) {
                 if (d.remaining !== null) {
                     remainEl.textContent = '$' + d.remaining.toFixed(4);
-                    remainEl.style.color = d.remaining < 1 ? '#f87171' : d.remaining < 3 ? '#fbbf24' : '#34d399';
+                    remainEl.classList.remove('credit-remaining-low', 'credit-remaining-warn', 'credit-remaining-ok');
+                    remainEl.classList.add(d.remaining < 1 ? 'credit-remaining-low' : d.remaining < 3 ? 'credit-remaining-warn' : 'credit-remaining-ok');
                 } else {
                     remainEl.textContent = '-';
+                    remainEl.classList.remove('credit-remaining-low', 'credit-remaining-warn', 'credit-remaining-ok');
                 }
             }
 

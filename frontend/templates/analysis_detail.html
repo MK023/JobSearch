@@ -2,15 +2,19 @@
 {% block title %}{{ result.role }} @ {{ result.company }} — Job Search{% endblock %}
 
 {% block head_extra %}
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css"
+      integrity="sha384-RkASv+6KfBMW9eknReJIJ6b3UnjKOKC5bOUaNgIY778NFbQ8MtWq9Lr/khUgqtTt"
+      crossorigin="anonymous">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css"
+      integrity="sha384-heUUtXw0Djj2DElfLOVPlASSWFKNL3JDY6s3FEqQD03GYyWOeophY5DsfEG40sYX"
+      crossorigin="anonymous">
 {% endblock %}
 
 {% block content %}
 <div class="content-inner">
 
   {# Back link #}
-  <a href="/history" class="link-subtle" style="display:inline-block;margin-bottom:var(--space-lg)">&larr; Storico</a>
+  <a href="/history" class="link-back">&larr; Storico</a>
 
   {# Flash messages #}
   {% if error %}
@@ -44,11 +48,11 @@
           {% if result.application_method %}
           {% set am = result.application_method %}
           {% if am.type == 'email' %}
-          <span class="hero-tag hero-tag-salary">&#x1F4E7; <a href="mailto:{{ am.detail }}" style="color:inherit">{{ am.detail }}</a></span>
+          <span class="hero-tag hero-tag-salary">&#x1F4E7; <a href="mailto:{{ am.detail }}" class="color-inherit">{{ am.detail }}</a></span>
           {% elif am.type == 'quick_apply' %}
           <span class="hero-tag hero-tag-potential">&#x26A1; Quick Apply{{ ' - ' + am.detail if am.detail else '' }}</span>
           {% elif am.type == 'link' %}
-          <span class="hero-tag hero-tag-salary">&#x1F517; <a href="{{ am.detail }}" target="_blank" style="color:inherit">Candidati qui</a></span>
+          <span class="hero-tag hero-tag-salary">&#x1F517; <a href="{{ am.detail }}" target="_blank" class="color-inherit">Candidati qui</a></span>
           {% else %}
           <span class="hero-tag hero-tag-neutral">&#x2753; Metodo candidatura non chiaro</span>
           {% endif %}
@@ -106,7 +110,7 @@
       <div class="gaps-section">
         <div class="section-header">
           <div class="section-title">&#x1F331; Aree di crescita</div>
-          <span class="section-count section-count-muted">{{ result.gaps|length }}</span>
+          <span class="section-count">{{ result.gaps|length }}</span>
         </div>
         {% for g in result.gaps %}
           {% if g is mapping %}
@@ -156,39 +160,7 @@
 
     {# ---- 8. Cover letter section ---- #}
     {% if cover_letter %}
-    <div class="card card-mb" id="cover-letter-result-card">
-      <h2>&#x2709;&#xFE0F; Cover Letter generata</h2>
-      <div>
-        <div class="advice-title advice-title-green">&#x1F4DD; Lettera</div>
-        <div id="cover-letter-text" class="cover-letter-text">{{ cover_letter.content }}</div>
-        <div class="button-row" style="margin-top: 8px; gap: 8px;">
-          <button class="btn btn-muted btn-sm"
-                  onclick="navigator.clipboard.writeText(document.getElementById('cover-letter-text').textContent)">
-            &#x1F4CB; Copia lettera
-          </button>
-          <a href="/cover-letter/{{ cover_letter.id }}/download" class="btn btn-success btn-sm" style="text-decoration: none;">
-            &#x1F4C4; Scarica DOCX
-          </a>
-        </div>
-      </div>
-      {% if cover_letter.subject_lines %}
-      <div>
-        <div class="advice-title advice-title-amber" style="margin-top: 12px;">&#x1F4E7; Subject line suggerite</div>
-        {% for sl in cover_letter.subject_lines %}
-        <div class="subject-line-row">
-          <span class="subject-line-text" id="subject-line-{{ loop.index }}">{{ sl }}</span>
-          <button class="btn btn-muted btn-sm"
-                  onclick="navigator.clipboard.writeText(document.getElementById('subject-line-{{ loop.index }}').textContent)">
-            &#x1F4CB; Copia
-          </button>
-        </div>
-        {% endfor %}
-      </div>
-      {% endif %}
-      <div class="meta-small">
-        &#x1F4B0; Costo: ${{ '%.5f' % cover_letter.cost_usd }} | &#x1F524; {{ (cover_letter.tokens_input or 0) + (cover_letter.tokens_output or 0) }} token
-      </div>
-    </div>
+    {% include "partials/cover_letter_result.html" %}
     {% elif current and current.status.value != 'scartato' %}
     <div class="card card-mb" id="cover-letter-card">
       <h2>&#x2709;&#xFE0F; Cover Letter &mdash; <span class="cover-letter-ref">{{ current.role or 'Ruolo' }} @ {{ current.company or 'Azienda' }}</span></h2>
@@ -249,7 +221,7 @@
 
   {# ---- 10. Contacts panel (hidden by default) ---- #}
   {% if current %}
-  <div class="card card-mb" id="contacts-{{ current.id }}" style="display:none">
+  <div class="card card-mb hidden" id="contacts-{{ current.id }}">
     <h3>&#x1F464; Contatti — {{ current.company or 'Azienda' }}</h3>
     <div id="contacts-list-{{ current.id }}" class="contacts-list"></div>
     <div class="contacts-form">
@@ -291,11 +263,15 @@
 {% endblock %}
 
 {% block scripts_extra %}
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/it.js"></script>
-<script src="{{ url_for('static', path='js/modules/status.js') }}?v=11"></script>
-<script src="{{ url_for('static', path='js/modules/interview.js') }}?v=11"></script>
-<script src="{{ url_for('static', path='js/modules/contacts.js') }}?v=11"></script>
-<script src="{{ url_for('static', path='js/modules/followup.js') }}?v=11"></script>
-<script src="{{ url_for('static', path='js/modules/spending.js') }}?v=11"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"
+        integrity="sha384-5JqMv4L/Xa0hfvtF06qboNdhvuYXUku9ZrhZh3bSk8VXF0A/RuSLHpLsSV9Zqhl6"
+        crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/it.js"
+        integrity="sha384-XmcRqh+m1SV0CoktEURItyTPYrm018EIiFIZnaIFP1lRvHRna9DduiTvO+TQzcTJ"
+        crossorigin="anonymous"></script>
+<script src="{{ url_for('static', path='js/modules/status.js') }}?v=12"></script>
+<script src="{{ url_for('static', path='js/modules/interview.js') }}?v=12"></script>
+<script src="{{ url_for('static', path='js/modules/contacts.js') }}?v=12"></script>
+<script src="{{ url_for('static', path='js/modules/followup.js') }}?v=12"></script>
+<script src="{{ url_for('static', path='js/modules/spending.js') }}?v=12"></script>
 {% endblock %}

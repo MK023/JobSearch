@@ -20,7 +20,7 @@
   {% endif %}
 
   {# 3 metric cards #}
-  <div class="grid-3col" style="margin-bottom:var(--space-xl)">
+  <div class="grid-3col mb-xl">
     {% with value=dashboard.total|default(0), label="Analizzate" %}{% include "partials/metric_card.html" %}{% endwith %}
     {% with value=dashboard.applied|default(0), label="Candidature" %}{% include "partials/metric_card.html" %}{% endwith %}
     {% with value=dashboard.avg_score|default(0), label="Score medio" %}{% include "partials/metric_card.html" %}{% endwith %}
@@ -28,7 +28,7 @@
 
   {# Upcoming interview banners #}
   {% if upcoming_interviews %}
-  <section style="margin-bottom:var(--space-xl)">
+  <section class="mb-xl">
     {% for iv in upcoming_interviews %}
     <div class="upcoming-interview-banner" id="upcoming-banner">
       <div class="upcoming-interview-info">
@@ -45,7 +45,7 @@
 
   {# Follow-up alerts section #}
   {% if followup_alerts %}
-  <section style="margin-bottom:var(--space-xl)">
+  <section class="mb-xl">
     <h2 class="section-title">Follow-up in scadenza</h2>
     {% include "partials/followup_alerts.html" %}
   </section>
@@ -62,8 +62,8 @@
         {% include "partials/job_card.html" %}
       {% endfor %}
     {% else %}
-      <div class="card" style="text-align:center;padding:var(--space-3xl)">
-        <p style="color:var(--text-secondary);margin-bottom:var(--space-lg)">Nessuna analisi ancora</p>
+      <div class="card empty-state">
+        <p class="mb-lg">Nessuna analisi ancora</p>
         <a href="/analyze" class="btn btn-primary">Analizza la tua prima offerta &rarr;</a>
       </div>
     {% endif %}
@@ -72,7 +72,7 @@
 </div>
 {% endblock %}
 {% block scripts_extra %}
-<script src="{{ url_for('static', path='js/modules/spending.js') }}?v=11"></script>
-<script src="{{ url_for('static', path='js/modules/dashboard.js') }}?v=11"></script>
-<script src="{{ url_for('static', path='js/modules/followup.js') }}?v=11"></script>
+<script src="{{ url_for('static', path='js/modules/spending.js') }}?v=12"></script>
+<script src="{{ url_for('static', path='js/modules/dashboard.js') }}?v=12"></script>
+<script src="{{ url_for('static', path='js/modules/followup.js') }}?v=12"></script>
 {% endblock %}

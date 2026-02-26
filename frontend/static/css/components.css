@@ -321,48 +321,6 @@
   transition: stroke-dashoffset 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ---- Score circle (legacy) ---- */
-
-.score-circle {
-  border-radius: var(--radius-full);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 800;
-  flex-shrink: 0;
-}
-
-.score-circle-lg {
-  width: 72px;
-  height: 72px;
-  font-size: var(--text-2xl);
-}
-
-.score-circle-sm {
-  width: 36px;
-  height: 36px;
-  font-size: var(--text-base);
-  font-weight: var(--weight-bold);
-}
-
-.score-apply {
-  background: rgb(48 209 88 / 15%);
-  color: var(--accent-green);
-  border: 3px solid var(--accent-green);
-}
-
-.score-consider {
-  background: rgb(255 159 10 / 15%);
-  color: var(--accent-orange);
-  border: 3px solid var(--accent-orange);
-}
-
-.score-skip {
-  background: rgb(255 69 58 / 15%);
-  color: var(--accent-red);
-  border: 3px solid var(--accent-red);
-}
-
 /* ---- Job card ---- */
 
 .job-card {

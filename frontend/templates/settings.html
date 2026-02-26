@@ -17,12 +17,12 @@
   {% endif %}
 
   {# ---- CV Section ---- #}
-  <section class="card settings-section" x-data="{ editing: false }" style="margin-bottom:var(--space-xl)">
-    <h2 class="section-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg> Curriculum Vitae</h2>
+  <section class="card settings-section" x-data="{ editing: false }">
+    <h2 class="section-title"><svg class="icon-align" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg> Curriculum Vitae</h2>
 
     {% if cv and cv.raw_text %}
-    <div class="cv-status-row" x-show="!editing" style="display:flex;align-items:center;gap:var(--space-md);margin-bottom:var(--space-md)">
-      <span style="color:var(--text-secondary);display:inline-flex;align-items:center;gap:var(--space-xs)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg> {{ cv.name|default("CV caricato") }}</span>
+    <div class="cv-status-row" x-show="!editing">
+      <span class="cv-status-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg> {{ cv.name|default("CV caricato") }}</span>
       <button class="btn btn-ghost btn-sm" @click="editing = true">Modifica</button>
       <a href="/cv/download" class="btn btn-ghost btn-sm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg> Download</a>
     </div>
@@ -31,18 +31,18 @@
     <form action="/cv" method="post" class="cv-form"
           x-show="editing || {{ 'false' if cv and cv.raw_text else 'true' }}"
           {% if cv and cv.raw_text %}x-cloak{% endif %}>
-      <div class="form-group" style="margin-bottom:var(--space-md)">
+      <div class="form-group">
         <label for="cv_name" class="form-label">Nome</label>
         <input type="text" id="cv_name" name="cv_name" class="input"
                value="{{ cv.name|default('') if cv else '' }}" placeholder="Il tuo nome (opzionale)">
       </div>
-      <div class="form-group" style="margin-bottom:var(--space-md)">
+      <div class="form-group">
         <label for="cv-text" class="form-label">Testo CV</label>
         <textarea id="cv-text" name="cv_text" class="textarea" rows="12" required
                   placeholder="Incolla il testo del tuo CV..."
                   aria-label="Testo del CV">{{ cv.raw_text|default('') if cv else '' }}</textarea>
       </div>
-      <div class="form-actions" style="display:flex;gap:var(--space-sm);flex-wrap:wrap">
+      <div class="form-actions">
         <button type="submit" class="btn btn-primary btn-sm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Salva CV</button>
         <button type="button" class="btn btn-ghost btn-sm" onclick="uploadCV()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg> Carica file</button>
         <input type="file" id="cv-file" accept=".txt,.pdf,.doc,.docx,.rtf" hidden>
@@ -55,36 +55,33 @@
 
   {# ---- API Credits Section ---- #}
   <section class="card settings-section">
-    <h2 class="section-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg> Crediti API</h2>
+    <h2 class="section-title"><svg class="icon-align" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg> Crediti API</h2>
 
-    <div class="credits-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md)">
-      <div>
-        <div class="meta-small" style="margin-bottom:var(--space-xs)">Budget</div>
-        <div id="spending-budget" contenteditable="true"
-             style="font-size:var(--text-xl);font-weight:700;color:var(--text-primary);cursor:text;outline:none;padding:var(--space-xs);border-radius:var(--radius-sm);transition:background .15s"
-             onfocus="this.style.background='var(--bg-secondary)'"
-             onblur="this.style.background='transparent'">${{ "%.2f"|format(spending.budget|default(0)) }}</div>
+    <div class="credits-grid">
+      <div class="credit-item">
+        <div class="credit-label">Budget</div>
+        <div id="spending-budget" class="credit-value credit-value-editable" contenteditable="true">${{ "%.2f"|format(spending.budget|default(0)) }}</div>
       </div>
-      <div>
-        <div class="meta-small" style="margin-bottom:var(--space-xs)">Speso totale</div>
-        <div id="spending-cost" style="font-size:var(--text-xl);font-weight:700;color:var(--text-primary)">${{ "%.4f"|format(spending.total_cost_usd|default(0)) }}</div>
+      <div class="credit-item">
+        <div class="credit-label">Speso totale</div>
+        <div id="spending-cost" class="credit-value">${{ "%.4f"|format(spending.total_cost_usd|default(0)) }}</div>
       </div>
-      <div>
-        <div class="meta-small" style="margin-bottom:var(--space-xs)">Rimanente</div>
-        <div id="spending-remaining" style="font-size:var(--text-xl);font-weight:700;{% if spending.remaining is not none %}color:{% if spending.remaining < 1 %}#f87171{% elif spending.remaining < 3 %}#fbbf24{% else %}#34d399{% endif %}{% else %}color:var(--text-secondary){% endif %}">
+      <div class="credit-item">
+        <div class="credit-label">Rimanente</div>
+        <div id="spending-remaining" class="credit-value {% if spending.remaining is not none %}{% if spending.remaining < 1 %}credit-remaining-low{% elif spending.remaining < 3 %}credit-remaining-warn{% else %}credit-remaining-ok{% endif %}{% endif %}">
           {% if spending.remaining is not none %}${{ "%.4f"|format(spending.remaining) }}{% else %}-{% endif %}
         </div>
       </div>
-      <div>
-        <div class="meta-small" style="margin-bottom:var(--space-xs)">Oggi</div>
-        <div id="spending-today" style="font-size:var(--text-xl);font-weight:700;color:var(--text-primary)">
+      <div class="credit-item">
+        <div class="credit-label">Oggi</div>
+        <div id="spending-today" class="credit-value">
           ${{ "%.4f"|format(spending.today_cost_usd|default(0)) }}
           ({{ spending.today_analyses|default(0) }} analisi, {{ (spending.today_tokens_input|default(0) + spending.today_tokens_output|default(0))|int }} tok)
         </div>
       </div>
     </div>
 
-    <div class="meta-small" style="margin-top:var(--space-md);color:var(--text-tertiary)">
+    <div class="meta-small mt-md">
       Totale: {{ spending.total_analyses|default(0) }} analisi &middot;
       {{ (spending.total_tokens_input|default(0) + spending.total_tokens_output|default(0))|int }} token
     </div>
@@ -94,8 +91,8 @@
 {% endblock %}
 
 {% block scripts_extra %}
-<script src="{{ url_for('static', path='js/modules/cv.js') }}?v=11"></script>
-<script src="{{ url_for('static', path='js/modules/spending.js') }}?v=11"></script>
+<script src="{{ url_for('static', path='js/modules/cv.js') }}?v=12"></script>
+<script src="{{ url_for('static', path='js/modules/spending.js') }}?v=12"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function() {
     if (typeof initCVUpload === 'function') initCVUpload();

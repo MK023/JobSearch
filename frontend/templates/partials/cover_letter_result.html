@@ -12,7 +12,7 @@
                 Copia lettera
             </button>
             {% if cover_letter %}
-            <a href="/cover-letter/{{ cover_letter.id }}/download" class="btn btn-primary btn-sm" style="text-decoration: none;">
+            <a href="/cover-letter/{{ cover_letter.id }}/download" class="btn btn-primary btn-sm no-underline">
                 Scarica DOCX
             </a>
             {% endif %}
@@ -21,7 +21,7 @@
 
     {% if cover_letter_result.subject_lines %}
     <div>
-        <div class="advice-title advice-title-amber" style="margin-top: 12px;">Subject line suggerite</div>
+        <div class="advice-title advice-title-amber mt-md">Subject line suggerite</div>
         {% for sl in cover_letter_result.subject_lines %}
         <div class="subject-line-row">
             <span class="subject-line-text" id="subject-line-{{ loop.index }}">{{ sl }}</span>

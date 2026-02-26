@@ -38,10 +38,10 @@ function openInterviewModal(analysisId) {
             populateInterviewForm(data);
             document.getElementById('interview-modal-title').textContent = 'Modifica colloquio';
         }
-        modal.style.display = 'flex';
+        modal.classList.remove('hidden');
     })
     .catch(function() {
-        modal.style.display = 'flex';
+        modal.classList.remove('hidden');
     });
 }
 
@@ -54,7 +54,7 @@ function destroyFlatpickrInstances() {
 
 function closeInterviewModal() {
     var modal = document.getElementById('interview-modal');
-    modal.style.display = 'none';
+    modal.classList.add('hidden');
     destroyFlatpickrInstances();
     resetInterviewForm();
 }
