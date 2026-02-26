@@ -1,23 +1,31 @@
-{% extends "base.html" %}
-
-{% block title %}🔐 Login - Job Search Command Center{% endblock %}
-
-{% block body %}
-<div class="login-wrapper">
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — Job Search Command Center</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='css/variables.css') }}?v=10">
+  <link rel="stylesheet" href="{{ url_for('static', path='css/base.css') }}?v=10">
+  <link rel="stylesheet" href="{{ url_for('static', path='css/layout.css') }}?v=10">
+  <link rel="stylesheet" href="{{ url_for('static', path='css/components.css') }}?v=10">
+</head>
+<body>
+  <div class="login-wrapper">
     <div class="login-card">
-        <h1>🎯 Job Search</h1>
+      <h1>Job Search</h1>
 
-        {% if error %}
-        <div class="message-banner message-error">❌ {{ error }}</div>
-        {% endif %}
+      {% if error %}
+      <div class="message-banner banner-error">{{ error }}</div>
+      {% endif %}
 
-        <form method="post" action="/login">
-            <label for="login-email" class="sr-only">Email</label>
-            <input type="email" name="email" id="login-email" placeholder="📧 Email" aria-label="Email" required autofocus>
-            <label for="login-password" class="sr-only">Password</label>
-            <input type="password" name="password" id="login-password" placeholder="🔒 Password" aria-label="Password" required>
-            <button type="submit" class="btn btn-primary btn-full">🚀 Accedi</button>
-        </form>
+      <form method="post" action="/login">
+        <label for="login-email" class="sr-only">Email</label>
+        <input type="email" name="email" id="login-email" class="input" placeholder="Email" aria-label="Email" required autofocus>
+        <label for="login-password" class="sr-only">Password</label>
+        <input type="password" name="password" id="login-password" class="input" placeholder="Password" aria-label="Password" required>
+        <button type="submit" class="btn btn-primary btn-full">Accedi</button>
+      </form>
     </div>
-</div>
-{% endblock %}
+  </div>
+</body>
+</html>
