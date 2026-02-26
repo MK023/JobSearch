@@ -1,19 +1,19 @@
 {# Cover letter result display #}
 {% if cover_letter_result %}
 <div class="card card-mb" id="cover-letter-result-card">
-    <h2>✉️ Cover Letter generata</h2>
+    <h2>Cover Letter generata</h2>
 
     <div>
-        <div class="advice-title advice-title-green">📝 Lettera</div>
+        <div class="advice-title advice-title-green">Lettera</div>
         <div id="cover-letter-text" class="cover-letter-text">{{ cover_letter_result.cover_letter }}</div>
-        <div class="button-row" style="margin-top: 8px; gap: 8px;">
-            <button class="btn btn-muted btn-sm"
+        <div class="button-row">
+            <button class="btn btn-ghost btn-sm"
                     onclick="navigator.clipboard.writeText(document.getElementById('cover-letter-text').textContent)">
-                📋 Copia lettera
+                Copia lettera
             </button>
             {% if cover_letter %}
-            <a href="/cover-letter/{{ cover_letter.id }}/download" class="btn btn-success btn-sm" style="text-decoration: none;">
-                📄 Scarica DOCX
+            <a href="/cover-letter/{{ cover_letter.id }}/download" class="btn btn-primary btn-sm" style="text-decoration: none;">
+                Scarica DOCX
             </a>
             {% endif %}
         </div>
@@ -21,13 +21,13 @@
 
     {% if cover_letter_result.subject_lines %}
     <div>
-        <div class="advice-title advice-title-amber" style="margin-top: 12px;">📧 Subject line suggerite</div>
+        <div class="advice-title advice-title-amber" style="margin-top: 12px;">Subject line suggerite</div>
         {% for sl in cover_letter_result.subject_lines %}
         <div class="subject-line-row">
             <span class="subject-line-text" id="subject-line-{{ loop.index }}">{{ sl }}</span>
-            <button class="btn btn-muted btn-sm"
+            <button class="btn btn-ghost btn-sm"
                     onclick="navigator.clipboard.writeText(document.getElementById('subject-line-{{ loop.index }}').textContent)">
-                📋 Copia
+                Copia
             </button>
         </div>
         {% endfor %}
@@ -35,7 +35,7 @@
     {% endif %}
 
     <div class="meta-small">
-        💰 Costo: ${{ '%.5f' % cover_letter_result.cost_usd }} | 🔤 {{ cover_letter_result.tokens.total }} token
+        Costo: ${{ '%.5f' % cover_letter_result.cost_usd }} | {{ cover_letter_result.tokens.total }} token
     </div>
 </div>
 {% endif %}

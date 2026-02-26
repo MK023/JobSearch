@@ -1,9 +1,9 @@
 {# Interview booking modal #}
 <div id="interview-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeInterviewModal()">
-    <div class="modal-content card">
+    <div class="modal-content">
         <div class="modal-header">
             <h3 id="interview-modal-title">Prenota colloquio</h3>
-            <button class="btn btn-sm" onclick="closeInterviewModal()" aria-label="Chiudi">&times;</button>
+            <button class="btn btn-ghost btn-sm" onclick="closeInterviewModal()" aria-label="Chiudi">&times;</button>
         </div>
         <form id="interview-form" onsubmit="return submitInterview(event)">
             <input type="hidden" id="iv-analysis-id" value="">
@@ -57,7 +57,7 @@
             </div>
 
             <div class="modal-actions">
-                <button type="button" class="btn btn-sm" onclick="closeInterviewModal()">Annulla</button>
+                <button type="button" class="btn btn-ghost btn-sm" onclick="closeInterviewModal()">Annulla</button>
                 <button type="submit" class="btn btn-primary btn-sm">Conferma</button>
             </div>
         </form>

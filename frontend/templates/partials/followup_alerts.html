@@ -1,7 +1,7 @@
 {# Follow-up alerts for overdue applications #}
 {% if followup_alerts %}
 <div class="followup-alerts">
-    <h2>🔔 Follow-up da fare</h2>
+    <h2 class="section-title">Follow-up da fare</h2>
 
     {% for fa in followup_alerts %}
     <div class="followup-alert" id="followup-{{ fa.id }}">
@@ -11,9 +11,9 @@
             <div class="followup-alert-days">Candidatura inviata il {{ fa.applied_at.strftime('%d/%m/%Y') if fa.applied_at else '?' }}</div>
         </div>
         <div class="followup-alert-actions">
-            <button class="btn btn-success btn-sm" onclick="genFollowup('{{ fa.id }}')">✉️ Genera email</button>
-            <button class="btn btn-info btn-sm" onclick="genLinkedin('{{ fa.id }}')">💼 LinkedIn</button>
-            <button class="btn btn-muted btn-sm" onclick="markFollowupDone('{{ fa.id }}')">✅ Fatto</button>
+            <button class="btn btn-primary btn-sm" onclick="genFollowup('{{ fa.id }}')">Genera email</button>
+            <button class="btn btn-ghost btn-sm" onclick="genLinkedin('{{ fa.id }}')">LinkedIn</button>
+            <button class="btn btn-ghost btn-sm" onclick="markFollowupDone('{{ fa.id }}')">Fatto</button>
         </div>
     </div>
     <div id="generated-area-{{ fa.id }}"></div>
