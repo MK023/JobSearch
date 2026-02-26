@@ -72,7 +72,7 @@ An AI-powered job search platform built with a microservices architecture. Paste
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
-| **Reverse Proxy** | Nginx 1.27 | Static files, SSL termination, load balancing |
+| **Reverse Proxy** | Nginx 1.27 | Static files, SSL termination, security headers, gzip |
 | **Backend** | FastAPI + Uvicorn | REST API + SSR (Jinja2) |
 | **ORM** | SQLAlchemy 2.0 | Declarative models, UUID PKs, JSONB columns |
 | **Migrations** | Alembic | Versioned schema migrations |
@@ -81,7 +81,7 @@ An AI-powered job search platform built with a microservices architecture. Paste
 | **AI** | Anthropic Claude | Analysis, generation, 7-strategy JSON parsing + Pydantic validation |
 | **Auth** | Session + bcrypt | Server-side sessions, password hashing |
 | **Rate Limiting** | slowapi | Per-IP limits, X-Forwarded-For aware |
-| **Security** | Custom middleware | CORS, HSTS, CSP headers, trusted hosts |
+| **Security** | Custom middleware + Nginx | CORS, HSTS, CSP, SRI, gzip, trusted hosts |
 | **Encryption** | Fernet (cryptography) | SMTP credential encryption at rest |
 | **CI/CD** | GitHub Actions | Lint (ruff) + Frontend lint + Security audit + Test + Docker build |
 | **Deploy** | Fly.io / Docker Compose | Single-container PaaS or multi-container local |
@@ -193,8 +193,8 @@ JobSearch/
 │   │       └── interview_detail.html    # Interview detail card
 │   └── static/
 │       ├── css/                    # Modular CSS (stylelint-validated)
-│       │   ├── variables.css       # Apple dark palette tokens
-│       │   ├── base.css            # Reset, typography, animations
+│       │   ├── variables.css       # Design tokens (dark + light theme)
+│       │   ├── base.css            # Reset, typography, utility classes
 │       │   ├── layout.css          # Sidebar, content area, responsive
 │       │   ├── components.css      # Cards, buttons, score ring, toast
 │       │   └── sections.css        # Page-specific styles
@@ -342,13 +342,17 @@ Budget tracking is built-in: set a limit, monitor spending in real-time.
 
 - CORS with configurable origins
 - TrustedHost middleware
-- Security headers (X-Content-Type-Options, X-Frame-Options, HSTS, Referrer-Policy)
+- Security headers (X-Content-Type-Options, X-Frame-Options, HSTS, Referrer-Policy, Permissions-Policy)
+- Content-Security-Policy (CSP) via Nginx with script/style source whitelisting
+- Subresource Integrity (SRI) on all CDN dependencies (Alpine.js, flatpickr)
+- Gzip compression on text/CSS/JS/JSON/SVG via Nginx
 - Rate limiting (60/min global, 10/min on AI routes, 5/min on login)
 - bcrypt password hashing
 - Session-based auth with configurable TTL
 - Nginx as reverse proxy (backend not exposed to host)
 - Fernet encryption for SMTP credentials at rest
 - DB audit trail for all user actions
+- ARIA accessibility: `role="alert"` on toasts, `role="dialog"` + `aria-modal` on modals
 - Bandit security scanning + pip-audit dependency audit in CI
 - Input size limits (CV 100KB, job description 50KB) to prevent token explosion
 - Budget hard stop: analysis blocked when budget is exhausted

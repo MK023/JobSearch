@@ -659,12 +659,21 @@ Il CSS e' suddiviso in file tematici, validati con **stylelint** in CI:
 
 ```
 frontend/static/css/
-├── variables.css    # Apple dark palette tokens (colori, spacing, radius, font)
-├── base.css         # Reset, tipografia, fadeIn animation, shimmer
-├── layout.css       # Sidebar (60px fixed), content area, responsive grid
+├── variables.css    # Design tokens: dark (default) + light theme
+├── base.css         # Reset, tipografia, fadeIn, utility classes (.hidden, .mb-*, .mt-*)
+├── layout.css       # Sidebar (60px fixed), content area, responsive grid, theme toggle
 ├── components.css   # Score ring, cards, buttons, toast, modal, pills
-└── sections.css     # Stili specifici per ogni pagina (dashboard, analyze, etc.)
+└── sections.css     # Stili specifici per ogni pagina + flatpickr light mode overrides
 ```
+
+### Tema chiaro/scuro
+
+Il sistema supporta un toggle dark/light mode:
+
+- I token di colore sono in `variables.css`: `:root` (dark, default) e `html[data-theme="light"]`
+- Il tema viene persistito in `localStorage` e applicato prima del rendering CSS tramite un inline script in `<head>` (previene FOUC)
+- Il toggle e' un bottone sun/moon nella sidebar, gestito da `toggleTheme()` in `app.js`
+- Flatpickr ha overrides CSS dedicati per il tema chiaro in `sections.css`
 
 ### JavaScript modules
 
@@ -696,7 +705,8 @@ Il frontend implementa le best practice di accessibilita' web:
 - **Screen reader text**: classe `.sr-only` per testo leggibile solo da screen reader (es. label dei form)
 - **Focus visible**: `:focus-visible` con outline `2px solid` per navigazione da tastiera, rimosso per click
 - **ARIA labels**: `aria-label` su textarea, input, select e bottoni senza testo visibile
-- **ARIA roles**: `role="status"` su messaggi di successo e spinner, `role="alert"` su messaggi di errore
+- **ARIA roles**: `role="status"` su messaggi di successo e spinner, `role="alert"` su toast notifications
+- **ARIA dialog**: `role="dialog"` + `aria-modal="true"` + `aria-labelledby` sul modale colloquio
 - **Label association**: `<label for="id">` su tutti i campi del form login
 - **Landmark**: `id="main-content"` sulla pagina principale per lo skip link
 
@@ -785,6 +795,26 @@ Header proxy fondamentali:
 - `X-Forwarded-For`: IP reale del client (usato da rate limiter e audit)
 - `X-Forwarded-Proto`: schema originale (per HSTS)
 - `Host`: hostname originale
+
+### Security headers (nginx)
+
+Nginx aggiunge header di sicurezza su tutte le risposte:
+
+- `X-Frame-Options: DENY` — previene clickjacking
+- `X-Content-Type-Options: nosniff` — previene MIME sniffing
+- `Referrer-Policy: strict-origin-when-cross-origin` — limita il referrer
+- `Permissions-Policy` — disabilita geolocation, camera, microfono
+- `Content-Security-Policy` — whitelist per script (self + unpkg + jsdelivr), stili (self + inline + jsdelivr), frame-ancestors none
+
+### Gzip compression
+
+Nginx comprime risposte > 1KB per i tipi: text/plain, text/css, text/javascript, application/javascript, application/json, image/svg+xml. Il backend in Fly.io (senza nginx) non ha gzip nativo, ma Fly.io edge proxy fornisce compressione.
+
+### Subresource Integrity (SRI)
+
+Tutte le risorse CDN hanno attributo `integrity` con hash SHA-384 per garantire che il contenuto non sia stato alterato:
+- Alpine.js (unpkg.com)
+- Flatpickr CSS, JS e locale (cdn.jsdelivr.net)
 
 ### Healthcheck
 
