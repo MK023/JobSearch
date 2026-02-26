@@ -1,0 +1,7 @@
+{# Metric Card — big number + label
+   Usage: {% with value=29, label="Analizzate" %}{% include "partials/metric_card.html" %}{% endwith %}
+#}
+<div class="metric-card">
+  <span class="metric-value">{{ value }}</span>
+  <span class="metric-label">{{ label }}</span>
+</div>
