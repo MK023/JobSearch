@@ -38,18 +38,19 @@ def analyze(
     cv = get_latest_cv(db, user.id)
 
     if not cv:
-        return _render_page(request, db, user, error="Salva prima il tuo CV!")
+        request.session["flash_error"] = "Salva prima il tuo CV!"
+        return RedirectResponse(url="/analyze", status_code=303)
 
     # Input size validation
     if len(job_description) > settings.max_job_desc_size:
-        return _render_page(
-            request, db, user, error=f"Descrizione troppo lunga (max {settings.max_job_desc_size} caratteri)"
-        )
+        request.session["flash_error"] = f"Descrizione troppo lunga (max {settings.max_job_desc_size} caratteri)"
+        return RedirectResponse(url="/analyze", status_code=303)
 
     # Budget check
     budget_ok, budget_msg = check_budget_available(db)
     if not budget_ok:
-        return _render_page(request, db, user, error=budget_msg)
+        request.session["flash_error"] = budget_msg
+        return RedirectResponse(url="/analyze", status_code=303)
 
     ch = content_hash(cv.raw_text, job_description)
     model_id = MODELS.get(model, MODELS["haiku"])
@@ -57,9 +58,10 @@ def analyze(
 
     if existing:
         audit(db, request, "analyze_cache", f"id={existing.id}")
-        result = rebuild_result(existing, from_cache=True)
-        msg = f"Analisi gia' eseguita il {existing.created_at.strftime('%d/%m/%Y %H:%M')} - mostro il risultato salvato"
-        return _render_page(request, db, user, current=existing, result=result, message=msg)
+        request.session["flash_message"] = (
+            f"Analisi gia' eseguita il {existing.created_at.strftime('%d/%m/%Y %H:%M')} - mostro il risultato salvato"
+        )
+        return RedirectResponse(url=f"/analysis/{existing.id}", status_code=303)
 
     try:
         analysis, result = run_analysis(db, cv.raw_text, cv.id, job_description, job_url, model, cache)
@@ -75,9 +77,10 @@ def analyze(
         db.rollback()
         audit(db, request, "analyze_error", str(exc))
         db.commit()
-        return _render_page(request, db, user, error=f"Analisi AI fallita: {exc}")
+        request.session["flash_error"] = f"Analisi AI fallita: {exc}"
+        return RedirectResponse(url="/analyze", status_code=303)
 
-    return _render_page(request, db, user, current=analysis, result=result)
+    return RedirectResponse(url=f"/analysis/{analysis.id}", status_code=303)
 
 
 @router.get("/analysis/{analysis_id}", response_class=HTMLResponse)
@@ -87,47 +90,34 @@ def view_analysis(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    from ..contacts.service import get_contacts_for_analysis
+    from ..interview.service import get_interview_by_analysis
+
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:
-        return RedirectResponse(url="/", status_code=303)
+        return RedirectResponse(url="/history", status_code=303)
 
     result = rebuild_result(analysis)
-    return _render_page(request, db, user, current=analysis, result=result)
+    interview = get_interview_by_analysis(db, analysis.id)
+    cover_letter = analysis.cover_letters[0] if analysis.cover_letters else None
+    contacts = get_contacts_for_analysis(db, str(analysis.id))
 
-
-def _render_page(request: Request, db: Session, user: User, **extra) -> HTMLResponse:
-    """Build the full page context and render index.html."""
-    from ..analysis.service import get_recent_analyses
-    from ..cv.service import get_latest_cv
-    from ..dashboard.service import get_active_applications, get_dashboard, get_followup_alerts, get_spending
-    from ..notifications.service import check_and_send_followup_reminders
-
-    cv = get_latest_cv(db, user.id)
-    analyses = get_recent_analyses(db)
-    followup_alerts = get_followup_alerts(db)
-    from ..interview.service import get_upcoming_interviews
-
-    upcoming_interviews = get_upcoming_interviews(db)
-    active_apps = get_active_applications(db)
-
-    # Send any pending email notifications
-    check_and_send_followup_reminders(db)
-
-    dashboard = get_dashboard(db)
-    spending = get_spending(db)
-
-    ctx = {
-        "request": request,
-        "user": user,
-        "cv": cv,
-        "analyses": analyses,
-        "spending": spending,
-        "followup_alerts": followup_alerts,
-        "dashboard": dashboard,
-        "active_apps": active_apps,
-        "upcoming_interviews": upcoming_interviews,
-    }
-    ctx.update(extra)
+    error = request.session.pop("flash_error", None)
+    message = request.session.pop("flash_message", None)
 
     templates = request.app.state.templates
-    return templates.TemplateResponse("index.html", ctx)
+    return templates.TemplateResponse(
+        "analysis_detail.html",
+        {
+            "request": request,
+            "user": user,
+            "active_page": "history",
+            "current": analysis,
+            "result": result,
+            "interview": interview,
+            "cover_letter": cover_letter,
+            "contacts": contacts,
+            "error": error,
+            "message": message,
+        },
+    )

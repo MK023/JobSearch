@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     cors_allow_credentials: bool = True
 
     # Security
-    trusted_hosts: str = "*"
+    trusted_hosts: str = "localhost,127.0.0.1"
     rate_limit_default: str = "60/minute"
     rate_limit_analyze: str = "10/minute"
 

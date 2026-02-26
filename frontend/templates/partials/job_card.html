@@ -1,0 +1,26 @@
+{# Job Card — compact row for lists
+   Usage: {% with analysis=item %}{% include "partials/job_card.html" %}{% endwith %}
+#}
+<a href="/analysis/{{ analysis.id }}" class="job-card">
+  <div class="job-card-score">
+    {% with score=analysis.score | default(0), size="sm" %}
+      {% include "partials/score_ring.html" %}
+    {% endwith %}
+  </div>
+  <div class="job-card-info">
+    <span class="job-card-role">{{ analysis.role | default('—') }}</span>
+    <span class="job-card-meta">
+      {{ analysis.company | default('—') }}
+      {% if analysis.work_mode %} · {{ analysis.work_mode }}{% endif %}
+    </span>
+  </div>
+  <div class="job-card-end">
+    <span class="job-card-date">
+      {{ analysis.created_at.strftime('%d %b · %H:%M') if analysis.created_at else '' }}
+    </span>
+    {% set status_val = analysis.status.value if analysis.status is not string else analysis.status %}
+    <span class="status-badge status-{{ status_val | default('da_valutare') }}">
+      {{ status_val | default('da_valutare') | replace('_', ' ') | upper }}
+    </span>
+  </div>
+</a>

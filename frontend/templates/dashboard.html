@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Job Search Command Center{% endblock %}
+{% block content %}
+<div class="content-inner">
+
+  {# Page header with title + credit pill #}
+  <div class="page-header">
+    <h1 class="page-title">Job Search Command Center</h1>
+    {% if spending and spending.remaining is not none %}
+    <span class="pill pill-credit">${{ "%.2f"|format(spending.remaining|default(0)) }} rimanenti</span>
+    {% endif %}
+  </div>
+
+  {# Flash messages #}
+  {% if error %}
+  <div class="message-banner banner-error">{{ error }}</div>
+  {% endif %}
+  {% if message %}
+  <div class="message-banner banner-success">{{ message }}</div>
+  {% endif %}
+
+  {# 3 metric cards #}
+  <div class="grid-3col" style="margin-bottom:var(--space-xl)">
+    {% with value=dashboard.total|default(0), label="Analizzate" %}{% include "partials/metric_card.html" %}{% endwith %}
+    {% with value=dashboard.applied|default(0), label="Candidature" %}{% include "partials/metric_card.html" %}{% endwith %}
+    {% with value=dashboard.avg_score|default(0), label="Score medio" %}{% include "partials/metric_card.html" %}{% endwith %}
+  </div>
+
+  {# Upcoming interview banners #}
+  {% if upcoming_interviews %}
+  <section style="margin-bottom:var(--space-xl)">
+    {% for iv in upcoming_interviews %}
+    <div class="upcoming-interview-banner" id="upcoming-banner">
+      <div class="upcoming-interview-info">
+        <div class="upcoming-interview-title">Colloquio in arrivo — {{ iv.company }}</div>
+        <div class="upcoming-interview-meta">
+          {{ iv.role }} &middot; {{ iv.scheduled_at[:16]|replace('T', ' ') }}{% if iv.interview_type %} &middot; {% if iv.interview_type == 'virtual' %}Video call{% elif iv.interview_type == 'phone' %}Telefonico{% else %}In presenza{% endif %}{% endif %}
+        </div>
+      </div>
+      <a href="/analysis/{{ iv.analysis_id }}" class="btn btn-sm btn-primary">Apri dettaglio</a>
+    </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  {# Follow-up alerts section #}
+  {% if followup_alerts %}
+  <section style="margin-bottom:var(--space-xl)">
+    <h2 class="section-title">Follow-up in scadenza</h2>
+    {% include "partials/followup_alerts.html" %}
+  </section>
+  {% endif %}
+
+  {# Recent analyses — up to 5 job cards #}
+  <section>
+    <div class="section-header">
+      <h2 class="section-title">Ultime analisi</h2>
+      <a href="/history" class="link-subtle">Vedi tutto lo storico &rarr;</a>
+    </div>
+    {% if analyses %}
+      {% for analysis in analyses %}
+        {% include "partials/job_card.html" %}
+      {% endfor %}
+    {% else %}
+      <div class="card" style="text-align:center;padding:var(--space-3xl)">
+        <p style="color:var(--text-secondary);margin-bottom:var(--space-lg)">Nessuna analisi ancora</p>
+        <a href="/analyze" class="btn btn-primary">Analizza la tua prima offerta &rarr;</a>
+      </div>
+    {% endif %}
+  </section>
+
+</div>
+{% endblock %}
+{% block scripts_extra %}
+<script src="{{ url_for('static', path='js/modules/spending.js') }}?v=10"></script>
+<script src="{{ url_for('static', path='js/modules/dashboard.js') }}?v=10"></script>
+<script src="{{ url_for('static', path='js/modules/followup.js') }}?v=10"></script>
+{% endblock %}

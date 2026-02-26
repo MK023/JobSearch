@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Colloqui — Job Search{% endblock %}
+
+{% block content %}
+<div class="content-inner">
+
+  <div class="page-header">
+    <h1 class="page-title">Colloqui</h1>
+  </div>
+
+  {# Flash messages #}
+  {% if error %}
+  <div class="message-banner banner-error">{{ error }}</div>
+  {% endif %}
+  {% if message %}
+  <div class="message-banner banner-success">{{ message }}</div>
+  {% endif %}
+
+  {# ---- Upcoming interviews ---- #}
+  {% if upcoming_interviews %}
+  <section style="margin-bottom:var(--space-xl)">
+    <h2 class="section-title">Prossimi colloqui</h2>
+    {% for iv in upcoming_interviews %}
+    <div class="card interview-card" style="margin-bottom:var(--space-md)">
+      <div class="interview-card-header">
+        <div>
+          <span class="interview-date">{{ iv.scheduled_at[:10] }}</span>
+          <span class="interview-time">{{ iv.scheduled_at[11:16] }}{% if iv.ends_at %} &ndash; {{ iv.ends_at[11:16] }}{% endif %}</span>
+        </div>
+        <span class="tag">{% if iv.interview_type == 'virtual' %}&#x1F4BB; Video call{% elif iv.interview_type == 'phone' %}&#x1F4DE; Telefonico{% elif iv.interview_type == 'in_person' %}&#x1F3E2; In presenza{% else %}&#x1F4BB; virtual{% endif %}</span>
+      </div>
+      <a href="/analysis/{{ iv.analysis_id }}" class="interview-card-role">
+        {{ iv.role }} @ {{ iv.company }}
+      </a>
+      {% if iv.meeting_link %}
+      <div class="interview-card-detail">
+        <span>&#x1F517;</span>
+        <a href="{{ iv.meeting_link }}" target="_blank" rel="noopener noreferrer">{{ iv.meeting_link }}</a>
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </section>
+  {% else %}
+  <div class="card" style="text-align:center;padding:var(--space-3xl)">
+    <p style="color:var(--text-secondary)">Nessun colloquio pianificato</p>
+  </div>
+  {% endif %}
+
+  {# ---- Past interviews ---- #}
+  {% if past_interviews %}
+  <details class="past-section" style="margin-top:var(--space-xl)">
+    <summary class="section-title" style="cursor:pointer">Colloqui passati ({{ past_interviews|length }})</summary>
+    {% for iv in past_interviews %}
+    <div class="card interview-card" style="margin-top:var(--space-md);opacity:0.75">
+      <div class="interview-card-header">
+        <div>
+          <span class="interview-date">{{ iv.scheduled_at.strftime('%d %b %Y') }}</span>
+          <span class="interview-time">{{ iv.scheduled_at.strftime('%H:%M') }}{% if iv.ends_at %} &ndash; {{ iv.ends_at.strftime('%H:%M') }}{% endif %}</span>
+        </div>
+        <span class="tag">{% if iv.interview_type == 'virtual' %}&#x1F4BB; Video call{% elif iv.interview_type == 'phone' %}&#x1F4DE; Telefonico{% elif iv.interview_type == 'in_person' %}&#x1F3E2; In presenza{% elif iv.interview_type %}{{ iv.interview_type }}{% else %}&#x1F4BB; virtual{% endif %}</span>
+      </div>
+      {% if iv.analysis %}
+      <a href="/analysis/{{ iv.analysis_id }}" class="interview-card-role">
+        {{ iv.analysis.role }} @ {{ iv.analysis.company }}
+      </a>
+      {% else %}
+      <a href="/analysis/{{ iv.analysis_id }}" class="interview-card-role">
+        Analisi {{ iv.analysis_id }}
+      </a>
+      {% endif %}
+      {% if iv.recruiter_name %}
+      <div class="interview-card-detail">
+        <span>&#x1F464;</span>
+        <span>{{ iv.recruiter_name }}{% if iv.recruiter_email %} &middot; <a href="mailto:{{ iv.recruiter_email }}">{{ iv.recruiter_email }}</a>{% endif %}</span>
+      </div>
+      {% endif %}
+      {% if iv.meeting_link %}
+      <div class="interview-card-detail">
+        <span>&#x1F517;</span>
+        <a href="{{ iv.meeting_link }}" target="_blank" rel="noopener noreferrer">{{ iv.meeting_link }}</a>
+      </div>
+      {% endif %}
+      {% if iv.phone_number %}
+      <div class="interview-card-detail">
+        <span>&#x1F4DE;</span>
+        <span>{{ iv.phone_number }}{% if iv.phone_pin %} (PIN: {{ iv.phone_pin }}){% endif %}</span>
+      </div>
+      {% endif %}
+      {% if iv.location %}
+      <div class="interview-card-detail">
+        <span>&#x1F4CD;</span>
+        <span>{{ iv.location }}</span>
+      </div>
+      {% endif %}
+      {% if iv.notes %}
+      <div class="interview-card-detail">
+        <span>&#x1F4DD;</span>
+        <span>{{ iv.notes }}</span>
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </details>
+  {% endif %}
+
+</div>
+{% endblock %}

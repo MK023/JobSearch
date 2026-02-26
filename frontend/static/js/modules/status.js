@@ -26,26 +26,20 @@ function setStatus(btn) {
             });
             btn.classList.add('active');
 
-            // Update history item
+            // Update history item if on history page
             var histItem = document.querySelector('[data-hist-id="' + id + '"]');
             if (histItem) {
                 histItem.dataset.histStatus = status;
                 var stEl = histItem.querySelector('.status-badge');
                 if (stEl) {
-                    stEl.className = 'status-badge status-badge-' + status;
-                    var icons = {
-                        'da_valutare': '\uD83D\uDD0D',
-                        'candidato': '\uD83D\uDCE8',
-                        'colloquio': '\uD83D\uDDE3\uFE0F',
-                        'scartato': '\u274C'
-                    };
-                    stEl.textContent = (icons[status] || '') + ' ' + status.replace('_', ' ');
+                    stEl.className = 'status-badge status-' + status;
+                    stEl.textContent = status.replace('_', ' ').toUpperCase();
                 }
             }
 
-            refreshHistoryCounts();
-            refreshSpending();
-            refreshDashboard();
+            if (typeof refreshHistoryCounts === 'function') refreshHistoryCounts();
+            if (typeof refreshSpending === 'function') refreshSpending();
+            if (typeof refreshDashboard === 'function') refreshDashboard();
 
             // Hide cover letter if rejected
             var clCard = document.getElementById('cover-letter-card');
@@ -55,14 +49,13 @@ function setStatus(btn) {
                 if (clResult) clResult.style.display = 'none';
             }
 
-            // Remove result card only when rejected
-            if (status === 'scartato') {
-                var resCard = btn.closest('.result-card');
-                if (resCard) resCard.remove();
-            }
+            showToast('Stato aggiornato: ' + status.replace('_', ' '), 'success');
         }
     })
-    .catch(function(e) { console.error('setStatus error:', e); });
+    .catch(function(e) {
+        console.error('setStatus error:', e);
+        showToast('Errore aggiornamento stato', 'error');
+    });
 }
 
 
@@ -76,30 +69,26 @@ function deleteAnalysis(id) {
     .then(function(r) { return r.json(); })
     .then(function(data) {
         if (data.ok) {
-            // Remove from history
+            // If on history page, remove the item from DOM
             var histItem = document.querySelector('[data-hist-id="' + id + '"]');
-            if (histItem) histItem.remove();
-
-            // Remove result card
-            var actionsEl = document.getElementById('actions-' + id);
-            if (actionsEl) {
-                var resCard = actionsEl.closest('.result-card');
-                if (resCard) resCard.remove();
+            if (histItem) {
+                histItem.remove();
+                if (typeof refreshHistoryCounts === 'function') refreshHistoryCounts();
             }
 
-            // Hide cover letter if it was for this analysis
-            var clIdEl = document.getElementById('cover-letter-analysis-id');
-            if (clIdEl && clIdEl.value === id) {
-                var clCard = document.getElementById('cover-letter-card');
-                if (clCard) clCard.style.display = 'none';
-                var clResult = document.getElementById('cover-letter-result-card');
-                if (clResult) clResult.style.display = 'none';
-            }
+            if (typeof refreshSpending === 'function') refreshSpending();
+            if (typeof refreshDashboard === 'function') refreshDashboard();
 
-            refreshHistoryCounts();
-            refreshSpending();
-            refreshDashboard();
+            showToast('Analisi eliminata', 'success');
+
+            // If on detail page, redirect to history
+            if (window.location.pathname.indexOf('/analysis/') !== -1) {
+                window.location.href = '/history';
+            }
         }
     })
-    .catch(function(e) { console.error('deleteAnalysis error:', e); });
+    .catch(function(e) {
+        console.error('deleteAnalysis error:', e);
+        showToast('Errore eliminazione analisi', 'error');
+    });
 }

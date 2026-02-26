@@ -1,0 +1,22 @@
+{# Score Ring — SVG circular progress indicator
+   Usage: {% with score=75, size="lg" %}{% include "partials/score_ring.html" %}{% endwith %}
+   Sizes: "lg" (96px detail page), "sm" (48px list cards)
+#}
+{% set ring_size = 96 if size == "lg" else 48 %}
+{% set r = 30 %}
+{% set circumference = 188.5 %}
+{% set offset = circumference - (circumference * (score | float / 100)) %}
+{% set score_color = "var(--score-green)" if score | float >= 75 else ("var(--score-orange)" if score | float >= 50 else "var(--score-red)") %}
+
+<div class="score-ring-wrapper score-ring-{{ size | default('sm') }}">
+  <svg viewBox="0 0 72 72" width="{{ ring_size }}" height="{{ ring_size }}"
+       class="score-ring" role="img" aria-label="Score: {{ score }}">
+    <circle cx="36" cy="36" r="{{ r }}" stroke="var(--bg-tertiary)" stroke-width="5" fill="none"/>
+    <circle cx="36" cy="36" r="{{ r }}" stroke="{{ score_color }}" stroke-width="5" fill="none"
+            stroke-dasharray="{{ circumference }}" stroke-dashoffset="{{ offset }}"
+            stroke-linecap="round" transform="rotate(-90 36 36)" class="score-ring-progress"/>
+    <text x="36" y="41" text-anchor="middle" class="score-ring-text"
+          fill="var(--text-primary)" font-size="{{ '20' if size == 'lg' else '14' }}"
+          font-weight="700">{{ score | int }}</text>
+  </svg>
+</div>

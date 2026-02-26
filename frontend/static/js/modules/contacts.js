@@ -59,7 +59,10 @@ function loadContacts(id) {
                 list.appendChild(row);
             });
         })
-        .catch(function(e) { console.error('loadContacts error:', e); });
+        .catch(function(e) {
+        console.error('loadContacts error:', e);
+        showToast('Errore caricamento contatti', 'error');
+    });
 }
 
 function saveContact(analysisId) {
@@ -81,16 +84,26 @@ function saveContact(analysisId) {
                     var el = document.getElementById('ct-' + f + '-' + analysisId);
                     if (el && f !== 'company') el.value = '';
                 });
+                showToast('Contatto aggiunto', 'success');
             }
         })
-        .catch(function(e) { console.error('saveContact error:', e); });
+        .catch(function(e) {
+            console.error('saveContact error:', e);
+            showToast('Errore salvataggio contatto', 'error');
+        });
 }
 
 function deleteContact(contactId, analysisId) {
     fetch('/api/v1/contacts/' + contactId, { method: 'DELETE' })
         .then(function(r) { return r.json(); })
         .then(function(data) {
-            if (data.ok) loadContacts(analysisId);
+            if (data.ok) {
+                loadContacts(analysisId);
+                showToast('Contatto eliminato', 'success');
+            }
         })
-        .catch(function(e) { console.error('deleteContact error:', e); });
+        .catch(function(e) {
+            console.error('deleteContact error:', e);
+            showToast('Errore eliminazione contatto', 'error');
+        });
 }

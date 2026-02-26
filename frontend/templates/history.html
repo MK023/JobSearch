@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Storico — Job Search Command Center{% endblock %}
+{% block content %}
+<div class="content-inner" x-data="historyTabs()" x-init="init()">
+
+  <div class="page-header">
+    <h1 class="page-title">Storico candidature</h1>
+  </div>
+
+  {# Flash messages #}
+  {% if error %}
+  <div class="message-banner banner-error">{{ error }}</div>
+  {% endif %}
+  {% if message %}
+  <div class="message-banner banner-success">{{ message }}</div>
+  {% endif %}
+
+  {# Tabs with badge counts — tab names must match historyTabs() in history.js #}
+  <div class="tabs" id="history-tabs">
+    <button class="tab" :class="{ active: activeTab === 'valutazione' }"
+            @click="switchTab('valutazione')">
+      In valutazione <span class="tab-badge" x-text="counts.valutazione">{{ counts.da_valutare|default(0) }}</span>
+    </button>
+    <button class="tab" :class="{ active: activeTab === 'candidature' }"
+            @click="switchTab('candidature')">
+      Candidature <span class="tab-badge" x-text="counts.candidature">{{ counts.candidato|default(0) }}</span>
+    </button>
+    <button class="tab" :class="{ active: activeTab === 'colloqui' }"
+            @click="switchTab('colloqui')">
+      Colloqui <span class="tab-badge" x-text="counts.colloqui">{{ counts.colloquio|default(0) }}</span>
+    </button>
+    <button class="tab" :class="{ active: activeTab === 'scartati' }"
+            @click="switchTab('scartati')">
+      Scartati <span class="tab-badge" x-text="counts.scartati">{{ counts.scartato|default(0) }}</span>
+    </button>
+  </div>
+
+  {# Job card list — history-section class needed for refreshHistoryCounts() in history.js #}
+  <div class="history-section">
+    <div class="history-list" id="history-list">
+      {% if analyses %}
+        {% for analysis in analyses %}
+        <div class="history-item"
+             data-hist-id="{{ analysis.id }}"
+             data-hist-status="{{ analysis.status.value }}">
+          <a href="/analysis/{{ analysis.id }}" class="history-item-link">
+            <div class="job-card-score">
+              {% with score=analysis.score|default(0), size="sm" %}
+                {% include "partials/score_ring.html" %}
+              {% endwith %}
+            </div>
+            <div class="history-item-info">
+              <div class="history-item-role">{{ analysis.role or 'Ruolo sconosciuto' }}</div>
+              <div class="history-item-company">{{ analysis.company or 'Azienda sconosciuta' }}{% if analysis.work_mode %} &middot; {{ analysis.work_mode }}{% endif %}{% if analysis.salary_info %} &middot; {{ analysis.salary_info }}{% endif %}</div>
+            </div>
+            {% set status_val = analysis.status.value if analysis.status is not string else analysis.status %}
+            <span class="status-badge status-{{ status_val|default('da_valutare') }}">
+              {{ status_val|default('da_valutare')|replace('_', ' ')|upper }}
+            </span>
+            <span class="history-item-date">
+              {{ analysis.created_at.strftime('%d/%m %H:%M') if analysis.created_at else '' }}
+            </span>
+          </a>
+          <button class="btn btn-danger btn-sm" onclick="deleteAnalysis('{{ analysis.id }}')" title="Elimina">&#x1f5d1;</button>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="card" style="text-align:center;padding:var(--space-3xl)">
+          <p style="color:var(--text-secondary);margin-bottom:var(--space-lg)">Nessuna candidatura trovata</p>
+          <a href="/analyze" class="btn btn-primary">Analizza un'offerta &rarr;</a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+{% block scripts_extra %}
+<script src="{{ url_for('static', path='js/modules/history.js') }}?v=10"></script>
+{% endblock %}

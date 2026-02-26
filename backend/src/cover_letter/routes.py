@@ -3,11 +3,10 @@
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 
-from ..analysis.routes import _render_page
-from ..analysis.service import get_analysis_by_id, rebuild_result
+from ..analysis.service import get_analysis_by_id
 from ..audit.service import audit
 from ..auth.models import User
 from ..config import settings
@@ -35,16 +34,19 @@ def generate_cover_letter_route(
 ):
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:
-        return _render_page(request, db, user, error="Analisi non trovata")
+        request.session["flash_error"] = "Analisi non trovata"
+        return RedirectResponse(url="/history", status_code=303)
 
     cv = get_latest_cv(db, user.id)
     if not cv:
-        return _render_page(request, db, user, error="CV non trovato")
+        request.session["flash_error"] = "CV non trovato"
+        return RedirectResponse(url=f"/analysis/{analysis_id}", status_code=303)
 
     # Budget check
     budget_ok, budget_msg = check_budget_available(db)
     if not budget_ok:
-        return _render_page(request, db, user, error=budget_msg)
+        request.session["flash_error"] = budget_msg
+        return RedirectResponse(url=f"/analysis/{analysis_id}", status_code=303)
 
     try:
         cl, result = create_cover_letter(db, analysis, cv.raw_text, language, model, cache)
@@ -61,19 +63,11 @@ def generate_cover_letter_route(
         db.rollback()
         audit(db, request, "cover_letter_error", str(exc))
         db.commit()
-        return _render_page(request, db, user, error=f"Generazione cover letter fallita: {exc}")
+        request.session["flash_error"] = f"Generazione cover letter fallita: {exc}"
+        return RedirectResponse(url=f"/analysis/{analysis_id}", status_code=303)
 
-    analysis_result = rebuild_result(analysis)
-    return _render_page(
-        request,
-        db,
-        user,
-        current=analysis,
-        result=analysis_result,
-        cover_letter=cl,
-        cover_letter_result=result,
-        message=f"Cover letter generata! ({language})",
-    )
+    request.session["flash_message"] = f"Cover letter generata! ({language})"
+    return RedirectResponse(url=f"/analysis/{analysis_id}", status_code=303)
 
 
 @router.get("/cover-letter/{cover_letter_id}/download")

@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+{% block title %}{{ result.role }} @ {{ result.company }} — Job Search{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
+{% endblock %}
+
+{% block content %}
+<div class="content-inner">
+
+  {# Back link #}
+  <a href="/history" class="link-subtle" style="display:inline-block;margin-bottom:var(--space-lg)">&larr; Storico</a>
+
+  {# Flash messages #}
+  {% if error %}
+  <div class="message-banner banner-error">{{ error }}</div>
+  {% endif %}
+  {% if message %}
+  <div class="message-banner banner-success">{{ message }}</div>
+  {% endif %}
+
+  {% if result %}
+  <div class="card result-card">
+
+    {# ---- 1. HERO: score ring + role + recommendation + tags ---- #}
+    <div class="result-hero">
+      {% with score=result.score, size="lg" %}{% include "partials/score_ring.html" %}{% endwith %}
+      <div class="result-hero-info">
+        <div class="result-hero-top">
+          <span class="recommendation-badge recommendation-{{ result.recommendation }}">{% if result.recommendation == 'APPLY' %}&#x1F680;{% elif result.recommendation == 'CONSIDER' %}&#x1F914;{% else %}&#x26D4;{% endif %} {{ result.recommendation }}</span>
+          <span class="result-hero-role">{{ result.role }} @ {{ result.company }}</span>
+        </div>
+        {% if result.score_label %}<div class="result-hero-label">{{ result.score_label }}</div>{% endif %}
+        <div class="result-hero-tags">
+          {% if result.location %}<span class="hero-tag hero-tag-location">&#x1F4CD; {{ result.location }}</span>{% endif %}
+          {% if result.work_mode %}<span class="hero-tag hero-tag-mode">&#x1F3E2; {{ result.work_mode }}</span>{% endif %}
+          {% if result.salary_info %}<span class="hero-tag hero-tag-salary">&#x1F4B6; {{ result.salary_info }}</span>{% endif %}
+          {% if result.potential_score %}<span class="hero-tag hero-tag-potential">&#x1F4C8; Potenziale: {{ result.potential_score }}/100</span>{% endif %}
+          {% if result.gap_timeline %}<span class="hero-tag hero-tag-timeline">&#x23F1;&#xFE0F; {{ result.gap_timeline }}</span>{% endif %}
+          {% if result.confidence %}<span class="hero-tag hero-tag-neutral">&#x1F3AF; {{ result.confidence }}{% if result.confidence_reason %}: {{ result.confidence_reason }}{% endif %}</span>{% endif %}
+
+          {# Application method #}
+          {% if result.application_method %}
+          {% set am = result.application_method %}
+          {% if am.type == 'email' %}
+          <span class="hero-tag hero-tag-salary">&#x1F4E7; <a href="mailto:{{ am.detail }}" style="color:inherit">{{ am.detail }}</a></span>
+          {% elif am.type == 'quick_apply' %}
+          <span class="hero-tag hero-tag-potential">&#x26A1; Quick Apply{{ ' - ' + am.detail if am.detail else '' }}</span>
+          {% elif am.type == 'link' %}
+          <span class="hero-tag hero-tag-salary">&#x1F517; <a href="{{ am.detail }}" target="_blank" style="color:inherit">Candidati qui</a></span>
+          {% else %}
+          <span class="hero-tag hero-tag-neutral">&#x2753; Metodo candidatura non chiaro</span>
+          {% endif %}
+          {% if am.note %}<span class="hero-tag hero-tag-neutral">&#x1F4CC; {{ am.note }}</span>{% endif %}
+          {% endif %}
+
+          {# Glassdoor rating tag #}
+          {% if result.company_reputation and result.company_reputation.glassdoor_estimate and result.company_reputation.glassdoor_estimate != 'non disponibile' %}
+          {% set gr = result.company_reputation.glassdoor_estimate|replace('/5','')|float(0) %}
+          {% set is_api = result.company_reputation.source|default('') == 'glassdoor_api' %}
+          <span class="hero-tag {% if gr >= 4.0 %}hero-tag-salary{% elif gr >= 3.0 %}hero-tag-timeline{% else %}tag-danger{% endif %}" title="{{ result.company_reputation.note|default('') }}">
+            &#x2B50; Glassdoor {% if not is_api %}~{% endif %}{{ result.company_reputation.glassdoor_estimate }}{% if is_api and result.company_reputation.review_count %} ({{ '{:,}'.format(result.company_reputation.review_count).replace(',', '.') }}){% endif %}
+          </span>
+          {% elif result.company_reputation %}
+          <span class="hero-tag hero-tag-neutral" title="{{ result.company_reputation.note|default('') }}">&#x2B50; Glassdoor: n/d</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="result-hero-meta">
+        <span class="pill">&#x1F4B2;{{ '%.5f' % result.cost_usd }}</span><br>
+        <span class="meta-small">{{ result.tokens.total }} tok{% if result.from_cache %} &middot; &#x26A1; cache{% endif %}</span>
+      </div>
+    </div>
+
+    {# ---- Company reputation details ---- #}
+    {% include "partials/result_reputation.html" %}
+
+    {# ---- 2. AI VERDICT ---- #}
+    {% if result.summary %}
+    <div class="result-verdict">&#x1F9E0; {{ result.summary }}</div>
+    {% endif %}
+
+    {# ---- 3. JOB SUMMARY ---- #}
+    {% if result.job_summary %}
+    <div class="job-summary-box">
+      <div class="job-summary-title">&#x1F4CB; Punti chiave dell'annuncio</div>
+      <div class="job-summary-text">{{ result.job_summary }}</div>
+    </div>
+    {% endif %}
+
+    {# ---- 4. STRENGTHS + GAPS side by side ---- #}
+    <div class="grid-2col-start">
+      <div class="strengths-section">
+        <div class="section-header">
+          <div class="section-title">&#x1F4AA; I tuoi punti di forza</div>
+          <span class="section-count">{{ result.strengths|length }}</span>
+        </div>
+        {% for s in result.strengths %}
+        <div class="strength-item">
+          <span class="strength-icon">&#x2705;</span>
+          <span class="strength-text">{{ s }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="gaps-section">
+        <div class="section-header">
+          <div class="section-title">&#x1F331; Aree di crescita</div>
+          <span class="section-count section-count-muted">{{ result.gaps|length }}</span>
+        </div>
+        {% for g in result.gaps %}
+          {% if g is mapping %}
+          <div class="gap-item gap-item-{{ g.severity }}">
+            <div class="gap-top">
+              <span class="severity-badge severity-{{ g.severity }}">{% if g.severity == 'bloccante' %}&#x1F6AB;{% elif g.severity == 'importante' %}&#x26A0;&#xFE0F;{% else %}&#x1F4A1;{% endif %} {{ g.severity }}</span>
+              <span class="gap-name">{{ g.gap }}</span>
+              {% if g.closable %}<span class="closable-badge closable-yes">&#x2728; colmabile</span>{% else %}<span class="closable-badge closable-no">&#x1F512; difficile</span>{% endif %}
+            </div>
+            {% if g.how %}
+            <div class="gap-how">
+              <span class="gap-how-icon">&#x1F6E0;&#xFE0F;</span>
+              <span>{{ g.how }}</span>
+            </div>
+            {% endif %}
+          </div>
+          {% else %}
+          <span class="tag tag-danger">{{ g }}</span>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+
+    {# ---- 5. PERSONALIZED ADVICE ---- #}
+    {% if result.advice %}
+    <div class="advice-box">
+      <div class="advice-title">&#x1F4A1; Il mio consiglio per te</div>
+      <div class="advice-text">{{ result.advice }}</div>
+    </div>
+    {% endif %}
+
+    {# ---- 6. Interview details ---- #}
+    {% include "partials/interview_detail.html" %}
+
+    {# ---- 7. Interview prep scripts ---- #}
+    {% if current and current.interview and result.interview_scripts %}
+    <details>
+      <summary>&#x1F3A4; Preparazione colloquio ({{ result.interview_scripts|length }} domande)</summary>
+      {% for s in result.interview_scripts %}
+      <div class="interview-script">
+        <div class="interview-question">&#x2753; {{ s.question }}</div>
+        <div class="interview-answer">&#x1F4AC; {{ s.suggested_answer }}</div>
+      </div>
+      {% endfor %}
+    </details>
+    {% endif %}
+
+    {# ---- 8. Cover letter section ---- #}
+    {% if cover_letter %}
+    <div class="card card-mb" id="cover-letter-result-card">
+      <h2>&#x2709;&#xFE0F; Cover Letter generata</h2>
+      <div>
+        <div class="advice-title advice-title-green">&#x1F4DD; Lettera</div>
+        <div id="cover-letter-text" class="cover-letter-text">{{ cover_letter.content }}</div>
+        <div class="button-row" style="margin-top: 8px; gap: 8px;">
+          <button class="btn btn-muted btn-sm"
+                  onclick="navigator.clipboard.writeText(document.getElementById('cover-letter-text').textContent)">
+            &#x1F4CB; Copia lettera
+          </button>
+          <a href="/cover-letter/{{ cover_letter.id }}/download" class="btn btn-success btn-sm" style="text-decoration: none;">
+            &#x1F4C4; Scarica DOCX
+          </a>
+        </div>
+      </div>
+      {% if cover_letter.subject_lines %}
+      <div>
+        <div class="advice-title advice-title-amber" style="margin-top: 12px;">&#x1F4E7; Subject line suggerite</div>
+        {% for sl in cover_letter.subject_lines %}
+        <div class="subject-line-row">
+          <span class="subject-line-text" id="subject-line-{{ loop.index }}">{{ sl }}</span>
+          <button class="btn btn-muted btn-sm"
+                  onclick="navigator.clipboard.writeText(document.getElementById('subject-line-{{ loop.index }}').textContent)">
+            &#x1F4CB; Copia
+          </button>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      <div class="meta-small">
+        &#x1F4B0; Costo: ${{ '%.5f' % cover_letter.cost_usd }} | &#x1F524; {{ (cover_letter.tokens_input or 0) + (cover_letter.tokens_output or 0) }} token
+      </div>
+    </div>
+    {% elif current and current.status.value != 'scartato' %}
+    <div class="card card-mb" id="cover-letter-card">
+      <h2>&#x2709;&#xFE0F; Cover Letter &mdash; <span class="cover-letter-ref">{{ current.role or 'Ruolo' }} @ {{ current.company or 'Azienda' }}</span></h2>
+      <form method="post" action="/cover-letter" id="cover-letter-form"
+            @submit="coverLetterLoading = true">
+        <input type="hidden" name="analysis_id" value="{{ current.id }}" id="cover-letter-analysis-id">
+        <div class="button-row">
+          <select name="language" class="select-inline" aria-label="Lingua cover letter">
+            <option value="italiano">&#x1F1EE;&#x1F1F9; Italiano</option>
+            <option value="english">&#x1F1EC;&#x1F1E7; English</option>
+            <option value="francais">&#x1F1EB;&#x1F1F7; Fran&ccedil;ais</option>
+            <option value="deutsch">&#x1F1E9;&#x1F1EA; Deutsch</option>
+            <option value="espanol">&#x1F1EA;&#x1F1F8; Espa&ntilde;ol</option>
+          </select>
+          <div class="toggle">
+            <input type="radio" name="model" value="haiku" id="cl-model-haiku" checked>
+            <label for="cl-model-haiku">&#x1F407; Haiku</label>
+            <input type="radio" name="model" value="sonnet" id="cl-model-sonnet">
+            <label for="cl-model-sonnet">&#x1F9E0; Sonnet</label>
+          </div>
+          <button type="submit" class="btn btn-success btn-sm"
+                  :disabled="coverLetterLoading">
+            <span x-show="!coverLetterLoading">&#x2709;&#xFE0F; Genera Cover Letter</span>
+            <span x-show="coverLetterLoading" x-cloak>&#x270D;&#xFE0F; Generazione...</span>
+          </button>
+        </div>
+      </form>
+      <div class="loading" :class="{ 'on': coverLetterLoading }">
+        <div class="spinner"></div>
+        <span>&#x270D;&#xFE0F; Generazione in corso...</span>
+      </div>
+    </div>
+    {% endif %}
+
+    {# ---- 9. ACTIONS BAR ---- #}
+    {% if current %}
+    <div class="result-actions" id="actions-{{ current.id }}">
+      {% if current.job_url %}
+      <a href="{{ current.job_url }}" target="_blank" class="btn btn-info btn-sm">&#x1F517; Apri annuncio</a>
+      {% endif %}
+      <div class="pill-group" data-analysis-id="{{ current.id }}">
+        <button class="pill-btn pill-da_valutare {{ 'active' if current.status.value == 'da_valutare' }}" data-status="da_valutare" onclick="setStatus(this)">&#x1F50D; Da valutare</button>
+        <button class="pill-btn pill-candidato {{ 'active' if current.status.value == 'candidato' }}" data-status="candidato" onclick="setStatus(this)">&#x1F4E8; Candidato</button>
+        <button class="pill-btn pill-colloquio {{ 'active' if current.status.value == 'colloquio' }}" data-status="colloquio" onclick="setStatus(this)">&#x1F5E3;&#xFE0F; Colloquio</button>
+        <button class="pill-btn pill-scartato {{ 'active' if current.status.value == 'scartato' }}" data-status="scartato" onclick="setStatus(this)">&#x274C; Scartato</button>
+      </div>
+      <button class="btn btn-sm btn-primary" onclick="openInterviewModal('{{ current.id }}')">&#x1F4C5; Prenota colloquio</button>
+      <button class="btn btn-success btn-sm" onclick="genFollowup('{{ current.id }}')">&#x2709;&#xFE0F; Genera email</button>
+      <button class="btn btn-info btn-sm" onclick="genLinkedin('{{ current.id }}')">&#x1F4BC; LinkedIn</button>
+      <button class="btn btn-sm" onclick="toggleContacts('{{ current.id }}')">&#x1F464; Contatti</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteAnalysis('{{ current.id }}')">&#x1F5D1;&#xFE0F; Elimina</button>
+    </div>
+    <div id="generated-area-{{ current.id }}"></div>
+    {% endif %}
+
+  </div>{# end result-card #}
+  {% endif %}
+
+  {# ---- 10. Contacts panel (hidden by default) ---- #}
+  {% if current %}
+  <div class="card card-mb" id="contacts-{{ current.id }}" style="display:none">
+    <h3>&#x1F464; Contatti — {{ current.company or 'Azienda' }}</h3>
+    <div id="contacts-list-{{ current.id }}" class="contacts-list"></div>
+    <div class="contacts-form">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Nome</label>
+          <input type="text" id="ct-name-{{ current.id }}" placeholder="Nome e cognome">
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="ct-email-{{ current.id }}" placeholder="email@example.com">
+        </div>
+        <div class="form-group">
+          <label>Telefono</label>
+          <input type="tel" id="ct-phone-{{ current.id }}" placeholder="+39 ...">
+        </div>
+        <div class="form-group">
+          <label>Azienda</label>
+          <input type="text" id="ct-company-{{ current.id }}" value="{{ current.company or '' }}" placeholder="Azienda">
+        </div>
+        <div class="form-group">
+          <label>LinkedIn</label>
+          <input type="url" id="ct-linkedin-{{ current.id }}" placeholder="https://linkedin.com/in/...">
+        </div>
+        <div class="form-group">
+          <label>Note</label>
+          <input type="text" id="ct-notes-{{ current.id }}" placeholder="Note...">
+        </div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="saveContact('{{ current.id }}')">&#x2795; Aggiungi contatto</button>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ---- Interview modal ---- #}
+  {% include "partials/interview_modal.html" %}
+
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/it.js"></script>
+<script src="{{ url_for('static', path='js/modules/status.js') }}?v=10"></script>
+<script src="{{ url_for('static', path='js/modules/interview.js') }}?v=10"></script>
+<script src="{{ url_for('static', path='js/modules/contacts.js') }}?v=10"></script>
+<script src="{{ url_for('static', path='js/modules/followup.js') }}?v=10"></script>
+<script src="{{ url_for('static', path='js/modules/spending.js') }}?v=10"></script>
+{% endblock %}

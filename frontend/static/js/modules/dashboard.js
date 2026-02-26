@@ -1,84 +1,37 @@
 /**
- * Dashboard: live refresh of stats and motivation.
+ * Dashboard: live refresh of upcoming interview banners.
+ *
+ * In the multi-page architecture, metric cards are server-rendered.
+ * This module handles dynamic banner refresh for upcoming interviews.
  */
 
 function refreshDashboard() {
-    fetch('/api/v1/dashboard')
-        .then(function(r) { return r.json(); })
-        .then(function(d) {
-            var dash = document.getElementById('dashboard-details');
-            if (!dash) return;
-
-            if (d.total > 0) {
-                dash.style.display = '';
-            } else {
-                dash.style.display = 'none';
-                return;
-            }
-
-            var el = function(id) { return document.getElementById(id); };
-
-            el('dashboard-total').textContent = d.total;
-            el('dashboard-applied').textContent = d.applied;
-            el('dashboard-interviews').textContent = d.interviews;
-            el('dashboard-avg').textContent = d.avg_score;
-            el('dashboard-skipped').textContent = d.skipped;
-
-            var fuBox = el('dashboard-followup-box');
-            if (fuBox) {
-                if (d.followup_count > 0) {
-                    fuBox.style.display = '';
-                    el('dashboard-followup').textContent = d.followup_count;
-                } else {
-                    fuBox.style.display = 'none';
-                }
-            }
-
-            el('dashboard-summary-stats').textContent =
-                d.total + ' analisi \u00b7 ' + d.applied + ' candidature \u00b7 score medio ' + d.avg_score;
-
-            var mot = el('dashboard-motivation');
-            if (mot) {
-                if (d.top_match) {
-                    while (mot.firstChild) mot.removeChild(mot.firstChild);
-                    mot.appendChild(document.createTextNode('\uD83C\uDFC6 Miglior match: '));
-                    var b = document.createElement('b');
-                    b.textContent = d.top_match.role;
-                    mot.appendChild(b);
-                    var suffix = ' @ ' + d.top_match.company + ' (' + d.top_match.score + '/100)';
-                    if (d.applied > 0) {
-                        suffix += ' \u00b7 Hai gia\' inviato ' + d.applied +
-                            ' candidatur' + (d.applied === 1 ? 'a' : 'e') + ' - continua cosi\'!';
-                    }
-                    mot.appendChild(document.createTextNode(suffix));
-                    mot.style.display = '';
-                } else {
-                    mot.style.display = 'none';
-                }
-            }
-            refreshUpcomingBanners();
-        })
-        .catch(function(e) { console.error('refreshDashboard error:', e); });
+    // Refresh upcoming interview banners on the dashboard page
+    refreshUpcomingBanners();
 }
 
 function refreshUpcomingBanners() {
+    // Only run on dashboard page
+    var grid = document.querySelector('.grid-3col');
+    if (!grid) return;
+
     fetch('/api/v1/interviews-upcoming')
         .then(function(r) { return r.json(); })
         .then(function(interviews) {
-            // Remove old banners
-            document.querySelectorAll('.upcoming-interview-banner').forEach(function(el) {
+            // Remove old dynamic banners
+            document.querySelectorAll('.upcoming-interview-banner.dynamic').forEach(function(el) {
                 el.remove();
             });
 
             if (!interviews.length) return;
 
-            // Find insertion point (before dashboard-details)
-            var dashboard = document.getElementById('dashboard-details');
-            if (!dashboard) return;
+            // Find insertion point (after the grid)
+            var insertPoint = grid.nextElementSibling;
+            var parent = grid.parentNode;
 
             interviews.forEach(function(iv) {
                 var banner = document.createElement('div');
-                banner.className = 'upcoming-interview-banner';
+                banner.className = 'upcoming-interview-banner dynamic';
 
                 var info = document.createElement('div');
                 info.className = 'upcoming-interview-info';
@@ -106,7 +59,11 @@ function refreshUpcomingBanners() {
                 link.textContent = 'Apri dettaglio';
                 banner.appendChild(link);
 
-                dashboard.parentNode.insertBefore(banner, dashboard);
+                if (insertPoint) {
+                    parent.insertBefore(banner, insertPoint);
+                } else {
+                    parent.appendChild(banner);
+                }
             });
         })
         .catch(function(e) { console.error('refreshUpcomingBanners error:', e); });

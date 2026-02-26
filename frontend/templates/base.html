@@ -1,32 +1,31 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}🎯 Job Search Command Center{% endblock %}</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Job Search Command Center{% endblock %}</title>
 
-    <!-- CSS (no build step) -->
-    <link rel="stylesheet" href="/static/css/variables.css?v=8">
-    <link rel="stylesheet" href="/static/css/base.css?v=8">
-    <link rel="stylesheet" href="/static/css/components.css?v=8">
-    <link rel="stylesheet" href="/static/css/layout.css?v=8">
-    <link rel="stylesheet" href="/static/css/sections.css?v=8">
-
-    <!-- Flatpickr date picker -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/themes/dark.css">
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/it.js"></script>
-
-    <!-- Alpine.js from CDN -->
-    <script defer src="https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js"></script>
-
-    {% block head_extra %}{% endblock %}
+  <link rel="stylesheet" href="{{ url_for('static', path='css/variables.css') }}?v=10">
+  <link rel="stylesheet" href="{{ url_for('static', path='css/base.css') }}?v=10">
+  <link rel="stylesheet" href="{{ url_for('static', path='css/layout.css') }}?v=10">
+  <link rel="stylesheet" href="{{ url_for('static', path='css/components.css') }}?v=10">
+  <link rel="stylesheet" href="{{ url_for('static', path='css/sections.css') }}?v=10">
+  {% block head_extra %}{% endblock %}
 </head>
-<body {% block body_attrs %}{% endblock %}>
-    <a href="#main-content" class="skip-link">Vai al contenuto principale</a>
-    {% block body %}{% endblock %}
+<body x-data="app()" x-init="init()">
+  <a href="#main-content" class="skip-link">Vai al contenuto</a>
 
-    {% block scripts %}{% endblock %}
+  {% include "partials/sidebar.html" %}
+
+  <main id="main-content" class="content-area">
+    {% block content %}{% endblock %}
+  </main>
+
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <script src="https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js" defer></script>
+  <script src="{{ url_for('static', path='js/modules/toast.js') }}?v=10"></script>
+  <script src="{{ url_for('static', path='js/app.js') }}?v=10"></script>
+  {% block scripts_extra %}{% endblock %}
 </body>
 </html>
