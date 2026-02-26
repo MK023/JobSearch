@@ -1,18 +1,17 @@
 """Page routes for the multi-page frontend (SSR)."""
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
 from .analysis.models import AnalysisStatus
-from .analysis.service import get_analysis_by_id, get_recent_analyses, rebuild_result
+from .analysis.service import get_recent_analyses
 from .auth.models import User
-from .contacts.service import get_contacts_for_analysis
 from .cv.service import get_latest_cv
-from .dashboard.service import get_active_applications, get_dashboard, get_followup_alerts, get_spending
+from .dashboard.service import get_dashboard, get_followup_alerts, get_spending
 from .database import get_db
 from .dependencies import get_current_user
-from .interview.service import get_interview_by_analysis, get_upcoming_interviews
+from .interview.service import get_upcoming_interviews
 
 router = APIRouter(tags=["pages"])
 
