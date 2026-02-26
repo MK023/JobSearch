@@ -5,7 +5,7 @@
   --bg-primary: #0D0D0F;
   --bg-secondary: #1C1C1E;
   --bg-tertiary: #2C2C2E;
-  --bg-glass: rgba(28, 28, 30, 0.85);
+  --bg-glass: rgb(28 28 30 / 85%);
 
   /* Accent colors */
   --accent-blue: #0A84FF;
@@ -20,8 +20,8 @@
   --text-tertiary: #48484A;
 
   /* Borders */
-  --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-medium: rgba(255, 255, 255, 0.10);
+  --border-subtle: rgb(255 255 255 / 6%);
+  --border-medium: rgb(255 255 255 / 10%);
 
   /* Typography — SF Pro stack */
   --font-family: 'SF Pro Display', 'SF Pro Text', -apple-system, 'Helvetica Neue', sans-serif;
@@ -55,9 +55,9 @@
   --radius-full: 9999px;
 
   /* Shadows */
-  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.3);
-  --shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.4);
-  --shadow-focus: 0 0 0 3px rgba(10, 132, 255, 0.15);
+  --shadow-card: 0 2px 12px rgb(0 0 0 / 30%);
+  --shadow-hover: 0 8px 24px rgb(0 0 0 / 40%);
+  --shadow-focus: 0 0 0 3px rgb(10 132 255 / 15%);
 
   /* Transitions */
   --transition-fast: 0.15s ease;

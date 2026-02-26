@@ -130,12 +130,7 @@ def interviews_page(
     upcoming = get_upcoming_interviews(db)
 
     now = datetime.now(UTC)
-    past_rows = (
-        db.query(Interview)
-        .filter(Interview.scheduled_at <= now)
-        .order_by(Interview.scheduled_at.desc())
-        .all()
-    )
+    past_rows = db.query(Interview).filter(Interview.scheduled_at <= now).order_by(Interview.scheduled_at.desc()).all()
 
     return templates.TemplateResponse(
         "interviews.html",

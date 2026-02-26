@@ -162,25 +162,25 @@
 
 .status-da_valutare,
 .status-badge-da_valutare {
-  background: rgba(255, 159, 10, 0.15);
+  background: rgb(255 159 10 / 15%);
   color: var(--accent-orange);
 }
 
 .status-candidato,
 .status-badge-candidato {
-  background: rgba(10, 132, 255, 0.15);
+  background: rgb(10 132 255 / 15%);
   color: var(--accent-blue);
 }
 
 .status-colloquio,
 .status-badge-colloquio {
-  background: rgba(48, 209, 88, 0.15);
+  background: rgb(48 209 88 / 15%);
   color: var(--accent-green);
 }
 
 .status-scartato,
 .status-badge-scartato {
-  background: rgba(255, 69, 58, 0.15);
+  background: rgb(255 69 58 / 15%);
   color: var(--accent-red);
 }
 
@@ -315,19 +315,19 @@
 }
 
 .score-apply {
-  background: rgba(48, 209, 88, 0.15);
+  background: rgb(48 209 88 / 15%);
   color: var(--accent-green);
   border: 3px solid var(--accent-green);
 }
 
 .score-consider {
-  background: rgba(255, 159, 10, 0.15);
+  background: rgb(255 159 10 / 15%);
   color: var(--accent-orange);
   border: 3px solid var(--accent-orange);
 }
 
 .score-skip {
-  background: rgba(255, 69, 58, 0.15);
+  background: rgb(255 69 58 / 15%);
   color: var(--accent-red);
   border: 3px solid var(--accent-red);
 }
@@ -416,7 +416,7 @@
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgb(0 0 0 / 50%);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   z-index: 1000;
@@ -512,14 +512,14 @@
 
 .message-success,
 .banner-success {
-  background: rgba(48, 209, 88, 0.12);
+  background: rgb(48 209 88 / 12%);
   border: 1px solid var(--accent-green);
   color: var(--accent-green);
 }
 
 .message-error,
 .banner-error {
-  background: rgba(255, 69, 58, 0.12);
+  background: rgb(255 69 58 / 12%);
   border: 1px solid var(--accent-red);
   color: var(--accent-red);
 }
@@ -550,19 +550,19 @@
 
 .rec-apply,
 .recommendation-APPLY {
-  background: rgba(48, 209, 88, 0.15);
+  background: rgb(48 209 88 / 15%);
   color: var(--accent-green);
 }
 
 .rec-consider,
 .recommendation-CONSIDER {
-  background: rgba(255, 159, 10, 0.15);
+  background: rgb(255 159 10 / 15%);
   color: var(--accent-orange);
 }
 
 .rec-skip,
 .recommendation-SKIP {
-  background: rgba(255, 69, 58, 0.15);
+  background: rgb(255 69 58 / 15%);
   color: var(--accent-red);
 }
 
@@ -580,17 +580,17 @@
 }
 
 .severity-bloccante {
-  background: rgba(255, 69, 58, 0.15);
+  background: rgb(255 69 58 / 15%);
   color: var(--accent-red);
 }
 
 .severity-importante {
-  background: rgba(255, 159, 10, 0.15);
+  background: rgb(255 159 10 / 15%);
   color: var(--accent-orange);
 }
 
 .severity-minore {
-  background: rgba(10, 132, 255, 0.15);
+  background: rgb(10 132 255 / 15%);
   color: var(--accent-blue);
 }
 
@@ -604,7 +604,7 @@
 }
 
 .closable-yes {
-  background: rgba(48, 209, 88, 0.15);
+  background: rgb(48 209 88 / 15%);
   color: var(--accent-green);
 }
 
@@ -626,7 +626,7 @@
 }
 
 .tag-danger {
-  background: rgba(255, 69, 58, 0.15);
+  background: rgb(255 69 58 / 15%);
   color: var(--accent-red);
 }
 
@@ -737,18 +737,18 @@ details[open] summary::before {
 
 .hero-tag-location,
 .hero-tag-mode {
-  background: rgba(10, 132, 255, 0.12);
+  background: rgb(10 132 255 / 12%);
   color: var(--accent-blue);
 }
 
 .hero-tag-salary,
 .hero-tag-potential {
-  background: rgba(48, 209, 88, 0.12);
+  background: rgb(48 209 88 / 12%);
   color: var(--accent-green);
 }
 
 .hero-tag-timeline {
-  background: rgba(255, 159, 10, 0.12);
+  background: rgb(255 159 10 / 12%);
   color: var(--accent-orange);
 }
 
@@ -783,25 +783,25 @@ details[open] summary::before {
 }
 
 .pill-da_valutare.active {
-  background: rgba(255, 159, 10, 0.15);
+  background: rgb(255 159 10 / 15%);
   border-color: var(--accent-orange);
   color: var(--accent-orange);
 }
 
 .pill-candidato.active {
-  background: rgba(10, 132, 255, 0.15);
+  background: rgb(10 132 255 / 15%);
   border-color: var(--accent-blue);
   color: var(--accent-blue);
 }
 
 .pill-colloquio.active {
-  background: rgba(48, 209, 88, 0.15);
+  background: rgb(48 209 88 / 15%);
   border-color: var(--accent-green);
   color: var(--accent-green);
 }
 
 .pill-scartato.active {
-  background: rgba(255, 69, 58, 0.15);
+  background: rgb(255 69 58 / 15%);
   border-color: var(--accent-red);
   color: var(--accent-red);
 }
@@ -819,12 +819,12 @@ details[open] summary::before {
 }
 
 .cv-status-ok {
-  background: rgba(48, 209, 88, 0.12);
+  background: rgb(48 209 88 / 12%);
   color: var(--accent-green);
 }
 
 .cv-status-missing {
-  background: rgba(255, 159, 10, 0.12);
+  background: rgb(255 159 10 / 12%);
   color: var(--accent-orange);
 }
 
@@ -844,12 +844,12 @@ details[open] summary::before {
 .tool-btn:hover {
   border-color: var(--accent-blue);
   color: var(--accent-blue);
-  background: rgba(10, 132, 255, 0.08);
+  background: rgb(10 132 255 / 8%);
 }
 
 /* ---- Responsive ---- */
 
-@media (max-width: 768px) {
+@media (width <= 768px) {
   .btn {
     min-height: 44px;
   }

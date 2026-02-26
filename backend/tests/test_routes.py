@@ -156,23 +156,41 @@ class TestPageRoutesRequireAuth:
 class TestAuthenticatedPages:
     """Verify authenticated page rendering returns 200 and expected content."""
 
-    @patch("src.pages.get_spending", return_value=MagicMock(
-        total_analysis=0.0, total_cover_letter=0.0, budget=5.0, remaining=5.0,
-    ))
+    @patch(
+        "src.pages.get_spending",
+        return_value=MagicMock(
+            total_analysis=0.0,
+            total_cover_letter=0.0,
+            budget=5.0,
+            remaining=5.0,
+        ),
+    )
     @patch("src.pages.get_upcoming_interviews", return_value=[])
     @patch("src.pages.get_followup_alerts", return_value=[])
     @patch("src.pages.get_recent_analyses", return_value=[])
-    @patch("src.pages.get_dashboard", return_value=MagicMock(
-        total_analyses=0, total_candidato=0, total_colloquio=0, total_scartato=0,
-    ))
+    @patch(
+        "src.pages.get_dashboard",
+        return_value=MagicMock(
+            total_analyses=0,
+            total_candidato=0,
+            total_colloquio=0,
+            total_scartato=0,
+        ),
+    )
     def test_dashboard_page_renders(self, _d, _a, _f, _u, _s, auth_client):
         resp = auth_client.get("/")
         assert resp.status_code == 200
         assert "Dashboard" in resp.text or "dashboard" in resp.text.lower()
 
-    @patch("src.pages.get_spending", return_value=MagicMock(
-        total_analysis=0.0, total_cover_letter=0.0, budget=5.0, remaining=5.0,
-    ))
+    @patch(
+        "src.pages.get_spending",
+        return_value=MagicMock(
+            total_analysis=0.0,
+            total_cover_letter=0.0,
+            budget=5.0,
+            remaining=5.0,
+        ),
+    )
     @patch("src.pages.get_latest_cv", return_value=None)
     @patch("src.batch.service.get_batch_status", return_value=[])
     def test_analyze_page_renders(self, _b, _cv, _s, auth_client):
@@ -192,9 +210,15 @@ class TestAuthenticatedPages:
         assert resp.status_code == 200
         assert "Colloqui" in resp.text or "interview" in resp.text.lower()
 
-    @patch("src.pages.get_spending", return_value=MagicMock(
-        total_analysis=0.0, total_cover_letter=0.0, budget=5.0, remaining=5.0,
-    ))
+    @patch(
+        "src.pages.get_spending",
+        return_value=MagicMock(
+            total_analysis=0.0,
+            total_cover_letter=0.0,
+            budget=5.0,
+            remaining=5.0,
+        ),
+    )
     @patch("src.pages.get_latest_cv", return_value=None)
     def test_settings_page_renders(self, _cv, _s, auth_client):
         resp = auth_client.get("/settings")

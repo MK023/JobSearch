@@ -170,7 +170,7 @@
 }
 
 /* === Mobile: sidebar -> bottom bar === */
-@media (max-width: 768px) {
+@media (width <= 768px) {
   .sidebar {
     position: fixed;
     top: auto;
@@ -229,7 +229,7 @@
   }
 }
 
-@media (max-width: 480px) {
+@media (width <= 480px) {
   .content-area {
     padding: var(--space-md);
   }
