@@ -1,7 +1,11 @@
 /**
  * Main Alpine.js root component and application initializer.
  *
- * Module scripts (loaded before this file):
+ * Module scripts are loaded per-page via {% block scripts_extra %}.
+ * This file provides the root Alpine component used by base.html:
+ *   <body x-data="app()" x-init="init()">
+ *
+ * Available modules (only present if their <script> tag is on this page):
  *   - spending.js   -> initBudgetEditing(), refreshSpending()
  *   - dashboard.js  -> refreshDashboard()
  *   - history.js    -> historyTabs(), refreshHistoryCounts()
@@ -10,6 +14,7 @@
  *   - contacts.js   -> toggleContacts(), loadContacts(), saveContact(), deleteContact()
  *   - followup.js   -> genFollowup(), genLinkedin(), markFollowupDone()
  *   - cv.js         -> uploadCV(), initCVUpload()
+ *   - toast.js      -> showToast()
  */
 
 function app() {
@@ -18,29 +23,19 @@ function app() {
         coverLetterLoading: false,
 
         init: function() {
-            // Initialize non-Alpine modules
-            initBudgetEditing();
-            initCVUpload();
+            // Only init modules that are present on this page
+            if (typeof initBudgetEditing === 'function') initBudgetEditing();
+            if (typeof initCVUpload === 'function') initCVUpload();
 
-            // Periodic refresh of spending + dashboard (every 30s)
-            setInterval(refreshAll, 30000);
-
-            // Refresh on tab focus / visibility change
-            document.addEventListener('visibilitychange', function() {
-                if (!document.hidden) refreshAll();
-            });
-            window.addEventListener('focus', refreshAll);
+            // Periodic refresh only on dashboard (metrics-row is a grid-3col on dashboard)
+            if (document.querySelector('.grid-3col')) {
+                setInterval(function() {
+                    if (typeof refreshDashboard === 'function') refreshDashboard();
+                    if (typeof refreshSpending === 'function') refreshSpending();
+                }, 60000);
+            }
         }
     };
-}
-
-
-/**
- * Refresh both spending and dashboard data.
- */
-function refreshAll() {
-    refreshSpending();
-    refreshDashboard();
 }
 
 
@@ -51,7 +46,9 @@ function refreshAll() {
 function handleRateLimit(response, msg) {
     if (response.status === 429) {
         var retryAfter = response.headers.get('Retry-After') || '60';
-        alert((msg || 'Troppe richieste') + '. Riprova tra ' + retryAfter + ' secondi.');
+        if (typeof showToast === 'function') {
+            showToast((msg || 'Troppe richieste') + '. Riprova tra ' + retryAfter + ' secondi.', 'error');
+        }
         return true;
     }
     return false;
