@@ -7,6 +7,8 @@
  */
 
 function historyTabs() {
+    var validTabs = ['valutazione', 'candidature', 'colloqui', 'scartati'];
+
     return {
         activeTab: 'valutazione',
 
@@ -18,11 +20,18 @@ function historyTabs() {
         },
 
         init: function() {
+            // Restore tab from URL hash or sessionStorage
+            var hash = location.hash.replace('#', '');
+            var stored = sessionStorage.getItem('historyTab');
+            var restored = validTabs.indexOf(hash) !== -1 ? hash : (validTabs.indexOf(stored) !== -1 ? stored : 'valutazione');
+            this.activeTab = restored;
             this.filterItems();
         },
 
         switchTab: function(tab) {
             this.activeTab = tab;
+            history.replaceState(null, '', '#' + tab);
+            sessionStorage.setItem('historyTab', tab);
             this.filterItems();
         },
 

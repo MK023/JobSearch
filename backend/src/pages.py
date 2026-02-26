@@ -122,14 +122,35 @@ def interviews_page(
 ):
     from datetime import UTC, datetime
 
+    from .analysis.models import JobAnalysis
     from .interview.models import Interview
 
     templates = request.app.state.templates
     flash = _flash(request)
 
-    upcoming = get_upcoming_interviews(db)
-
     now = datetime.now(UTC)
+
+    # All future interviews (no 48h limit, unlike dashboard widget)
+    upcoming_rows = (
+        db.query(Interview, JobAnalysis)
+        .join(JobAnalysis, Interview.analysis_id == JobAnalysis.id)
+        .filter(Interview.scheduled_at > now)
+        .order_by(Interview.scheduled_at.asc())
+        .all()
+    )
+    upcoming = [
+        {
+            "analysis_id": str(a.id),
+            "company": a.company,
+            "role": a.role,
+            "scheduled_at": i.scheduled_at.isoformat(),
+            "ends_at": i.ends_at.isoformat() if i.ends_at else None,
+            "interview_type": i.interview_type,
+            "meeting_link": i.meeting_link,
+        }
+        for i, a in upcoming_rows
+    ]
+
     past_rows = db.query(Interview).filter(Interview.scheduled_at <= now).order_by(Interview.scheduled_at.desc()).all()
 
     return templates.TemplateResponse(

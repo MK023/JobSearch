@@ -307,9 +307,14 @@
   justify-content: center;
 }
 
+.score-ring-wrapper .score-ring {
+  width: 100%;
+  height: 100%;
+}
+
 .score-ring-lg {
-  width: 96px;
-  height: 96px;
+  width: 140px;
+  height: 140px;
 }
 
 .score-ring-sm {
@@ -775,6 +780,9 @@ details[open] summary::before {
 }
 
 .pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
   padding: var(--space-sm) var(--space-xl);
   border-radius: var(--radius-full);
   border: 2px solid var(--border-medium);
@@ -784,6 +792,10 @@ details[open] summary::before {
   font-weight: var(--weight-semibold);
   cursor: pointer;
   transition: all var(--transition-fast);
+}
+
+.pill-btn svg {
+  flex-shrink: 0;
 }
 
 .pill-btn:hover {
@@ -888,6 +900,11 @@ details[open] summary::before {
   .tool-btn {
     min-height: 44px;
     min-width: 44px;
+  }
+
+  .score-ring-lg {
+    width: 100px;
+    height: 100px;
   }
 
   .form-grid {
