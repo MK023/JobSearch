@@ -146,16 +146,20 @@ function submitInterview(e) {
                     stEl.textContent = '\uD83D\uDDE3\uFE0F colloquio';
                 }
             }
-            refreshHistoryCounts();
-            refreshSpending();
-            refreshDashboard();
+            if (typeof refreshHistoryCounts === 'function') refreshHistoryCounts();
+            if (typeof refreshSpending === 'function') refreshSpending();
+            if (typeof refreshDashboard === 'function') refreshDashboard();
+            showToast('Colloquio salvato', 'success');
             // Reload page if on detail view to show interview card
             if (window.location.pathname.indexOf('/analysis/') !== -1) {
                 window.location.reload();
             }
         }
     })
-    .catch(function(e) { console.error('submitInterview error:', e); });
+    .catch(function(e) {
+        console.error('submitInterview error:', e);
+        showToast('Errore salvataggio colloquio', 'error');
+    });
 
     return false;
 }
@@ -174,5 +178,8 @@ function deleteInterviewFromDetail(analysisId) {
             window.location.reload();
         }
     })
-    .catch(function(e) { console.error('deleteInterview error:', e); });
+    .catch(function(e) {
+        console.error('deleteInterview error:', e);
+        showToast('Errore rimozione colloquio', 'error');
+    });
 }

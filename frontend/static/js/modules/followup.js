@@ -99,7 +99,7 @@ function genFollowup(id) {
             _addGenText(g.box, data.body, 'followup-body-' + id);
             _addCopyBtn(g.box, 'followup-body-' + id);
             _addGenMeta(g.box, data.cost_usd, (data.tokens || {}).total);
-            refreshSpending();
+            if (typeof refreshSpending === 'function') refreshSpending();
         })
         .catch(function(e) {
             while (g.box.firstChild) g.box.removeChild(g.box.firstChild);
@@ -161,7 +161,7 @@ function genLinkedin(id) {
                 _addGenMeta(g.box, 0, 0, data.approach_tip);
             }
             _addGenMeta(g.box, data.cost_usd, (data.tokens || {}).total);
-            refreshSpending();
+            if (typeof refreshSpending === 'function') refreshSpending();
         })
         .catch(function(e) {
             while (g.box.firstChild) g.box.removeChild(g.box.firstChild);
@@ -184,8 +184,12 @@ function markFollowupDone(id) {
                 // Also remove associated generated area
                 var genArea = document.getElementById('generated-area-' + id);
                 if (genArea) genArea.remove();
-                refreshDashboard();
+                if (typeof refreshDashboard === 'function') refreshDashboard();
+                showToast('Follow-up completato', 'success');
             }
         })
-        .catch(function(e) { console.error('markFollowupDone error:', e); });
+        .catch(function(e) {
+            console.error('markFollowupDone error:', e);
+            showToast('Errore completamento follow-up', 'error');
+        });
 }

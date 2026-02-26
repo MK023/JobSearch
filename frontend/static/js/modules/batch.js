@@ -94,8 +94,9 @@ function batchManager() {
                     } else if (data.status === 'done') {
                         self.running = false;
                         self.statusText = 'Completato! Ricarica la pagina per vedere i risultati.';
-                        refreshSpending();
-                        refreshDashboard();
+                        if (typeof refreshSpending === 'function') refreshSpending();
+                        if (typeof refreshDashboard === 'function') refreshDashboard();
+                        showToast('Analisi batch completata', 'success');
                     }
                 })
                 .catch(function(e) { console.error('pollBatch error:', e); });
