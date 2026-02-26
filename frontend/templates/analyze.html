@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Nuova Analisi — Job Search Command Center{% endblock %}
+{% block content %}
+<div class="content-inner">
+
+  <div class="page-header">
+    <h1 class="page-title">Nuova Analisi</h1>
+  </div>
+
+  {# Flash messages #}
+  {% if error %}
+  <div class="message-banner banner-error">{{ error }}</div>
+  {% endif %}
+  {% if message %}
+  <div class="message-banner banner-success">{{ message }}</div>
+  {% endif %}
+
+  {# CV status bar #}
+  <div class="cv-status">
+    {% if cv and cv.raw_text %}
+      <span class="cv-status-ok">{{ cv.name|default("CV caricato") }}</span>
+      <a href="/settings" class="link-subtle">aggiorna</a>
+    {% else %}
+      <span class="cv-status-missing">CV mancante</span>
+      <a href="/settings" class="btn btn-sm btn-primary">Carica CV</a>
+    {% endif %}
+  </div>
+
+  {# Tab toggle: Singola / Multipla — Alpine.js #}
+  <div x-data="{ tab: 'single', analyzeLoading: false }">
+    <div class="tabs" style="max-width:320px;margin-bottom:var(--space-xl)">
+      <button class="tab" :class="{ active: tab === 'single' }" @click="tab = 'single'">Singola</button>
+      <button class="tab" :class="{ active: tab === 'batch' }" @click="tab = 'batch'">Multipla</button>
+    </div>
+
+    {# Single analysis form #}
+    <div x-show="tab === 'single'" x-cloak>
+      <form action="/analyze" method="post" class="card" id="analyze-form"
+            @submit="analyzeLoading = true">
+        <div class="form-group">
+          <label for="job_url" class="form-label">Link annuncio (opzionale)</label>
+          <input type="url" id="job_url" name="job_url" class="input" placeholder="https://...">
+        </div>
+        <div class="form-group">
+          <label for="job_description" class="form-label">Descrizione del lavoro</label>
+          <textarea id="job_description" name="job_description" class="textarea" placeholder="Incolla la descrizione del lavoro..." required rows="10"></textarea>
+        </div>
+        <div class="button-row" style="justify-content:space-between">
+          <div class="toggle">
+            <input type="radio" name="model" value="haiku" id="model-haiku" checked>
+            <label for="model-haiku">Haiku</label>
+            <input type="radio" name="model" value="sonnet" id="model-sonnet">
+            <label for="model-sonnet">Sonnet</label>
+          </div>
+          <button type="submit" class="btn btn-primary btn-lg" :disabled="analyzeLoading">
+            <span x-show="!analyzeLoading">Analizza &rarr;</span>
+            <span x-show="analyzeLoading" x-cloak>Analizzando...</span>
+          </button>
+        </div>
+      </form>
+    </div>
+
+    {# Batch analysis #}
+    <div x-show="tab === 'batch'" x-cloak>
+      {% include "partials/batch.html" %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+{% block scripts_extra %}
+<script src="{{ url_for('static', path='js/modules/spending.js') }}?v=10"></script>
+<script src="{{ url_for('static', path='js/modules/batch.js') }}?v=10"></script>
+{% endblock %}
