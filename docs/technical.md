@@ -104,6 +104,7 @@ backend/src/
 │
 └── integrations/        # Client esterni
     ├── anthropic_client.py  # Claude API + 7-strategy JSON parsing
+    ├── validation.py        # AI response validation + repair
     ├── cache.py             # Redis/Null cache (Protocol)
     └── glassdoor.py         # Company ratings (RapidAPI)
 ```
@@ -138,10 +139,13 @@ Il lifecycle dell'app e' gestito con `@asynccontextmanager`:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    Base.metadata.create_all(bind=engine)     # Crea tabelle se non esistono
-    app.state.cache = create_cache_service()  # Redis o NullCache
-    ensure_admin_user(db)                     # Crea admin da env
-    seed_spending_totals(db)                  # Inizializza riga singleton
+    if not settings.anthropic_api_key:
+        raise RuntimeError("ANTHROPIC_API_KEY missing")
+    _run_migrations()                               # Alembic upgrade head
+    app.state.cache = create_cache_service()        # Redis o NullCache
+    ensure_admin_user(db)                           # Crea admin da env
+    seed_spending_totals(db)                        # Inizializza riga singleton
+    check_and_send_followup_reminders(db)           # Email pending al boot
     yield
     # Shutdown (niente da fare)
 ```
@@ -151,15 +155,15 @@ async def lifespan(app: FastAPI):
 I middleware sono applicati in ordine LIFO (ultimo aggiunto = piu' esterno):
 
 ```
-Request → ProxyHeaders → SecurityHeaders → CORS → TrustedHost → SlowAPI → Session → Route Handler
+Request → SecurityHeaders → ProxyHeaders → TrustedHost → CORS → SlowAPI → Session → Route Handler
 ```
 
-1. **ProxyHeadersMiddleware** (uvicorn): legge `X-Forwarded-Proto`/`X-Forwarded-For` dal reverse proxy per generare URL corretti (HTTPS) dietro load balancer
-2. **SecurityHeaders** (custom `@app.middleware`): aggiunge X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy, HSTS
-3. **CORSMiddleware**: origins configurabili via `CORS_ALLOWED_ORIGINS`
-4. **TrustedHostMiddleware**: attivo solo se `TRUSTED_HOSTS != "*"`
+1. **SecurityHeaders** (custom `@app.middleware`): aggiunge X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy, HSTS (outermost — aggiunto per ultimo)
+2. **ProxyHeadersMiddleware** (uvicorn): legge `X-Forwarded-Proto`/`X-Forwarded-For` dal reverse proxy per generare URL corretti (HTTPS) dietro load balancer
+3. **TrustedHostMiddleware**: attivo solo se `TRUSTED_HOSTS != "*"`
+4. **CORSMiddleware**: origins configurabili via `CORS_ALLOWED_ORIGINS`
 5. **SlowAPIMiddleware**: rate limiting globale con slowapi
-6. **SessionMiddleware**: sessioni server-side con itsdangerous (TTL 7 giorni)
+6. **SessionMiddleware**: sessioni server-side con itsdangerous (TTL 7 giorni, innermost — aggiunto per primo)
 
 ### Exception Handlers
 
@@ -934,13 +938,18 @@ I servizi esterni (Anthropic API) sono mockati con `unittest.mock.MagicMock`.
 ```
 tests/
 ├── conftest.py                     # Fixture condivise (db_session, test_analysis, etc.)
+├── test_analysis_service.py        # Analysis CRUD, status transitions, rebuild
 ├── test_anthropic_client.py        # JSON parsing (7 strategie), content_hash
 ├── test_audit_service.py           # Audit log creation, IP extraction
+├── test_auth_service.py            # Password hashing, authenticate_user
 ├── test_batch_service.py           # Queue CRUD, clear, status
+├── test_cache_service.py           # Redis/Null cache protocol
 ├── test_contacts_service.py        # Contacts CRUD
 ├── test_cover_letter_service.py    # get_by_id, build_docx
+├── test_cv_service.py              # CV save, get_latest
+├── test_dashboard_service.py       # Spending, dashboard stats
+├── test_interview_service.py       # Interview CRUD, upcoming filter
 ├── test_notifications_service.py   # Fernet encrypt/decrypt, already_notified
-├── test_interview_service.py      # Interview CRUD, upcoming filter
 └── test_routes.py                  # TestClient: health, 404, login, auth, multi-page rendering
 ```
 

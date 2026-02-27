@@ -133,14 +133,14 @@ http://localhost/api/v1/docs
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/v1/status/{id}/{status}` | Update analysis status |
-| DELETE | `/api/v1/analysis/{id}` | Delete analysis |
+| POST | `/api/v1/status/{analysis_id}/{new_status}` | Update analysis status |
+| DELETE | `/api/v1/analysis/{analysis_id}` | Delete analysis |
 | POST | `/api/v1/followup-email` | Generate follow-up email |
 | POST | `/api/v1/linkedin-message` | Generate LinkedIn message |
-| POST | `/api/v1/followup-done/{id}` | Mark follow-up complete |
-| GET | `/api/v1/contacts/{id}` | Get contacts for analysis |
+| POST | `/api/v1/followup-done/{analysis_id}` | Mark follow-up complete |
+| GET | `/api/v1/contacts/{analysis_id}` | Get contacts for analysis |
 | POST | `/api/v1/contacts` | Save contact |
-| DELETE | `/api/v1/contacts/{cid}` | Delete contact |
+| DELETE | `/api/v1/contacts/{contact_id}` | Delete contact |
 | GET | `/api/v1/spending` | Get spending data |
 | PUT | `/api/v1/spending/budget` | Update budget |
 | GET | `/api/v1/dashboard` | Dashboard stats |
@@ -148,9 +148,9 @@ http://localhost/api/v1/docs
 | POST | `/api/v1/batch/run` | Run batch analysis |
 | GET | `/api/v1/batch/status` | Batch queue status |
 | DELETE | `/api/v1/batch/clear` | Clear batch queue |
-| POST | `/api/v1/interviews/{id}` | Create/update interview |
-| GET | `/api/v1/interviews/{id}` | Get interview details |
-| DELETE | `/api/v1/interviews/{id}` | Delete interview |
+| POST | `/api/v1/interviews/{analysis_id}` | Create/update interview |
+| GET | `/api/v1/interviews/{analysis_id}` | Get interview details |
+| DELETE | `/api/v1/interviews/{analysis_id}` | Delete interview |
 | GET | `/api/v1/interviews-upcoming` | Upcoming interviews (48h) |
 
 ---
@@ -161,9 +161,12 @@ http://localhost/api/v1/docs
 JobSearch/
 ├── docker-compose.yml              # 4-service orchestration
 ├── fly.toml                        # Fly.io single-container deploy
+├── Makefile                        # Dev shortcuts (lint, test, up)
+├── pyproject.toml                  # Ruff + tool config
 ├── .env.example                    # Environment template
 ├── .pre-commit-config.yaml         # Pre-commit hooks (ruff, stylelint)
 ├── .stylelintrc.json               # Shared stylelint config
+├── SECURITY.md                     # Security policy
 ├── .github/workflows/ci.yml        # CI pipeline (5 jobs)
 │
 ├── frontend/
@@ -248,6 +251,7 @@ JobSearch/
 │       ├── interview/              # Interview scheduling (1:1 with analysis)
 │       └── integrations/
 │           ├── anthropic_client.py # Claude API + 7-strategy JSON parsing
+│           ├── validation.py      # AI response validation + repair
 │           ├── cache.py            # Redis/Null cache protocol
 │           └── glassdoor.py        # Company ratings API
 │
