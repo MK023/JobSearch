@@ -70,7 +70,7 @@
     <div class="reputation-footer">
         {% if rep.note %}<span class="reputation-note">{{ rep.note }}</span>{% endif %}
         {% if is_api and rep.glassdoor_url %}
-        <a href="{{ rep.glassdoor_url }}" target="_blank" class="glassdoor-link">Vedi su Glassdoor</a>
+        <a href="{{ rep.glassdoor_url }}" target="_blank" rel="noopener noreferrer" class="glassdoor-link">Vedi su Glassdoor</a>
         {% endif %}
         <span class="reputation-badge {% if is_api %}reputation-badge-verified{% else %}reputation-badge-estimate{% endif %}">
             {% if is_api %}Dati Glassdoor verificati{% else %}Stima AI{% endif %}

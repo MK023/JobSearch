@@ -43,5 +43,8 @@ JOB_SEARCH_COMMAND_CENTER_SPEC.md
 *.log
 logs/
 
+# Playwright MCP screenshots
+.playwright-mcp/
+
 # Node (if ever added)
 node_modules/

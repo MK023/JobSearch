@@ -9,7 +9,7 @@ primary_region = "cdg"
   LOG_LEVEL = "INFO"
 
 [processes]
-  app = "uvicorn src.main:app --host 0.0.0.0 --port 8080"
+  app = "uvicorn src.main:app --host 0.0.0.0 --port 8080 --proxy-headers --forwarded-allow-ips='*'"
 
 [http_service]
   internal_port = 8080

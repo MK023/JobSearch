@@ -92,7 +92,7 @@
         <mxCell id="html_routes" value="SSR Pages (multi-page)&#xa;/ (dashboard)&#xa;/analyze /history&#xa;/interviews /settings&#xa;/analysis/{id}&#xa;/login /cv /cover-letter" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="docker_group">
           <mxGeometry x="330" y="290" width="130" height="120" as="geometry" />
         </mxCell>
-        <mxCell id="api_routes" value="API v1 (JSON)&#xa;/api/v1/status&#xa;/api/v1/batch/*&#xa;/api/v1/contacts&#xa;/api/v1/spending&#xa;/api/v1/dashboard&#xa;/api/v1/interviews/*&#xa;/api/v1/followup-*" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="docker_group">
+        <mxCell id="api_routes" value="API v1 (JSON)&#xa;/api/v1/analyze&#xa;/api/v1/status&#xa;/api/v1/batch/*&#xa;/api/v1/contacts&#xa;/api/v1/spending&#xa;/api/v1/dashboard&#xa;/api/v1/interviews/*&#xa;/api/v1/followup-*" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="docker_group">
           <mxGeometry x="480" y="290" width="140" height="120" as="geometry" />
         </mxCell>
 

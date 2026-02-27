@@ -6,6 +6,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..analysis.models import AnalysisStatus, AppSettings, JobAnalysis
+from ..config import settings as app_settings
 from ..cover_letter.models import CoverLetter
 
 
@@ -121,7 +122,7 @@ def get_dashboard(db: Session) -> dict:
     applied = sum(1 for a in analyses if a.status in (AnalysisStatus.APPLIED, AnalysisStatus.INTERVIEW))
     avg_score = round(sum(a.score or 0 for a in analyses) / total, 1) if total else 0
 
-    threshold = datetime.now(UTC) - timedelta(days=5)
+    threshold = datetime.now(UTC) - timedelta(days=app_settings.followup_reminder_days)
     followup_count = (
         db.query(JobAnalysis)
         .filter(
@@ -149,8 +150,8 @@ def get_dashboard(db: Session) -> dict:
 
 
 def get_followup_alerts(db: Session) -> list[JobAnalysis]:
-    """Get analyses needing follow-up (applied > 5 days ago, not followed up)."""
-    threshold = datetime.now(UTC) - timedelta(days=5)
+    """Get analyses needing follow-up (applied > N days ago, not followed up)."""
+    threshold = datetime.now(UTC) - timedelta(days=app_settings.followup_reminder_days)
     return (
         db.query(JobAnalysis)
         .filter(

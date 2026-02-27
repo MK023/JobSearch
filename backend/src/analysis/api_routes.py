@@ -4,7 +4,6 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..audit.service import audit
@@ -19,15 +18,10 @@ from ..integrations.anthropic_client import MODELS, content_hash
 from ..integrations.cache import CacheService
 from ..rate_limit import limiter
 from .models import AnalysisStatus
+from .schemas import AnalyzeRequest
 from .service import find_existing_analysis, get_analysis_by_id, run_analysis, update_status
 
 router = APIRouter(tags=["analysis-api"])
-
-
-class AnalyzeRequest(BaseModel):
-    job_description: str
-    job_url: str = ""
-    model: str = "haiku"
 
 
 @router.post("/analyze")

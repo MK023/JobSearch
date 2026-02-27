@@ -17,7 +17,6 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
-from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from .analysis.routes import router as analysis_router
 from .auth.routes import router as auth_router
@@ -155,8 +154,6 @@ def create_app() -> FastAPI:
             TrustedHostMiddleware,
             allowed_hosts=settings.trusted_hosts_list,
         )
-
-    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
 
     @app.middleware("http")
     async def security_headers(request: Request, call_next):

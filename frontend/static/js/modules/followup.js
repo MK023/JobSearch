@@ -44,7 +44,8 @@ function _addCopyBtn(parent, targetId) {
     btn.className = 'btn btn-muted btn-sm';
     btn.textContent = '\uD83D\uDCCB Copia';
     btn.onclick = function() {
-        navigator.clipboard.writeText(document.getElementById(targetId).textContent);
+        navigator.clipboard.writeText(document.getElementById(targetId).textContent)
+            .catch(function() { showToast('Impossibile copiare', 'error'); });
     };
     parent.appendChild(btn);
 }

@@ -45,6 +45,7 @@ function loadContacts(id) {
                     var lnk = document.createElement('a');
                     lnk.href = c.linkedin_url;
                     lnk.target = '_blank';
+                    lnk.rel = 'noopener noreferrer';
                     lnk.textContent = '\uD83D\uDCBC LinkedIn';
                     lnk.className = 'link-subtle';
                     row.appendChild(lnk);

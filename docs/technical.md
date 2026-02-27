@@ -155,15 +155,15 @@ async def lifespan(app: FastAPI):
 I middleware sono applicati in ordine LIFO (ultimo aggiunto = piu' esterno):
 
 ```
-Request → SecurityHeaders → ProxyHeaders → TrustedHost → CORS → SlowAPI → Session → Route Handler
+Request → uvicorn (proxy-headers) → SecurityHeaders → TrustedHost → CORS → SlowAPI → Session → Route Handler
 ```
 
+0. **uvicorn --proxy-headers**: legge `X-Forwarded-Proto`/`X-Forwarded-For` a livello server ASGI (prima di qualsiasi middleware applicativo)
 1. **SecurityHeaders** (custom `@app.middleware`): aggiunge X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy, HSTS (outermost — aggiunto per ultimo)
-2. **ProxyHeadersMiddleware** (uvicorn): legge `X-Forwarded-Proto`/`X-Forwarded-For` dal reverse proxy per generare URL corretti (HTTPS) dietro load balancer
-3. **TrustedHostMiddleware**: attivo solo se `TRUSTED_HOSTS != "*"`
-4. **CORSMiddleware**: origins configurabili via `CORS_ALLOWED_ORIGINS`
-5. **SlowAPIMiddleware**: rate limiting globale con slowapi
-6. **SessionMiddleware**: sessioni server-side con itsdangerous (TTL 7 giorni, innermost — aggiunto per primo)
+2. **TrustedHostMiddleware**: attivo solo se `TRUSTED_HOSTS != "*"`
+3. **CORSMiddleware**: origins configurabili via `CORS_ALLOWED_ORIGINS`
+4. **SlowAPIMiddleware**: rate limiting globale con slowapi
+5. **SessionMiddleware**: sessioni server-side con itsdangerous (TTL 7 giorni, innermost — aggiunto per primo)
 
 ### Exception Handlers
 
@@ -562,7 +562,7 @@ Le route sono divise in due gruppi:
 ```
 GET  /              → dashboard.html (metriche, alert, recenti)
 GET  /analyze       → analyze.html (tab singola/multipla)
-GET  /history       → history.html (storico, 4 tab stato)
+GET  /history       → history.html (storico, 3 tab stato)
 GET  /analysis/{id} → analysis_detail.html (dettaglio candidatura)
 GET  /interviews    → interviews.html (prossimi + passati)
 GET  /settings      → settings.html (CV + crediti API)
@@ -570,12 +570,12 @@ GET  /login         → login.html (standalone, no sidebar)
 POST /login         → autenticazione
 POST /logout        → logout
 POST /cv            → salva CV → redirect /settings
-POST /analyze       → avvia analisi → redirect /analysis/{id}
 POST /cover-letter  → genera cover letter → redirect /analysis/{id}
 ```
 
 **Route JSON** (sotto `/api/v1/`): rispondono con JSON
 ```
+POST   /api/v1/analyze
 POST   /api/v1/status/{id}/{status}
 DELETE /api/v1/analysis/{id}
 POST   /api/v1/followup-email
@@ -635,8 +635,8 @@ frontend/templates/
 ├── base.html                # Layout: sidebar + content area + toast container
 ├── dashboard.html           # Home: metrics, alerts, recent analyses
 ├── analyze.html             # Single + batch analysis (tab toggle)
-├── history.html             # Analysis history with 4 status tabs (URL hash + sessionStorage persistence)
-├── analysis_detail.html     # Full analysis: score ring, strengths/gaps, SVG icon action bar
+├── history.html             # Analysis history with 3 status tabs (URL hash + sessionStorage persistence)
+├── analysis_detail.html     # Full analysis: score ring, status toggle, action card grid
 ├── interviews.html          # All upcoming interviews + past (collapsed)
 ├── settings.html            # CV management + API credit tracking
 ├── login.html               # Standalone login page (no sidebar)
@@ -667,7 +667,7 @@ frontend/static/css/
 ├── variables.css    # Design tokens: dark (default) + light theme
 ├── base.css         # Reset, tipografia, fadeIn, utility classes (.hidden, .mb-*, .mt-*)
 ├── layout.css       # Sidebar (60px fixed), content area, responsive grid, theme toggle
-├── components.css   # Score ring, cards, buttons, toast, modal, pills
+├── components.css   # Score ring, cards, buttons, toast, modal, status toggle, action cards
 └── sections.css     # Stili specifici per ogni pagina + flatpickr light mode overrides
 ```
 
@@ -694,6 +694,7 @@ frontend/static/js/modules/
 ├── batch.js       # Gestione coda batch
 ├── contacts.js    # CRUD contatti recruiter
 ├── followup.js    # Generazione email/LinkedIn
+├── analyze.js     # AJAX analysis submission (fetch POST to /api/v1/analyze)
 ├── cv.js          # Upload e download CV
 └── history.js     # Filtri, ordinamento storico, tab persistence (hash + sessionStorage)
 ```
@@ -980,7 +981,7 @@ primary_region = "cdg"              # Parigi
   dockerfile = "backend/Dockerfile"  # Usa il Dockerfile del backend
 
 [processes]
-  app = "uvicorn src.main:app --host 0.0.0.0 --port 8080"
+  app = "uvicorn src.main:app --host 0.0.0.0 --port 8080 --proxy-headers --forwarded-allow-ips='*'"
 
 [http_service]
   internal_port = 8080

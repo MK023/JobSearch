@@ -1,14 +1,14 @@
 {# Cover letter result display #}
-{% if cover_letter_result %}
+{% if cover_letter %}
 <div class="card card-mb" id="cover-letter-result-card">
     <h2>Cover Letter generata</h2>
 
     <div>
         <div class="advice-title advice-title-green">Lettera</div>
-        <div id="cover-letter-text" class="cover-letter-text">{{ cover_letter_result.cover_letter }}</div>
+        <div id="cover-letter-text" class="cover-letter-text">{{ cover_letter.content }}</div>
         <div class="button-row">
             <button class="btn btn-ghost btn-sm"
-                    onclick="navigator.clipboard.writeText(document.getElementById('cover-letter-text').textContent)">
+                    onclick="navigator.clipboard.writeText(document.getElementById('cover-letter-text').textContent).catch(function(){showToast('Impossibile copiare','error')})">
                 Copia lettera
             </button>
             {% if cover_letter %}
@@ -19,14 +19,14 @@
         </div>
     </div>
 
-    {% if cover_letter_result.subject_lines %}
+    {% if cover_letter.subject_lines %}
     <div>
         <div class="advice-title advice-title-amber mt-md">Subject line suggerite</div>
-        {% for sl in cover_letter_result.subject_lines %}
+        {% for sl in cover_letter.subject_lines %}
         <div class="subject-line-row">
             <span class="subject-line-text" id="subject-line-{{ loop.index }}">{{ sl }}</span>
             <button class="btn btn-ghost btn-sm"
-                    onclick="navigator.clipboard.writeText(document.getElementById('subject-line-{{ loop.index }}').textContent)">
+                    onclick="navigator.clipboard.writeText(document.getElementById('subject-line-{{ loop.index }}').textContent).catch(function(){showToast('Impossibile copiare','error')})">
                 Copia
             </button>
         </div>
@@ -35,7 +35,7 @@
     {% endif %}
 
     <div class="meta-small">
-        Costo: ${{ '%.5f' % cover_letter_result.cost_usd }} | {{ cover_letter_result.tokens.total }} token
+        Costo: ${{ '%.5f' % (cover_letter.cost_usd or 0) }} | {{ (cover_letter.tokens_input or 0) + (cover_letter.tokens_output or 0) }} token
     </div>
 </div>
 {% endif %}

@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     smtp_port: int = 587
     smtp_user: str = ""
     smtp_password: str = ""
-    notification_email: str = "marco.bellingeri@gmail.com"
+    notification_email: str = ""
     followup_reminder_days: int = 5
 
     # Input limits

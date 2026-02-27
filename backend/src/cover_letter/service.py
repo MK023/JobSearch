@@ -59,7 +59,7 @@ def get_cover_letter_by_id(db: Session, cover_letter_id: str) -> CoverLetter | N
     return db.query(CoverLetter).filter(CoverLetter.id == uid).first()
 
 
-def build_docx(cover_letter: CoverLetter, analysis: JobAnalysis) -> io.BytesIO:
+def build_docx(cover_letter: CoverLetter, analysis: JobAnalysis) -> tuple[io.BytesIO, str]:
     """Generate a professionally formatted DOCX from a cover letter.
 
     Returns an in-memory BytesIO buffer ready to be sent as a response.
@@ -83,14 +83,16 @@ def build_docx(cover_letter: CoverLetter, analysis: JobAnalysis) -> io.BytesIO:
     pf.space_after = Pt(6)
     pf.line_spacing = 1.15
 
-    # -- Header: name, email, phone (right-aligned) --
+    # -- Header: name, email (right-aligned, from config) --
+    from ..config import settings
+
     header_para = doc.add_paragraph()
     header_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    name_run = header_para.add_run("Marco Bellingeri\n")
+    name_run = header_para.add_run(f"{settings.admin_email.split('@')[0].replace('.', ' ').title()}\n")
     name_run.bold = True
     name_run.font.size = Pt(13)
     name_run.font.name = "Calibri"
-    contact_run = header_para.add_run("marco.bellingeri@gmail.com | +39 348 450 7859")
+    contact_run = header_para.add_run(settings.admin_email)
     contact_run.font.size = Pt(9)
     contact_run.font.name = "Calibri"
     contact_run.font.color.rgb = None  # inherit (dark gray from default)

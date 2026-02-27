@@ -742,7 +742,8 @@ details[open] summary::before {
 }
 
 .form-group-required label::after {
-  content: '';
+  content: ' *';
+  color: var(--accent-red);
 }
 
 /* ---- Hero tags (compact metadata) ---- */
