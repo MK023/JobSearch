@@ -1,9 +1,12 @@
 /**
  * Analysis status management and deletion.
+ *
+ * Status buttons use .status-toggle container + .status-option buttons.
+ * After status change, redirects to /analyze for next analysis.
  */
 
 function setStatus(btn) {
-    var group = btn.closest('.pill-group');
+    var group = btn.closest('.status-toggle');
     var id = group.dataset.analysisId;
     var status = btn.dataset.status;
 
@@ -20,8 +23,8 @@ function setStatus(btn) {
     .then(function(r) { return r.json(); })
     .then(function(data) {
         if (data.ok) {
-            // Update pill buttons
-            group.querySelectorAll('.pill-btn').forEach(function(b) {
+            // Update status options
+            group.querySelectorAll('.status-option').forEach(function(b) {
                 b.classList.remove('active');
             });
             btn.classList.add('active');
@@ -50,6 +53,13 @@ function setStatus(btn) {
             }
 
             showToast('Stato aggiornato: ' + status.replace('_', ' '), 'success');
+
+            // Redirect to new analysis after brief delay (detail page only)
+            if (window.location.pathname.indexOf('/analysis/') !== -1) {
+                setTimeout(function() {
+                    window.location.href = '/analyze';
+                }, 1200);
+            }
         }
     })
     .catch(function(e) {
@@ -81,9 +91,9 @@ function deleteAnalysis(id) {
 
             showToast('Analisi eliminata', 'success');
 
-            // If on detail page, redirect to history
+            // If on detail page, redirect to analyze
             if (window.location.pathname.indexOf('/analysis/') !== -1) {
-                window.location.href = '/history';
+                window.location.href = '/analyze';
             }
         }
     })

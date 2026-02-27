@@ -428,18 +428,39 @@
   line-height: 1.5;
 }
 
-/* --- Result actions bar --- */
+/* --- Actions panel (status + tools + footer) --- */
 
-.result-actions {
-  display: flex;
-  gap: var(--space-sm);
-  padding: var(--space-lg);
-  background: var(--bg-secondary);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-subtle);
-  align-items: center;
-  flex-wrap: wrap;
+.actions-panel {
   margin-top: var(--space-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.actions-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.actions-label {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.actions-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.actions-cta {
+  margin-left: auto;
 }
 
 
@@ -1188,9 +1209,18 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
     grid-template-columns: 1fr;
   }
 
-  .result-actions {
-    gap: var(--space-xs);
-    padding: var(--space-md);
+  .actions-panel {
+    gap: var(--space-md);
+  }
+
+  .actions-footer {
+    flex-wrap: wrap;
+  }
+
+  .actions-cta {
+    margin-left: 0;
+    width: 100%;
+    text-align: center;
   }
 
   .sub-rating-label {

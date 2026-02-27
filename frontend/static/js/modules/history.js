@@ -4,10 +4,13 @@
  * Items get their status from data-hist-status attributes, which are
  * updated imperatively by status.js when a user changes status.
  * The Alpine component handles tab switching and re-filtering.
+ *
+ * "colloquio" status items are grouped under "candidature" since
+ * interviews have their own dedicated page.
  */
 
 function historyTabs() {
-    var validTabs = ['valutazione', 'candidature', 'colloqui', 'scartati'];
+    var validTabs = ['valutazione', 'candidature', 'scartati'];
 
     return {
         activeTab: 'valutazione',
@@ -15,7 +18,6 @@ function historyTabs() {
         counts: {
             valutazione: 0,
             candidature: 0,
-            colloqui: 0,
             scartati: 0
         },
 
@@ -37,15 +39,14 @@ function historyTabs() {
 
         filterItems: function() {
             var tab = this.activeTab;
-            var cVal = 0, cCand = 0, cColl = 0, cScar = 0;
+            var cVal = 0, cCand = 0, cScar = 0;
 
             document.querySelectorAll('.history-item[data-hist-status]').forEach(function(item) {
                 var st = item.dataset.histStatus || 'da_valutare';
 
                 var bucket;
                 if (st === 'da_valutare') { cVal++; bucket = 'valutazione'; }
-                else if (st === 'candidato') { cCand++; bucket = 'candidature'; }
-                else if (st === 'colloquio') { cColl++; bucket = 'colloqui'; }
+                else if (st === 'candidato' || st === 'colloquio') { cCand++; bucket = 'candidature'; }
                 else { cScar++; bucket = 'scartati'; }
 
                 item.style.display = (tab === bucket) ? '' : 'none';
@@ -53,7 +54,6 @@ function historyTabs() {
 
             this.counts.valutazione = cVal;
             this.counts.candidature = cCand;
-            this.counts.colloqui = cColl;
             this.counts.scartati = cScar;
         }
     };

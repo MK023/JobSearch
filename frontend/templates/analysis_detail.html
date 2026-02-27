@@ -195,53 +195,73 @@
     </div>
     {% endif %}
 
-    {# ---- 9. ACTIONS BAR ---- #}
+    {# ---- 9. ACTIONS PANEL ---- #}
     {% if current %}
-    <div class="result-actions" id="actions-{{ current.id }}">
-      {% if current.job_url %}
-      <a href="{{ current.job_url }}" target="_blank" class="btn btn-info btn-sm">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
-        Apri annuncio
-      </a>
-      {% endif %}
-      <div class="pill-group" data-analysis-id="{{ current.id }}">
-        <button class="pill-btn pill-da_valutare {{ 'active' if current.status.value == 'da_valutare' }}" data-status="da_valutare" onclick="setStatus(this)">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-          Da valutare
-        </button>
-        <button class="pill-btn pill-candidato {{ 'active' if current.status.value == 'candidato' }}" data-status="candidato" onclick="setStatus(this)">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg>
-          Candidato
-        </button>
-        <button class="pill-btn pill-colloquio {{ 'active' if current.status.value == 'colloquio' }}" data-status="colloquio" onclick="setStatus(this)">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          Colloquio
-        </button>
-        <button class="pill-btn pill-scartato {{ 'active' if current.status.value == 'scartato' }}" data-status="scartato" onclick="setStatus(this)">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
-          Scartato
-        </button>
+    <div class="actions-panel" id="actions-{{ current.id }}">
+
+      {# Status selector — segmented control #}
+      <div class="actions-section">
+        <div class="actions-label">Stato</div>
+        <div class="status-toggle" data-analysis-id="{{ current.id }}">
+          <button class="status-option status-opt-da_valutare {{ 'active' if current.status.value == 'da_valutare' }}" data-status="da_valutare" onclick="setStatus(this)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            Da valutare
+          </button>
+          <button class="status-option status-opt-candidato {{ 'active' if current.status.value == 'candidato' }}" data-status="candidato" onclick="setStatus(this)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg>
+            Candidato
+          </button>
+          <button class="status-option status-opt-colloquio {{ 'active' if current.status.value == 'colloquio' }}" data-status="colloquio" onclick="setStatus(this)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Colloquio
+          </button>
+          <button class="status-option status-opt-scartato {{ 'active' if current.status.value == 'scartato' }}" data-status="scartato" onclick="setStatus(this)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+            Scartato
+          </button>
+        </div>
       </div>
-      <button class="btn btn-sm btn-primary" onclick="openInterviewModal('{{ current.id }}')">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="M12 14v4"/><path d="M10 16h4"/></svg>
-        Prenota colloquio
-      </button>
-      <button class="btn btn-success btn-sm" onclick="genFollowup('{{ current.id }}')">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-        Genera email
-      </button>
-      <button class="btn btn-info btn-sm" onclick="genLinkedin('{{ current.id }}')">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
-        LinkedIn
-      </button>
-      <button class="btn btn-sm" onclick="toggleContacts('{{ current.id }}')">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        Contatti
-      </button>
-      <button class="btn btn-danger btn-sm" onclick="deleteAnalysis('{{ current.id }}')">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-        Elimina
-      </button>
+
+      {# Tools grid #}
+      <div class="actions-section">
+        <div class="actions-label">Strumenti</div>
+        <div class="actions-grid">
+          <button class="action-card" onclick="openInterviewModal('{{ current.id }}')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="M12 14v4"/><path d="M10 16h4"/></svg>
+            <span>Colloquio</span>
+          </button>
+          <button class="action-card" onclick="genFollowup('{{ current.id }}')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+            <span>Email</span>
+          </button>
+          <button class="action-card" onclick="genLinkedin('{{ current.id }}')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+            <span>LinkedIn</span>
+          </button>
+          <button class="action-card" onclick="toggleContacts('{{ current.id }}')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span>Contatti</span>
+          </button>
+        </div>
+      </div>
+
+      {# Footer: secondary actions + CTA #}
+      <div class="actions-footer">
+        {% if current.job_url %}
+        <a href="{{ current.job_url }}" target="_blank" class="btn btn-ghost btn-sm">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
+          Apri annuncio
+        </a>
+        {% endif %}
+        <button class="btn btn-ghost btn-sm btn-danger-text" onclick="deleteAnalysis('{{ current.id }}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+          Elimina
+        </button>
+        <a href="/analyze" class="btn btn-primary btn-sm actions-cta">
+          Nuova analisi &rarr;
+        </a>
+      </div>
+
     </div>
     <div id="generated-area-{{ current.id }}"></div>
     {% endif %}

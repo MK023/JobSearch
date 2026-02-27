@@ -127,10 +127,10 @@ function submitInterview(e) {
     .then(function(data) {
         if (data.ok) {
             closeInterviewModal();
-            // Update pill buttons
+            // Update status toggle
             var group = document.querySelector('[data-analysis-id="' + analysisId + '"]');
             if (group) {
-                group.querySelectorAll('.pill-btn').forEach(function(b) {
+                group.querySelectorAll('.status-option').forEach(function(b) {
                     b.classList.remove('active');
                 });
                 var collBtn = group.querySelector('[data-status="colloquio"]');
@@ -142,17 +142,19 @@ function submitInterview(e) {
                 histItem.dataset.histStatus = 'colloquio';
                 var stEl = histItem.querySelector('.status-badge');
                 if (stEl) {
-                    stEl.className = 'status-badge status-badge-colloquio';
-                    stEl.textContent = '\uD83D\uDDE3\uFE0F colloquio';
+                    stEl.className = 'status-badge status-colloquio';
+                    stEl.textContent = 'COLLOQUIO';
                 }
             }
             if (typeof refreshHistoryCounts === 'function') refreshHistoryCounts();
             if (typeof refreshSpending === 'function') refreshSpending();
             if (typeof refreshDashboard === 'function') refreshDashboard();
             showToast('Colloquio salvato', 'success');
-            // Reload page if on detail view to show interview card
+            // Redirect to new analysis from detail page
             if (window.location.pathname.indexOf('/analysis/') !== -1) {
-                window.location.reload();
+                setTimeout(function() {
+                    window.location.href = '/analyze';
+                }, 1200);
             }
         }
     })

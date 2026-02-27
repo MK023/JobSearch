@@ -3,7 +3,7 @@
 #}
 <a href="/analysis/{{ analysis.id }}" class="job-card">
   <div class="job-card-score">
-    {% with score=analysis.score | default(0), size="sm" %}
+    {% with score=analysis.score | default(0), size="md" %}
       {% include "partials/score_ring.html" %}
     {% endwith %}
   </div>

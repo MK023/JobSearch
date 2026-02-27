@@ -35,8 +35,7 @@
 
     {# Single analysis form #}
     <div x-show="tab === 'single'" x-cloak>
-      <form action="/analyze" method="post" class="card" id="analyze-form"
-            @submit="analyzeLoading = true">
+      <form class="card" id="analyze-form" onsubmit="return submitAnalysis(event)">
         <div class="form-group">
           <label for="job_url" class="form-label">Link annuncio (opzionale)</label>
           <input type="url" id="job_url" name="job_url" class="input" placeholder="https://...">
@@ -71,4 +70,5 @@
 {% block scripts_extra %}
 <script src="{{ url_for('static', path='js/modules/spending.js') }}?v=12"></script>
 <script src="{{ url_for('static', path='js/modules/batch.js') }}?v=12"></script>
+<script src="{{ url_for('static', path='js/modules/analyze.js') }}?v=13"></script>
 {% endblock %}

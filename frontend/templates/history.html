@@ -25,10 +25,6 @@
             @click="switchTab('candidature')">
       Candidature <span class="tab-badge" x-text="counts.candidature">{{ counts.candidato|default(0) }}</span>
     </button>
-    <button class="tab" :class="{ active: activeTab === 'colloqui' }"
-            @click="switchTab('colloqui')">
-      Colloqui <span class="tab-badge" x-text="counts.colloqui">{{ counts.colloquio|default(0) }}</span>
-    </button>
     <button class="tab" :class="{ active: activeTab === 'scartati' }"
             @click="switchTab('scartati')">
       Scartati <span class="tab-badge" x-text="counts.scartati">{{ counts.scartato|default(0) }}</span>

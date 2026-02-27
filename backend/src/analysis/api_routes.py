@@ -1,21 +1,85 @@
-"""Analysis JSON API routes (status changes, deletion)."""
+"""Analysis JSON API routes (status changes, deletion, AJAX analysis)."""
 
 from datetime import date
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..audit.service import audit
 from ..auth.models import User
+from ..config import settings
 from ..cover_letter.models import CoverLetter
-from ..dashboard.service import remove_spending
+from ..cv.service import get_latest_cv
+from ..dashboard.service import add_spending, check_budget_available, remove_spending
 from ..database import get_db
-from ..dependencies import get_current_user
+from ..dependencies import get_cache, get_current_user
+from ..integrations.anthropic_client import MODELS, content_hash
+from ..integrations.cache import CacheService
+from ..rate_limit import limiter
 from .models import AnalysisStatus
-from .service import get_analysis_by_id, update_status
+from .service import find_existing_analysis, get_analysis_by_id, run_analysis, update_status
 
 router = APIRouter(tags=["analysis-api"])
+
+
+class AnalyzeRequest(BaseModel):
+    job_description: str
+    job_url: str = ""
+    model: str = "haiku"
+
+
+@router.post("/analyze")
+@limiter.limit(settings.rate_limit_analyze)
+def analyze_api(
+    request: Request,
+    body: AnalyzeRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+    cache: CacheService = Depends(get_cache),
+):
+    """Run analysis via JSON API (AJAX). Returns redirect URL."""
+    cv = get_latest_cv(db, user.id)
+    if not cv:
+        return JSONResponse({"error": "Salva prima il tuo CV!"}, status_code=400)
+
+    if len(body.job_description) > settings.max_job_desc_size:
+        return JSONResponse(
+            {"error": f"Descrizione troppo lunga (max {settings.max_job_desc_size} caratteri)"},
+            status_code=400,
+        )
+
+    budget_ok, budget_msg = check_budget_available(db)
+    if not budget_ok:
+        return JSONResponse({"error": budget_msg}, status_code=400)
+
+    ch = content_hash(cv.raw_text, body.job_description)
+    model_id = MODELS.get(body.model, MODELS["haiku"])
+    existing = find_existing_analysis(db, ch, model_id)
+
+    if existing:
+        audit(db, request, "analyze_cache", f"id={existing.id}")
+        db.commit()
+        return JSONResponse({"ok": True, "redirect": f"/analysis/{existing.id}", "cached": True})
+
+    try:
+        analysis, result = run_analysis(db, cv.raw_text, cv.id, body.job_description, body.job_url, body.model, cache)
+        add_spending(
+            db,
+            result.get("cost_usd", 0.0),
+            result.get("tokens", {}).get("input", 0),
+            result.get("tokens", {}).get("output", 0),
+        )
+        audit(db, request, "analyze", f"id={analysis.id}, company={analysis.company}, score={analysis.score}")
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        audit(db, request, "analyze_error", str(exc))
+        db.commit()
+        return JSONResponse({"error": f"Analisi AI fallita: {exc}"}, status_code=500)
+
+    return JSONResponse({"ok": True, "redirect": f"/analysis/{analysis.id}"})
 
 
 @router.post("/status/{analysis_id}/{new_status}")

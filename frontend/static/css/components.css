@@ -317,6 +317,11 @@
   height: 140px;
 }
 
+.score-ring-md {
+  width: 64px;
+  height: 64px;
+}
+
 .score-ring-sm {
   width: 48px;
   height: 48px;
@@ -827,6 +832,108 @@ details[open] summary::before {
   color: var(--accent-red);
 }
 
+/* ---- Status toggle (segmented control) ---- */
+
+.status-toggle {
+  display: flex;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  padding: 2px;
+  border: 1px solid var(--border-subtle);
+  gap: 2px;
+}
+
+.status-option {
+  flex: 1;
+  padding: 8px 4px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.status-option:hover {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+}
+
+.status-opt-da_valutare.active {
+  background: rgb(255 159 10 / 15%);
+  color: var(--accent-orange);
+}
+
+.status-opt-candidato.active {
+  background: rgb(10 132 255 / 15%);
+  color: var(--accent-blue);
+}
+
+.status-opt-colloquio.active {
+  background: rgb(48 209 88 / 15%);
+  color: var(--accent-green);
+}
+
+.status-opt-scartato.active {
+  background: rgb(255 69 58 / 15%);
+  color: var(--accent-red);
+}
+
+/* ---- Action card grid ---- */
+
+.actions-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-sm);
+}
+
+.action-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-lg) var(--space-md);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-secondary);
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  transition: all var(--transition-fast);
+}
+
+.action-card:hover {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+  background: rgb(10 132 255 / 5%);
+}
+
+.action-card svg {
+  opacity: 0.7;
+}
+
+.action-card:hover svg {
+  opacity: 1;
+}
+
+/* ---- Button modifiers ---- */
+
+.btn-danger-text {
+  color: var(--accent-red);
+}
+
+.btn-danger-text:hover {
+  background: rgb(255 69 58 / 10%);
+}
+
 /* ---- CV status indicator ---- */
 
 .cv-status {
@@ -905,6 +1012,29 @@ details[open] summary::before {
   .score-ring-lg {
     width: 100px;
     height: 100px;
+  }
+
+  .score-ring-md {
+    width: 48px;
+    height: 48px;
+  }
+
+  .status-option {
+    font-size: var(--text-xs);
+    padding: 8px 2px;
+    gap: 4px;
+  }
+
+  .status-option svg {
+    display: none;
+  }
+
+  .actions-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .action-card {
+    padding: var(--space-md) var(--space-sm);
   }
 
   .form-grid {
