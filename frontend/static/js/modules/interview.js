@@ -150,12 +150,10 @@ function submitInterview(e) {
             if (typeof refreshSpending === 'function') refreshSpending();
             if (typeof refreshDashboard === 'function') refreshDashboard();
             showToast('Colloquio salvato', 'success');
-            // Redirect to new analysis from detail page
-            if (window.location.pathname.indexOf('/analysis/') !== -1) {
-                setTimeout(function() {
-                    window.location.href = '/analyze';
-                }, 1200);
-            }
+            // Reload current page to reflect changes
+            setTimeout(function() {
+                window.location.reload();
+            }, 1200);
         }
     })
     .catch(function(e) {

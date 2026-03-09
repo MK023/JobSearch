@@ -15,6 +15,7 @@
 11. [CI/CD](#11-cicd)
 12. [Deploy su Fly.io](#12-deploy-su-flyio)
 13. [Pattern e Decisioni Architetturali](#13-pattern-e-decisioni-architetturali)
+14. [MCP Server (Claude Desktop Integration)](#14-mcp-server-claude-desktop-integration)
 
 ---
 
@@ -107,6 +108,17 @@ backend/src/
     ├── validation.py        # AI response validation + repair
     ├── cache.py             # Redis/Null cache (Protocol)
     └── glassdoor.py         # Company ratings (RapidAPI)
+
+mcp-server/
+├── server.py              # FastMCP app, 15 tool read-only
+├── api_client.py          # HTTP client → backend API (session auth)
+├── Dockerfile             # Python 3.12-slim, porta 8081
+├── fly.toml               # Deploy Fly.io (256MB, CDG, auto-sleep)
+├── requirements.txt       # fastmcp, httpx
+├── tests/
+│   ├── test_server.py     # 16 test: tool → endpoint mapping
+│   └── test_api_client.py # 3 test: login, cookie, errori
+└── pyproject.toml         # Ruff + mypy config
 ```
 
 Ogni modulo segue il pattern **models → service → routes**:
@@ -866,11 +878,12 @@ frontend ────┘              ↑
 security ───────────────────┘
 ```
 
-**Job 1 - Ruff Lint & Format**: linting e formattazione Python
+**Job 1 - Ruff Lint & Format + mypy**: linting, formattazione e type checking Python
 ```yaml
-- run: pip install ruff
+- run: pip install ruff mypy
 - run: ruff check backend/src/ backend/tests/
 - run: ruff format --check backend/src/ backend/tests/
+- run: mypy backend/src/ --ignore-missing-imports
 ```
 
 **Job 2 - Frontend Lint**: CSS, HTML e JS validation
@@ -1145,3 +1158,87 @@ def encrypt_credential(value: str) -> str:
 - **Anti-spam**: header compliant (List-Unsubscribe, Message-ID, MIME multipart)
 - **Rate limiting**: massimo 1 email per analisi (deduplicazione via `notification_logs`)
 - **Graceful degradation**: se SMTP non configurato, le notifiche vengono silenziosamente skippate
+
+---
+
+## 14. MCP Server (Claude Desktop Integration)
+
+### Architettura
+
+Il MCP server è un servizio separato che espone 15 tool read-only via Model Context Protocol (MCP), permettendo di interrogare il database delle candidature direttamente da Claude Desktop.
+
+```
+Claude Desktop → mcp-remote (stdio bridge) → MCP Server (Fly.io :8081) → Backend API → PostgreSQL
+```
+
+### Stack tecnico
+
+| Componente | Tecnologia |
+|-----------|-----------|
+| Framework | FastMCP (Python MCP SDK) |
+| Trasporto | streamable-http (stateless) |
+| Auth | Session cookie (login al backend, auto-relogin su 401/403) |
+| Deploy | Fly.io (256MB shared-cpu, auto-sleep, regione CDG) |
+| Client bridge | mcp-remote (npm, stdio → HTTP proxy) |
+
+### Pattern MCP → Backend API → DB
+
+Il MCP server **non accede direttamente al database**. Ogni tool chiama un endpoint REST del backend via HTTP:
+
+```python
+@mcp.tool()
+async def get_candidature(status: str | None = None, limit: int = 50) -> dict:
+    params = {"limit": limit}
+    if status:
+        params["status"] = status
+    return await api_get("/api/v1/candidature", params)
+```
+
+Vantaggi:
+- **Security**: un solo punto di accesso al DB (il backend), con auth e rate limiting
+- **DRY**: le query SQL restano nel backend, il MCP le riusa
+- **Semplicità**: il MCP server è un thin proxy (~120 righe)
+
+### Auto-wake e networking
+
+Il MCP server usa l'URL pubblico del backend (`https://jobsearch.fly.dev`) invece della rete interna Fly.io (`*.internal`). Questo perché i nomi `.internal` non triggerano l'auto-start delle VM in sleep — solo il proxy pubblico di Fly.io sveglia le macchine automaticamente.
+
+### Tool disponibili (15)
+
+| Tool | Endpoint | Descrizione |
+|------|----------|------------|
+| `get_candidature` | `/api/v1/candidature` | Lista con filtro per stato |
+| `search_candidature` | `/api/v1/candidature/search` | Ricerca per azienda/ruolo |
+| `get_candidature_detail` | `/api/v1/candidature/{id}` | Dettaglio completo |
+| `get_top_candidature` | `/api/v1/candidature/top` | Top per score |
+| `get_candidature_by_date_range` | `/api/v1/candidature/date-range` | Per periodo |
+| `get_stale_candidature` | `/api/v1/candidature/stale` | Senza aggiornamenti |
+| `get_upcoming_interviews` | `/api/v1/interviews-upcoming` | Colloqui prossimi |
+| `get_interview_prep` | `/api/v1/interview-prep/{id}` | Preparazione colloquio |
+| `get_cover_letter` | `/api/v1/cover-letters/{id}` | Lettera di presentazione |
+| `search_contacts` | `/api/v1/contacts/search` | Ricerca contatti |
+| `get_dashboard_stats` | `/api/v1/dashboard` | Stats generali |
+| `get_spending` | `/api/v1/spending` | Costi API |
+| `get_pending_followups` | `/api/v1/followups/pending` | Follow-up in attesa |
+| `get_activity_summary` | `/api/v1/activity-summary` | Riepilogo attività |
+
+### Configurazione Claude Desktop
+
+```json
+{
+  "mcpServers": {
+    "JobSearch": {
+      "command": "npx",
+      "args": ["mcp-remote", "https://jobsearch-mcp.fly.dev/mcp"]
+    }
+  }
+}
+```
+
+Il file si trova in `~/Library/Application Support/Claude/claude_desktop_config.json` su macOS.
+
+### Test
+
+18 test unitari (pytest + asyncio):
+- `test_server.py`: 16 test — verifica che ogni tool chiami l'endpoint corretto con i parametri giusti
+- `test_api_client.py`: 3 test — login flow, estrazione session cookie, gestione errori

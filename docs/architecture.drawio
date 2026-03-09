@@ -212,6 +212,41 @@
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
+        <!-- Read-Only API for MCP -->
+        <mxCell id="read_api_routes" value="Read API (MCP)&#xa;/api/v1/candidature/*&#xa;/api/v1/contacts/search&#xa;/api/v1/followups/*&#xa;/api/v1/activity-summary" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="docker_group">
+          <mxGeometry x="330" y="415" width="140" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Claude Desktop -->
+        <mxCell id="claude_desktop" value="Claude Desktop&#xa;(macOS)" style="shape=mxgraph.basic.cloud_callout;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="100" y="80" width="200" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- MCP Server (outside Docker) -->
+        <mxCell id="mcp_server" value="MCP Server&#xa;(jobsearch-mcp)&#xa;FastMCP :8081&#xa;Fly.io auto-sleep" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="20" y="380" width="160" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Arrow: Claude Desktop → MCP Server -->
+        <mxCell id="arrow_cd_mcp" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;strokeWidth=2;" edge="1" source="claude_desktop" target="mcp_server" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_cd_mcp_label" value="mcp-remote&#xa;(stdio → HTTP)" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#82b366;" vertex="1" connectable="0" parent="arrow_cd_mcp">
+          <mxGeometry x="-0.2" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Arrow: MCP Server → Backend -->
+        <mxCell id="arrow_mcp_backend" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;strokeWidth=2;" edge="1" source="mcp_server" target="backend_group" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_mcp_backend_label" value="HTTPS&#xa;(session auth)" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=10;fontColor=#82b366;" vertex="1" connectable="0" parent="arrow_mcp_backend">
+          <mxGeometry x="-0.2" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
       </root>
     </mxGraphModel>
   </diagram>

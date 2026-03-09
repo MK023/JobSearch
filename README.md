@@ -1,6 +1,6 @@
 # Job Search Command Center
 
-An AI-powered job search platform built with a microservices architecture. Paste your CV once, then analyze any job listing to get compatibility scores, skill gap analysis, interview preparation, and automated outreach tools.
+An AI-powered job search platform built with a microservices architecture. Paste your CV once, then analyze any job listing to get compatibility scores, skill gap analysis, interview preparation, and automated outreach tools — or query your data from Claude Desktop via MCP tools.
 
 **[Live Demo](https://jobsearch.fly.dev)** (auto-sleeps when idle, cold-starts in ~3s)
 
@@ -10,7 +10,7 @@ An AI-powered job search platform built with a microservices architecture. Paste
 ![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 ![CI](https://img.shields.io/badge/CI-GitHub_Actions-2088FF?logo=githubactions&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-130_passed-30D158)
+![Tests](https://img.shields.io/badge/Tests-184_passed-30D158)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
 ---
@@ -18,25 +18,35 @@ An AI-powered job search platform built with a microservices architecture. Paste
 ## Architecture
 
 ```
-                    ┌─────────────────┐
-    :80             │    frontend     │
-  ──────────────────│  (nginx 1.27)   │
-                    └────────┬────────┘
-                             │ proxy_pass
-                    ┌────────▼────────┐
-    :8000 internal  │    backend      │
-                    │ (uvicorn/FastAPI)│──── Claude API (Haiku / Sonnet)
-                    └────────┬────────┘
-                             │
-                  ┌──────────┼──────────┐
-                  │                     │
-           ┌──────▼──────┐     ┌───────▼───────┐
-           │     db       │     │    redis      │
-           │ PostgreSQL 16│     │  (cache, opt) │
-           └──────────────┘     └───────────────┘
+  Claude Desktop          Browser
+       │                     │
+       ▼                     │
+  ┌──────────────┐           │
+  │  MCP Server  │           │
+  │ (jobsearch-  │           │
+  │  mcp, :8081) │           │
+  └──────┬───────┘           │
+         │ HTTP              │ :80
+         ▼                   ▼
+  ┌─────────────────────────────────┐
+  │           frontend              │
+  │         (nginx 1.27)            │
+  └──────────────┬──────────────────┘
+                 │ proxy_pass
+  ┌──────────────▼──────────────────┐
+  │           backend               │
+  │       (uvicorn/FastAPI)         │──── Claude API (Haiku / Sonnet)
+  └──────────────┬──────────────────┘
+                 │
+      ┌──────────┼──────────┐
+      │                     │
+┌─────▼──────┐     ┌───────▼───────┐
+│     db      │     │    redis      │
+│PostgreSQL 16│     │  (cache, opt) │
+└─────────────┘     └───────────────┘
 ```
 
-**4 containers** on a bridge network. Nginx serves static files directly and reverse-proxies everything else to the backend. The backend serves a multi-page SSR frontend (sidebar navigation with 5 pages) at root level and a versioned JSON API at `/api/v1/` with auto-generated Swagger docs.
+**4 containers** on a bridge network. Nginx serves static files directly and reverse-proxies everything else to the backend. The backend serves a multi-page SSR frontend (sidebar navigation with 5 pages) at root level and a versioned JSON API at `/api/v1/` with auto-generated Swagger docs. An optional **MCP server** lets Claude Desktop query candidature, interviews, and contacts via 15 read-only tools.
 
 ---
 
@@ -58,6 +68,7 @@ An AI-powered job search platform built with a microservices architecture. Paste
 | **Audit Trail** | DB-logged user actions (login, analyze, delete, etc.) |
 | **Interview Scheduling** | Book interviews with date, recruiter, meeting link; upcoming banner on dashboard |
 | **Dashboard** | Stats, top matches, active applications, upcoming interviews at a glance |
+| **Claude MCP** | Query candidature, interviews, contacts from Claude Desktop via MCP tools |
 
 ---
 
@@ -84,7 +95,8 @@ An AI-powered job search platform built with a microservices architecture. Paste
 | **Rate Limiting** | slowapi | Per-IP limits, X-Forwarded-For aware |
 | **Security** | Custom middleware + Nginx | CORS, HSTS, CSP, SRI, gzip, trusted hosts |
 | **Encryption** | Fernet (cryptography) | SMTP credential encryption at rest |
-| **CI/CD** | GitHub Actions | Lint (ruff) + Frontend lint + Security audit + Test + Docker build |
+| **MCP Server** | FastMCP + streamable-http | Claude Desktop integration (15 read-only tools) |
+| **CI/CD** | GitHub Actions | Lint (ruff) + mypy + Frontend lint + Security audit + Test + Docker build |
 | **Deploy** | Fly.io / Docker Compose | Single-container PaaS or multi-container local |
 
 ---
@@ -153,6 +165,22 @@ http://localhost/api/v1/docs
 | DELETE | `/api/v1/interviews/{analysis_id}` | Delete interview |
 | GET | `/api/v1/interviews-upcoming` | Upcoming interviews (48h) |
 
+### Read-Only Endpoints (MCP)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/candidature` | List candidature (filter by status) |
+| GET | `/api/v1/candidature/search` | Search by company/role |
+| GET | `/api/v1/candidature/top` | Top-scored candidature |
+| GET | `/api/v1/candidature/date-range` | Candidature by date range |
+| GET | `/api/v1/candidature/stale` | Stale candidature (no updates in N days) |
+| GET | `/api/v1/candidature/{id}` | Full candidature detail |
+| GET | `/api/v1/interview-prep/{id}` | Interview preparation data |
+| GET | `/api/v1/cover-letters/{id}` | Cover letters for analysis |
+| GET | `/api/v1/contacts/search` | Search contacts |
+| GET | `/api/v1/followups/pending` | Pending follow-ups |
+| GET | `/api/v1/activity-summary` | Activity summary (N days) |
+
 ---
 
 ## Project Structure
@@ -215,6 +243,18 @@ JobSearch/
 │               ├── cv.js
 │               ├── history.js
 │               └── interview.js
+│
+├── mcp-server/
+│   ├── Dockerfile                  # python:3.12-slim
+│   ├── fly.toml                    # Fly.io deploy (256MB, auto-sleep)
+│   ├── requirements.txt
+│   ├── server.py                   # 15 MCP tools (FastMCP)
+│   ├── api_client.py               # HTTP client + session auth
+│   ├── config.py                   # Pydantic settings
+│   ├── .env.example
+│   └── tests/
+│       ├── test_server.py          # Tool tests (16)
+│       └── test_api_client.py      # Auth flow tests (3)
 │
 ├── backend/
 │   ├── Dockerfile                  # python:3.12-slim
@@ -328,6 +368,26 @@ fly deploy
 
 The VM auto-sleeps when idle and cold-starts in ~2-3s.
 
+### MCP Server
+
+```bash
+fly apps create jobsearch-mcp
+fly secrets set BACKEND_EMAIL=you@example.com BACKEND_PASSWORD=your-password -a jobsearch-mcp
+cd mcp-server && fly deploy
+```
+
+Configure Claude Desktop (`claude_desktop_config.json`):
+```json
+{
+  "mcpServers": {
+    "JobSearch": {
+      "command": "npx",
+      "args": ["mcp-remote", "https://jobsearch-mcp.fly.dev/mcp"]
+    }
+  }
+}
+```
+
 ---
 
 ## Cost
@@ -365,6 +425,9 @@ Budget tracking is built-in: set a limit, monitor spending in real-time.
 - Anthropic API client with 120s timeout and 3 automatic retries (exponential backoff)
 - Atomic transactions with rollback on error (no partial state persistence)
 - Interview datetime validation (no past dates, end > start, field length limits via Pydantic)
+- Annotated type aliases for dependency injection (eliminates raw Depends())
+- MCP server session-based auth with auto-relogin on 401/403
+- mypy static type checking in CI
 
 ---
 

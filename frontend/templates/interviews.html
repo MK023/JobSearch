@@ -1,6 +1,15 @@
 {% extends "base.html" %}
 {% block title %}Colloqui — Job Search{% endblock %}
 
+{% block head_extra %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css"
+      integrity="sha384-RkASv+6KfBMW9eknReJIJ6b3UnjKOKC5bOUaNgIY778NFbQ8MtWq9Lr/khUgqtTt"
+      crossorigin="anonymous">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css"
+      integrity="sha384-heUUtXw0Djj2DElfLOVPlASSWFKNL3JDY6s3FEqQD03GYyWOeophY5DsfEG40sYX"
+      crossorigin="anonymous">
+{% endblock %}
+
 {% block content %}
 <div class="content-inner">
 
@@ -38,6 +47,10 @@
         <a href="{{ iv.meeting_link }}" target="_blank" rel="noopener noreferrer">{{ iv.meeting_link }}</a>
       </div>
       {% endif %}
+      <div class="interview-card-actions">
+        <button class="btn btn-primary btn-sm" onclick="openInterviewModal('{{ iv.analysis_id }}')">Modifica</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteInterviewFromDetail('{{ iv.analysis_id }}')">Rimuovi</button>
+      </div>
     </div>
     {% endfor %}
   </section>
@@ -99,10 +112,26 @@
         <span>{{ iv.notes }}</span>
       </div>
       {% endif %}
+      <div class="interview-card-actions">
+        <button class="btn btn-primary btn-sm" onclick="openInterviewModal('{{ iv.analysis_id }}')">Modifica</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteInterviewFromDetail('{{ iv.analysis_id }}')">Rimuovi</button>
+      </div>
     </div>
     {% endfor %}
   </details>
   {% endif %}
 
+  {% include "partials/interview_modal.html" %}
+
 </div>
+{% endblock %}
+
+{% block scripts_extra %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"
+        integrity="sha384-5JqMv4L/Xa0hfvtF06qboNdhvuYXUku9ZrhZh3bSk8VXF0A/RuSLHpLsSV9Zqhl6"
+        crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/it.js"
+        integrity="sha384-XmcRqh+m1SV0CoktEURItyTPYrm018EIiFIZnaIFP1lRvHRna9DduiTvO+TQzcTJ"
+        crossorigin="anonymous"></script>
+<script src="{{ url_for('static', path='js/modules/interview.js') }}?v=13"></script>
 {% endblock %}
