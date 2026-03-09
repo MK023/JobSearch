@@ -12,7 +12,6 @@
   --accent-green: #30D158;
   --accent-orange: #FF9F0A;
   --accent-red: #FF453A;
-  --accent-lime: #30D158;
 
   /* Text — Dark */
   --text-primary: #F5F5F7;
@@ -98,7 +97,6 @@ html[data-theme="light"] {
   --accent-green: #34c759;
   --accent-orange: #ff9500;
   --accent-red: #ff3b30;
-  --accent-lime: #34c759;
   --text-primary: #1c1c1e;
   --text-secondary: #636366;
   --text-tertiary: #aeaeb2;

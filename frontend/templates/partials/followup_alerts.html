@@ -1,11 +1,11 @@
 {# Follow-up alerts for overdue applications #}
 {% if followup_alerts %}
-<div class="followup-alerts">
-    <h2 class="section-title">Follow-up da fare</h2>
+<details class="followup-alerts past-section" open>
+    <summary class="section-title">Follow-up da fare ({{ followup_alerts|length }})</summary>
 
     {% for fa in followup_alerts %}
-    <div class="followup-alert" id="followup-{{ fa.id }}">
-        <div class="followup-alert-icon">⏰</div>
+    <div class="followup-alert mt-md" id="followup-{{ fa.id }}">
+        <div class="followup-alert-icon">&#x23F0;</div>
         <div class="followup-alert-info">
             <div class="followup-alert-role">{{ fa.role }} @ {{ fa.company }}</div>
             <div class="followup-alert-days">Candidatura inviata il {{ fa.applied_at.strftime('%d/%m/%Y') if fa.applied_at else '?' }}</div>
@@ -18,5 +18,5 @@
     </div>
     <div id="generated-area-{{ fa.id }}"></div>
     {% endfor %}
-</div>
+</details>
 {% endif %}
