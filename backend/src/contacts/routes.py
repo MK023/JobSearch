@@ -1,12 +1,9 @@
 """Contact routes."""
 
-from fastapi import APIRouter, Depends, Form
+from fastapi import APIRouter, Form
 from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
 
-from ..auth.models import User
-from ..database import get_db
-from ..dependencies import get_current_user
+from ..dependencies import CurrentUser, DbSession
 from .service import create_contact, delete_contact_by_id, get_contacts_for_analysis
 
 router = APIRouter(tags=["contacts"])
@@ -14,6 +11,8 @@ router = APIRouter(tags=["contacts"])
 
 @router.post("/contacts")
 def add_contact(
+    db: DbSession,
+    user: CurrentUser,
     analysis_id: str = Form(""),
     name: str = Form(""),
     email: str = Form(""),
@@ -22,8 +21,6 @@ def add_contact(
     linkedin_url: str = Form(""),
     notes: str = Form(""),
     source: str = Form("manual"),
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
 ):
     contact = create_contact(db, analysis_id, name, email, phone, company, linkedin_url, notes, source)
     db.commit()
@@ -46,8 +43,8 @@ def add_contact(
 @router.get("/contacts/{analysis_id}")
 def list_contacts(
     analysis_id: str,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    db: DbSession,
+    user: CurrentUser,
 ):
     contacts = get_contacts_for_analysis(db, analysis_id)
     return JSONResponse(
@@ -72,8 +69,8 @@ def list_contacts(
 @router.delete("/contacts/{contact_id}")
 def remove_contact(
     contact_id: str,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    db: DbSession,
+    user: CurrentUser,
 ):
     if not delete_contact_by_id(db, contact_id):
         return JSONResponse({"error": "Contact not found"}, status_code=404)

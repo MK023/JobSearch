@@ -1,16 +1,13 @@
 """Page routes for the multi-page frontend (SSR)."""
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
-from sqlalchemy.orm import Session
 
 from .analysis.models import AnalysisStatus
 from .analysis.service import get_recent_analyses
-from .auth.models import User
 from .cv.service import get_latest_cv
 from .dashboard.service import get_dashboard, get_followup_alerts, get_spending
-from .database import get_db
-from .dependencies import get_current_user
+from .dependencies import CurrentUser, DbSession
 from .interview.service import get_upcoming_interviews
 
 router = APIRouter(tags=["pages"])
@@ -27,8 +24,8 @@ def _flash(request: Request) -> dict:
 @router.get("/", response_class=HTMLResponse)
 def dashboard_page(
     request: Request,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    db: DbSession,
+    user: CurrentUser,
 ):
     templates = request.app.state.templates
     flash = _flash(request)
@@ -59,8 +56,8 @@ def dashboard_page(
 @router.get("/analyze", response_class=HTMLResponse)
 def analyze_page(
     request: Request,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    db: DbSession,
+    user: CurrentUser,
 ):
     from .batch.service import get_batch_status
 
@@ -89,8 +86,8 @@ def analyze_page(
 @router.get("/history", response_class=HTMLResponse)
 def history_page(
     request: Request,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    db: DbSession,
+    user: CurrentUser,
 ):
     templates = request.app.state.templates
     flash = _flash(request)
@@ -117,8 +114,8 @@ def history_page(
 @router.get("/interviews", response_class=HTMLResponse)
 def interviews_page(
     request: Request,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    db: DbSession,
+    user: CurrentUser,
 ):
     from datetime import UTC, datetime
 
@@ -170,8 +167,8 @@ def interviews_page(
 @router.get("/settings", response_class=HTMLResponse)
 def settings_page(
     request: Request,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    db: DbSession,
+    user: CurrentUser,
 ):
     templates = request.app.state.templates
     flash = _flash(request)

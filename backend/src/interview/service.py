@@ -77,10 +77,10 @@ def delete_interview(db: Session, analysis_id: UUID) -> bool:
     return True
 
 
-def get_upcoming_interviews(db: Session, hours: int = 48) -> list[dict]:
-    """Get interviews scheduled within the next N hours."""
+def get_upcoming_interviews(db: Session, hours: int = 48, days: int | None = None) -> list[dict]:
+    """Get interviews scheduled within the next N hours (or N days if specified)."""
     now = datetime.now(UTC)
-    cutoff = now + timedelta(hours=hours)
+    cutoff = now + timedelta(days=days) if days is not None else now + timedelta(hours=hours)
 
     rows = (
         db.query(Interview, JobAnalysis)

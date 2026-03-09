@@ -1,18 +1,14 @@
 """Analysis HTML routes (SSR pages)."""
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlalchemy.orm import Session
 
 from ..audit.service import audit
-from ..auth.models import User
 from ..config import settings
 from ..cv.service import get_latest_cv
 from ..dashboard.service import add_spending, check_budget_available
-from ..database import get_db
-from ..dependencies import get_cache, get_current_user
+from ..dependencies import Cache, CurrentUser, DbSession
 from ..integrations.anthropic_client import MODELS, content_hash
-from ..integrations.cache import CacheService
 from ..rate_limit import limiter
 from .service import (
     find_existing_analysis,
@@ -28,12 +24,12 @@ router = APIRouter(tags=["analysis"])
 @limiter.limit(settings.rate_limit_analyze)
 def analyze(
     request: Request,
+    db: DbSession,
+    user: CurrentUser,
+    cache: Cache,
     job_description: str = Form(...),
     job_url: str = Form(""),
     model: str = Form("haiku"),
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
-    cache: CacheService = Depends(get_cache),
 ):
     cv = get_latest_cv(db, user.id)
 
@@ -87,8 +83,8 @@ def analyze(
 def view_analysis(
     request: Request,
     analysis_id: str,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    db: DbSession,
+    user: CurrentUser,
 ):
     from ..contacts.service import get_contacts_for_analysis
     from ..interview.service import get_interview_by_analysis

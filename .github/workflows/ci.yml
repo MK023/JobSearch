@@ -14,20 +14,32 @@ env:
   NODE_VERSION: "20"
 
 jobs:
-  # ── Backend: Linting & Formatting ──────────────────────────────────
+  # ── Backend: Linting, Formatting & Type Checking ──────────────────
   lint:
-    name: Ruff Lint & Format
+    name: Ruff Lint, Format & Mypy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - run: pip install ruff
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: pip install ruff mypy -r backend/requirements.txt
       - name: Ruff lint
         run: ruff check backend/src/ backend/tests/
       - name: Ruff format check
         run: ruff format --check backend/src/ backend/tests/
+      - name: Mypy type check (new modules)
+        run: |
+          mypy backend/src/read_routes.py \
+            backend/src/dependencies.py \
+            backend/src/api_v1.py \
+            --ignore-missing-imports \
+            --disallow-untyped-defs \
+            --no-implicit-optional \
+            --warn-return-any \
+            || true
 
   # ── Frontend: Lint & Validate ──────────────────────────────────────
   frontend:

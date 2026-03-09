@@ -1,7 +1,7 @@
 """Analysis service: job analysis, result building, glassdoor merging."""
 
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -129,6 +129,70 @@ def get_analysis_by_id(db: Session, analysis_id: str) -> JobAnalysis | None:
 
 def get_recent_analyses(db: Session, limit: int = 50) -> list[JobAnalysis]:
     return db.query(JobAnalysis).order_by(JobAnalysis.created_at.desc()).limit(limit).all()
+
+
+def get_candidature(db: Session, status: str | None = None, limit: int = 50) -> list[JobAnalysis]:
+    """Get candidature optionally filtered by status."""
+    q = db.query(JobAnalysis)
+    if status:
+        try:
+            status_enum = AnalysisStatus(status)
+        except ValueError:
+            return []
+        q = q.filter(JobAnalysis.status == status_enum)
+    return q.order_by(JobAnalysis.created_at.desc()).limit(min(limit, 100)).all()
+
+
+def search_candidature(db: Session, query: str, limit: int = 20) -> list[JobAnalysis]:
+    """Search candidature by company or role (case-insensitive)."""
+    pattern = f"%{query}%"
+    return (
+        db.query(JobAnalysis)
+        .filter((JobAnalysis.company.ilike(pattern)) | (JobAnalysis.role.ilike(pattern)))
+        .order_by(JobAnalysis.created_at.desc())
+        .limit(min(limit, 50))
+        .all()
+    )
+
+
+def get_top_candidature(db: Session, limit: int = 10) -> list[JobAnalysis]:
+    """Get top-scored candidature (excluding rejected)."""
+    return (
+        db.query(JobAnalysis)
+        .filter(JobAnalysis.status != AnalysisStatus.REJECTED)
+        .order_by(JobAnalysis.score.desc())
+        .limit(min(limit, 50))
+        .all()
+    )
+
+
+def get_candidature_by_date_range(db: Session, date_from: datetime, date_to: datetime) -> list[JobAnalysis]:
+    """Get candidature created within a date range."""
+    return (
+        db.query(JobAnalysis)
+        .filter(
+            JobAnalysis.created_at >= date_from,
+            JobAnalysis.created_at <= date_to,
+        )
+        .order_by(JobAnalysis.created_at.desc())
+        .all()
+    )
+
+
+def get_stale_candidature(db: Session, days: int = 7) -> list[JobAnalysis]:
+    """Get candidature with status 'candidato' that haven't been updated in N days."""
+    threshold = datetime.now(UTC) - timedelta(days=days)
+    return (
+        db.query(JobAnalysis)
+        .filter(
+            JobAnalysis.status == AnalysisStatus.APPLIED,
+            JobAnalysis.applied_at.isnot(None),
+            JobAnalysis.applied_at <= threshold,
+            JobAnalysis.followed_up == False,  # noqa: E712
+        )
+        .order_by(JobAnalysis.applied_at.asc())
+        .all()
+    )
 
 
 def _merge_glassdoor(result: dict, db: Session) -> None:

@@ -1,12 +1,11 @@
 """Authentication routes."""
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import Session
 
 from ..audit.service import audit
-from ..database import get_db
+from ..dependencies import DbSession
 from ..rate_limit import limiter
 from .service import authenticate_user
 
@@ -29,9 +28,9 @@ def login_page(request: Request):
 @limiter.limit("5/minute")
 def login(
     request: Request,
+    db: DbSession,
     email: str = Form(...),
     password: str = Form(...),
-    db: Session = Depends(get_db),
 ):
     templates = _get_templates(request)
     user = authenticate_user(db, email, password)
@@ -50,7 +49,7 @@ def login(
 
 
 @router.post("/logout")
-def logout(request: Request, db: Session = Depends(get_db)):
+def logout(request: Request, db: DbSession):
     audit(db, request, "logout")
     db.commit()
     request.session.clear()

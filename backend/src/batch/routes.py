@@ -1,16 +1,13 @@
 """Batch analysis routes."""
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Form, Request
+from fastapi import APIRouter, BackgroundTasks, Form, Request
 from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
 
 from ..audit.service import audit
-from ..auth.models import User
 from ..config import settings
 from ..dashboard.service import check_budget_available
-from ..database import SessionLocal, get_db
-from ..dependencies import get_cache, get_current_user
-from ..integrations.cache import CacheService
+from ..database import SessionLocal
+from ..dependencies import Cache, CurrentUser, DbSession
 from ..rate_limit import limiter
 from .service import add_to_queue, clear_completed, get_batch_status, get_pending_batch_id, run_batch
 
@@ -20,11 +17,11 @@ router = APIRouter(prefix="/batch", tags=["batch"])
 @router.post("/add")
 def batch_add(
     request: Request,
+    user: CurrentUser,
+    db: DbSession,
     job_description: str = Form(...),
     job_url: str = Form(""),
     model: str = Form("haiku"),
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
 ):
     if len(job_description) > settings.max_job_desc_size:
         return JSONResponse(
@@ -42,9 +39,9 @@ def batch_add(
 def batch_run(
     request: Request,
     background_tasks: BackgroundTasks,
-    user: User = Depends(get_current_user),
-    cache: CacheService = Depends(get_cache),
-    db: Session = Depends(get_db),
+    user: CurrentUser,
+    cache: Cache,
+    db: DbSession,
 ):
     batch_id = get_pending_batch_id()
     if not batch_id:
@@ -69,11 +66,11 @@ def batch_run(
 
 
 @router.get("/status")
-def batch_status_route(user: User = Depends(get_current_user)):
+def batch_status_route(user: CurrentUser):
     return JSONResponse(get_batch_status())
 
 
 @router.delete("/clear")
-def batch_clear(user: User = Depends(get_current_user)):
+def batch_clear(user: CurrentUser):
     clear_completed()
     return JSONResponse({"ok": True})
