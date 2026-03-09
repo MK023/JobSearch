@@ -74,10 +74,18 @@ def auth_client():
 
 class TestHealthEndpoint:
     def test_health_returns_ok(self, app_client):
-        with patch("src.main.get_db") as mock_get_db:
-            mock_session = MagicMock()
-            mock_get_db.return_value = iter([mock_session])
+        from src.database import get_db
+
+        mock_session = MagicMock()
+
+        def _fake_db():
+            yield mock_session
+
+        app_client.app.dependency_overrides[get_db] = _fake_db
+        try:
             response = app_client.get("/health")
+        finally:
+            app_client.app.dependency_overrides.pop(get_db, None)
         assert response.status_code == 200
         data = response.json()
         assert data["status"] in ("ok", "degraded")

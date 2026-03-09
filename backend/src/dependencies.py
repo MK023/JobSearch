@@ -1,5 +1,6 @@
-"""Shared FastAPI dependencies."""
+"""Shared FastAPI dependencies and Annotated type aliases."""
 
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import Depends, Request
@@ -21,7 +22,7 @@ def get_cache(request: Request) -> CacheService:
     return request.app.state.cache
 
 
-def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
+def get_current_user(request: Request, db: Annotated[Session, Depends(get_db)]) -> User:
     """Get the authenticated user from session, or redirect to login."""
     user_id_str = request.session.get("user_id")
     if not user_id_str:
@@ -36,3 +37,10 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
         request.session.clear()
         raise AuthRequired()
     return user
+
+
+# Annotated type aliases for FastAPI dependency injection (best practice).
+# Import these in route files instead of using raw Depends().
+DbSession = Annotated[Session, Depends(get_db)]
+CurrentUser = Annotated[User, Depends(get_current_user)]
+Cache = Annotated[CacheService, Depends(get_cache)]

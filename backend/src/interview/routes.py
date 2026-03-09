@@ -2,17 +2,14 @@
 
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
 
 from ..analysis.models import AnalysisStatus
 from ..analysis.service import get_analysis_by_id, update_status
 from ..audit.service import audit
-from ..auth.models import User
-from ..database import get_db
-from ..dependencies import get_current_user
+from ..dependencies import CurrentUser, DbSession
 from .service import (
     create_or_update_interview,
     delete_interview,
@@ -41,8 +38,8 @@ def upsert_interview(
     request: Request,
     analysis_id: str,
     payload: InterviewPayload,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    db: DbSession,
+    user: CurrentUser,
 ):
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:
@@ -92,8 +89,8 @@ def upsert_interview(
 @router.get("/interviews/{analysis_id}")
 def get_interview(
     analysis_id: str,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    db: DbSession,
+    user: CurrentUser,
 ):
     interview = get_interview_by_analysis(db, analysis_id)
     if not interview:
@@ -120,8 +117,8 @@ def get_interview(
 def remove_interview(
     request: Request,
     analysis_id: str,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    db: DbSession,
+    user: CurrentUser,
 ):
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:
@@ -141,7 +138,8 @@ def remove_interview(
 
 @router.get("/interviews-upcoming")
 def upcoming_interviews(
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    db: DbSession,
+    user: CurrentUser,
+    days: int | None = None,
 ):
-    return JSONResponse(get_upcoming_interviews(db))
+    return JSONResponse(get_upcoming_interviews(db, days=days))

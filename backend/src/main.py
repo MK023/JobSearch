@@ -5,7 +5,7 @@ import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import RedirectResponse
@@ -14,7 +14,6 @@ from fastapi.templating import Jinja2Templates
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from sqlalchemy import text
-from sqlalchemy.orm import Session
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -25,8 +24,8 @@ from .config import settings
 from .cover_letter.routes import router as cover_letter_router
 from .cv.routes import router as cv_router
 from .dashboard.service import seed_spending_totals
-from .database import SessionLocal, get_db
-from .dependencies import AuthRequired
+from .database import SessionLocal
+from .dependencies import AuthRequired, DbSession
 from .integrations.cache import create_cache_service
 from .pages import router as pages_router
 from .rate_limit import limiter
@@ -131,6 +130,8 @@ def create_app() -> FastAPI:
         return templates.TemplateResponse("500.html", {"request": request}, status_code=500)
 
     # --- Middleware stack (LIFO: last added = outermost) ---
+    # Order matters: first added = innermost, last added = outermost.
+    # Request flow: CORS → TrustedHost → SecurityHeaders → SlowAPI → Session → App
 
     app.add_middleware(
         SessionMiddleware,
@@ -140,20 +141,6 @@ def create_app() -> FastAPI:
 
     app.state.limiter = limiter
     app.add_middleware(SlowAPIMiddleware)
-
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.cors_origins_list,
-        allow_credentials=settings.cors_allow_credentials,
-        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        allow_headers=["*"],
-    )
-
-    if settings.trusted_hosts_list != ["*"]:
-        app.add_middleware(
-            TrustedHostMiddleware,
-            allowed_hosts=settings.trusted_hosts_list,
-        )
 
     @app.middleware("http")
     async def security_headers(request: Request, call_next):
@@ -165,6 +152,20 @@ def create_app() -> FastAPI:
         if request.url.scheme == "https":
             response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
         return response
+
+    if settings.trusted_hosts_list != ["*"]:
+        app.add_middleware(
+            TrustedHostMiddleware,
+            allowed_hosts=settings.trusted_hosts_list,
+        )
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins_list,
+        allow_credentials=settings.cors_allow_credentials,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["*"],
+    )
 
     # --- Templates & static files ---
     app.state.templates = Jinja2Templates(directory=str(_TEMPLATE_DIR))
@@ -185,7 +186,7 @@ def create_app() -> FastAPI:
 
     # --- Health check ---
     @app.get("/health")
-    def health(db: Session = Depends(get_db)):
+    def health(db: DbSession):
         db_status = "ok"
         try:
             db.execute(text("SELECT 1"))

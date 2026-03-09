@@ -50,6 +50,18 @@ def get_contacts_for_analysis(db: Session, analysis_id: str) -> list[Contact]:
     return db.query(Contact).filter(Contact.analysis_id == uid).order_by(Contact.created_at.desc()).all()
 
 
+def search_all_contacts(db: Session, query: str, limit: int = 20) -> list[Contact]:
+    """Search all contacts by name, company, or email (case-insensitive)."""
+    pattern = f"%{query}%"
+    return (
+        db.query(Contact)
+        .filter((Contact.name.ilike(pattern)) | (Contact.company.ilike(pattern)) | (Contact.email.ilike(pattern)))
+        .order_by(Contact.created_at.desc())
+        .limit(min(limit, 50))
+        .all()
+    )
+
+
 def delete_contact_by_id(db: Session, contact_id: str) -> bool:
     uid = _to_uuid(contact_id)
     if uid is None:

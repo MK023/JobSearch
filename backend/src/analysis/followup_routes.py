@@ -2,17 +2,14 @@
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Form, Request
 from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
 
 from ..audit.service import audit
-from ..auth.models import User
 from ..contacts.models import Contact
 from ..cv.service import get_latest_cv
 from ..dashboard.service import add_spending
-from ..database import get_db
-from ..dependencies import get_current_user
+from ..dependencies import CurrentUser, DbSession
 from ..integrations.anthropic_client import generate_followup_email, generate_linkedin_message
 from .service import get_analysis_by_id
 
@@ -22,11 +19,11 @@ router = APIRouter(tags=["followup"])
 @router.post("/followup-email")
 def create_followup_email(
     request: Request,
+    db: DbSession,
+    user: CurrentUser,
     analysis_id: str = Form(...),
     language: str = Form("italiano"),
     model: str = Form("haiku"),
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
 ):
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:
@@ -60,11 +57,11 @@ def create_followup_email(
 @router.post("/linkedin-message")
 def create_linkedin_message(
     request: Request,
+    db: DbSession,
+    user: CurrentUser,
     analysis_id: str = Form(...),
     language: str = Form("italiano"),
     model: str = Form("haiku"),
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
 ):
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:
@@ -107,8 +104,8 @@ def create_linkedin_message(
 def mark_followup_done(
     request: Request,
     analysis_id: str,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    db: DbSession,
+    user: CurrentUser,
 ):
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:

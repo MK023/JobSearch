@@ -1,14 +1,11 @@
 """CV routes."""
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
-from sqlalchemy.orm import Session
 
 from ..audit.service import audit
-from ..auth.models import User
 from ..config import settings
-from ..database import get_db
-from ..dependencies import get_current_user
+from ..dependencies import CurrentUser, DbSession
 from .service import get_latest_cv, save_cv
 
 router = APIRouter(tags=["cv"])
@@ -17,10 +14,10 @@ router = APIRouter(tags=["cv"])
 @router.post("/cv", response_class=HTMLResponse)
 def save_cv_route(
     request: Request,
+    db: DbSession,
+    user: CurrentUser,
     cv_text: str = Form(...),
     cv_name: str = Form(""),
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
 ):
     if len(cv_text) < 20:
         request.session["flash_error"] = "CV troppo corto (minimo 20 caratteri)"
@@ -39,8 +36,8 @@ def save_cv_route(
 @router.get("/cv/download")
 def download_cv(
     request: Request,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    db: DbSession,
+    user: CurrentUser,
 ):
     cv = get_latest_cv(db, user.id)
     if not cv:

@@ -1,0 +1,120 @@
+"""JobSearch MCP Server — read-only tools for querying job candidature data."""
+
+from api_client import api_get
+from mcp.server.fastmcp import FastMCP
+
+from config import settings
+
+mcp = FastMCP(
+    "JobSearch",
+    stateless_http=True,
+    json_response=True,
+    host=settings.mcp_host,
+    port=settings.mcp_port,
+)
+
+
+# ── Candidature ─────────────────────────────────────────────────────
+
+
+@mcp.tool()
+async def get_candidature(status: str | None = None, limit: int = 50) -> dict:
+    """Lista candidature. Filtra per stato: da_valutare, candidato, colloquio, scartato."""
+    params: dict = {"limit": limit}
+    if status:
+        params["status"] = status
+    return await api_get("/api/v1/candidature", params)
+
+
+@mcp.tool()
+async def search_candidature(query: str, limit: int = 20) -> dict:
+    """Cerca candidature per azienda o ruolo."""
+    return await api_get("/api/v1/candidature/search", {"q": query, "limit": limit})
+
+
+@mcp.tool()
+async def get_candidature_detail(analysis_id: str) -> dict:
+    """Dettaglio completo di una candidatura: score, gaps, strengths, advice, azienda."""
+    return await api_get(f"/api/v1/candidature/{analysis_id}")
+
+
+@mcp.tool()
+async def get_top_candidature(limit: int = 10) -> dict:
+    """Le candidature con score piu' alto (escluse le scartate)."""
+    return await api_get("/api/v1/candidature/top", {"limit": limit})
+
+
+@mcp.tool()
+async def get_candidature_by_date_range(date_from: str, date_to: str) -> dict:
+    """Candidature create in un periodo. Formato date: YYYY-MM-DD."""
+    return await api_get("/api/v1/candidature/date-range", {"date_from": date_from, "date_to": date_to})
+
+
+@mcp.tool()
+async def get_stale_candidature(days: int = 7) -> dict:
+    """Candidature ferme senza aggiornamenti da N giorni."""
+    return await api_get("/api/v1/candidature/stale", {"days": days})
+
+
+# ── Colloqui ────────────────────────────────────────────────────────
+
+
+@mcp.tool()
+async def get_upcoming_interviews(days: int = 7) -> list:
+    """Colloqui programmati nei prossimi N giorni con dettagli azienda."""
+    return await api_get("/api/v1/interviews-upcoming", {"days": days})
+
+
+@mcp.tool()
+async def get_interview_prep(analysis_id: str) -> dict:
+    """Preparazione colloquio: strengths, gaps, domande suggerite, advice."""
+    return await api_get(f"/api/v1/interview-prep/{analysis_id}")
+
+
+# ── Cover Letter ────────────────────────────────────────────────────
+
+
+@mcp.tool()
+async def get_cover_letter(analysis_id: str) -> dict:
+    """Recupera la lettera di presentazione per una candidatura."""
+    return await api_get(f"/api/v1/cover-letters/{analysis_id}")
+
+
+# ── Contatti ────────────────────────────────────────────────────────
+
+
+@mcp.tool()
+async def search_contacts(query: str, limit: int = 20) -> dict:
+    """Cerca contatti recruiter per nome, azienda o email."""
+    return await api_get("/api/v1/contacts/search", {"q": query, "limit": limit})
+
+
+# ── Dashboard & Follow-up ──────────────────────────────────────────
+
+
+@mcp.tool()
+async def get_dashboard_stats() -> dict:
+    """Riepilogo generale: candidature totali, colloqui, scartate, score medio."""
+    return await api_get("/api/v1/dashboard")
+
+
+@mcp.tool()
+async def get_spending() -> dict:
+    """Costi API: budget, speso oggi, speso totale, token usati."""
+    return await api_get("/api/v1/spending")
+
+
+@mcp.tool()
+async def get_pending_followups() -> dict:
+    """Candidature che aspettano un follow-up."""
+    return await api_get("/api/v1/followups/pending")
+
+
+@mcp.tool()
+async def get_activity_summary(days: int = 7) -> dict:
+    """Riepilogo attivita' degli ultimi N giorni: nuove candidature, colloqui, score medio."""
+    return await api_get("/api/v1/activity-summary", {"days": days})
+
+
+if __name__ == "__main__":
+    mcp.run(transport="streamable-http")

@@ -8,9 +8,11 @@ from .batch.routes import router as batch_router
 from .contacts.routes import router as contacts_router
 from .dashboard.routes import router as dashboard_router
 from .interview.routes import router as interview_router
+from .read_routes import router as read_router
 
 api_v1_router = APIRouter(prefix="/api/v1", tags=["api-v1"])
 
+api_v1_router.include_router(read_router)
 api_v1_router.include_router(analysis_api_router)
 api_v1_router.include_router(followup_router)
 api_v1_router.include_router(contacts_router)

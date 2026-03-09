@@ -2,19 +2,15 @@
 
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
-from sqlalchemy.orm import Session
 
 from ..analysis.service import get_analysis_by_id
 from ..audit.service import audit
-from ..auth.models import User
 from ..config import settings
 from ..cv.service import get_latest_cv
 from ..dashboard.service import add_spending, check_budget_available
-from ..database import get_db
-from ..dependencies import get_cache, get_current_user
-from ..integrations.cache import CacheService
+from ..dependencies import Cache, CurrentUser, DbSession
 from ..rate_limit import limiter
 from .service import build_docx, create_cover_letter, get_cover_letter_by_id
 
@@ -25,12 +21,12 @@ router = APIRouter(tags=["cover_letter"])
 @limiter.limit(settings.rate_limit_analyze)
 def generate_cover_letter_route(
     request: Request,
+    db: DbSession,
+    user: CurrentUser,
+    cache: Cache,
     analysis_id: str = Form(...),
     language: str = Form("italiano"),
     model: str = Form("haiku"),
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
-    cache: CacheService = Depends(get_cache),
 ):
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:
@@ -73,8 +69,8 @@ def generate_cover_letter_route(
 @router.get("/cover-letter/{cover_letter_id}/download")
 def download_cover_letter(
     cover_letter_id: str,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    db: DbSession,
+    user: CurrentUser,
 ):
     """Download a cover letter as a formatted DOCX file."""
     cl = get_cover_letter_by_id(db, cover_letter_id)

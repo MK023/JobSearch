@@ -2,20 +2,16 @@
 
 from datetime import date
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
 
 from ..audit.service import audit
-from ..auth.models import User
 from ..config import settings
 from ..cover_letter.models import CoverLetter
 from ..cv.service import get_latest_cv
 from ..dashboard.service import add_spending, check_budget_available, remove_spending
-from ..database import get_db
-from ..dependencies import get_cache, get_current_user
+from ..dependencies import Cache, CurrentUser, DbSession
 from ..integrations.anthropic_client import MODELS, content_hash
-from ..integrations.cache import CacheService
 from ..rate_limit import limiter
 from .models import AnalysisStatus
 from .schemas import AnalyzeRequest
@@ -29,9 +25,9 @@ router = APIRouter(tags=["analysis-api"])
 def analyze_api(
     request: Request,
     body: AnalyzeRequest,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
-    cache: CacheService = Depends(get_cache),
+    db: DbSession,
+    user: CurrentUser,
+    cache: Cache,
 ):
     """Run analysis via JSON API (AJAX). Returns redirect URL."""
     cv = get_latest_cv(db, user.id)
@@ -81,8 +77,8 @@ def change_status(
     request: Request,
     analysis_id: str,
     new_status: str,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    db: DbSession,
+    user: CurrentUser,
 ):
     try:
         status_enum = AnalysisStatus(new_status)
@@ -103,8 +99,8 @@ def change_status(
 def delete_analysis(
     request: Request,
     analysis_id: str,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    db: DbSession,
+    user: CurrentUser,
 ):
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:
