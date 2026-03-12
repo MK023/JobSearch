@@ -24,6 +24,17 @@ class Settings(BaseSettings):
     notification_email: str = ""
     followup_reminder_days: int = 5
 
+    # Cloudflare R2 (file upload)
+    r2_access_key_id: str = ""
+    r2_secret_access_key: str = ""
+    r2_endpoint_url: str = ""
+    r2_bucket_name: str = "jobsearch-files"
+
+    # Resend (document reminder emails)
+    resend_api_key: str = ""
+    resend_from_email: str = "noreply@jobsearches.cc"
+    document_reminder_email: str = "marco.bellingeri@gmail.com"
+
     # Input limits
     max_cv_size: int = 100_000  # ~100KB chars
     max_job_desc_size: int = 50_000  # ~50KB chars

@@ -76,6 +76,13 @@ async def lifespan(app: FastAPI):
         sent = check_and_send_followup_reminders(db)
         if sent:
             db.commit()
+
+        # Send pending document reminders on startup
+        from .notifications.document_reminder import send_document_reminders
+
+        doc_sent = send_document_reminders(db)
+        if doc_sent:
+            db.commit()
     finally:
         db.close()
 
@@ -153,7 +160,7 @@ def create_app() -> FastAPI:
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data:; "
-            "connect-src 'self'; "
+            "connect-src 'self' https://*.r2.cloudflarestorage.com; "
             "frame-ancestors 'none'"
         )
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
