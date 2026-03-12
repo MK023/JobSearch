@@ -70,7 +70,7 @@
     </div>
 
     {# File Attachments Section #}
-    <div style="margin-top: var(--space-xl); border-top: 1px solid var(--border-primary); padding-top: var(--space-xl);">
+    <div class="interview-attachments">
         <div class="section-header">
             <h3 class="section-title">Documenti allegati</h3>
             <button id="btn-upload-file" class="btn btn-primary btn-sm">Carica file</button>
@@ -85,10 +85,10 @@
 
         {# File list #}
         <div id="file-list">
-            <p style="color: var(--text-secondary); font-size: var(--text-sm);">Caricamento...</p>
+            <p class="file-list-loading">Caricamento...</p>
         </div>
 
-        <p style="color: var(--text-tertiary); font-size: var(--text-xs); margin-top: var(--space-md);">
+        <p class="file-list-hint">
             Formati supportati: PDF, DOCX. Massimo 10 MB per file, 10 file per colloquio.
         </p>
     </div>

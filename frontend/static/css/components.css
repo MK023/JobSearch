@@ -14,6 +14,7 @@
   display: flex;
   flex-direction: column;
   overflow-wrap: anywhere;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .card form {
@@ -976,6 +977,28 @@ details[open] summary::before {
   background: rgb(10 132 255 / 8%);
 }
 
+/* ---- Interview card actions ---- */
+
+.interview-card-actions {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+  flex-wrap: wrap;
+}
+
+/* ---- Micro-animations (Apple-style) ---- */
+
+@media (hover: hover) {
+  .card:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-hover);
+  }
+}
+
+.card:active, .btn:active {
+  transform: scale(0.98);
+}
+
 /* ---- Responsive ---- */
 
 @media (width <= 768px) {
@@ -1008,6 +1031,11 @@ details[open] summary::before {
   .tool-btn {
     min-height: 44px;
     min-width: 44px;
+  }
+
+  .btn-icon {
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .score-ring-lg {

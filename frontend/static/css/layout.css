@@ -114,7 +114,8 @@ html[data-theme="light"] .theme-icon-moon {
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--space-xl);
-  max-height: 48px;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
 }
 
 .page-title {
@@ -191,13 +192,17 @@ html[data-theme="light"] .theme-icon-moon {
     bottom: 0;
     left: 0;
     width: 100%;
-    height: 56px;
+    height: calc(56px + env(safe-area-inset-bottom));
     flex-direction: row;
     justify-content: space-around;
     align-items: center;
     padding: 0;
+    padding-bottom: env(safe-area-inset-bottom);
     border-right: none;
     border-top: 1px solid var(--border-subtle);
+    background: var(--bg-glass);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
   }
 
   .sidebar-top, .sidebar-bottom {
@@ -220,7 +225,7 @@ html[data-theme="light"] .theme-icon-moon {
 
   .content-area {
     margin-left: 0;
-    margin-bottom: 56px;
+    margin-bottom: calc(56px + env(safe-area-inset-bottom));
     padding: var(--space-lg);
   }
 
@@ -232,6 +237,10 @@ html[data-theme="light"] .theme-icon-moon {
     bottom: calc(56px + var(--space-lg));
     right: var(--space-lg);
     left: var(--space-lg);
+  }
+
+  .page-title {
+    font-size: var(--text-lg);
   }
 
   .login-wrapper {

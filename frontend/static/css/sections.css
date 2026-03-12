@@ -1103,6 +1103,25 @@
 }
 
 
+/* Interview file attachments */
+.interview-attachments {
+  margin-top: var(--space-xl);
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--space-xl);
+}
+
+.file-list-loading {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.file-list-hint {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  margin-top: var(--space-md);
+}
+
+
 /* ================================================================
    FLATPICKR LIGHT MODE OVERRIDES
    ================================================================ */
@@ -1226,5 +1245,45 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
   .sub-rating-label {
     width: 80px;
     font-size: var(--text-xs);
+  }
+
+  .analyze-tabs {
+    max-width: 100%;
+  }
+
+  .interview-card-header {
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+  }
+
+  .interview-card-detail a {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+    max-width: 100%;
+  }
+
+  .recommendation-badge {
+    font-size: var(--text-sm);
+    padding: var(--space-xs) var(--space-md);
+  }
+
+  .followup-alert-actions {
+    display: flex;
+    width: 100%;
+  }
+
+  .followup-alert-actions .btn {
+    flex: 1;
+  }
+
+  .cover-letter-text {
+    padding: var(--space-lg);
+  }
+
+  .subject-line-row {
+    flex-direction: column;
+    gap: var(--space-sm);
   }
 }
