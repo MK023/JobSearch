@@ -26,6 +26,7 @@ def batch_add(
     job_url: str = Form(""),
     model: str = Form("haiku"),
 ) -> JSONResponse:
+    """Add a job description to the pending batch queue."""
     if len(job_description) > settings.max_job_desc_size:
         return JSONResponse(
             {"error": f"Descrizione troppo lunga (max {settings.max_job_desc_size} caratteri)"}, status_code=400
@@ -46,11 +47,11 @@ def batch_run(
     cache: Cache,
     db: DbSession,
 ) -> JSONResponse:
+    """Start processing the pending batch queue in the background."""
     batch_id = get_pending_batch_id()
     if not batch_id:
         return JSONResponse({"error": "No pending batch"}, status_code=400)
 
-    # Budget check before starting batch
     budget_ok, budget_msg = check_budget_available(db)
     if not budget_ok:
         return JSONResponse({"error": budget_msg}, status_code=400)
@@ -70,10 +71,12 @@ def batch_run(
 
 @router.get("/status")
 def batch_status_route(user: CurrentUser) -> JSONResponse:
+    """Return the current batch queue status."""
     return JSONResponse(get_batch_status())
 
 
 @router.delete("/clear")
 def batch_clear(user: CurrentUser) -> JSONResponse:
+    """Clear completed and pending batches from memory."""
     clear_completed()
     return JSONResponse({"ok": True})

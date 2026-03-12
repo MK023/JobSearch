@@ -11,6 +11,7 @@ from ..cover_letter.models import CoverLetter
 
 
 def get_or_create_settings(db: Session) -> AppSettings:
+    """Fetch the singleton AppSettings row, creating it if missing."""
     s = db.query(AppSettings).first()
     if not s:
         s = AppSettings(id=1, anthropic_budget=0.0)
@@ -109,6 +110,7 @@ def get_spending(db: Session) -> dict:
 
 
 def update_budget(db: Session, budget: float) -> float:
+    """Set the Anthropic API budget and return the persisted value."""
     s = get_or_create_settings(db)
     s.anthropic_budget = max(budget, 0)  # type: ignore[assignment,arg-type]
     db.flush()

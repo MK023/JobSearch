@@ -92,6 +92,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 
 def _rate_limit_handler(request: Request, exc: RateLimitExceeded) -> Response:
+    """Return HTML redirect or JSON error depending on Accept header."""
     from fastapi.responses import JSONResponse
 
     retry_after = "60"
@@ -119,12 +120,14 @@ def create_app() -> FastAPI:
     # --- Exception handlers ---
     @app.exception_handler(AuthRequired)
     async def auth_redirect_handler(request: Request, exc: AuthRequired) -> Response:
+        """Redirect unauthenticated users to the login page."""
         return RedirectResponse(url="/login", status_code=303)
 
     app.add_exception_handler(RateLimitExceeded, _rate_limit_handler)  # type: ignore[arg-type]
 
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> Response:
+        """Render custom 404 page or return JSON for other HTTP errors."""
         if exc.status_code == 404:
             templates = app.state.templates
             return templates.TemplateResponse(request, "404.html", status_code=404)  # type: ignore[no-any-return]
@@ -134,6 +137,7 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(Exception)
     async def generic_exception_handler(request: Request, exc: Exception) -> Response:
+        """Log unhandled exceptions and render a 500 error page."""
         logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
         templates = app.state.templates
         return templates.TemplateResponse(request, "500.html", status_code=500)  # type: ignore[no-any-return]
@@ -153,6 +157,7 @@ def create_app() -> FastAPI:
 
     @app.middleware("http")
     async def security_headers(request: Request, call_next: Any) -> Response:
+        """Add security headers (CSP, HSTS, X-Frame-Options, etc.) to all responses."""
         response: Response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
@@ -205,6 +210,7 @@ def create_app() -> FastAPI:
     # --- Health check ---
     @app.get("/health")
     def health(db: DbSession) -> dict[str, Any]:
+        """Return application health status including DB connectivity and uptime."""
         db_status = "ok"
         try:
             db.execute(text("SELECT 1"))

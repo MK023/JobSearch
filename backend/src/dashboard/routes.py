@@ -14,6 +14,7 @@ def spending_api(
     db: DbSession,
     user: CurrentUser,
 ) -> JSONResponse:
+    """Return current spending totals and budget info."""
     return JSONResponse(get_spending(db))
 
 
@@ -23,6 +24,7 @@ def set_budget(
     user: CurrentUser,
     budget: float = Form(...),
 ) -> JSONResponse:
+    """Set the Anthropic API spending budget (0-1000 USD)."""
     if budget < 0 or budget > 1000:
         return JSONResponse({"error": "Budget deve essere tra 0 e 1000 USD"}, status_code=400)
     new_budget = update_budget(db, budget)
@@ -35,4 +37,5 @@ def dashboard_api(
     db: DbSession,
     user: CurrentUser,
 ) -> JSONResponse:
+    """Return dashboard statistics (counts, avg score, top match)."""
     return JSONResponse(get_dashboard(db))

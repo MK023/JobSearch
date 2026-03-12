@@ -21,9 +21,10 @@ build/
 htmlcov/
 .coverage
 
-# Docker volumes
+# Docker volumes & overrides
 pgdata/
 redis-data/
+docker-compose.override.yml
 
 # IDE
 .vscode/

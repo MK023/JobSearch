@@ -39,12 +39,16 @@ class InterviewScript(BaseModel):
 
 
 class ApplicationMethod(BaseModel):
+    """How to apply for the job (email, link, quick_apply, etc.)."""
+
     type: str = "sconosciuto"
     detail: str = ""
     note: str = ""
 
 
 class CompanyReputation(BaseModel):
+    """AI-estimated company reputation data."""
+
     glassdoor_estimate: str = "non disponibile"
     known_pros: list[str] = Field(default_factory=list)
     known_cons: list[str] = Field(default_factory=list)
@@ -92,6 +96,7 @@ class AnalysisAIResponse(BaseModel):
     @field_validator("potential_score", mode="before")
     @classmethod
     def coerce_potential_score(cls, v: object) -> int:
+        """Ensure potential_score is an int 0-100."""
         try:
             val = int(float(str(v)))
             return max(0, min(100, val))
@@ -101,6 +106,7 @@ class AnalysisAIResponse(BaseModel):
     @field_validator("recommendation", mode="before")
     @classmethod
     def normalize_recommendation(cls, v: object) -> str:
+        """Ensure recommendation is one of APPLY, CONSIDER, SKIP."""
         allowed = {"APPLY", "CONSIDER", "SKIP"}
         s = str(v).upper().strip()
         return s if s in allowed else "CONSIDER"
@@ -108,6 +114,7 @@ class AnalysisAIResponse(BaseModel):
     @field_validator("confidence", mode="before")
     @classmethod
     def normalize_confidence(cls, v: object) -> str:
+        """Ensure confidence is one of alta, media, bassa."""
         allowed = {"alta", "media", "bassa"}
         s = str(v).lower().strip()
         return s if s in allowed else "media"
@@ -145,6 +152,7 @@ class AnalysisAIResponse(BaseModel):
     @field_validator("interview_scripts", mode="before")
     @classmethod
     def coerce_interview_scripts(cls, v: object) -> list:
+        """Accept list of dicts or list of question strings."""
         if isinstance(v, list):
             result = []
             for item in v:
@@ -168,6 +176,7 @@ class CoverLetterAIResponse(BaseModel):
     @field_validator("subject_lines", mode="before")
     @classmethod
     def coerce_subject_lines(cls, v: object) -> list[str]:
+        """Accept a single string or list of strings."""
         if isinstance(v, str):
             return [v]
         if isinstance(v, list):
@@ -177,6 +186,7 @@ class CoverLetterAIResponse(BaseModel):
     @field_validator("cover_letter", mode="before")
     @classmethod
     def coerce_cover_letter(cls, v: object) -> str:
+        """Ensure cover_letter is a non-None string."""
         return str(v) if v else ""
 
 

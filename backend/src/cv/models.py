@@ -11,6 +11,8 @@ from ..database.base import Base
 
 
 class CVProfile(Base):
+    """User's CV stored as raw text, used as input for all AI analyses."""
+
     __tablename__ = "cv_profiles"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

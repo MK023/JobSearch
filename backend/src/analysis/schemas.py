@@ -6,21 +6,29 @@ from pydantic import BaseModel, Field
 
 
 class ModelChoice(enum.StrEnum):
+    """Supported Anthropic model tiers."""
+
     HAIKU = "haiku"
     SONNET = "sonnet"
 
 
 class AnalyzeRequest(BaseModel):
+    """Input schema for job analysis submission."""
+
     job_description: str = Field(..., min_length=50, max_length=50_000)
     job_url: str = Field("", max_length=500)
     model: ModelChoice = ModelChoice.HAIKU
 
 
 class StatusUpdateRequest(BaseModel):
+    """Schema for changing an analysis status."""
+
     new_status: str
 
 
 class TokenUsage(BaseModel):
+    """Token consumption breakdown for an API call."""
+
     input: int = 0
     output: int = 0
     total: int = 0

@@ -30,6 +30,7 @@ def generate_cover_letter_route(
     language: str = Form("italiano"),
     model: str = Form("haiku"),
 ) -> Response:
+    """Generate a cover letter via AI and redirect back to the analysis page."""
     validate_uuid(analysis_id)
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:
@@ -41,7 +42,6 @@ def generate_cover_letter_route(
         request.session["flash_error"] = "CV non trovato"
         return RedirectResponse(url=f"/analysis/{analysis_id}", status_code=303)
 
-    # Budget check
     budget_ok, budget_msg = check_budget_available(db)
     if not budget_ok:
         request.session["flash_error"] = budget_msg

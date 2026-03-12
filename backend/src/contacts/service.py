@@ -28,6 +28,7 @@ def create_contact(
     notes: str,
     source: str = "manual",
 ) -> Contact:
+    """Persist a new contact and return it (flushed, not committed)."""
     contact = Contact(
         analysis_id=_to_uuid(analysis_id) if analysis_id else None,
         name=name,
@@ -44,6 +45,7 @@ def create_contact(
 
 
 def get_contacts_for_analysis(db: Session, analysis_id: str) -> list[Contact]:
+    """Return all contacts linked to a given analysis, newest first."""
     uid = _to_uuid(analysis_id)
     if uid is None:
         return []
@@ -63,6 +65,7 @@ def search_all_contacts(db: Session, query: str, limit: int = 20) -> list[Contac
 
 
 def delete_contact_by_id(db: Session, contact_id: str) -> bool:
+    """Delete a contact by UUID string. Returns True if found and deleted."""
     uid = _to_uuid(contact_id)
     if uid is None:
         return False

@@ -30,6 +30,7 @@ def dashboard_page(
     db: DbSession,
     user: CurrentUser,
 ) -> Response:
+    """Render the main dashboard with stats, recent analyses, and alerts."""
     templates = request.app.state.templates
     flash = _flash(request)
 
@@ -62,6 +63,7 @@ def analyze_page(
     db: DbSession,
     user: CurrentUser,
 ) -> Response:
+    """Render the job analysis submission page."""
     from .batch.service import get_batch_status
 
     templates = request.app.state.templates
@@ -92,6 +94,7 @@ def history_page(
     db: DbSession,
     user: CurrentUser,
 ) -> Response:
+    """Render the analysis history page with status counts."""
     templates = request.app.state.templates
     flash = _flash(request)
 
@@ -120,6 +123,7 @@ def interviews_page(
     db: DbSession,
     user: CurrentUser,
 ) -> Response:
+    """Render the interviews page with upcoming and past interviews."""
     from datetime import UTC, datetime
 
     from .analysis.models import JobAnalysis
@@ -173,6 +177,7 @@ def settings_page(
     db: DbSession,
     user: CurrentUser,
 ) -> Response:
+    """Render the settings page with CV and spending info."""
     templates = request.app.state.templates
     flash = _flash(request)
 

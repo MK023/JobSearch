@@ -30,6 +30,7 @@ def create_followup_email(
     language: str = Form("italiano"),
     model: str = Form("haiku"),
 ) -> JSONResponse:
+    """Generate an AI-drafted follow-up email for a candidature."""
     validate_uuid(analysis_id)
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:
@@ -72,6 +73,7 @@ def create_linkedin_message(
     language: str = Form("italiano"),
     model: str = Form("haiku"),
 ) -> JSONResponse:
+    """Generate an AI-drafted LinkedIn message for a candidature."""
     validate_uuid(analysis_id)
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:
@@ -119,6 +121,7 @@ def mark_followup_done(
     db: DbSession,
     user: CurrentUser,
 ) -> JSONResponse:
+    """Mark a candidature's follow-up as completed."""
     validate_uuid(analysis_id)
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:

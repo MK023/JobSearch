@@ -46,6 +46,7 @@ def add_to_queue(job_description: str, job_url: str = "", model: str = "haiku") 
 
 
 def get_pending_batch_id() -> str | None:
+    """Return the ID of the first pending batch, or None."""
     for bid, b in _batch_queue.items():
         if b["status"] == "pending":
             return bid
@@ -53,12 +54,14 @@ def get_pending_batch_id() -> str | None:
 
 
 def get_batch_status() -> dict:
+    """Return the status of the most recent batch, or 'empty'."""
     for bid in reversed(list(_batch_queue.keys())):
         return {"batch_id": bid, **_batch_queue[bid]}
     return {"status": "empty"}
 
 
 def clear_completed() -> None:
+    """Remove all pending and completed batches from memory."""
     to_remove = [bid for bid, b in _batch_queue.items() if b["status"] in ("pending", "done")]
     for bid in to_remove:
         del _batch_queue[bid]

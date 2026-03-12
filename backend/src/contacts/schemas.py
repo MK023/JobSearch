@@ -4,6 +4,8 @@ from pydantic import BaseModel, Field
 
 
 class ContactCreateRequest(BaseModel):
+    """Schema for creating a new contact."""
+
     analysis_id: str = ""
     name: str = Field("", max_length=255)
     email: str = Field("", max_length=255)
@@ -15,6 +17,8 @@ class ContactCreateRequest(BaseModel):
 
 
 class ContactResponse(BaseModel):
+    """Public-facing contact representation."""
+
     id: str
     name: str
     email: str
