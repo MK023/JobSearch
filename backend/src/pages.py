@@ -149,6 +149,7 @@ def interviews_page(
             "role": a.role,
             "scheduled_at": i.scheduled_at.isoformat(),
             "ends_at": i.ends_at.isoformat() if i.ends_at else None,
+            "platform": i.platform,
             "interview_type": i.interview_type,
             "meeting_link": i.meeting_link,
         }

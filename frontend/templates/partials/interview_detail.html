@@ -70,36 +70,25 @@
     </div>
 
     {# File Attachments Section #}
-    <div class="mt-6 border-t pt-6">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold text-gray-900">Documenti allegati</h3>
-            <button id="btn-upload-file"
-                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M12 4v16m8-8H4"/>
-                </svg>
-                Carica file
-            </button>
+    <div style="margin-top: var(--space-xl); border-top: 1px solid var(--border-primary); padding-top: var(--space-xl);">
+        <div class="section-header">
+            <h3 class="section-title">Documenti allegati</h3>
+            <button id="btn-upload-file" class="btn btn-primary btn-sm">Carica file</button>
         </div>
 
         {# Upload progress #}
-        <div id="upload-progress" class="hidden mb-4 p-3 bg-blue-50 rounded-lg">
-            <div class="flex items-center gap-2">
-                <svg class="animate-spin h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-                </svg>
-                <span class="text-sm text-blue-700">Caricamento <span class="upload-filename font-medium"></span>...</span>
+        <div id="upload-progress" class="hidden" style="margin-bottom: var(--space-md)">
+            <div class="message-banner banner-success">
+                Caricamento <span class="upload-filename"></span>...
             </div>
         </div>
 
         {# File list #}
-        <div id="file-list" class="space-y-2">
-            <p class="text-sm text-gray-500 italic">Caricamento...</p>
+        <div id="file-list">
+            <p style="color: var(--text-secondary); font-size: var(--text-sm);">Caricamento...</p>
         </div>
 
-        <p class="mt-3 text-xs text-gray-400">
+        <p style="color: var(--text-tertiary); font-size: var(--text-xs); margin-top: var(--space-md);">
             Formati supportati: PDF, DOCX. Massimo 10 MB per file, 10 file per colloquio.
         </p>
     </div>
