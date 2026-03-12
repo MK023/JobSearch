@@ -35,6 +35,8 @@ class AnalysisStatus(enum.StrEnum):
 
 
 class JobAnalysis(Base):
+    """Persisted job-vs-CV analysis with AI scores, gaps, and cost tracking."""
+
     __tablename__ = "job_analyses"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

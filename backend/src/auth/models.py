@@ -11,6 +11,8 @@ from ..database.base import Base
 
 
 class User(Base):
+    """Application user with email/password authentication."""
+
     __tablename__ = "users"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

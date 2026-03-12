@@ -23,6 +23,8 @@ SEARCH_URL = f"https://{RAPIDAPI_HOST}/company-search"
 
 
 class GlassdoorCache(Base):
+    """DB-level cache for Glassdoor company data (30-day TTL)."""
+
     __tablename__ = "glassdoor_cache"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

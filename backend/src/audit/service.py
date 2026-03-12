@@ -9,6 +9,7 @@ from .models import AuditLog
 
 
 def _get_ip(request: Request) -> str:
+    """Extract client IP, supporting X-Forwarded-For behind a proxy."""
     forwarded = request.headers.get("X-Forwarded-For")
     if forwarded:
         return forwarded.split(",")[0].strip()

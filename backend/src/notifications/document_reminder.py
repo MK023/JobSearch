@@ -154,7 +154,6 @@ def send_document_reminders(db: Session) -> int:
             if existing:
                 already_sent.add(fid)
 
-        # Filter out already-notified files
         new_files = [f for f in files if str(f.id) not in already_sent]
         if not new_files:
             continue
@@ -188,7 +187,6 @@ def send_document_reminders(db: Session) -> int:
             logger.exception("Failed to send document reminder for interview %s", interview_id)
             continue
 
-        # Log each file as notified
         for f in new_files:
             db.add(
                 NotificationLog(

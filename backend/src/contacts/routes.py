@@ -17,6 +17,8 @@ URL_RE = re.compile(r"^https?://", re.IGNORECASE)
 
 
 class ContactPayload(BaseModel):
+    """Input schema for creating or updating a contact."""
+
     analysis_id: str = ""
     name: str = Field("", max_length=255)
     email: str = Field("", max_length=255)
@@ -33,6 +35,7 @@ def add_contact(
     db: DbSession,
     user: CurrentUser,
 ) -> JSONResponse:
+    """Create a new recruiter contact with validation."""
     if payload.source and payload.source not in VALID_SOURCES:
         return JSONResponse({"error": f"Source non valida: {payload.source}"}, status_code=400)
     if payload.email and not EMAIL_RE.match(payload.email):
@@ -77,6 +80,7 @@ def list_contacts(
     db: DbSession,
     user: CurrentUser,
 ) -> JSONResponse:
+    """List all contacts linked to a specific analysis."""
     validate_uuid(analysis_id)
     contacts = get_contacts_for_analysis(db, analysis_id)
     return JSONResponse(
@@ -104,6 +108,7 @@ def remove_contact(
     db: DbSession,
     user: CurrentUser,
 ) -> JSONResponse:
+    """Delete a contact by ID."""
     validate_uuid(contact_id)
     if not delete_contact_by_id(db, contact_id):
         return JSONResponse({"error": "Contact not found"}, status_code=404)

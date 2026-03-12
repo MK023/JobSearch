@@ -10,14 +10,17 @@ from .models import User
 
 
 def hash_password(password: str) -> str:
+    """Hash a plaintext password using bcrypt."""
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
 def verify_password(plain: str, hashed: str) -> bool:
+    """Check a plaintext password against a bcrypt hash."""
     return bcrypt.checkpw(plain.encode(), hashed.encode())
 
 
 def get_user_by_email(db: Session, email: str) -> User | None:
+    """Look up a user by email address."""
     return db.query(User).filter(User.email == email).first()
 
 

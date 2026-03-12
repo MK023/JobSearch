@@ -34,18 +34,17 @@ def analyze(
     job_url: str = Form(""),
     model: str = Form("haiku"),
 ) -> Response:
+    """Submit a job description for AI analysis against the user's CV."""
     cv = get_latest_cv(db, cast(UUID, user.id))
 
     if not cv:
         request.session["flash_error"] = "Salva prima il tuo CV!"
         return RedirectResponse(url="/analyze", status_code=303)
 
-    # Input size validation
     if len(job_description) > settings.max_job_desc_size:
         request.session["flash_error"] = f"Descrizione troppo lunga (max {settings.max_job_desc_size} caratteri)"
         return RedirectResponse(url="/analyze", status_code=303)
 
-    # Budget check
     budget_ok, budget_msg = check_budget_available(db)
     if not budget_ok:
         request.session["flash_error"] = budget_msg
@@ -91,6 +90,7 @@ def view_analysis(
     db: DbSession,
     user: CurrentUser,
 ) -> Response:
+    """Render the detail page for a single analysis."""
     from ..contacts.service import get_contacts_for_analysis
     from ..interview.service import get_interview_by_analysis
 

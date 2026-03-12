@@ -38,6 +38,8 @@ PRESIGNED_URL_EXPIRY_SECONDS = 600  # 10 minutes
 
 
 class InterviewFile(Base):
+    """File attachment for an interview, stored in Cloudflare R2."""
+
     __tablename__ = "interview_files"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

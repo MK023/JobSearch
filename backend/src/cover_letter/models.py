@@ -11,6 +11,8 @@ from ..database.base import Base
 
 
 class CoverLetter(Base):
+    """AI-generated cover letter linked to a job analysis."""
+
     __tablename__ = "cover_letters"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

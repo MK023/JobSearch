@@ -42,6 +42,8 @@ router = APIRouter(tags=["files"])
 
 
 class RequestUploadPayload(BaseModel):
+    """Input schema for requesting a presigned upload URL."""
+
     interview_id: str
     filename: str = Field(max_length=255)
     content_type: str = Field(max_length=100)
@@ -83,12 +85,10 @@ def request_upload(
     """
     interview_id = validate_uuid(payload.interview_id)
 
-    # Validate interview exists
     interview = get_interview_by_id(db, interview_id)
     if not interview:
         return JSONResponse({"error": "Interview not found"}, status_code=404)
 
-    # Validate content type
     if payload.content_type not in ALLOWED_CONTENT_TYPES:
         allowed = ", ".join(sorted(ALLOWED_CONTENT_TYPES))
         return JSONResponse(
@@ -96,7 +96,6 @@ def request_upload(
             status_code=400,
         )
 
-    # Check file limit
     current_count = count_files_for_interview(db, interview_id)
     if current_count >= MAX_FILES_PER_INTERVIEW:
         return JSONResponse(
@@ -104,16 +103,13 @@ def request_upload(
             status_code=400,
         )
 
-    # Validate filename (basic sanitization)
     filename = payload.filename.strip()
     if not filename or "/" in filename or "\\" in filename or ".." in filename:
         return JSONResponse({"error": "Nome file non valido"}, status_code=400)
 
-    # Generate R2 key and presigned URL
     r2_key = generate_r2_key(str(interview_id), filename)
     upload_url = generate_presigned_put_url(r2_key, payload.content_type)
 
-    # Create DB record
     file = create_file_record(
         db,
         interview_id=interview_id,
@@ -162,9 +158,7 @@ def confirm_file_upload(
             status_code=404,
         )
 
-    # Validate file size
     if file_size > MAX_FILE_SIZE_BYTES:
-        # Delete oversized file from R2
         delete_object(str(file.r2_key))
         delete_file_record(db, file)
         db.commit()
@@ -219,7 +213,6 @@ def scan_file(
         content_type=str(file.content_type),
     )
 
-    # Update DB
     update_scan_result(db, file, result["status"], result["scan_result"])
     audit(
         db,
@@ -294,11 +287,9 @@ def remove_file(
     if not file:
         return JSONResponse({"error": "File not found"}, status_code=404)
 
-    # Delete from R2 (don't fail if R2 delete fails - file may not exist)
     if file.status != FileStatus.PENDING:
         delete_object(str(file.r2_key))
 
-    # Delete from DB
     audit(db, request, "file_deleted", f"file_id={file.id}, name={file.original_filename}")
     delete_file_record(db, file)
     db.commit()

@@ -14,6 +14,8 @@ from .file_models import InterviewFile  # noqa: F401
 
 
 class Interview(Base):
+    """Scheduled interview linked to a job analysis, with platform-specific fields."""
+
     __tablename__ = "interviews"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

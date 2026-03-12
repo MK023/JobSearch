@@ -22,6 +22,7 @@ def save_cv_route(
     cv_text: str = Form(...),
     cv_name: str = Form(""),
 ) -> Response:
+    """Validate and save the user's CV text."""
     if len(cv_text) < 20:
         request.session["flash_error"] = "CV troppo corto (minimo 20 caratteri)"
         return RedirectResponse(url="/settings", status_code=303)
@@ -42,6 +43,7 @@ def download_cv(
     db: DbSession,
     user: CurrentUser,
 ) -> Response:
+    """Download the user's latest CV as a plain text file."""
     cv = get_latest_cv(db, cast(UUID, user.id))
     if not cv:
         return RedirectResponse(url="/", status_code=303)

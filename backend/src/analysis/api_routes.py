@@ -84,6 +84,7 @@ def change_status(
     db: DbSession,
     user: CurrentUser,
 ) -> JSONResponse:
+    """Update the tracking status of an analysis."""
     validate_uuid(analysis_id)
     try:
         status_enum = AnalysisStatus(new_status)
@@ -107,6 +108,7 @@ def delete_analysis(
     db: DbSession,
     user: CurrentUser,
 ) -> JSONResponse:
+    """Delete an analysis and reverse its spending totals."""
     validate_uuid(analysis_id)
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:

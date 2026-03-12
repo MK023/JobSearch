@@ -121,6 +121,7 @@ def update_status(db: Session, analysis: JobAnalysis, new_status: AnalysisStatus
 
 
 def get_analysis_by_id(db: Session, analysis_id: str) -> JobAnalysis | None:
+    """Fetch a single analysis by its UUID string, returning None if invalid or missing."""
     try:
         uid = UUID(analysis_id)
     except (ValueError, AttributeError):
@@ -129,6 +130,7 @@ def get_analysis_by_id(db: Session, analysis_id: str) -> JobAnalysis | None:
 
 
 def get_recent_analyses(db: Session, limit: int = 50) -> list[JobAnalysis]:
+    """Return the most recent analyses ordered by creation date."""
     return db.query(JobAnalysis).order_by(JobAnalysis.created_at.desc()).limit(limit).all()
 
 

@@ -62,6 +62,7 @@ def content_hash(cv_text: str, job_description: str) -> str:
 
 
 def _calculate_cost(usage: anthropic.types.Usage, model_id: str) -> float:
+    """Calculate USD cost from token usage and model pricing."""
     pricing = PRICING.get(model_id, PRICING["claude-haiku-4-5-20251001"])
     input_cost = (usage.input_tokens / 1_000_000) * pricing["input"]
     output_cost = (usage.output_tokens / 1_000_000) * pricing["output"]
@@ -322,7 +323,6 @@ def analyze_job(
     ch = content_hash(cv_text, job_description)
     cache_key = f"analysis:{model}:{ch[:16]}"
 
-    # Check cache
     if cache:
         cached = cache.get_json(cache_key)
         if cached:
@@ -333,7 +333,6 @@ def analyze_job(
     user_prompt = ANALYSIS_USER_PROMPT.format(cv_text=cv_text, job_description=job_description)
     result, usage = _call_api(ANALYSIS_SYSTEM_PROMPT, user_prompt, model_id, 4096)
 
-    # Validate and coerce AI response structure
     result = validate_analysis(result)
 
     result["model_used"] = model_id
@@ -347,7 +346,6 @@ def analyze_job(
     }
     result["cost_usd"] = _calculate_cost(usage, model_id)
 
-    # Save to cache
     if cache:
         cache_data = {k: v for k, v in result.items() if k != "from_cache"}
         cache.set_json(cache_key, cache_data, CACHE_TTL)
@@ -366,7 +364,6 @@ def generate_cover_letter(
     """Generate a cover letter based on CV, job description, and analysis."""
     model_id = MODELS.get(model, MODELS["haiku"])
 
-    # Check cache
     if cache:
         cl_content = f"cl:{model}:{cv_text[:300]}:{job_description[:300]}:{language}"
         cache_key = f"coverletter:{hashlib.sha256(cl_content.encode()).hexdigest()[:16]}"
@@ -396,7 +393,6 @@ def generate_cover_letter(
 
     result, usage = _call_api(COVER_LETTER_SYSTEM_PROMPT, user_prompt, model_id, 2048)
 
-    # Validate and coerce AI response structure
     result = validate_cover_letter(result)
 
     result["model_used"] = model_id
@@ -437,7 +433,6 @@ def generate_followup_email(
 
     result, usage = _call_api(FOLLOWUP_EMAIL_SYSTEM_PROMPT, user_prompt, model_id, 1024)
 
-    # Validate and coerce AI response structure
     result = validate_followup_email(result)
 
     result["model_used"] = model_id
@@ -472,7 +467,6 @@ def generate_linkedin_message(
 
     result, usage = _call_api(LINKEDIN_MESSAGE_SYSTEM_PROMPT, user_prompt, model_id, 1024)
 
-    # Validate and coerce AI response structure
     result = validate_linkedin_message(result)
 
     result["model_used"] = model_id

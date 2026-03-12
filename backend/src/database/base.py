@@ -20,10 +20,13 @@ SessionLocal = sessionmaker(bind=engine)
 
 
 class Base(DeclarativeBase):
+    """SQLAlchemy declarative base for all ORM models."""
+
     pass
 
 
 def get_db() -> Generator[Session, None, None]:
+    """Yield a database session and ensure it is closed after use."""
     db = SessionLocal()
     try:
         yield db

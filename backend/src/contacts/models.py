@@ -11,6 +11,8 @@ from ..database.base import Base
 
 
 class Contact(Base):
+    """Recruiter or hiring manager contact, optionally linked to an analysis."""
+
     __tablename__ = "contacts"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

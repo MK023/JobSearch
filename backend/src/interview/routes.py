@@ -28,6 +28,8 @@ URL_RE = re.compile(r"^https?://", re.IGNORECASE)
 
 
 class InterviewPayload(BaseModel):
+    """Input schema for creating or updating an interview."""
+
     scheduled_at: str
     ends_at: str | None = None
     platform: str | None = Field(None, max_length=20)
@@ -51,6 +53,7 @@ def upsert_interview(
     db: DbSession,
     user: CurrentUser,
 ) -> JSONResponse:
+    """Create or update an interview with validation and status transition."""
     validate_uuid(analysis_id)
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:
@@ -101,7 +104,6 @@ def upsert_interview(
         notes=payload.notes,
     )
 
-    # Also set status to INTERVIEW
     update_status(db, analysis, AnalysisStatus.INTERVIEW)
     audit(db, request, "interview_upsert", f"id={analysis_id}")
     db.commit()
@@ -115,6 +117,7 @@ def get_interview(
     db: DbSession,
     user: CurrentUser,
 ) -> JSONResponse:
+    """Return interview details for a given analysis."""
     validate_uuid(analysis_id)
     interview = get_interview_by_analysis(db, analysis_id)
     if not interview:
@@ -147,6 +150,7 @@ def remove_interview(
     db: DbSession,
     user: CurrentUser,
 ) -> JSONResponse:
+    """Delete an interview and revert the analysis status to APPLIED."""
     validate_uuid(analysis_id)
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:
@@ -156,7 +160,6 @@ def remove_interview(
     if not deleted:
         return JSONResponse({"error": "No interview to delete"}, status_code=404)
 
-    # Revert status to APPLIED
     update_status(db, analysis, AnalysisStatus.APPLIED)
     audit(db, request, "interview_delete", f"id={analysis_id}")
     db.commit()
@@ -170,4 +173,5 @@ def upcoming_interviews(
     user: CurrentUser,
     days: int | None = None,
 ) -> JSONResponse:
+    """Return upcoming interviews within the specified timeframe."""
     return JSONResponse(get_upcoming_interviews(db, days=days))

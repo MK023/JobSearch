@@ -10,6 +10,8 @@ from ..database.base import Base
 
 
 class AuditLog(Base):
+    """Immutable record of a user action for security auditing."""
+
     __tablename__ = "audit_logs"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
