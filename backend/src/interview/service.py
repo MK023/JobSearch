@@ -110,9 +110,27 @@ def get_upcoming_interviews(db: Session, hours: int = 48, days: int | None = Non
             "role": a.role,
             "scheduled_at": i.scheduled_at.isoformat(),
             "ends_at": i.ends_at.isoformat() if i.ends_at else None,
+            "date_display": _format_date(i.scheduled_at),
+            "time_display": _format_time(i.scheduled_at, i.ends_at),
             "platform": i.platform,
             "interview_type": i.interview_type,
             "meeting_link": i.meeting_link,
         }
         for i, a in rows
     ]
+
+
+_MONTHS_IT = ["gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic"]
+
+
+def _format_date(dt: datetime) -> str:
+    """Format date as '15 mar 2026'."""
+    return f"{dt.day} {_MONTHS_IT[dt.month - 1]} {dt.year}"
+
+
+def _format_time(start: datetime, end: datetime | None) -> str:
+    """Format time range as '14:30' or '14:30 – 15:30'."""
+    t = f"{start.strftime('%H:%M')}"
+    if end:
+        t += f" – {end.strftime('%H:%M')}"
+    return t

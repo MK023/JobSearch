@@ -33,8 +33,8 @@
     <div class="card interview-card mb-md">
       <div class="interview-card-header">
         <div>
-          <span class="interview-date">{{ iv.scheduled_at[:10] }}</span>
-          <span class="interview-time">{{ iv.scheduled_at[11:16] }}{% if iv.ends_at %} &ndash; {{ iv.ends_at[11:16] }}{% endif %}</span>
+          <span class="interview-date">{{ iv.date_display }}</span>
+          <span class="interview-time">{{ iv.time_display }}</span>
         </div>
         <span class="tag">{% if iv.platform == 'google_meet' %}&#x1F4F9; Google Meet{% elif iv.platform == 'teams' %}&#x1F4BB; Teams{% elif iv.platform == 'zoom' %}&#x1F4F9; Zoom{% elif iv.platform == 'phone' %}&#x1F4DE; Telefonico{% elif iv.platform == 'in_person' %}&#x1F3E2; In presenza{% elif iv.platform %}{{ iv.platform }}{% else %}&#x1F4BB; N/D{% endif %}</span>
       </div>
@@ -68,7 +68,7 @@
     <div class="card interview-card mt-md opacity-75">
       <div class="interview-card-header">
         <div>
-          <span class="interview-date">{{ iv.scheduled_at.strftime('%d %b %Y') }}</span>
+          <span class="interview-date">{{ iv.scheduled_at.strftime('%d/%m/%Y') }}</span>
           <span class="interview-time">{{ iv.scheduled_at.strftime('%H:%M') }}{% if iv.ends_at %} &ndash; {{ iv.ends_at.strftime('%H:%M') }}{% endif %}</span>
         </div>
         <span class="tag">{% if iv.platform == 'google_meet' %}&#x1F4F9; Google Meet{% elif iv.platform == 'teams' %}&#x1F4BB; Teams{% elif iv.platform == 'zoom' %}&#x1F4F9; Zoom{% elif iv.platform == 'phone' %}&#x1F4DE; Telefonico{% elif iv.platform == 'in_person' %}&#x1F3E2; In presenza{% elif iv.platform %}{{ iv.platform }}{% else %}&#x1F4BB; N/D{% endif %}</span>

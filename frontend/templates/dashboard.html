@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Dashboard — Job Search Command Center{% endblock %}
+{% block title %}Dashboard — Job Search{% endblock %}
 {% block content %}
 <div class="content-inner">
 
   {# Page header with title + credit pill #}
   <div class="page-header">
-    <h1 class="page-title">Job Search Command Center</h1>
+    <h1 class="page-title">Dashboard</h1>
     {% if spending and spending.remaining is not none %}
     <span class="pill pill-credit">${{ "%.2f"|format(spending.remaining|default(0)) }} rimanenti</span>
     {% endif %}
@@ -34,7 +34,7 @@
       <div class="upcoming-interview-info">
         <div class="upcoming-interview-title">Colloquio in arrivo — {{ iv.company }}</div>
         <div class="upcoming-interview-meta">
-          {{ iv.role }} &middot; {{ iv.scheduled_at[:16]|replace('T', ' ') }}{% if iv.platform %} &middot; {% if iv.platform == 'google_meet' %}Google Meet{% elif iv.platform == 'teams' %}Teams{% elif iv.platform == 'zoom' %}Zoom{% elif iv.platform == 'phone' %}Telefonico{% elif iv.platform == 'in_person' %}In presenza{% else %}Altro{% endif %}{% endif %}
+          {{ iv.role }} &middot; {{ iv.date_display }} {{ iv.time_display }}{% if iv.platform %} &middot; {% if iv.platform == 'google_meet' %}Google Meet{% elif iv.platform == 'teams' %}Teams{% elif iv.platform == 'zoom' %}Zoom{% elif iv.platform == 'phone' %}Telefonico{% elif iv.platform == 'in_person' %}In presenza{% else %}Altro{% endif %}{% endif %}
         </div>
       </div>
       <a href="/analysis/{{ iv.analysis_id }}" class="btn btn-sm btn-primary">Apri dettaglio</a>
@@ -50,16 +50,21 @@
   </section>
   {% endif %}
 
-  {# Recent analyses — up to 5 job cards #}
+  {# Pending analyses — only "da valutare" (actionable items) #}
   <section>
     <div class="section-header">
-      <h2 class="section-title">Ultime analisi</h2>
-      <a href="/history" class="link-subtle">Vedi tutto lo storico &rarr;</a>
+      <h2 class="section-title">Da valutare</h2>
+      <a href="/history" class="link-subtle">Storico &rarr;</a>
     </div>
-    {% if analyses %}
-      {% for analysis in analyses %}
+    {% set pending = analyses|selectattr("status.value", "equalto", "da_valutare")|list %}
+    {% if pending %}
+      {% for analysis in pending %}
         {% include "partials/job_card.html" %}
       {% endfor %}
+    {% elif analyses %}
+      <div class="card empty-state">
+        <p>Tutto gestito. Nessuna analisi in attesa di decisione.</p>
+      </div>
     {% else %}
       <div class="card empty-state">
         <p class="mb-lg">Nessuna analisi ancora</p>

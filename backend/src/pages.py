@@ -142,6 +142,8 @@ def interviews_page(
         .order_by(Interview.scheduled_at.asc())
         .all()
     )
+    from .interview.service import _format_date, _format_time
+
     upcoming = [
         {
             "analysis_id": str(a.id),
@@ -149,6 +151,8 @@ def interviews_page(
             "role": a.role,
             "scheduled_at": i.scheduled_at.isoformat(),
             "ends_at": i.ends_at.isoformat() if i.ends_at else None,
+            "date_display": _format_date(i.scheduled_at),
+            "time_display": _format_time(i.scheduled_at, i.ends_at),
             "platform": i.platform,
             "interview_type": i.interview_type,
             "meeting_link": i.meeting_link,

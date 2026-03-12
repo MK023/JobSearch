@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Nuova Analisi — Job Search Command Center{% endblock %}
+{% block title %}Nuova Analisi — Job Search{% endblock %}
 {% block content %}
 <div class="content-inner">
 
@@ -15,16 +15,13 @@
   <div class="message-banner banner-success">{{ message }}</div>
   {% endif %}
 
-  {# CV status bar #}
+  {# CV warning — only shown when CV is missing #}
+  {% if not cv or not cv.raw_text %}
   <div class="cv-status">
-    {% if cv and cv.raw_text %}
-      <span class="cv-status-ok">{{ cv.name|default("CV caricato") }}</span>
-      <a href="/settings" class="link-subtle">aggiorna</a>
-    {% else %}
-      <span class="cv-status-missing">CV mancante</span>
-      <a href="/settings" class="btn btn-sm btn-primary">Carica CV</a>
-    {% endif %}
+    <span class="cv-status-missing">CV mancante — l'analisi sarà meno accurata</span>
+    <a href="/settings" class="btn btn-sm btn-primary">Carica CV</a>
   </div>
+  {% endif %}
 
   {# Tab toggle: Singola / Multipla — Alpine.js #}
   <div x-data="{ tab: 'single', analyzeLoading: false }">
