@@ -164,50 +164,50 @@ const FileUpload = {
         if (files.length === 0) {
             this.fileListEl.textContent = '';
             const p = document.createElement('p');
-            p.className = 'text-sm text-gray-500 italic';
+            p.className = 'file-list-loading';
+            p.style.fontStyle = 'italic';
             p.textContent = 'Nessun file caricato.';
             this.fileListEl.appendChild(p);
             return;
         }
 
-        // Clear and rebuild using DOM methods for safety
         this.fileListEl.textContent = '';
         files.forEach(f => {
             const row = document.createElement('div');
-            row.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg';
+            row.className = 'file-row';
 
             const left = document.createElement('div');
-            left.className = 'flex-1 min-w-0';
+            left.className = 'file-row-info';
 
             const nameP = document.createElement('p');
-            nameP.className = 'text-sm font-medium text-gray-900 truncate';
+            nameP.className = 'file-row-name';
             nameP.textContent = f.original_filename;
             left.appendChild(nameP);
 
             const metaDiv = document.createElement('div');
-            metaDiv.className = 'flex items-center gap-2 mt-1';
+            metaDiv.className = 'file-row-meta';
 
             const badge = document.createElement('span');
             const statusInfo = {
-                pending: { label: 'In attesa', cls: 'bg-gray-100 text-gray-700' },
-                uploaded: { label: 'Caricato', cls: 'bg-blue-100 text-blue-700' },
-                compiled: { label: 'Compilato', cls: 'bg-green-100 text-green-700' },
-                not_compiled: { label: 'Non compilato', cls: 'bg-red-100 text-red-700' },
-                scan_error: { label: 'Errore scansione', cls: 'bg-orange-100 text-orange-700' },
-            }[f.status] || { label: f.status, cls: 'bg-gray-100 text-gray-700' };
-            badge.className = 'inline-block px-2 py-0.5 text-xs font-medium rounded-full ' + statusInfo.cls;
+                pending: { label: 'In attesa', cls: 'file-status-pending' },
+                uploaded: { label: 'Caricato', cls: 'file-status-uploaded' },
+                compiled: { label: 'Compilato', cls: 'file-status-compiled' },
+                not_compiled: { label: 'Non compilato', cls: 'file-status-error' },
+                scan_error: { label: 'Errore scansione', cls: 'file-status-error' },
+            }[f.status] || { label: f.status, cls: 'file-status-pending' };
+            badge.className = 'file-status ' + statusInfo.cls;
             badge.textContent = statusInfo.label;
             metaDiv.appendChild(badge);
 
             const sizeSpan = document.createElement('span');
-            sizeSpan.className = 'text-xs text-gray-400';
+            sizeSpan.className = 'file-row-size';
             sizeSpan.textContent = f.file_size ? Math.round(f.file_size / 1024) + ' KB' : '-';
             metaDiv.appendChild(sizeSpan);
             left.appendChild(metaDiv);
 
             if (f.scan_result) {
                 const scanP = document.createElement('p');
-                scanP.className = 'text-xs text-gray-500 mt-1';
+                scanP.className = 'file-row-scan';
                 scanP.textContent = f.scan_result;
                 left.appendChild(scanP);
             }
@@ -215,13 +215,13 @@ const FileUpload = {
             row.appendChild(left);
 
             const right = document.createElement('div');
-            right.className = 'flex items-center gap-3 ml-4';
+            right.className = 'file-row-actions';
 
             const canScan = f.status === 'uploaded' || f.status === 'scan_error';
             if (canScan) {
                 const scanBtn = document.createElement('button');
                 scanBtn.setAttribute('data-scan-id', f.id);
-                scanBtn.className = 'text-xs text-blue-600 hover:underline';
+                scanBtn.className = 'btn btn-ghost btn-sm';
                 scanBtn.textContent = 'Scansiona';
                 scanBtn.addEventListener('click', () => FileUpload.scanFile(f.id));
                 right.appendChild(scanBtn);
@@ -232,13 +232,13 @@ const FileUpload = {
                 dlLink.href = f.download_url;
                 dlLink.target = '_blank';
                 dlLink.rel = 'noopener noreferrer';
-                dlLink.className = 'text-xs text-blue-600 hover:underline';
+                dlLink.className = 'btn btn-ghost btn-sm';
                 dlLink.textContent = 'Scarica';
                 right.appendChild(dlLink);
             }
 
             const delBtn = document.createElement('button');
-            delBtn.className = 'text-xs text-red-600 hover:underline';
+            delBtn.className = 'btn btn-danger btn-sm';
             delBtn.textContent = 'Elimina';
             delBtn.addEventListener('click', () => FileUpload.deleteFile(f.id));
             right.appendChild(delBtn);

@@ -76,6 +76,10 @@
             <button id="btn-upload-file" class="btn btn-primary btn-sm">Carica file</button>
         </div>
 
+        <p class="file-list-hint">
+            Formati supportati: PDF, DOCX. Massimo 10 MB per file, 10 file per colloquio.
+        </p>
+
         {# Upload progress #}
         <div id="upload-progress" class="hidden" style="margin-bottom: var(--space-md)">
             <div class="message-banner banner-success">
@@ -87,10 +91,6 @@
         <div id="file-list">
             <p class="file-list-loading">Caricamento...</p>
         </div>
-
-        <p class="file-list-hint">
-            Formati supportati: PDF, DOCX. Massimo 10 MB per file, 10 file per colloquio.
-        </p>
     </div>
 
     <script src="/static/js/file-upload.js"></script>
