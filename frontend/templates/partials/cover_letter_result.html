@@ -1,7 +1,7 @@
 {# Cover letter result display #}
 {% if cover_letter %}
 <div class="card card-mb" id="cover-letter-result-card">
-    <h2>Cover Letter generata</h2>
+    <h2>Lettera di presentazione generata</h2>
 
     <div>
         <div class="advice-title advice-title-green">Lettera</div>
@@ -21,7 +21,7 @@
 
     {% if cover_letter.subject_lines %}
     <div>
-        <div class="advice-title advice-title-amber mt-md">Subject line suggerite</div>
+        <div class="advice-title advice-title-amber mt-md">Oggetti email suggeriti</div>
         {% for sl in cover_letter.subject_lines %}
         <div class="subject-line-row">
             <span class="subject-line-text" id="subject-line-{{ loop.index }}">{{ sl }}</span>

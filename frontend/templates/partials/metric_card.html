@@ -1,7 +1,16 @@
-{# Metric Card — big number + label
-   Usage: {% with value=29, label="Analizzate" %}{% include "partials/metric_card.html" %}{% endwith %}
+{# Metric Card — icon + big number + label
+   Usage: {% with value=29, label="Analizzate", icon="analyze", accent="blue" %}{% include "partials/metric_card.html" %}{% endwith %}
 #}
-<div class="metric-card">
+<div class="metric-card metric-{{ accent|default('blue') }}">
+  <div class="metric-icon">
+    {% if icon == 'analyze' %}
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>
+    {% elif icon == 'send' %}
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22 11 13 2 9Z"/></svg>
+    {% elif icon == 'target' %}
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+    {% endif %}
+  </div>
   <span class="metric-value">{{ value }}</span>
   <span class="metric-label">{{ label }}</span>
 </div>

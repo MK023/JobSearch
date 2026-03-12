@@ -21,9 +21,9 @@
 
   {# 3 metric cards #}
   <div class="grid-3col mb-xl">
-    {% with value=dashboard.total|default(0), label="Analizzate" %}{% include "partials/metric_card.html" %}{% endwith %}
-    {% with value=dashboard.applied|default(0), label="Candidature" %}{% include "partials/metric_card.html" %}{% endwith %}
-    {% with value=dashboard.avg_score|default(0), label="Score medio" %}{% include "partials/metric_card.html" %}{% endwith %}
+    {% with value=dashboard.total|default(0), label="Analizzate", icon="analyze", accent="blue" %}{% include "partials/metric_card.html" %}{% endwith %}
+    {% with value=dashboard.applied|default(0), label="Candidature", icon="send", accent="green" %}{% include "partials/metric_card.html" %}{% endwith %}
+    {% with value=dashboard.avg_score|default(0), label="Score medio", icon="target", accent="orange" %}{% include "partials/metric_card.html" %}{% endwith %}
   </div>
 
   {# Upcoming interview banners #}

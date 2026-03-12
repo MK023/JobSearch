@@ -397,18 +397,44 @@
   padding: var(--space-xl);
   display: flex;
   flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.metric-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--space-xs);
+}
+
+.metric-blue .metric-icon {
+  background: rgb(10 132 255 / 12%);
+  color: var(--accent-blue);
+}
+
+.metric-green .metric-icon {
+  background: rgb(48 209 88 / 12%);
+  color: var(--accent-green);
+}
+
+.metric-orange .metric-icon {
+  background: rgb(255 159 10 / 12%);
+  color: var(--accent-orange);
 }
 
 .metric-value {
   font-size: var(--text-2xl);
   font-weight: var(--weight-bold);
   color: var(--text-primary);
+  line-height: 1;
 }
 
 .metric-label {
   font-size: var(--text-sm);
   color: var(--text-secondary);
-  margin-top: var(--space-xs);
 }
 
 /* ---- Modal ---- */

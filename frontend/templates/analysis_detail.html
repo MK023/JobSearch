@@ -50,7 +50,7 @@
           {% if am.type == 'email' %}
           <span class="hero-tag hero-tag-salary">&#x1F4E7; <a href="mailto:{{ am.detail }}" class="color-inherit">{{ am.detail }}</a></span>
           {% elif am.type == 'quick_apply' %}
-          <span class="hero-tag hero-tag-potential">&#x26A1; Quick Apply{{ ' - ' + am.detail if am.detail else '' }}</span>
+          <span class="hero-tag hero-tag-potential">&#x26A1; Candidatura rapida{{ ' - ' + am.detail if am.detail else '' }}</span>
           {% elif am.type == 'link' %}
           <span class="hero-tag hero-tag-salary">&#x1F517; <a href="{{ am.detail }}" target="_blank" rel="noopener noreferrer" class="color-inherit">Candidati qui</a></span>
           {% else %}
@@ -163,12 +163,12 @@
     {% include "partials/cover_letter_result.html" %}
     {% elif current and current.status.value != 'scartato' %}
     <div class="card card-mb" id="cover-letter-card">
-      <h2>&#x2709;&#xFE0F; Cover Letter &mdash; <span class="cover-letter-ref">{{ current.role or 'Ruolo' }} @ {{ current.company or 'Azienda' }}</span></h2>
+      <h2>&#x2709;&#xFE0F; Lettera di presentazione &mdash; <span class="cover-letter-ref">{{ current.role or 'Ruolo' }} @ {{ current.company or 'Azienda' }}</span></h2>
       <form method="post" action="/cover-letter" id="cover-letter-form"
             @submit="coverLetterLoading = true">
         <input type="hidden" name="analysis_id" value="{{ current.id }}" id="cover-letter-analysis-id">
         <div class="button-row">
-          <select name="language" class="select-inline" aria-label="Lingua cover letter">
+          <select name="language" class="select-inline" aria-label="Lingua lettera di presentazione">
             <option value="italiano">&#x1F1EE;&#x1F1F9; Italiano</option>
             <option value="english">&#x1F1EC;&#x1F1E7; English</option>
             <option value="francais">&#x1F1EB;&#x1F1F7; Fran&ccedil;ais</option>
@@ -183,8 +183,8 @@
           </div>
           <button type="submit" class="btn btn-success btn-sm"
                   :disabled="coverLetterLoading">
-            <span x-show="!coverLetterLoading">&#x2709;&#xFE0F; Genera Cover Letter</span>
-            <span x-show="coverLetterLoading" x-cloak>&#x270D;&#xFE0F; Generazione...</span>
+            <span x-show="!coverLetterLoading">&#x2709;&#xFE0F; Genera lettera</span>
+            <span x-show="coverLetterLoading" x-cloak>&#x270D;&#xFE0F; Generazione in corso...</span>
           </button>
         </div>
       </form>
