@@ -402,8 +402,9 @@
 
 .metric-row {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-md);
 }
 
 .metric-icon {
@@ -1070,11 +1071,6 @@ details[open] summary::before {
     min-height: 44px;
   }
 
-  .metric-row {
-    flex-direction: row;
-    align-items: center;
-    gap: var(--space-md);
-  }
 
   .score-ring-lg {
     width: 100px;
