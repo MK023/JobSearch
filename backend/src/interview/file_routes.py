@@ -25,7 +25,7 @@ from ..integrations.r2 import (
     generate_r2_key,
     get_object_bytes,
 )
-from .file_models import ALLOWED_CONTENT_TYPES, MAX_FILE_SIZE_BYTES, FileStatus
+from .file_models import ALLOWED_CONTENT_TYPES, MAX_FILE_SIZE_BYTES, FileStatus, InterviewFile
 from .file_service import (
     MAX_FILES_PER_INTERVIEW,
     confirm_upload,
@@ -47,7 +47,7 @@ class RequestUploadPayload(BaseModel):
     content_type: str = Field(max_length=100)
 
 
-def _file_to_dict(file, include_download_url: bool = False) -> dict:
+def _file_to_dict(file: InterviewFile, include_download_url: bool = False) -> dict:
     """Serialize an InterviewFile to a dict."""
     data = {
         "id": str(file.id),
@@ -61,7 +61,7 @@ def _file_to_dict(file, include_download_url: bool = False) -> dict:
     }
     if include_download_url and file.status != FileStatus.PENDING:
         try:
-            data["download_url"] = generate_presigned_get_url(file.r2_key)
+            data["download_url"] = generate_presigned_get_url(str(file.r2_key))
         except Exception:
             data["download_url"] = None
     return data
@@ -155,7 +155,7 @@ def confirm_file_upload(
         return JSONResponse({"error": "File already confirmed"}, status_code=400)
 
     # HEAD check on R2
-    file_size = check_object_exists(file.r2_key)
+    file_size = check_object_exists(str(file.r2_key))
     if file_size is None:
         return JSONResponse(
             {"error": "File non trovato su R2. Riprova l'upload."},
@@ -165,7 +165,7 @@ def confirm_file_upload(
     # Validate file size
     if file_size > MAX_FILE_SIZE_BYTES:
         # Delete oversized file from R2
-        delete_object(file.r2_key)
+        delete_object(str(file.r2_key))
         delete_file_record(db, file)
         db.commit()
         max_mb = MAX_FILE_SIZE_BYTES // (1024 * 1024)
@@ -205,7 +205,7 @@ def scan_file(
 
     # Download file from R2
     try:
-        file_bytes = get_object_bytes(file.r2_key)
+        file_bytes = get_object_bytes(str(file.r2_key))
     except Exception:
         return JSONResponse(
             {"error": "Impossibile scaricare il file da R2"},
@@ -215,8 +215,8 @@ def scan_file(
     # Scan with Claude API
     result = scan_document(
         file_bytes=file_bytes,
-        filename=file.original_filename,
-        content_type=file.content_type,
+        filename=str(file.original_filename),
+        content_type=str(file.content_type),
     )
 
     # Update DB
@@ -272,7 +272,7 @@ def get_download_url(
     if file.status == FileStatus.PENDING:
         return JSONResponse({"error": "File non ancora caricato"}, status_code=400)
 
-    download_url = generate_presigned_get_url(file.r2_key)
+    download_url = generate_presigned_get_url(str(file.r2_key))
     return JSONResponse(
         {
             "download_url": download_url,
@@ -296,7 +296,7 @@ def remove_file(
 
     # Delete from R2 (don't fail if R2 delete fails - file may not exist)
     if file.status != FileStatus.PENDING:
-        delete_object(file.r2_key)
+        delete_object(str(file.r2_key))
 
     # Delete from DB
     audit(db, request, "file_deleted", f"file_id={file.id}, name={file.original_filename}")

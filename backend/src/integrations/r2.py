@@ -5,6 +5,7 @@ Uses boto3 S3-compatible API. R2 acts as an S3 drop-in replacement.
 
 import logging
 import uuid
+from typing import cast
 
 import boto3
 from botocore.config import Config as BotoConfig
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 _client = None
 
 
-def _get_r2_client():
+def _get_r2_client():  # type: ignore[no-untyped-def]
     """Get or create the singleton boto3 S3 client for R2."""
     global _client
     if _client is None:
@@ -80,7 +81,7 @@ def generate_presigned_put_url(r2_key: str, content_type: str) -> str:
         },
         ExpiresIn=PRESIGNED_URL_EXPIRY_SECONDS,
     )
-    return url
+    return cast(str, url)
 
 
 def generate_presigned_get_url(r2_key: str, expiry: int = 3600) -> str:
@@ -102,7 +103,7 @@ def generate_presigned_get_url(r2_key: str, expiry: int = 3600) -> str:
         },
         ExpiresIn=expiry,
     )
-    return url
+    return cast(str, url)
 
 
 def check_object_exists(r2_key: str) -> int | None:
@@ -117,7 +118,7 @@ def check_object_exists(r2_key: str) -> int | None:
             Bucket=settings.r2_bucket_name,
             Key=r2_key,
         )
-        return response["ContentLength"]
+        return cast(int, response["ContentLength"])
     except ClientError as e:
         if e.response["Error"]["Code"] == "404":
             return None
@@ -138,7 +139,7 @@ def get_object_bytes(r2_key: str) -> bytes:
         Bucket=settings.r2_bucket_name,
         Key=r2_key,
     )
-    return response["Body"].read()
+    return cast(bytes, response["Body"].read())
 
 
 def delete_object(r2_key: str) -> bool:

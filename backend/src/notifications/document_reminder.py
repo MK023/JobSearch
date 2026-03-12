@@ -32,8 +32,8 @@ def _build_document_reminder_html(
 
     file_rows = ""
     for f in files:
-        fname = escape(f.original_filename)
-        scan_text = escape(f.scan_result or "Non compilato")
+        fname = escape(str(f.original_filename))
+        scan_text = escape(str(f.scan_result or "Non compilato"))
         file_rows += (
             "<tr>"
             f'<td style="padding:8px 12px; border-bottom:1px solid #e5e7eb; color:#111827; font-size:14px;">{fname}</td>'
@@ -167,8 +167,8 @@ def send_document_reminders(db: Session) -> int:
         if not analysis:
             continue
 
-        company = analysis.company or "N/D"
-        role = analysis.role or "N/D"
+        company = str(analysis.company or "N/D")
+        role = str(analysis.role or "N/D")
         subject = f"Documenti da compilare: {role} @ {company}"
 
         html = _build_document_reminder_html(new_files, company, role)

@@ -194,7 +194,7 @@ def _parse_scan_response(message: anthropic.types.Message, model_id: str) -> dic
     """Parse Claude's response and return structured result."""
     import json
 
-    raw_text = message.content[0].text
+    raw_text = message.content[0].text  # type: ignore[union-attr]
     cost = _calculate_cost(message.usage, model_id)
 
     try:

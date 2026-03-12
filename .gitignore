@@ -43,6 +43,24 @@ JOB_SEARCH_COMMAND_CENTER_SPEC.md
 *.log
 logs/
 
+# Secrets & credentials (extra safety for public repo)
+*.pem
+*.key
+*.crt
+*.p12
+credentials*.json
+service-account*.json
+*secret*
+!backend/src/config.py
+
+# Coverage & reports
+coverage.xml
+bandit-report.json
+*.cover
+
+# Superpowers plans (temporary)
+docs/superpowers/
+
 # Playwright MCP screenshots
 .playwright-mcp/
 
