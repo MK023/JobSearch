@@ -1220,6 +1220,34 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
     padding: var(--space-sm) var(--space-md);
   }
 
+  .history-item-link {
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+  }
+
+  .history-item-info {
+    flex: 1 1 60%;
+    min-width: 0;
+  }
+
+  .history-item-role {
+    font-size: var(--text-base);
+  }
+
+  .history-item-company {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .status-badge {
+    order: 10;
+  }
+
+  .history-item-date {
+    order: 11;
+  }
+
   .upcoming-interview-banner {
     flex-direction: column;
     align-items: flex-start;
