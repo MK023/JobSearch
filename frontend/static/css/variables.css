@@ -86,6 +86,17 @@
   color-scheme: dark;
 }
 
+/* === Mobile font/spacing scale === */
+@media (width <= 768px) {
+  :root {
+    --text-2xl: 24px;
+    --text-xl: 20px;
+    --space-3xl: 32px;
+    --space-2xl: 24px;
+    --content-padding: 16px;
+  }
+}
+
 /* === Light Theme === */
 
 html[data-theme="light"] {
