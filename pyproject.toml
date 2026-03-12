@@ -54,6 +54,13 @@ known-first-party = ["src"]
 exclude_dirs = ["backend/tests", "backend/alembic"]
 skips = ["B101"]  # allow assert
 
+[tool.mypy]
+python_version = "3.12"
+plugins = ["sqlalchemy.ext.mypy.plugin"]
+ignore_missing_imports = true
+warn_return_any = true
+warn_unused_configs = true
+
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]
 pythonpath = ["backend"]

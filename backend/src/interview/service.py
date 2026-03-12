@@ -11,16 +11,19 @@ from .models import Interview
 
 def create_or_update_interview(
     db: Session,
-    analysis_id: UUID,
+    analysis_id: UUID | str,
     *,
     scheduled_at: datetime,
     ends_at: datetime | None = None,
+    platform: str | None = None,
     interview_type: str | None = None,
+    interviewer_name: str | None = None,
     recruiter_name: str | None = None,
     recruiter_email: str | None = None,
     meeting_link: str | None = None,
+    meeting_id: str | None = None,
     phone_number: str | None = None,
-    phone_pin: str | None = None,
+    access_pin: str | None = None,
     location: str | None = None,
     notes: str | None = None,
 ) -> Interview | None:
@@ -32,27 +35,33 @@ def create_or_update_interview(
     interview = db.query(Interview).filter(Interview.analysis_id == analysis_id).first()
 
     if interview:
-        interview.scheduled_at = scheduled_at
-        interview.ends_at = ends_at
-        interview.interview_type = interview_type
-        interview.recruiter_name = recruiter_name
-        interview.recruiter_email = recruiter_email
-        interview.meeting_link = meeting_link
-        interview.phone_number = phone_number
-        interview.phone_pin = phone_pin
-        interview.location = location
-        interview.notes = notes
+        interview.scheduled_at = scheduled_at  # type: ignore[assignment]
+        interview.ends_at = ends_at  # type: ignore[assignment]
+        interview.platform = platform  # type: ignore[assignment]
+        interview.interview_type = interview_type  # type: ignore[assignment]
+        interview.interviewer_name = interviewer_name  # type: ignore[assignment]
+        interview.recruiter_name = recruiter_name  # type: ignore[assignment]
+        interview.recruiter_email = recruiter_email  # type: ignore[assignment]
+        interview.meeting_link = meeting_link  # type: ignore[assignment]
+        interview.meeting_id = meeting_id  # type: ignore[assignment]
+        interview.phone_number = phone_number  # type: ignore[assignment]
+        interview.access_pin = access_pin  # type: ignore[assignment]
+        interview.location = location  # type: ignore[assignment]
+        interview.notes = notes  # type: ignore[assignment]
     else:
         interview = Interview(
             analysis_id=analysis_id,
             scheduled_at=scheduled_at,
             ends_at=ends_at,
+            platform=platform,
             interview_type=interview_type,
+            interviewer_name=interviewer_name,
             recruiter_name=recruiter_name,
             recruiter_email=recruiter_email,
             meeting_link=meeting_link,
+            meeting_id=meeting_id,
             phone_number=phone_number,
-            phone_pin=phone_pin,
+            access_pin=access_pin,
             location=location,
             notes=notes,
         )
@@ -62,12 +71,12 @@ def create_or_update_interview(
     return interview
 
 
-def get_interview_by_analysis(db: Session, analysis_id: UUID) -> Interview | None:
+def get_interview_by_analysis(db: Session, analysis_id: UUID | str) -> Interview | None:
     """Get interview for an analysis."""
     return db.query(Interview).filter(Interview.analysis_id == analysis_id).first()
 
 
-def delete_interview(db: Session, analysis_id: UUID) -> bool:
+def delete_interview(db: Session, analysis_id: UUID | str) -> bool:
     """Delete interview for an analysis. Returns True if deleted."""
     interview = db.query(Interview).filter(Interview.analysis_id == analysis_id).first()
     if not interview:
@@ -101,6 +110,7 @@ def get_upcoming_interviews(db: Session, hours: int = 48, days: int | None = Non
             "role": a.role,
             "scheduled_at": i.scheduled_at.isoformat(),
             "ends_at": i.ends_at.isoformat() if i.ends_at else None,
+            "platform": i.platform,
             "interview_type": i.interview_type,
             "meeting_link": i.meeting_link,
         }

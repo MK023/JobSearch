@@ -30,7 +30,14 @@ jobs:
         run: ruff check backend/src/ backend/tests/
       - name: Ruff format check
         run: ruff format --check backend/src/ backend/tests/
-      - name: Mypy type check (new modules)
+      - name: Mypy type check (interview - strict, no fallthrough)
+        run: |
+          mypy backend/src/interview/ \
+            --ignore-missing-imports \
+            --disallow-untyped-defs \
+            --no-implicit-optional \
+            --warn-return-any
+      - name: Mypy type check (other modules - advisory)
         run: |
           mypy backend/src/read_routes.py \
             backend/src/dependencies.py \

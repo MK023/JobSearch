@@ -36,7 +36,7 @@
           <span class="interview-date">{{ iv.scheduled_at[:10] }}</span>
           <span class="interview-time">{{ iv.scheduled_at[11:16] }}{% if iv.ends_at %} &ndash; {{ iv.ends_at[11:16] }}{% endif %}</span>
         </div>
-        <span class="tag">{% if iv.interview_type == 'virtual' %}&#x1F4BB; Video call{% elif iv.interview_type == 'phone' %}&#x1F4DE; Telefonico{% elif iv.interview_type == 'in_person' %}&#x1F3E2; In presenza{% else %}&#x1F4BB; virtual{% endif %}</span>
+        <span class="tag">{% if iv.platform == 'google_meet' %}&#x1F4F9; Google Meet{% elif iv.platform == 'teams' %}&#x1F4BB; Teams{% elif iv.platform == 'zoom' %}&#x1F4F9; Zoom{% elif iv.platform == 'phone' %}&#x1F4DE; Telefonico{% elif iv.platform == 'in_person' %}&#x1F3E2; In presenza{% elif iv.platform %}{{ iv.platform }}{% else %}&#x1F4BB; N/D{% endif %}</span>
       </div>
       <a href="/analysis/{{ iv.analysis_id }}" class="interview-card-role">
         {{ iv.role }} @ {{ iv.company }}
@@ -71,7 +71,7 @@
           <span class="interview-date">{{ iv.scheduled_at.strftime('%d %b %Y') }}</span>
           <span class="interview-time">{{ iv.scheduled_at.strftime('%H:%M') }}{% if iv.ends_at %} &ndash; {{ iv.ends_at.strftime('%H:%M') }}{% endif %}</span>
         </div>
-        <span class="tag">{% if iv.interview_type == 'virtual' %}&#x1F4BB; Video call{% elif iv.interview_type == 'phone' %}&#x1F4DE; Telefonico{% elif iv.interview_type == 'in_person' %}&#x1F3E2; In presenza{% elif iv.interview_type %}{{ iv.interview_type }}{% else %}&#x1F4BB; virtual{% endif %}</span>
+        <span class="tag">{% if iv.platform == 'google_meet' %}&#x1F4F9; Google Meet{% elif iv.platform == 'teams' %}&#x1F4BB; Teams{% elif iv.platform == 'zoom' %}&#x1F4F9; Zoom{% elif iv.platform == 'phone' %}&#x1F4DE; Telefonico{% elif iv.platform == 'in_person' %}&#x1F3E2; In presenza{% elif iv.platform %}{{ iv.platform }}{% else %}&#x1F4BB; N/D{% endif %}</span>
       </div>
       {% if iv.analysis %}
       <a href="/analysis/{{ iv.analysis_id }}" class="interview-card-role">
@@ -97,7 +97,7 @@
       {% if iv.phone_number %}
       <div class="interview-card-detail">
         <span>&#x1F4DE;</span>
-        <span>{{ iv.phone_number }}{% if iv.phone_pin %} (PIN: {{ iv.phone_pin }}){% endif %}</span>
+        <span>{{ iv.phone_number }}{% if iv.access_pin %} (PIN: {{ iv.access_pin }}){% endif %}</span>
       </div>
       {% endif %}
       {% if iv.location %}
@@ -129,5 +129,5 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/it.js"
         integrity="sha384-XmcRqh+m1SV0CoktEURItyTPYrm018EIiFIZnaIFP1lRvHRna9DduiTvO+TQzcTJ"
         crossorigin="anonymous"></script>
-<script src="{{ url_for('static', path='js/modules/interview.js') }}?v=13"></script>
+<script src="{{ url_for('static', path='js/modules/interview.js') }}?v=14"></script>
 {% endblock %}

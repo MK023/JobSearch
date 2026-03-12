@@ -34,7 +34,7 @@
       <div class="upcoming-interview-info">
         <div class="upcoming-interview-title">Colloquio in arrivo — {{ iv.company }}</div>
         <div class="upcoming-interview-meta">
-          {{ iv.role }} &middot; {{ iv.scheduled_at[:16]|replace('T', ' ') }}{% if iv.interview_type %} &middot; {% if iv.interview_type == 'virtual' %}Video call{% elif iv.interview_type == 'phone' %}Telefonico{% else %}In presenza{% endif %}{% endif %}
+          {{ iv.role }} &middot; {{ iv.scheduled_at[:16]|replace('T', ' ') }}{% if iv.platform %} &middot; {% if iv.platform == 'google_meet' %}Google Meet{% elif iv.platform == 'teams' %}Teams{% elif iv.platform == 'zoom' %}Zoom{% elif iv.platform == 'phone' %}Telefonico{% elif iv.platform == 'in_person' %}In presenza{% else %}Altro{% endif %}{% endif %}
         </div>
       </div>
       <a href="/analysis/{{ iv.analysis_id }}" class="btn btn-sm btn-primary">Apri dettaglio</a>
@@ -72,6 +72,6 @@
 {% endblock %}
 {% block scripts_extra %}
 <script src="{{ url_for('static', path='js/modules/spending.js') }}?v=12"></script>
-<script src="{{ url_for('static', path='js/modules/dashboard.js') }}?v=12"></script>
+<script src="{{ url_for('static', path='js/modules/dashboard.js') }}?v=13"></script>
 <script src="{{ url_for('static', path='js/modules/followup.js') }}?v=12"></script>
 {% endblock %}

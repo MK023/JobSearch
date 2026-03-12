@@ -4,6 +4,9 @@ primary_region = "cdg"
 [build]
   dockerfile = "backend/Dockerfile"
 
+[deploy]
+  release_command = "sh -c 'cd /app/backend && python -m alembic upgrade head'"
+
 [env]
   REDIS_URL = ""
   LOG_LEVEL = "INFO"
