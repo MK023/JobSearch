@@ -4,7 +4,7 @@ Provides RedisCacheService (real cache) and NullCacheService (no-op fallback).
 """
 
 import json
-from typing import Protocol
+from typing import Any, Protocol, cast
 
 import redis
 
@@ -16,8 +16,8 @@ class CacheService(Protocol):
 
     def get(self, key: str) -> str | None: ...
     def set(self, key: str, value: str, ttl: int) -> None: ...
-    def get_json(self, key: str) -> dict | None: ...
-    def set_json(self, key: str, data: dict, ttl: int) -> None: ...
+    def get_json(self, key: str) -> dict[str, Any] | None: ...
+    def set_json(self, key: str, data: dict[str, Any], ttl: int) -> None: ...
 
 
 class RedisCacheService:
@@ -29,7 +29,7 @@ class RedisCacheService:
 
     def get(self, key: str) -> str | None:
         try:
-            return self._client.get(key)
+            return cast(str | None, self._client.get(key))
         except Exception:
             return None
 
@@ -39,16 +39,16 @@ class RedisCacheService:
         with contextlib.suppress(Exception):
             self._client.setex(key, ttl, value)
 
-    def get_json(self, key: str) -> dict | None:
+    def get_json(self, key: str) -> dict[str, Any] | None:
         raw = self.get(key)
         if raw is None:
             return None
         try:
-            return json.loads(raw)
+            return cast(dict[str, Any], json.loads(raw))
         except (json.JSONDecodeError, TypeError):
             return None
 
-    def set_json(self, key: str, data: dict, ttl: int) -> None:
+    def set_json(self, key: str, data: dict[str, Any], ttl: int) -> None:
         self.set(key, json.dumps(data, ensure_ascii=False), ttl)
 
 
@@ -61,10 +61,10 @@ class NullCacheService:
     def set(self, key: str, value: str, ttl: int) -> None:
         pass
 
-    def get_json(self, key: str) -> dict | None:
+    def get_json(self, key: str) -> dict[str, Any] | None:
         return None
 
-    def set_json(self, key: str, data: dict, ttl: int) -> None:
+    def set_json(self, key: str, data: dict[str, Any], ttl: int) -> None:
         pass
 
 

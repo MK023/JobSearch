@@ -1,7 +1,10 @@
 """Page routes for the multi-page frontend (SSR)."""
 
+from typing import cast
+from uuid import UUID
+
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 
 from .analysis.models import AnalysisStatus
 from .analysis.service import get_recent_analyses
@@ -26,7 +29,7 @@ def dashboard_page(
     request: Request,
     db: DbSession,
     user: CurrentUser,
-):
+) -> Response:
     templates = request.app.state.templates
     flash = _flash(request)
 
@@ -36,10 +39,10 @@ def dashboard_page(
     followup_alerts = get_followup_alerts(db)
     upcoming_interviews = get_upcoming_interviews(db)
 
-    return templates.TemplateResponse(
+    return templates.TemplateResponse(  # type: ignore[no-any-return]
+        request,
         "dashboard.html",
         {
-            "request": request,
             "user": user,
             "active_page": "dashboard",
             "dashboard": dashboard,
@@ -58,20 +61,20 @@ def analyze_page(
     request: Request,
     db: DbSession,
     user: CurrentUser,
-):
+) -> Response:
     from .batch.service import get_batch_status
 
     templates = request.app.state.templates
     flash = _flash(request)
 
-    cv = get_latest_cv(db, user.id)
+    cv = get_latest_cv(db, cast(UUID, user.id))
     spending = get_spending(db)
     batch = get_batch_status()
 
-    return templates.TemplateResponse(
+    return templates.TemplateResponse(  # type: ignore[no-any-return]
+        request,
         "analyze.html",
         {
-            "request": request,
             "user": user,
             "active_page": "analyze",
             "cv": cv,
@@ -88,7 +91,7 @@ def history_page(
     request: Request,
     db: DbSession,
     user: CurrentUser,
-):
+) -> Response:
     templates = request.app.state.templates
     flash = _flash(request)
 
@@ -97,10 +100,10 @@ def history_page(
     for status in AnalysisStatus:
         counts[status.value] = sum(1 for a in analyses if a.status == status)
 
-    return templates.TemplateResponse(
+    return templates.TemplateResponse(  # type: ignore[no-any-return]
+        request,
         "history.html",
         {
-            "request": request,
             "user": user,
             "active_page": "history",
             "analyses": analyses,
@@ -116,7 +119,7 @@ def interviews_page(
     request: Request,
     db: DbSession,
     user: CurrentUser,
-):
+) -> Response:
     from datetime import UTC, datetime
 
     from .analysis.models import JobAnalysis
@@ -150,10 +153,10 @@ def interviews_page(
 
     past_rows = db.query(Interview).filter(Interview.scheduled_at <= now).order_by(Interview.scheduled_at.desc()).all()
 
-    return templates.TemplateResponse(
+    return templates.TemplateResponse(  # type: ignore[no-any-return]
+        request,
         "interviews.html",
         {
-            "request": request,
             "user": user,
             "active_page": "interviews",
             "upcoming_interviews": upcoming,
@@ -169,17 +172,17 @@ def settings_page(
     request: Request,
     db: DbSession,
     user: CurrentUser,
-):
+) -> Response:
     templates = request.app.state.templates
     flash = _flash(request)
 
-    cv = get_latest_cv(db, user.id)
+    cv = get_latest_cv(db, cast(UUID, user.id))
     spending = get_spending(db)
 
-    return templates.TemplateResponse(
+    return templates.TemplateResponse(  # type: ignore[no-any-return]
+        request,
         "settings.html",
         {
-            "request": request,
             "user": user,
             "active_page": "settings",
             "cv": cv,

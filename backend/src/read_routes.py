@@ -1,6 +1,7 @@
 """Read-only API routes for MCP and external consumers."""
 
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
@@ -24,7 +25,7 @@ from .interview.service import get_upcoming_interviews
 router = APIRouter(tags=["read-api"])
 
 
-def _analysis_summary(a: JobAnalysis) -> dict:
+def _analysis_summary(a: JobAnalysis) -> dict[str, Any]:
     """Compact representation of an analysis for list endpoints."""
     return {
         "id": str(a.id),
@@ -46,7 +47,7 @@ def list_candidature(
     user: CurrentUser,
     status: str | None = Query(None, description="Filter by status: da_valutare, candidato, colloquio, scartato"),
     limit: int = Query(50, ge=1, le=100),
-):
+) -> JSONResponse:
     """List candidature with optional status filter."""
     analyses = get_candidature(db, status=status, limit=limit)
     return JSONResponse({"candidature": [_analysis_summary(a) for a in analyses]})
@@ -58,7 +59,7 @@ def candidature_search(
     user: CurrentUser,
     q: str = Query(..., min_length=1, max_length=200, description="Search by company or role"),
     limit: int = Query(20, ge=1, le=50),
-):
+) -> JSONResponse:
     """Search candidature by company or role."""
     analyses = search_candidature(db, query=q, limit=limit)
     return JSONResponse({"candidature": [_analysis_summary(a) for a in analyses]})
@@ -69,7 +70,7 @@ def top_candidature(
     db: DbSession,
     user: CurrentUser,
     limit: int = Query(10, ge=1, le=50),
-):
+) -> JSONResponse:
     """Get top-scored candidature (excluding rejected)."""
     analyses = get_top_candidature(db, limit=limit)
     return JSONResponse({"candidature": [_analysis_summary(a) for a in analyses]})
@@ -81,7 +82,7 @@ def candidature_by_date_range(
     user: CurrentUser,
     date_from: str = Query(..., description="Start date (YYYY-MM-DD)"),
     date_to: str = Query(..., description="End date (YYYY-MM-DD)"),
-):
+) -> JSONResponse:
     """Get candidature within a date range."""
     try:
         dt_from = datetime.fromisoformat(date_from)
@@ -98,7 +99,7 @@ def stale_candidature(
     db: DbSession,
     user: CurrentUser,
     days: int = Query(7, ge=1, le=90, description="Days without updates"),
-):
+) -> JSONResponse:
     """Get candidature that haven't been updated in N days."""
     analyses = get_stale_candidature(db, days=days)
     return JSONResponse({"candidature": [_analysis_summary(a) for a in analyses]})
@@ -109,7 +110,7 @@ def candidature_detail(
     analysis_id: str,
     db: DbSession,
     user: CurrentUser,
-):
+) -> JSONResponse:
     """Get full detail for a single candidature."""
     validate_uuid(analysis_id)
     analysis = get_analysis_by_id(db, analysis_id)
@@ -131,7 +132,7 @@ def interview_prep(
     analysis_id: str,
     db: DbSession,
     user: CurrentUser,
-):
+) -> JSONResponse:
     """Get interview preparation data: strengths, gaps, scripts, advice."""
     validate_uuid(analysis_id)
     analysis = get_analysis_by_id(db, analysis_id)
@@ -157,7 +158,7 @@ def cover_letters(
     analysis_id: str,
     db: DbSession,
     user: CurrentUser,
-):
+) -> JSONResponse:
     """Get cover letters for an analysis."""
     validate_uuid(analysis_id)
     analysis = get_analysis_by_id(db, analysis_id)
@@ -187,7 +188,7 @@ def contacts_search(
     user: CurrentUser,
     q: str = Query(..., min_length=1, max_length=200, description="Search by name, company, or email"),
     limit: int = Query(20, ge=1, le=50),
-):
+) -> JSONResponse:
     """Search all contacts by name, company, or email."""
     contacts = search_all_contacts(db, query=q, limit=limit)
     return JSONResponse(
@@ -213,7 +214,7 @@ def contacts_search(
 def pending_followups(
     db: DbSession,
     user: CurrentUser,
-):
+) -> JSONResponse:
     """Get candidature that need follow-up."""
     analyses = get_followup_alerts(db)
     return JSONResponse(
@@ -237,7 +238,7 @@ def activity_summary(
     db: DbSession,
     user: CurrentUser,
     days: int = Query(7, ge=1, le=90, description="Number of days to summarize"),
-):
+) -> JSONResponse:
     """Get activity summary for the last N days."""
     from datetime import timedelta
 

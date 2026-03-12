@@ -3,6 +3,7 @@
 import io
 import re
 from datetime import UTC, datetime
+from typing import cast
 from uuid import UUID
 
 from docx import Document
@@ -33,7 +34,7 @@ def create_cover_letter(
         "gaps": analysis.gaps or [],
     }
 
-    result = generate_cover_letter(cv_text, analysis.job_description, analysis_data, language, model, cache)
+    result = generate_cover_letter(cv_text, cast(str, analysis.job_description), analysis_data, language, model, cache)
 
     cl = CoverLetter(
         analysis_id=analysis.id,

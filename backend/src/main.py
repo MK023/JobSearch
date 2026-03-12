@@ -2,8 +2,10 @@
 
 import logging
 import time
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -52,7 +54,7 @@ def _run_migrations() -> None:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application startup/shutdown lifecycle."""
     global _startup_time
     _startup_time = time.time()
@@ -116,25 +118,25 @@ def create_app() -> FastAPI:
 
     # --- Exception handlers ---
     @app.exception_handler(AuthRequired)
-    async def auth_redirect_handler(request: Request, exc: AuthRequired):
+    async def auth_redirect_handler(request: Request, exc: AuthRequired) -> Response:
         return RedirectResponse(url="/login", status_code=303)
 
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_handler)
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_handler)  # type: ignore[arg-type]
 
     @app.exception_handler(StarletteHTTPException)
-    async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> Response:
         if exc.status_code == 404:
             templates = app.state.templates
-            return templates.TemplateResponse("404.html", {"request": request}, status_code=404)
+            return templates.TemplateResponse(request, "404.html", status_code=404)  # type: ignore[no-any-return]
         from fastapi.responses import JSONResponse
 
         return JSONResponse({"error": exc.detail}, status_code=exc.status_code)
 
     @app.exception_handler(Exception)
-    async def generic_exception_handler(request: Request, exc: Exception):
+    async def generic_exception_handler(request: Request, exc: Exception) -> Response:
         logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
         templates = app.state.templates
-        return templates.TemplateResponse("500.html", {"request": request}, status_code=500)
+        return templates.TemplateResponse(request, "500.html", status_code=500)  # type: ignore[no-any-return]
 
     # --- Middleware stack (LIFO: last added = outermost) ---
     # Order matters: first added = innermost, last added = outermost.
@@ -150,8 +152,8 @@ def create_app() -> FastAPI:
     app.add_middleware(SlowAPIMiddleware)
 
     @app.middleware("http")
-    async def security_headers(request: Request, call_next):
-        response = await call_next(request)
+    async def security_headers(request: Request, call_next: Any) -> Response:
+        response: Response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Content-Security-Policy"] = (
@@ -202,7 +204,7 @@ def create_app() -> FastAPI:
 
     # --- Health check ---
     @app.get("/health")
-    def health(db: DbSession):
+    def health(db: DbSession) -> dict[str, Any]:
         db_status = "ok"
         try:
             db.execute(text("SELECT 1"))

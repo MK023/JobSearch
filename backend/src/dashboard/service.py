@@ -23,11 +23,11 @@ def _check_today_reset(s: AppSettings) -> None:
     """Reset daily counters if the date has changed."""
     today = date.today().isoformat()
     if (s.today_date or "") != today:
-        s.today_date = today
-        s.today_cost_usd = 0.0
-        s.today_tokens_input = 0
-        s.today_tokens_output = 0
-        s.today_analyses = 0
+        s.today_date = today  # type: ignore[assignment]
+        s.today_cost_usd = 0.0  # type: ignore[assignment]
+        s.today_tokens_input = 0  # type: ignore[assignment]
+        s.today_tokens_output = 0  # type: ignore[assignment]
+        s.today_analyses = 0  # type: ignore[assignment]
 
 
 def check_budget_available(db: Session) -> tuple[bool, str]:
@@ -47,17 +47,17 @@ def add_spending(db: Session, cost: float, tokens_in: int, tokens_out: int, is_a
     """Update running totals after an insert."""
     s = get_or_create_settings(db)
     _check_today_reset(s)
-    s.total_cost_usd = round((s.total_cost_usd or 0) + cost, 6)
-    s.total_tokens_input = (s.total_tokens_input or 0) + tokens_in
-    s.total_tokens_output = (s.total_tokens_output or 0) + tokens_out
-    s.today_cost_usd = round((s.today_cost_usd or 0) + cost, 6)
-    s.today_tokens_input = (s.today_tokens_input or 0) + tokens_in
-    s.today_tokens_output = (s.today_tokens_output or 0) + tokens_out
+    s.total_cost_usd = round(float(s.total_cost_usd or 0) + cost, 6)  # type: ignore[assignment,arg-type]
+    s.total_tokens_input = int(s.total_tokens_input or 0) + tokens_in  # type: ignore[assignment]
+    s.total_tokens_output = int(s.total_tokens_output or 0) + tokens_out  # type: ignore[assignment]
+    s.today_cost_usd = round(float(s.today_cost_usd or 0) + cost, 6)  # type: ignore[assignment,arg-type]
+    s.today_tokens_input = int(s.today_tokens_input or 0) + tokens_in  # type: ignore[assignment]
+    s.today_tokens_output = int(s.today_tokens_output or 0) + tokens_out  # type: ignore[assignment]
     if is_analysis:
-        s.total_analyses = (s.total_analyses or 0) + 1
-        s.today_analyses = (s.today_analyses or 0) + 1
+        s.total_analyses = int(s.total_analyses or 0) + 1  # type: ignore[assignment]
+        s.today_analyses = int(s.today_analyses or 0) + 1  # type: ignore[assignment]
     else:
-        s.total_cover_letters = (s.total_cover_letters or 0) + 1
+        s.total_cover_letters = int(s.total_cover_letters or 0) + 1  # type: ignore[assignment]
 
 
 def remove_spending(
@@ -71,19 +71,19 @@ def remove_spending(
     """Update running totals after a delete."""
     s = get_or_create_settings(db)
     _check_today_reset(s)
-    s.total_cost_usd = round(max((s.total_cost_usd or 0) - cost, 0), 6)
-    s.total_tokens_input = max((s.total_tokens_input or 0) - tokens_in, 0)
-    s.total_tokens_output = max((s.total_tokens_output or 0) - tokens_out, 0)
+    s.total_cost_usd = round(max(float(s.total_cost_usd or 0) - cost, 0), 6)  # type: ignore[assignment,arg-type]
+    s.total_tokens_input = max(int(s.total_tokens_input or 0) - tokens_in, 0)  # type: ignore[assignment,arg-type]
+    s.total_tokens_output = max(int(s.total_tokens_output or 0) - tokens_out, 0)  # type: ignore[assignment,arg-type]
     if is_analysis:
-        s.total_analyses = max((s.total_analyses or 0) - 1, 0)
+        s.total_analyses = max(int(s.total_analyses or 0) - 1, 0)  # type: ignore[assignment,arg-type]
     else:
-        s.total_cover_letters = max((s.total_cover_letters or 0) - 1, 0)
+        s.total_cover_letters = max(int(s.total_cover_letters or 0) - 1, 0)  # type: ignore[assignment,arg-type]
     if created_today:
-        s.today_cost_usd = round(max((s.today_cost_usd or 0) - cost, 0), 6)
-        s.today_tokens_input = max((s.today_tokens_input or 0) - tokens_in, 0)
-        s.today_tokens_output = max((s.today_tokens_output or 0) - tokens_out, 0)
+        s.today_cost_usd = round(max(float(s.today_cost_usd or 0) - cost, 0), 6)  # type: ignore[assignment,arg-type]
+        s.today_tokens_input = max(int(s.today_tokens_input or 0) - tokens_in, 0)  # type: ignore[assignment,arg-type]
+        s.today_tokens_output = max(int(s.today_tokens_output or 0) - tokens_out, 0)  # type: ignore[assignment,arg-type]
         if is_analysis:
-            s.today_analyses = max((s.today_analyses or 0) - 1, 0)
+            s.today_analyses = max(int(s.today_analyses or 0) - 1, 0)  # type: ignore[assignment,arg-type]
 
 
 def get_spending(db: Session) -> dict:
@@ -110,9 +110,9 @@ def get_spending(db: Session) -> dict:
 
 def update_budget(db: Session, budget: float) -> float:
     s = get_or_create_settings(db)
-    s.anthropic_budget = max(budget, 0)
+    s.anthropic_budget = max(budget, 0)  # type: ignore[assignment,arg-type]
     db.flush()
-    return round(s.anthropic_budget, 2)
+    return round(float(s.anthropic_budget or 0), 2)
 
 
 def get_dashboard(db: Session) -> dict:
@@ -193,10 +193,11 @@ def seed_spending_totals(db: Session) -> None:
             func.coalesce(func.sum(CoverLetter.tokens_output), 0),
             func.count(CoverLetter.id),
         ).first()
-        s.total_cost_usd = round(float(a[0]) + float(cl[0]), 6)
-        s.total_tokens_input = int(a[1]) + int(cl[1])
-        s.total_tokens_output = int(a[2]) + int(cl[2])
-        s.total_analyses = int(a[3])
-        s.total_cover_letters = int(cl[3])
-        s.today_date = date.today().isoformat()
+        if a and cl:
+            s.total_cost_usd = round(float(a[0]) + float(cl[0]), 6)  # type: ignore[assignment,arg-type]
+            s.total_tokens_input = int(a[1]) + int(cl[1])  # type: ignore[assignment]
+            s.total_tokens_output = int(a[2]) + int(cl[2])  # type: ignore[assignment]
+            s.total_analyses = int(a[3])  # type: ignore[assignment]
+            s.total_cover_letters = int(cl[3])  # type: ignore[assignment]
+            s.today_date = date.today().isoformat()  # type: ignore[assignment]
         db.flush()

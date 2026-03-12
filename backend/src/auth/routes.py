@@ -1,7 +1,10 @@
 """Authentication routes."""
 
+from typing import cast
+from uuid import UUID
+
 from fastapi import APIRouter, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from ..audit.service import audit
@@ -13,15 +16,15 @@ router = APIRouter(tags=["auth"])
 
 
 def _get_templates(request: Request) -> Jinja2Templates:
-    return request.app.state.templates
+    return cast(Jinja2Templates, request.app.state.templates)
 
 
 @router.get("/login", response_class=HTMLResponse)
-def login_page(request: Request):
+def login_page(request: Request) -> Response:
     templates = _get_templates(request)
     if request.session.get("user_id"):
         return RedirectResponse(url="/", status_code=303)
-    return templates.TemplateResponse("login.html", {"request": request})
+    return templates.TemplateResponse(request, "login.html")  # type: ignore[return-value]
 
 
 @router.post("/login")
@@ -31,25 +34,26 @@ def login(
     db: DbSession,
     email: str = Form(...),
     password: str = Form(...),
-):
+) -> Response:
     templates = _get_templates(request)
     user = authenticate_user(db, email, password)
     if not user:
         audit(db, request, "login_failed", f"email={email}")
         db.commit()
-        return templates.TemplateResponse(
+        return templates.TemplateResponse(  # type: ignore[return-value]
+            request,
             "login.html",
-            {"request": request, "error": "Invalid credentials"},
+            {"error": "Invalid credentials"},
             status_code=401,
         )
     request.session["user_id"] = str(user.id)
-    audit(db, request, "login", f"email={email}", user_id=user.id)
+    audit(db, request, "login", f"email={email}", user_id=cast(UUID, user.id))
     db.commit()
     return RedirectResponse(url="/", status_code=303)
 
 
 @router.post("/logout")
-def logout(request: Request, db: DbSession):
+def logout(request: Request, db: DbSession) -> Response:
     audit(db, request, "logout")
     db.commit()
     request.session.clear()

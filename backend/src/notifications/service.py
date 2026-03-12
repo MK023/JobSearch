@@ -14,6 +14,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formataddr, formatdate, make_msgid
 from html import escape
+from typing import cast
 
 from cryptography.fernet import Fernet
 from sqlalchemy.orm import Session
@@ -66,8 +67,8 @@ def _build_followup_email(analysis: JobAnalysis, days_since: int) -> MIMEMultipa
     msg["Subject"] = f"Sollecito candidatura: {analysis.role} presso {analysis.company}"
 
     # ── Escape dynamic data for HTML ──
-    role = escape(analysis.role or "")
-    company = escape(analysis.company or "")
+    role = escape(cast(str, analysis.role) or "")
+    company = escape(cast(str, analysis.company) or "")
     status_val = escape(analysis.status.value if analysis.status else "n/d")
     score = analysis.score or 0
 
@@ -227,7 +228,7 @@ def check_and_send_followup_reminders(db: Session) -> int:
 
     sent_count = 0
     for analysis in analyses:
-        if _already_notified(db, analysis.id, "followup_reminder"):
+        if _already_notified(db, cast(uuid.UUID, analysis.id), "followup_reminder"):
             continue
 
         days_since = (datetime.now(UTC) - analysis.applied_at).days

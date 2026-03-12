@@ -1,5 +1,8 @@
 """Batch analysis routes."""
 
+from typing import cast
+from uuid import UUID
+
 from fastapi import APIRouter, BackgroundTasks, Form, Request
 from fastapi.responses import JSONResponse
 
@@ -22,7 +25,7 @@ def batch_add(
     job_description: str = Form(...),
     job_url: str = Form(""),
     model: str = Form("haiku"),
-):
+) -> JSONResponse:
     if len(job_description) > settings.max_job_desc_size:
         return JSONResponse(
             {"error": f"Descrizione troppo lunga (max {settings.max_job_desc_size} caratteri)"}, status_code=400
@@ -42,7 +45,7 @@ def batch_run(
     user: CurrentUser,
     cache: Cache,
     db: DbSession,
-):
+) -> JSONResponse:
     batch_id = get_pending_batch_id()
     if not batch_id:
         return JSONResponse({"error": "No pending batch"}, status_code=400)
@@ -52,10 +55,10 @@ def batch_run(
     if not budget_ok:
         return JSONResponse({"error": budget_msg}, status_code=400)
 
-    def _run_in_background():
+    def _run_in_background() -> None:
         bg_db = SessionLocal()
         try:
-            run_batch(batch_id, bg_db, user.id, cache)
+            run_batch(batch_id, bg_db, cast(UUID, user.id), cache)
         finally:
             bg_db.close()
 
@@ -66,11 +69,11 @@ def batch_run(
 
 
 @router.get("/status")
-def batch_status_route(user: CurrentUser):
+def batch_status_route(user: CurrentUser) -> JSONResponse:
     return JSONResponse(get_batch_status())
 
 
 @router.delete("/clear")
-def batch_clear(user: CurrentUser):
+def batch_clear(user: CurrentUser) -> JSONResponse:
     clear_completed()
     return JSONResponse({"ok": True})

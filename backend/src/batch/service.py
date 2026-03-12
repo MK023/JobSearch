@@ -5,6 +5,7 @@ State is stored in-memory (lost on restart by design - batch is a session-level 
 """
 
 import uuid as uuid_mod
+from typing import cast
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -82,7 +83,7 @@ def run_batch(batch_id: str, db: Session, user_id: UUID, cache: CacheService | N
             continue
         item["status"] = "running"
         try:
-            ch = content_hash(cv.raw_text, item["job_description"])
+            ch = content_hash(cast(str, cv.raw_text), item["job_description"])
             model_id = MODELS.get(item.get("model", "haiku"), MODELS["haiku"])
 
             existing = find_existing_analysis(db, ch, model_id)
@@ -93,8 +94,8 @@ def run_batch(batch_id: str, db: Session, user_id: UUID, cache: CacheService | N
 
             analysis, result = run_analysis(
                 db,
-                cv.raw_text,
-                cv.id,
+                cast(str, cv.raw_text),
+                cast(UUID, cv.id),
                 item["job_description"],
                 item.get("job_url", ""),
                 item.get("model", "haiku"),

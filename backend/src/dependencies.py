@@ -1,6 +1,6 @@
 """Shared FastAPI dependencies and Annotated type aliases."""
 
-from typing import Annotated
+from typing import Annotated, cast
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, Request
@@ -27,7 +27,7 @@ class AuthRequired(Exception):
 
 def get_cache(request: Request) -> CacheService:
     """Get the cache service from app state."""
-    return request.app.state.cache
+    return cast(CacheService, request.app.state.cache)
 
 
 def get_current_user(request: Request, db: Annotated[Session, Depends(get_db)]) -> User:

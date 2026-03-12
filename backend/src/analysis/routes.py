@@ -1,7 +1,10 @@
 """Analysis HTML routes (SSR pages)."""
 
+from typing import cast
+from uuid import UUID
+
 from fastapi import APIRouter, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from ..audit.service import audit
 from ..config import settings
@@ -30,8 +33,8 @@ def analyze(
     job_description: str = Form(...),
     job_url: str = Form(""),
     model: str = Form("haiku"),
-):
-    cv = get_latest_cv(db, user.id)
+) -> Response:
+    cv = get_latest_cv(db, cast(UUID, user.id))
 
     if not cv:
         request.session["flash_error"] = "Salva prima il tuo CV!"
@@ -48,7 +51,7 @@ def analyze(
         request.session["flash_error"] = budget_msg
         return RedirectResponse(url="/analyze", status_code=303)
 
-    ch = content_hash(cv.raw_text, job_description)
+    ch = content_hash(cast(str, cv.raw_text), job_description)
     model_id = MODELS.get(model, MODELS["haiku"])
     existing = find_existing_analysis(db, ch, model_id)
 
@@ -60,7 +63,9 @@ def analyze(
         return RedirectResponse(url=f"/analysis/{existing.id}", status_code=303)
 
     try:
-        analysis, result = run_analysis(db, cv.raw_text, cv.id, job_description, job_url, model, cache)
+        analysis, result = run_analysis(
+            db, cast(str, cv.raw_text), cast(UUID, cv.id), job_description, job_url, model, cache
+        )
         add_spending(
             db,
             result.get("cost_usd", 0.0),
@@ -85,7 +90,7 @@ def view_analysis(
     analysis_id: str,
     db: DbSession,
     user: CurrentUser,
-):
+) -> Response:
     from ..contacts.service import get_contacts_for_analysis
     from ..interview.service import get_interview_by_analysis
 
@@ -94,7 +99,7 @@ def view_analysis(
         return RedirectResponse(url="/history", status_code=303)
 
     result = rebuild_result(analysis)
-    interview = get_interview_by_analysis(db, analysis.id)
+    interview = get_interview_by_analysis(db, cast(UUID, analysis.id))
     cover_letter = analysis.cover_letters[0] if analysis.cover_letters else None
     contacts = get_contacts_for_analysis(db, str(analysis.id))
 
@@ -102,10 +107,10 @@ def view_analysis(
     message = request.session.pop("flash_message", None)
 
     templates = request.app.state.templates
-    return templates.TemplateResponse(
+    return templates.TemplateResponse(  # type: ignore[no-any-return]
+        request,
         "analysis_detail.html",
         {
-            "request": request,
             "user": user,
             "active_page": "history",
             "current": analysis,
