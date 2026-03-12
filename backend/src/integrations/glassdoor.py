@@ -7,6 +7,7 @@ Graceful degradation: returns None on missing API key, errors, or no match.
 import json
 import uuid
 from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 
 import httpx
 from sqlalchemy import Column, DateTime, Float, Integer, String, Text
@@ -66,10 +67,10 @@ def fetch_glassdoor_rating(company_name: str, db: Session) -> dict | None:
         parsed = _parse_company(company)
 
         if cached:
-            cached.glassdoor_data = json.dumps(company, ensure_ascii=False)
-            cached.rating = parsed.get("glassdoor_rating")
-            cached.review_count = parsed.get("review_count")
-            cached.fetched_at = datetime.now(UTC)
+            cached.glassdoor_data = json.dumps(company, ensure_ascii=False)  # type: ignore[assignment]
+            cached.rating = parsed.get("glassdoor_rating")  # type: ignore[assignment]
+            cached.review_count = parsed.get("review_count")  # type: ignore[assignment]
+            cached.fetched_at = datetime.now(UTC)  # type: ignore[assignment]
         else:
             cached = GlassdoorCache(
                 company_name=normalized,
@@ -99,7 +100,7 @@ def _call_api(query: str) -> dict | None:
             timeout=10.0,
         )
         response.raise_for_status()
-        return response.json()
+        return cast(dict[str, Any] | None, response.json())
     except httpx.HTTPStatusError:
         return None
     except Exception:
@@ -113,7 +114,7 @@ def _best_match(data: dict, query: str) -> dict | None:
     """
     if data.get("status") != "OK":
         return None
-    results = data.get("data", [])
+    results: list[dict[str, Any]] = data.get("data", [])
     if not results:
         return None
 
@@ -194,7 +195,7 @@ def _parse_company(c: dict) -> dict:
 def _parse_cached(cached: GlassdoorCache) -> dict | None:
     """Build result dict from cached DB record."""
     try:
-        company = json.loads(cached.glassdoor_data) if cached.glassdoor_data else {}
+        company = json.loads(str(cached.glassdoor_data)) if cached.glassdoor_data else {}
     except (json.JSONDecodeError, TypeError):
         company = {}
 

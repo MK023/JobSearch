@@ -1,6 +1,8 @@
 """Follow-up email and LinkedIn message routes."""
 
 from datetime import UTC, datetime
+from typing import cast
+from uuid import UUID
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import JSONResponse
@@ -33,14 +35,16 @@ def create_followup_email(
     if not analysis:
         return JSONResponse({"error": "Analysis not found"}, status_code=404)
 
-    cv = get_latest_cv(db, user.id)
+    cv = get_latest_cv(db, cast(UUID, user.id))
     if not cv:
         return JSONResponse({"error": "CV not found"}, status_code=404)
 
     days_since = (datetime.now(UTC) - analysis.applied_at).days if analysis.applied_at else 7
 
     try:
-        result = generate_followup_email(cv.raw_text, analysis.role, analysis.company, days_since, language, model)
+        result = generate_followup_email(
+            cast(str, cv.raw_text), cast(str, analysis.role), cast(str, analysis.company), days_since, language, model
+        )
     except Exception as exc:
         audit(db, request, "followup_email_error", str(exc))
         db.commit()
@@ -73,7 +77,7 @@ def create_linkedin_message(
     if not analysis:
         return JSONResponse({"error": "Analysis not found"}, status_code=404)
 
-    cv = get_latest_cv(db, user.id)
+    cv = get_latest_cv(db, cast(UUID, user.id))
     if not cv:
         return JSONResponse({"error": "CV not found"}, status_code=404)
 
@@ -88,7 +92,9 @@ def create_linkedin_message(
         contact_info = ", ".join(parts)
 
     try:
-        result = generate_linkedin_message(cv.raw_text, analysis.role, analysis.company, contact_info, language, model)
+        result = generate_linkedin_message(
+            cast(str, cv.raw_text), cast(str, analysis.role), cast(str, analysis.company), contact_info, language, model
+        )
     except Exception as exc:
         audit(db, request, "linkedin_msg_error", str(exc))
         db.commit()
@@ -117,7 +123,7 @@ def mark_followup_done(
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:
         return JSONResponse({"error": "Analysis not found"}, status_code=404)
-    analysis.followed_up = True
+    analysis.followed_up = True  # type: ignore[assignment]
     audit(db, request, "followup_done", f"analysis={analysis_id}")
     db.commit()
     return JSONResponse({"ok": True})

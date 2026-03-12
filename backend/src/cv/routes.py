@@ -1,7 +1,10 @@
 """CV routes."""
 
+from typing import cast
+from uuid import UUID
+
 from fastapi import APIRouter, Form, Request
-from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
 
 from ..audit.service import audit
 from ..config import settings
@@ -18,7 +21,7 @@ def save_cv_route(
     user: CurrentUser,
     cv_text: str = Form(...),
     cv_name: str = Form(""),
-):
+) -> Response:
     if len(cv_text) < 20:
         request.session["flash_error"] = "CV troppo corto (minimo 20 caratteri)"
         return RedirectResponse(url="/settings", status_code=303)
@@ -26,7 +29,7 @@ def save_cv_route(
         request.session["flash_error"] = f"CV troppo lungo (max {settings.max_cv_size} caratteri)"
         return RedirectResponse(url="/settings", status_code=303)
 
-    save_cv(db, user.id, cv_text, cv_name)
+    save_cv(db, cast(UUID, user.id), cv_text, cv_name)
     audit(db, request, "cv_save", f"name={cv_name}, len={len(cv_text)}")
     db.commit()
     request.session["flash_message"] = "CV salvato con successo!"
@@ -38,8 +41,8 @@ def download_cv(
     request: Request,
     db: DbSession,
     user: CurrentUser,
-):
-    cv = get_latest_cv(db, user.id)
+) -> Response:
+    cv = get_latest_cv(db, cast(UUID, user.id))
     if not cv:
         return RedirectResponse(url="/", status_code=303)
     audit(db, request, "cv_download", f"name={cv.name}")

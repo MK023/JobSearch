@@ -2,6 +2,7 @@
 
 import json
 from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -95,7 +96,7 @@ def rebuild_result(analysis: JobAnalysis, from_cache: bool = False) -> dict:
     }
 
     # Extract extra fields from full_response
-    full = _parse_full_response(analysis.full_response)
+    full = _parse_full_response(cast(str, analysis.full_response))
     for key in (
         "score_label",
         "potential_score",
@@ -113,9 +114,9 @@ def rebuild_result(analysis: JobAnalysis, from_cache: bool = False) -> dict:
 
 def update_status(db: Session, analysis: JobAnalysis, new_status: AnalysisStatus) -> None:
     """Update analysis status, setting applied_at when relevant."""
-    analysis.status = new_status
+    analysis.status = new_status  # type: ignore[assignment]
     if new_status in (AnalysisStatus.APPLIED, AnalysisStatus.INTERVIEW) and not analysis.applied_at:
-        analysis.applied_at = datetime.now(UTC)
+        analysis.applied_at = datetime.now(UTC)  # type: ignore[assignment]
     db.flush()
 
 
@@ -221,7 +222,7 @@ def _merge_glassdoor(result: dict, db: Session) -> None:
     result["company_reputation"] = rep
 
 
-def _parse_full_response(raw: str) -> dict:
+def _parse_full_response(raw: str) -> dict[str, Any]:
     """Parse stored full_response JSON, handling markdown wrapping."""
     if not raw:
         return {}
@@ -229,12 +230,12 @@ def _parse_full_response(raw: str) -> dict:
     if text.startswith("```"):
         text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
     try:
-        return json.loads(text)
+        return cast(dict[str, Any], json.loads(text))
     except (json.JSONDecodeError, TypeError):
         start, end = text.find("{"), text.rfind("}")
         if start != -1 and end > start:
             try:
-                return json.loads(text[start : end + 1])
+                return cast(dict[str, Any], json.loads(text[start : end + 1]))
             except (json.JSONDecodeError, TypeError):
                 pass
     return {}

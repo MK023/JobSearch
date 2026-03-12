@@ -1,6 +1,8 @@
 """Cover letter routes."""
 
+from typing import cast
 from urllib.parse import quote
+from uuid import UUID
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -27,14 +29,14 @@ def generate_cover_letter_route(
     analysis_id: str = Form(...),
     language: str = Form("italiano"),
     model: str = Form("haiku"),
-):
+) -> Response:
     validate_uuid(analysis_id)
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:
         request.session["flash_error"] = "Analisi non trovata"
         return RedirectResponse(url="/history", status_code=303)
 
-    cv = get_latest_cv(db, user.id)
+    cv = get_latest_cv(db, cast(UUID, user.id))
     if not cv:
         request.session["flash_error"] = "CV non trovato"
         return RedirectResponse(url=f"/analysis/{analysis_id}", status_code=303)
@@ -46,7 +48,7 @@ def generate_cover_letter_route(
         return RedirectResponse(url=f"/analysis/{analysis_id}", status_code=303)
 
     try:
-        cl, result = create_cover_letter(db, analysis, cv.raw_text, language, model, cache)
+        cl, result = create_cover_letter(db, analysis, cast(str, cv.raw_text), language, model, cache)
         add_spending(
             db,
             result.get("cost_usd", 0.0),
@@ -72,7 +74,7 @@ def download_cover_letter(
     cover_letter_id: str,
     db: DbSession,
     user: CurrentUser,
-):
+) -> Response:
     """Download a cover letter as a formatted DOCX file."""
     validate_uuid(cover_letter_id)
     cl = get_cover_letter_by_id(db, cover_letter_id)
