@@ -1,21 +1,20 @@
 # Job Search Command Center
 
-An AI-powered job search platform built with a microservices architecture. Paste your CV once, then analyze any job listing to get compatibility scores, skill gap analysis, interview preparation, and automated outreach tools — or query your data from Claude Desktop via MCP tools.
-
-**[Live Demo](https://jobsearch.fly.dev)** (auto-sleeps when idle, cold-starts in ~3s)
-
+[![CI](https://github.com/MK023/JobSearch/actions/workflows/ci.yml/badge.svg)](https://github.com/MK023/JobSearch/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.131-009688?logo=fastapi&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
-![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
-![CI](https://img.shields.io/badge/CI-GitHub_Actions-2088FF?logo=githubactions&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-184_passed-30D158)
+![Tests](https://img.shields.io/badge/Tests-274_passed-30D158)
+![mypy](https://img.shields.io/badge/mypy-strict-blue)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
+
+Piattaforma AI per la ricerca lavoro. Incolla il CV, analizza annunci, ottieni score di compatibilità, gap analysis, preparazione colloqui, cover letter e strumenti di outreach automatizzati. Interroga i dati da Claude Desktop via MCP.
+
+**[Live](https://jobsearch.fly.dev)** | **[API](https://api.jobsearches.cc/health)** | **[MCP](https://jobsearch-mcp.fly.dev/mcp)**
 
 ---
 
-## Architecture
+## Architettura
 
 ```
   Claude Desktop          Browser
@@ -23,411 +22,123 @@ An AI-powered job search platform built with a microservices architecture. Paste
        ▼                     │
   ┌──────────────┐           │
   │  MCP Server  │           │
-  │ (jobsearch-  │           │
-  │  mcp, :8081) │           │
+  │ (15 tools,   │           │
+  │  read-only)  │           │
   └──────┬───────┘           │
-         │ HTTP              │ :80
+         │ HTTP              │
          ▼                   ▼
   ┌─────────────────────────────────┐
-  │           frontend              │
-  │         (nginx 1.27)            │
-  └──────────────┬──────────────────┘
-                 │ proxy_pass
-  ┌──────────────▼──────────────────┐
-  │           backend               │
-  │       (uvicorn/FastAPI)         │──── Claude API (Haiku / Sonnet)
-  └──────────────┬──────────────────┘
+  │        FastAPI + Jinja2         │──── Claude API (Haiku/Sonnet)
+  │      (Fly.io, 512MB x2)        │──── Cloudflare R2 (file storage)
+  └──────────────┬──────────────────┘──── Resend (email reminders)
                  │
-      ┌──────────┼──────────┐
-      │                     │
-┌─────▼──────┐     ┌───────▼───────┐
-│     db      │     │    redis      │
-│PostgreSQL 16│     │  (cache, opt) │
-└─────────────┘     └───────────────┘
+          ┌──────┴──────┐
+          │             │
+    ┌─────▼──────┐ ┌────▼────┐
+    │ PostgreSQL │ │  Redis  │
+    │   (Fly.io) │ │  (opt)  │
+    └────────────┘ └─────────┘
 ```
 
-**4 containers** on a bridge network. Nginx serves static files directly and reverse-proxies everything else to the backend. The backend serves a multi-page SSR frontend (sidebar navigation with 5 pages) at root level and a versioned JSON API at `/api/v1/` with auto-generated Swagger docs. An optional **MCP server** lets Claude Desktop query candidature, interviews, and contacts via 15 read-only tools.
-
 ---
 
-## Key Features
+## Funzionalità
 
-| Feature | Description |
+| Feature | Descrizione |
 |---------|-------------|
-| **AI Analysis** | Claude Haiku (fast) or Sonnet (deep) evaluate CV-to-job fit with a 0-100 score |
-| **Skill Gap Analysis** | Structured gaps with severity, closability, and action plans |
-| **Interview Prep** | Likely questions + suggested answers based on your actual CV |
-| **Cover Letter** | AI-generated, multi-language, context-aware (uses analysis results) |
-| **Follow-up Email** | Automated outreach scaled to days since application |
-| **LinkedIn Message** | Connection note + direct message, ready to copy |
-| **Batch Analysis** | Queue multiple job listings, process all sequentially |
-| **Recruiter Contacts** | CRM per application: name, email, phone, LinkedIn |
-| **Company Reputation** | Glassdoor ratings via RapidAPI with 30-day DB cache |
-| **Cost Tracking** | Per-analysis cost, daily totals, configurable budget |
-| **Email Notifications** | SMTP email alerts for new APPLY analyses, Fernet-encrypted credentials |
-| **Audit Trail** | DB-logged user actions (login, analyze, delete, etc.) |
-| **Interview Scheduling** | Book interviews with date, recruiter, meeting link; upcoming banner on dashboard |
-| **Dashboard** | Stats, top matches, active applications, upcoming interviews at a glance |
-| **Claude MCP** | Query candidature, interviews, contacts from Claude Desktop via MCP tools |
-
----
-
-## Screenshots
-
-| Dashboard | Analysis Result | History |
-|:---------:|:---------------:|:-------:|
-| ![Dashboard](docs/screenshots/dashboard.png) | ![Analysis Result](docs/screenshots/analysis_result.png) | ![History](docs/screenshots/history.png) |
+| **Analisi AI** | Claude Haiku/Sonnet valuta compatibilità CV-annuncio (score 0-100) |
+| **Gap Analysis** | Lacune strutturate con severità, colmabilità e piano d'azione |
+| **Preparazione Colloquio** | Domande probabili + risposte suggerite basate sul CV |
+| **Cover Letter** | Multi-lingua, context-aware (usa i risultati dell'analisi) |
+| **Follow-up Email/LinkedIn** | Outreach automatizzato scalato ai giorni dalla candidatura |
+| **Colloqui** | Scheduling con form dinamico (Meet/Teams/Zoom/telefono/presenza) |
+| **File Upload** | Upload documenti via Cloudflare R2 con presigned URL |
+| **Document Scanner** | Claude API verifica se i documenti sono compilati |
+| **Email Reminder** | Resend notifica documenti non compilati |
+| **Batch Analysis** | Coda multipla, elaborazione sequenziale |
+| **Contatti Recruiter** | CRM per candidatura: nome, email, telefono, LinkedIn |
+| **Reputazione Azienda** | Rating Glassdoor via RapidAPI con cache 30gg |
+| **Cost Tracking** | Costo per analisi, totali giornalieri, budget configurabile |
+| **Audit Trail** | Log DB di tutte le azioni utente |
+| **Dashboard** | Statistiche, top match, candidature attive, colloqui imminenti |
+| **Claude MCP** | 15 tool read-only per interrogare dati da Claude Desktop |
 
 ---
 
 ## Tech Stack
 
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| **Reverse Proxy** | Nginx 1.27 | Static files, SSL termination, security headers, gzip |
-| **Backend** | FastAPI + Uvicorn | REST API + SSR (Jinja2) |
-| **ORM** | SQLAlchemy 2.0 | Declarative models, UUID PKs, JSONB columns |
-| **Migrations** | Alembic | Versioned schema migrations |
-| **Database** | PostgreSQL 16 | Persistent storage |
-| **Cache** | Redis 7 | API response caching (graceful degradation) |
-| **AI** | Anthropic Claude | Analysis, generation, 7-strategy JSON parsing + Pydantic validation |
-| **Auth** | Session + bcrypt | Server-side sessions, password hashing |
-| **Rate Limiting** | slowapi | Per-IP limits, X-Forwarded-For aware |
-| **Security** | Custom middleware + Nginx | CORS, HSTS, CSP, SRI, gzip, trusted hosts |
-| **Encryption** | Fernet (cryptography) | SMTP credential encryption at rest |
-| **MCP Server** | FastMCP + streamable-http | Claude Desktop integration (15 read-only tools) |
-| **CI/CD** | GitHub Actions | Lint (ruff) + mypy + Frontend lint + Security audit + Test + Docker build |
-| **Deploy** | Fly.io / Docker Compose | Single-container PaaS or multi-container local |
+| Layer | Tecnologia |
+|-------|-----------|
+| **Backend** | FastAPI + Uvicorn + Jinja2 SSR |
+| **ORM** | SQLAlchemy 2.0 + Alembic |
+| **Database** | PostgreSQL 16 (Fly.io) |
+| **Cache** | Redis 7 (opzionale, graceful degradation) |
+| **AI** | Anthropic Claude API + 7-strategy JSON parsing |
+| **File Storage** | Cloudflare R2 (S3-compatible, presigned URLs) |
+| **Email** | Resend (reminder documenti) + SMTP (notifiche) |
+| **Auth** | Session + bcrypt + rate limiting (slowapi) |
+| **MCP** | FastMCP + streamable-http (15 tool read-only) |
+| **CI/CD** | GitHub Actions (ruff, mypy strict, bandit, pip-audit, pytest, docker) |
+| **Deploy** | Fly.io (512MB x2) + Cloudflare (DNS, R2, dominio) |
+
+---
+
+## Sicurezza
+
+- Content-Security-Policy (CSP) con whitelist script/style/font/img
+- Permissions-Policy (camera, microphone, geolocation negati)
+- HSTS (2 anni, includeSubDomains) + X-Content-Type-Options + X-Frame-Options
+- UUID validation su tutti i path parameter (anti-injection)
+- Pydantic schema validation su tutti gli input (email regex, URL whitelist, enum whitelist)
+- Rate limiting: 60/min globale, 10/min AI routes, 5/min login
+- bcrypt password hashing + session-based auth
+- TrustedHost middleware + CORS origins restrittive
+- Audit trail DB per tutte le azioni utente
+- Bandit security scanning + pip-audit in CI
+- mypy strict su tutti i moduli (0 errori, 67 file)
+- Input size limits (CV 100KB, job description 50KB)
+- Budget hard stop: analisi bloccata a budget esaurito
 
 ---
 
 ## Quick Start
 
-### Prerequisites
-
-- [Docker](https://docs.docker.com/get-docker/) + Docker Compose
-- An [Anthropic API key](https://console.anthropic.com/)
-
-### Setup
-
 ```bash
 git clone https://github.com/MK023/JobSearch.git
 cd JobSearch
-
 cp .env.example .env
-# Edit .env: set ANTHROPIC_API_KEY, ADMIN_EMAIL, ADMIN_PASSWORD
-
+# Configura: ANTHROPIC_API_KEY, ADMIN_EMAIL, ADMIN_PASSWORD
 docker compose up -d
 ```
 
-Open `http://localhost` — the app is served by nginx on port 80.
-
-### First Use
-
-1. Login with your admin credentials
-2. Go to Settings, paste your CV, click "Salva CV"
-3. Go to "Nuova Analisi", paste a job listing
-4. Pick a model: Haiku (~$0.005/analysis) or Sonnet (~$0.02/analysis)
-5. Click "Analizza" and review results
-6. Use tools: cover letter, follow-up email, LinkedIn message, contacts
+Apri `http://localhost` — login con le credenziali admin.
 
 ---
 
-## API
-
-All JSON endpoints are versioned under `/api/v1/`. Swagger docs are auto-generated at:
-
-```
-http://localhost/api/v1/docs
-```
-
-### Endpoint Map
-
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/v1/status/{analysis_id}/{new_status}` | Update analysis status |
-| DELETE | `/api/v1/analysis/{analysis_id}` | Delete analysis |
-| POST | `/api/v1/followup-email` | Generate follow-up email |
-| POST | `/api/v1/linkedin-message` | Generate LinkedIn message |
-| POST | `/api/v1/followup-done/{analysis_id}` | Mark follow-up complete |
-| GET | `/api/v1/contacts/{analysis_id}` | Get contacts for analysis |
-| POST | `/api/v1/contacts` | Save contact |
-| DELETE | `/api/v1/contacts/{contact_id}` | Delete contact |
-| GET | `/api/v1/spending` | Get spending data |
-| PUT | `/api/v1/spending/budget` | Update budget |
-| GET | `/api/v1/dashboard` | Dashboard stats |
-| POST | `/api/v1/batch/add` | Add to batch queue |
-| POST | `/api/v1/batch/run` | Run batch analysis |
-| GET | `/api/v1/batch/status` | Batch queue status |
-| DELETE | `/api/v1/batch/clear` | Clear batch queue |
-| POST | `/api/v1/interviews/{analysis_id}` | Create/update interview |
-| GET | `/api/v1/interviews/{analysis_id}` | Get interview details |
-| DELETE | `/api/v1/interviews/{analysis_id}` | Delete interview |
-| GET | `/api/v1/interviews-upcoming` | Upcoming interviews (48h) |
-
-### Read-Only Endpoints (MCP)
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/v1/candidature` | List candidature (filter by status) |
-| GET | `/api/v1/candidature/search` | Search by company/role |
-| GET | `/api/v1/candidature/top` | Top-scored candidature |
-| GET | `/api/v1/candidature/date-range` | Candidature by date range |
-| GET | `/api/v1/candidature/stale` | Stale candidature (no updates in N days) |
-| GET | `/api/v1/candidature/{id}` | Full candidature detail |
-| GET | `/api/v1/interview-prep/{id}` | Interview preparation data |
-| GET | `/api/v1/cover-letters/{id}` | Cover letters for analysis |
-| GET | `/api/v1/contacts/search` | Search contacts |
-| GET | `/api/v1/followups/pending` | Pending follow-ups |
-| GET | `/api/v1/activity-summary` | Activity summary (N days) |
-
----
-
-## Project Structure
-
-```
-JobSearch/
-├── docker-compose.yml              # 4-service orchestration
-├── fly.toml                        # Fly.io single-container deploy
-├── Makefile                        # Dev shortcuts (lint, test, up)
-├── pyproject.toml                  # Ruff + tool config
-├── .env.example                    # Environment template
-├── .pre-commit-config.yaml         # Pre-commit hooks (ruff, stylelint)
-├── .stylelintrc.json               # Shared stylelint config
-├── SECURITY.md                     # Security policy
-├── .github/workflows/ci.yml        # CI pipeline (5 jobs)
-│
-├── frontend/
-│   ├── Dockerfile                  # nginx:1.27-alpine
-│   ├── nginx.conf                  # Reverse proxy config
-│   ├── templates/                  # Jinja2 SSR templates (multi-page)
-│   │   ├── base.html               # Layout: sidebar + content + toast
-│   │   ├── dashboard.html          # Home: metrics, alerts, recent
-│   │   ├── analyze.html            # Single + batch analysis tabs
-│   │   ├── history.html            # Analysis history, 4 status tabs
-│   │   ├── analysis_detail.html    # Full analysis with score ring
-│   │   ├── interviews.html         # Upcoming + past interviews
-│   │   ├── settings.html           # CV management + API credits
-│   │   ├── login.html              # Standalone login (no sidebar)
-│   │   ├── 404.html                # Custom error page
-│   │   ├── 500.html                # Custom error page
-│   │   └── partials/               # Reusable template fragments
-│   │       ├── sidebar.html             # SVG icon navigation
-│   │       ├── score_ring.html          # SVG score ring component
-│   │       ├── job_card.html            # Compact analysis row
-│   │       ├── metric_card.html         # Big number + label card
-│   │       ├── result_reputation.html   # Glassdoor company rating
-│   │       ├── cover_letter_form.html   # Cover letter generation
-│   │       ├── cover_letter_result.html # Cover letter display
-│   │       ├── followup_alerts.html     # Follow-up email alerts
-│   │       ├── batch.html               # Batch analysis queue
-│   │       ├── interview_modal.html     # Interview booking modal
-│   │       └── interview_detail.html    # Interview detail card
-│   └── static/
-│       ├── css/                    # Modular CSS (stylelint-validated)
-│       │   ├── variables.css       # Design tokens (dark + light theme)
-│       │   ├── base.css            # Reset, typography, utility classes
-│       │   ├── layout.css          # Sidebar, content area, responsive
-│       │   ├── components.css      # Cards, buttons, score ring, toast
-│       │   └── sections.css        # Page-specific styles
-│       └── js/
-│           ├── app.js              # Init, conditional module loading
-│           └── modules/            # Vanilla JS + Alpine.js
-│               ├── toast.js        # Toast notification system
-│               ├── status.js
-│               ├── spending.js
-│               ├── dashboard.js
-│               ├── batch.js
-│               ├── contacts.js
-│               ├── followup.js
-│               ├── cv.js
-│               ├── history.js
-│               └── interview.js
-│
-├── mcp-server/
-│   ├── Dockerfile                  # python:3.12-slim
-│   ├── fly.toml                    # Fly.io deploy (256MB, auto-sleep)
-│   ├── requirements.txt
-│   ├── server.py                   # 15 MCP tools (FastMCP)
-│   ├── api_client.py               # HTTP client + session auth
-│   ├── config.py                   # Pydantic settings
-│   ├── .env.example
-│   └── tests/
-│       ├── test_server.py          # Tool tests (16)
-│       └── test_api_client.py      # Auth flow tests (3)
-│
-├── backend/
-│   ├── Dockerfile                  # python:3.12-slim
-│   ├── requirements.txt
-│   ├── alembic.ini                 # Migration config
-│   ├── alembic/
-│   │   ├── env.py
-│   │   └── versions/
-│   │       ├── 001_initial_schema.py
-│   │       ├── 002_add_audit_logs.py
-│   │       ├── 003_add_notification_logs.py
-│   │       └── 004_add_interviews.py
-│   ├── tests/
-│   │   ├── conftest.py             # Fixtures (SQLite in-memory)
-│   │   └── test_*.py               # Unit tests (pytest + coverage)
-│   └── src/
-│       ├── main.py                 # App factory + middleware
-│       ├── pages.py                # Multi-page SSR route handlers
-│       ├── config.py               # Pydantic settings
-│       ├── api_v1.py               # JSON API router aggregator
-│       ├── prompts.py              # Token-optimized AI prompts
-│       ├── rate_limit.py           # slowapi singleton
-│       ├── dependencies.py         # Auth deps
-│       ├── database/               # Engine, session, Base
-│       ├── auth/                   # Login/logout, bcrypt
-│       ├── cv/                     # CV upload/storage
-│       ├── analysis/               # Core AI analysis + Pydantic schemas
-│       ├── cover_letter/           # AI cover letter gen
-│       ├── contacts/               # Recruiter CRM
-│       ├── dashboard/              # Spending + stats
-│       ├── batch/                  # Queue + batch processing
-│       ├── audit/                  # DB audit trail
-│       ├── notifications/          # Email alerts (SMTP + Fernet encryption)
-│       ├── interview/              # Interview scheduling (1:1 with analysis)
-│       └── integrations/
-│           ├── anthropic_client.py # Claude API + 7-strategy JSON parsing
-│           ├── validation.py      # AI response validation + repair
-│           ├── cache.py            # Redis/Null cache protocol
-│           └── glassdoor.py        # Company ratings API
-│
-└── docs/
-    ├── architecture.drawio         # Architecture diagram
-    ├── technical.md                # Technical documentation
-    └── screenshots/README.md       # Screenshot capture guide
-```
-
----
-
-## Development
-
-### Pre-commit Hooks
-
-Install pre-commit hooks to catch issues before they reach CI:
-
-```bash
-pip install pre-commit
-pre-commit install
-
-# Run on all files (first time)
-pre-commit run --all-files
-```
-
-Hooks run automatically on `git commit`: Ruff (lint + format), Stylelint (CSS), trailing whitespace, end-of-file fixer, YAML/JSON validation.
-
-### Commands
-
-```bash
-# Live logs (all containers)
-docker compose logs -f
-
-# Rebuild after changes
-docker compose up -d --build
-
-# Run tests with coverage
-cd backend && pytest tests/ -v --cov=src --cov-report=term-missing
-
-# Lint check
-ruff check backend/src/ backend/tests/
-ruff format --check backend/src/ backend/tests/
-
-# Database shell
-docker compose exec db psql -U jobsearch
-
-# Stop
-docker compose down
-
-# Stop and wipe data
-docker compose down -v
-```
-
-The backend container runs with `--reload` — Python changes apply instantly.
-
----
-
-## Deploy on Fly.io
-
-Single-container deployment (no nginx, no Redis — the backend serves everything):
+## Deploy (Fly.io)
 
 ```bash
 fly apps create jobsearch
 fly postgres create --name jobsearch-db --region cdg
 fly postgres attach jobsearch-db
-
-fly secrets set ANTHROPIC_API_KEY=sk-ant-...
-fly secrets set SECRET_KEY=$(openssl rand -hex 32)
-fly secrets set ADMIN_EMAIL=you@example.com
-fly secrets set ADMIN_PASSWORD=your-secure-password
-
+fly secrets set ANTHROPIC_API_KEY=sk-ant-... SECRET_KEY=$(openssl rand -hex 32)
+fly secrets set ADMIN_EMAIL=you@example.com ADMIN_PASSWORD=your-password
+fly secrets set R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=... R2_ENDPOINT_URL=... R2_BUCKET_NAME=...
 fly deploy
 ```
 
-The VM auto-sleeps when idle and cold-starts in ~2-3s.
-
-### MCP Server
-
-```bash
-fly apps create jobsearch-mcp
-fly secrets set BACKEND_EMAIL=you@example.com BACKEND_PASSWORD=your-password -a jobsearch-mcp
-cd mcp-server && fly deploy
-```
-
-Configure Claude Desktop (`claude_desktop_config.json`):
-```json
-{
-  "mcpServers": {
-    "JobSearch": {
-      "command": "npx",
-      "args": ["mcp-remote", "https://jobsearch-mcp.fly.dev/mcp"]
-    }
-  }
-}
-```
+Le migrazioni Alembic vengono eseguite automaticamente al deploy (`release_command`).
 
 ---
 
-## Cost
+## Costi
 
-| Model | Input | Output | Per analysis |
-|-------|-------|--------|-------------|
-| Haiku 4.5 | $0.80/MTok | $4.00/MTok | ~$0.005 |
-| Sonnet 4.5 | $3.00/MTok | $15.00/MTok | ~$0.02 |
+| Modello | Per analisi | Follow-up |
+|---------|-------------|-----------|
+| Haiku 4.5 | ~$0.005 | ~$0.001 |
+| Sonnet 4.5 | ~$0.02 | ~$0.001 |
 
-Follow-up emails and LinkedIn messages: ~$0.001 each.
-
-Budget tracking is built-in: set a limit, monitor spending in real-time.
-
----
-
-## Security
-
-- CORS with configurable origins
-- TrustedHost middleware
-- Security headers (X-Content-Type-Options, X-Frame-Options, HSTS, Referrer-Policy, Permissions-Policy)
-- Content-Security-Policy (CSP) via Nginx with script/style source whitelisting
-- Subresource Integrity (SRI) on all CDN dependencies (Alpine.js, flatpickr)
-- Gzip compression on text/CSS/JS/JSON/SVG via Nginx
-- Rate limiting (60/min global, 10/min on AI routes, 5/min on login)
-- bcrypt password hashing
-- Session-based auth with configurable TTL
-- Nginx as reverse proxy (backend not exposed to host)
-- ProxyHeadersMiddleware for correct HTTPS URL generation behind load balancer
-- Fernet encryption for SMTP credentials at rest
-- DB audit trail for all user actions
-- ARIA accessibility: `role="alert"` on toasts, `role="dialog"` + `aria-modal` on modals
-- Bandit security scanning + pip-audit dependency audit in CI
-- Input size limits (CV 100KB, job description 50KB) to prevent token explosion
-- Budget hard stop: analysis blocked when budget is exhausted
-- Anthropic API client with 120s timeout and 3 automatic retries (exponential backoff)
-- Atomic transactions with rollback on error (no partial state persistence)
-- Interview datetime validation (no past dates, end > start, field length limits via Pydantic)
-- Annotated type aliases for dependency injection (eliminates raw Depends())
-- MCP server session-based auth with auto-relogin on 401/403
-- mypy static type checking in CI
+Fly.io free tier: 3 VM shared-cpu, 256MB ciascuna. R2 free tier: 10GB storage, 1M ops/mese.
 
 ---
 
