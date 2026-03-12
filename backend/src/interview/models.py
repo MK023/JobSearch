@@ -9,6 +9,9 @@ from sqlalchemy.orm import relationship
 
 from ..database.base import Base
 
+# Ensure InterviewFile is importable (relationship target)
+from .file_models import InterviewFile  # noqa: F401
+
 
 class Interview(Base):
     __tablename__ = "interviews"
@@ -43,5 +46,6 @@ class Interview(Base):
     )
 
     analysis = relationship("JobAnalysis", back_populates="interview")
+    files = relationship("InterviewFile", back_populates="interview", cascade="all, delete-orphan")
 
     __table_args__ = (Index("idx_interviews_scheduled", "scheduled_at"),)
