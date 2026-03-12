@@ -23,12 +23,15 @@ class Interview(Base):
 
     scheduled_at = Column(DateTime(timezone=True), nullable=False)
     ends_at = Column(DateTime(timezone=True), nullable=True)
-    interview_type = Column(String(20), nullable=True)  # virtual, phone, in_person
+    platform = Column(String(20), nullable=True)  # google_meet, teams, zoom, phone, in_person, other
+    interview_type = Column(String(20), nullable=True)  # tecnico, hr, conoscitivo, finale, other
+    interviewer_name = Column(String(255), nullable=True)
     recruiter_name = Column(String(255), nullable=True)
     recruiter_email = Column(String(255), nullable=True)
     meeting_link = Column(String(500), nullable=True)
+    meeting_id = Column(String(100), nullable=True)
     phone_number = Column(String(50), nullable=True)
-    phone_pin = Column(String(20), nullable=True)
+    access_pin = Column(String(20), nullable=True)
     location = Column(String(500), nullable=True)
     notes = Column(Text, nullable=True)
 

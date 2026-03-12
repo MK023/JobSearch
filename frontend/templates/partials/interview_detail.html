@@ -8,43 +8,58 @@
 
     {% set iv = current.interview %}
     <div class="interview-detail-grid">
-        <span class="interview-detail-icon">📅</span>
+        <span class="interview-detail-icon">&#x1F4C5;</span>
         <span class="interview-detail-value">
             {{ iv.scheduled_at.strftime('%A %d %B %Y, %H:%M') }}{% if iv.ends_at %} – {{ iv.ends_at.strftime('%H:%M') }}{% endif %}
         </span>
 
+        {% if iv.platform %}
+        <span class="interview-detail-icon">{% if iv.platform == 'google_meet' %}&#x1F4F9;{% elif iv.platform == 'teams' %}&#x1F4BB;{% elif iv.platform == 'zoom' %}&#x1F4F9;{% elif iv.platform == 'phone' %}&#x1F4DE;{% elif iv.platform == 'in_person' %}&#x1F3E2;{% else %}&#x1F4BB;{% endif %}</span>
+        <span class="interview-detail-value">{% if iv.platform == 'google_meet' %}Google Meet{% elif iv.platform == 'teams' %}Microsoft Teams{% elif iv.platform == 'zoom' %}Zoom{% elif iv.platform == 'phone' %}Telefonico{% elif iv.platform == 'in_person' %}In presenza{% else %}Altro{% endif %}</span>
+        {% endif %}
+
         {% if iv.interview_type %}
-        <span class="interview-detail-icon">{% if iv.interview_type == 'virtual' %}💻{% elif iv.interview_type == 'phone' %}📞{% else %}🏢{% endif %}</span>
-        <span class="interview-detail-value">{% if iv.interview_type == 'virtual' %}Video call{% elif iv.interview_type == 'phone' %}Telefonico{% else %}In presenza{% endif %}</span>
+        <span class="interview-detail-icon">&#x1F3AF;</span>
+        <span class="interview-detail-value">{% if iv.interview_type == 'tecnico' %}Tecnico{% elif iv.interview_type == 'hr' %}HR{% elif iv.interview_type == 'conoscitivo' %}Conoscitivo{% elif iv.interview_type == 'finale' %}Finale{% else %}Altro{% endif %}</span>
+        {% endif %}
+
+        {% if iv.interviewer_name %}
+        <span class="interview-detail-icon">&#x1F9D1;&#x200D;&#x1F4BC;</span>
+        <span class="interview-detail-value">{{ iv.interviewer_name }}</span>
         {% endif %}
 
         {% if iv.recruiter_name %}
-        <span class="interview-detail-icon">👤</span>
+        <span class="interview-detail-icon">&#x1F464;</span>
         <span class="interview-detail-value">{{ iv.recruiter_name }}</span>
         {% endif %}
 
         {% if iv.recruiter_email %}
-        <span class="interview-detail-icon">✉️</span>
+        <span class="interview-detail-icon">&#x2709;&#xFE0F;</span>
         <span class="interview-detail-value"><a href="mailto:{{ iv.recruiter_email }}">{{ iv.recruiter_email }}</a></span>
         {% endif %}
 
         {% if iv.meeting_link %}
-        <span class="interview-detail-icon">🔗</span>
+        <span class="interview-detail-icon">&#x1F517;</span>
         <span class="interview-detail-value"><a href="{{ iv.meeting_link }}" target="_blank" rel="noopener noreferrer">{{ iv.meeting_link }}</a></span>
         {% endif %}
 
+        {% if iv.meeting_id %}
+        <span class="interview-detail-icon">&#x1F194;</span>
+        <span class="interview-detail-value">{{ iv.meeting_id }}</span>
+        {% endif %}
+
         {% if iv.phone_number %}
-        <span class="interview-detail-icon">📞</span>
-        <span class="interview-detail-value">{{ iv.phone_number }}{% if iv.phone_pin %} (PIN: {{ iv.phone_pin }}){% endif %}</span>
+        <span class="interview-detail-icon">&#x1F4DE;</span>
+        <span class="interview-detail-value">{{ iv.phone_number }}{% if iv.access_pin %} (PIN: {{ iv.access_pin }}){% endif %}</span>
         {% endif %}
 
         {% if iv.location %}
-        <span class="interview-detail-icon">📍</span>
+        <span class="interview-detail-icon">&#x1F4CD;</span>
         <span class="interview-detail-value">{{ iv.location }}</span>
         {% endif %}
 
         {% if iv.notes %}
-        <span class="interview-detail-icon">📝</span>
+        <span class="interview-detail-icon">&#x1F4DD;</span>
         <span class="interview-detail-value">{{ iv.notes }}</span>
         {% endif %}
     </div>

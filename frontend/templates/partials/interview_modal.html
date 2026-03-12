@@ -18,38 +18,63 @@
                     <input type="text" id="iv-ends" placeholder="Seleziona ora fine">
                 </div>
                 <div class="form-group">
-                    <label for="iv-type">Tipo</label>
-                    <select id="iv-type">
+                    <label for="iv-platform">Piattaforma</label>
+                    <select id="iv-platform" onchange="togglePlatformFields()">
                         <option value="">-- Seleziona --</option>
-                        <option value="virtual">Video call</option>
+                        <option value="google_meet">Google Meet</option>
+                        <option value="teams">Microsoft Teams</option>
+                        <option value="zoom">Zoom</option>
                         <option value="phone">Telefonico</option>
                         <option value="in_person">In presenza</option>
+                        <option value="other">Altro</option>
                     </select>
                 </div>
                 <div class="form-group">
+                    <label for="iv-type">Tipo colloquio</label>
+                    <select id="iv-type">
+                        <option value="">-- Seleziona --</option>
+                        <option value="tecnico">Tecnico</option>
+                        <option value="hr">HR</option>
+                        <option value="conoscitivo">Conoscitivo</option>
+                        <option value="finale">Finale</option>
+                        <option value="other">Altro</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="iv-interviewer-name">Interviewer</label>
+                    <input type="text" id="iv-interviewer-name" placeholder="Chi ti intervista">
+                </div>
+                <div class="form-group">
                     <label for="iv-recruiter-name">Recruiter</label>
-                    <input type="text" id="iv-recruiter-name" placeholder="Nome e cognome">
+                    <input type="text" id="iv-recruiter-name" placeholder="Chi ha organizzato">
                 </div>
                 <div class="form-group">
                     <label for="iv-recruiter-email">Email recruiter</label>
                     <input type="email" id="iv-recruiter-email" placeholder="email@example.com">
                 </div>
-                <div class="form-group">
+
+                {# Platform-dependent fields #}
+                <div class="form-group" id="fg-meeting-link">
                     <label for="iv-meeting-link">Link videocall</label>
                     <input type="url" id="iv-meeting-link" placeholder="https://meet.google.com/...">
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="fg-meeting-id">
+                    <label for="iv-meeting-id">ID riunione</label>
+                    <input type="text" id="iv-meeting-id" placeholder="ID riunione Teams">
+                </div>
+                <div class="form-group" id="fg-phone">
                     <label for="iv-phone">Telefono</label>
                     <input type="tel" id="iv-phone" placeholder="+39 02 3046 1972">
                 </div>
-                <div class="form-group">
-                    <label for="iv-pin">PIN telefono</label>
+                <div class="form-group" id="fg-pin">
+                    <label for="iv-pin">PIN / Passcode</label>
                     <input type="text" id="iv-pin" placeholder="333598657">
                 </div>
-                <div class="form-group">
-                    <label for="iv-location">Luogo (se in presenza)</label>
+                <div class="form-group" id="fg-location">
+                    <label for="iv-location">Luogo</label>
                     <input type="text" id="iv-location" placeholder="Via Roma 1, Milano">
                 </div>
+
                 <div class="form-group form-group-full">
                     <label for="iv-notes">Note</label>
                     <textarea id="iv-notes" rows="3" placeholder="Dettagli aggiuntivi..."></textarea>

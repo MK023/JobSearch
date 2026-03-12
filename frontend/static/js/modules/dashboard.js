@@ -45,9 +45,12 @@ function refreshUpcomingBanners() {
                 meta.className = 'upcoming-interview-meta';
                 var dateStr = iv.scheduled_at.substring(0, 16).replace('T', ' ');
                 var metaText = iv.role + ' \u00b7 ' + dateStr;
-                if (iv.interview_type === 'virtual') metaText += ' \u00b7 Video call';
-                else if (iv.interview_type === 'phone') metaText += ' \u00b7 Telefonico';
-                else if (iv.interview_type === 'in_person') metaText += ' \u00b7 In presenza';
+                if (iv.platform === 'google_meet') metaText += ' \u00b7 Google Meet';
+                else if (iv.platform === 'teams') metaText += ' \u00b7 Teams';
+                else if (iv.platform === 'zoom') metaText += ' \u00b7 Zoom';
+                else if (iv.platform === 'phone') metaText += ' \u00b7 Telefonico';
+                else if (iv.platform === 'in_person') metaText += ' \u00b7 In presenza';
+                else if (iv.platform) metaText += ' \u00b7 ' + iv.platform;
                 meta.textContent = metaText;
                 info.appendChild(meta);
 
