@@ -1208,7 +1208,12 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
   }
 
   .followup-alert-actions {
+    display: flex;
     width: 100%;
+  }
+
+  .followup-alert-actions .btn {
+    flex: 1;
   }
 
   .history-item {
@@ -1267,15 +1272,6 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
   .recommendation-badge {
     font-size: var(--text-sm);
     padding: var(--space-xs) var(--space-md);
-  }
-
-  .followup-alert-actions {
-    display: flex;
-    width: 100%;
-  }
-
-  .followup-alert-actions .btn {
-    flex: 1;
   }
 
   .cover-letter-text {
