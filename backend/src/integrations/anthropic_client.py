@@ -8,6 +8,7 @@ import hashlib
 import json
 import logging
 import re
+from typing import Any, cast
 
 import anthropic
 
@@ -161,7 +162,7 @@ def _strip_markdown_wrapper(text: str) -> str:
     return text
 
 
-def _extract_and_parse_json(raw_text: str) -> dict:
+def _extract_and_parse_json(raw_text: str) -> dict[str, Any]:
     """Extract JSON from AI response, with multiple fallback strategies.
 
     Strategy order (from cheapest to most aggressive):
@@ -176,14 +177,14 @@ def _extract_and_parse_json(raw_text: str) -> dict:
 
     # Attempt 1: parse as-is
     try:
-        return json.loads(text)
+        return cast(dict[str, Any], json.loads(text))
     except json.JSONDecodeError:
         pass
 
     # Attempt 2: common fixes (trailing commas, comments, NaN)
     cleaned = _clean_json_text(text)
     try:
-        return json.loads(cleaned)
+        return cast(dict[str, Any], json.loads(cleaned))
     except json.JSONDecodeError:
         pass
 
@@ -193,7 +194,7 @@ def _extract_and_parse_json(raw_text: str) -> dict:
         fragment = text[start : end + 1]
         cleaned_fragment = _clean_json_text(fragment)
         try:
-            return json.loads(cleaned_fragment)
+            return cast(dict[str, Any], json.loads(cleaned_fragment))
         except json.JSONDecodeError:
             pass
 
@@ -201,7 +202,7 @@ def _extract_and_parse_json(raw_text: str) -> dict:
         ctrl_fixed = fragment.replace("\t", "\\t").replace("\f", "\\f")
         ctrl_fixed = _clean_json_text(ctrl_fixed)
         try:
-            return json.loads(ctrl_fixed)
+            return cast(dict[str, Any], json.loads(ctrl_fixed))
         except json.JSONDecodeError:
             pass
 
@@ -209,7 +210,7 @@ def _extract_and_parse_json(raw_text: str) -> dict:
         nl_fixed = _fix_unescaped_newlines(fragment)
         nl_fixed = _clean_json_text(nl_fixed)
         try:
-            return json.loads(nl_fixed)
+            return cast(dict[str, Any], json.loads(nl_fixed))
         except json.JSONDecodeError:
             pass
 
@@ -218,7 +219,7 @@ def _extract_and_parse_json(raw_text: str) -> dict:
         combined = _fix_unescaped_newlines(combined)
         combined = _clean_json_text(combined)
         try:
-            return json.loads(combined)
+            return cast(dict[str, Any], json.loads(combined))
         except json.JSONDecodeError:
             pass
 
@@ -226,14 +227,14 @@ def _extract_and_parse_json(raw_text: str) -> dict:
     sq_fixed = _fix_single_quotes(text)
     if sq_fixed != text:
         try:
-            return json.loads(sq_fixed)
+            return cast(dict[str, Any], json.loads(sq_fixed))
         except json.JSONDecodeError:
             pass
 
     raise json.JSONDecodeError("No valid JSON found in AI response", text[:200], 0)
 
 
-def _retry_json_fix(model_id: str, broken_json: str) -> dict | None:
+def _retry_json_fix(model_id: str, broken_json: str) -> dict[str, Any] | None:
     """Ask the AI to fix its own broken JSON output (second-chance repair).
 
     Sends the malformed JSON back to the model with strict instructions
@@ -254,7 +255,10 @@ def _retry_json_fix(model_id: str, broken_json: str) -> dict | None:
             ),
             messages=[{"role": "user", "content": f"Fix this malformed JSON:\n\n{truncated}"}],
         )
-        fixed_text = fix_msg.content[0].text
+        content_block = fix_msg.content[0]
+        if not hasattr(content_block, "text"):
+            return None
+        fixed_text = content_block.text
         result = _extract_and_parse_json(fixed_text)
         logger.info("AI-assisted JSON repair succeeded")
         return result
@@ -285,7 +289,10 @@ def _call_api(
         messages=[{"role": "user", "content": user_prompt}],
     )
 
-    raw_text = message.content[0].text
+    content_block = message.content[0]
+    if not hasattr(content_block, "text"):
+        raise json.JSONDecodeError("No text in AI response", "", 0)
+    raw_text = content_block.text
 
     try:
         result = _extract_and_parse_json(raw_text)
@@ -296,9 +303,10 @@ def _call_api(
             len(raw_text),
             raw_text[:100],
         )
-        result = _retry_json_fix(model_id, raw_text)
-        if result is None:
+        fixed = _retry_json_fix(model_id, raw_text)
+        if fixed is None:
             raise
+        result = fixed
 
     return result, message.usage
 

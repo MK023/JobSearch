@@ -58,7 +58,7 @@ class JobAnalysis(Base):
     # Analysis results
     score = Column(Integer, default=0)
     recommendation = Column(String(20), default="")
-    status = Column(
+    status: Column[str] = Column(
         SQLEnum(AnalysisStatus, values_callable=lambda e: [s.value for s in e]),
         default=AnalysisStatus.PENDING,
     )

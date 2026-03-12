@@ -1,5 +1,7 @@
 """Audit log service."""
 
+from uuid import UUID
+
 from fastapi import Request
 from sqlalchemy.orm import Session
 
@@ -13,7 +15,7 @@ def _get_ip(request: Request) -> str:
     return request.client.host if request.client else ""
 
 
-def audit(db: Session, request: Request, action: str, detail: str = "", user_id=None) -> None:
+def audit(db: Session, request: Request, action: str, detail: str = "", user_id: UUID | None = None) -> None:
     """Write an audit log entry."""
     if user_id is None:
         uid = request.session.get("user_id")

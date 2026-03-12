@@ -1,5 +1,7 @@
 """Authentication service: user management, password hashing, session handling."""
 
+from typing import cast as type_cast
+
 import bcrypt
 from sqlalchemy.orm import Session
 
@@ -22,7 +24,7 @@ def get_user_by_email(db: Session, email: str) -> User | None:
 def authenticate_user(db: Session, email: str, password: str) -> User | None:
     """Verify credentials and return user, or None if invalid."""
     user = get_user_by_email(db, email)
-    if not user or not verify_password(password, user.password_hash):
+    if not user or not verify_password(password, type_cast(str, user.password_hash)):
         return None
     return user
 

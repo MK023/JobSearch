@@ -1,6 +1,8 @@
 """Analysis JSON API routes (status changes, deletion, AJAX analysis)."""
 
 from datetime import date
+from typing import cast
+from uuid import UUID
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
@@ -28,9 +30,9 @@ def analyze_api(
     db: DbSession,
     user: CurrentUser,
     cache: Cache,
-):
+) -> JSONResponse:
     """Run analysis via JSON API (AJAX). Returns redirect URL."""
-    cv = get_latest_cv(db, user.id)
+    cv = get_latest_cv(db, cast(UUID, user.id))
     if not cv:
         return JSONResponse({"error": "Salva prima il tuo CV!"}, status_code=400)
 
@@ -44,7 +46,7 @@ def analyze_api(
     if not budget_ok:
         return JSONResponse({"error": budget_msg}, status_code=400)
 
-    ch = content_hash(cv.raw_text, body.job_description)
+    ch = content_hash(cast(str, cv.raw_text), body.job_description)
     model_id = MODELS.get(body.model, MODELS["haiku"])
     existing = find_existing_analysis(db, ch, model_id)
 
@@ -54,7 +56,9 @@ def analyze_api(
         return JSONResponse({"ok": True, "redirect": f"/analysis/{existing.id}", "cached": True})
 
     try:
-        analysis, result = run_analysis(db, cv.raw_text, cv.id, body.job_description, body.job_url, body.model, cache)
+        analysis, result = run_analysis(
+            db, cast(str, cv.raw_text), cast(UUID, cv.id), body.job_description, body.job_url, body.model, cache
+        )
         add_spending(
             db,
             result.get("cost_usd", 0.0),
@@ -79,7 +83,7 @@ def change_status(
     new_status: str,
     db: DbSession,
     user: CurrentUser,
-):
+) -> JSONResponse:
     validate_uuid(analysis_id)
     try:
         status_enum = AnalysisStatus(new_status)
@@ -102,7 +106,7 @@ def delete_analysis(
     analysis_id: str,
     db: DbSession,
     user: CurrentUser,
-):
+) -> JSONResponse:
     validate_uuid(analysis_id)
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:
@@ -114,17 +118,22 @@ def delete_analysis(
     for cl in cover_letters:
         cl_today = cl.created_at and cl.created_at.date() == today
         remove_spending(
-            db, cl.cost_usd or 0, cl.tokens_input or 0, cl.tokens_output or 0, is_analysis=False, created_today=cl_today
+            db,
+            float(cl.cost_usd or 0),
+            int(cl.tokens_input or 0),
+            int(cl.tokens_output or 0),
+            is_analysis=False,
+            created_today=bool(cl_today),
         )
 
     a_today = analysis.created_at and analysis.created_at.date() == today
     remove_spending(
         db,
-        analysis.cost_usd or 0,
-        analysis.tokens_input or 0,
-        analysis.tokens_output or 0,
+        float(analysis.cost_usd or 0),
+        int(analysis.tokens_input or 0),
+        int(analysis.tokens_output or 0),
         is_analysis=True,
-        created_today=a_today,
+        created_today=bool(a_today),
     )
 
     audit(db, request, "delete_analysis", f"id={analysis_id}, {analysis.role} @ {analysis.company}")

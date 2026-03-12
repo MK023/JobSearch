@@ -16,8 +16,8 @@ def save_cv(db: Session, user_id: UUID, raw_text: str, name: str = "") -> CVProf
     """Create or update the user's CV profile."""
     existing = db.query(CVProfile).filter(CVProfile.user_id == user_id).first()
     if existing:
-        existing.raw_text = raw_text
-        existing.name = name
+        existing.raw_text = raw_text  # type: ignore[assignment]
+        existing.name = name  # type: ignore[assignment]
     else:
         existing = CVProfile(user_id=user_id, raw_text=raw_text, name=name)
         db.add(existing)
