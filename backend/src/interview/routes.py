@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from ..analysis.models import AnalysisStatus
 from ..analysis.service import get_analysis_by_id, update_status
 from ..audit.service import audit
-from ..dependencies import CurrentUser, DbSession
+from ..dependencies import CurrentUser, DbSession, validate_uuid
 from .service import (
     create_or_update_interview,
     delete_interview,
@@ -51,6 +51,7 @@ def upsert_interview(
     db: DbSession,
     user: CurrentUser,
 ) -> JSONResponse:
+    validate_uuid(analysis_id)
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:
         return JSONResponse({"error": "Analysis not found"}, status_code=404)
@@ -114,6 +115,7 @@ def get_interview(
     db: DbSession,
     user: CurrentUser,
 ) -> JSONResponse:
+    validate_uuid(analysis_id)
     interview = get_interview_by_analysis(db, analysis_id)
     if not interview:
         return JSONResponse({"error": "No interview found"}, status_code=404)
@@ -145,6 +147,7 @@ def remove_interview(
     db: DbSession,
     user: CurrentUser,
 ) -> JSONResponse:
+    validate_uuid(analysis_id)
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:
         return JSONResponse({"error": "Analysis not found"}, status_code=404)

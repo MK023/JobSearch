@@ -3,12 +3,20 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, Request
+from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from .auth.models import User
 from .database import get_db
 from .integrations.cache import CacheService
+
+
+def validate_uuid(value: str) -> UUID:
+    """Validate and parse a UUID string. Raises 400 on invalid input."""
+    try:
+        return UUID(value)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="Invalid ID format") from None
 
 
 class AuthRequired(Exception):

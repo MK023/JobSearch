@@ -6,17 +6,20 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import JSONResponse
 
 from ..audit.service import audit
+from ..config import settings
 from ..contacts.models import Contact
 from ..cv.service import get_latest_cv
 from ..dashboard.service import add_spending
-from ..dependencies import CurrentUser, DbSession
+from ..dependencies import CurrentUser, DbSession, validate_uuid
 from ..integrations.anthropic_client import generate_followup_email, generate_linkedin_message
+from ..rate_limit import limiter
 from .service import get_analysis_by_id
 
 router = APIRouter(tags=["followup"])
 
 
 @router.post("/followup-email")
+@limiter.limit(settings.rate_limit_analyze)
 def create_followup_email(
     request: Request,
     db: DbSession,
@@ -24,7 +27,8 @@ def create_followup_email(
     analysis_id: str = Form(...),
     language: str = Form("italiano"),
     model: str = Form("haiku"),
-):
+) -> JSONResponse:
+    validate_uuid(analysis_id)
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:
         return JSONResponse({"error": "Analysis not found"}, status_code=404)
@@ -55,6 +59,7 @@ def create_followup_email(
 
 
 @router.post("/linkedin-message")
+@limiter.limit(settings.rate_limit_analyze)
 def create_linkedin_message(
     request: Request,
     db: DbSession,
@@ -62,7 +67,8 @@ def create_linkedin_message(
     analysis_id: str = Form(...),
     language: str = Form("italiano"),
     model: str = Form("haiku"),
-):
+) -> JSONResponse:
+    validate_uuid(analysis_id)
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:
         return JSONResponse({"error": "Analysis not found"}, status_code=404)
@@ -106,7 +112,8 @@ def mark_followup_done(
     analysis_id: str,
     db: DbSession,
     user: CurrentUser,
-):
+) -> JSONResponse:
+    validate_uuid(analysis_id)
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:
         return JSONResponse({"error": "Analysis not found"}, status_code=404)

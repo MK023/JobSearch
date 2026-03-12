@@ -1,28 +1,59 @@
 """Contact routes."""
 
-from fastapi import APIRouter, Form
-from fastapi.responses import JSONResponse
+import re
 
-from ..dependencies import CurrentUser, DbSession
+from fastapi import APIRouter
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
+
+from ..dependencies import CurrentUser, DbSession, validate_uuid
 from .service import create_contact, delete_contact_by_id, get_contacts_for_analysis
 
 router = APIRouter(tags=["contacts"])
 
+VALID_SOURCES = {"manual", "linkedin", "email", "other"}
+EMAIL_RE = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
+URL_RE = re.compile(r"^https?://", re.IGNORECASE)
+
+
+class ContactPayload(BaseModel):
+    analysis_id: str = ""
+    name: str = Field("", max_length=255)
+    email: str = Field("", max_length=255)
+    phone: str = Field("", max_length=50)
+    company: str = Field("", max_length=255)
+    linkedin_url: str = Field("", max_length=500)
+    notes: str = Field("", max_length=2000)
+    source: str = Field("manual", max_length=20)
+
 
 @router.post("/contacts")
 def add_contact(
+    payload: ContactPayload,
     db: DbSession,
     user: CurrentUser,
-    analysis_id: str = Form(""),
-    name: str = Form(""),
-    email: str = Form(""),
-    phone: str = Form(""),
-    company: str = Form(""),
-    linkedin_url: str = Form(""),
-    notes: str = Form(""),
-    source: str = Form("manual"),
-):
-    contact = create_contact(db, analysis_id, name, email, phone, company, linkedin_url, notes, source)
+) -> JSONResponse:
+    if payload.source and payload.source not in VALID_SOURCES:
+        return JSONResponse({"error": f"Source non valida: {payload.source}"}, status_code=400)
+    if payload.email and not EMAIL_RE.match(payload.email):
+        return JSONResponse({"error": "Formato email non valido"}, status_code=400)
+    if payload.linkedin_url and not URL_RE.match(payload.linkedin_url):
+        return JSONResponse({"error": "URL LinkedIn deve iniziare con http:// o https://"}, status_code=400)
+
+    if payload.analysis_id:
+        validate_uuid(payload.analysis_id)
+
+    contact = create_contact(
+        db,
+        payload.analysis_id,
+        payload.name,
+        payload.email,
+        payload.phone,
+        payload.company,
+        payload.linkedin_url,
+        payload.notes,
+        payload.source,
+    )
     db.commit()
     return JSONResponse(
         {
@@ -45,7 +76,8 @@ def list_contacts(
     analysis_id: str,
     db: DbSession,
     user: CurrentUser,
-):
+) -> JSONResponse:
+    validate_uuid(analysis_id)
     contacts = get_contacts_for_analysis(db, analysis_id)
     return JSONResponse(
         {
@@ -71,7 +103,8 @@ def remove_contact(
     contact_id: str,
     db: DbSession,
     user: CurrentUser,
-):
+) -> JSONResponse:
+    validate_uuid(contact_id)
     if not delete_contact_by_id(db, contact_id):
         return JSONResponse({"error": "Contact not found"}, status_code=404)
     db.commit()

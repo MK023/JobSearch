@@ -10,7 +10,7 @@ from ..audit.service import audit
 from ..config import settings
 from ..cv.service import get_latest_cv
 from ..dashboard.service import add_spending, check_budget_available
-from ..dependencies import Cache, CurrentUser, DbSession
+from ..dependencies import Cache, CurrentUser, DbSession, validate_uuid
 from ..rate_limit import limiter
 from .service import build_docx, create_cover_letter, get_cover_letter_by_id
 
@@ -28,6 +28,7 @@ def generate_cover_letter_route(
     language: str = Form("italiano"),
     model: str = Form("haiku"),
 ):
+    validate_uuid(analysis_id)
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:
         request.session["flash_error"] = "Analisi non trovata"
@@ -73,6 +74,7 @@ def download_cover_letter(
     user: CurrentUser,
 ):
     """Download a cover letter as a formatted DOCX file."""
+    validate_uuid(cover_letter_id)
     cl = get_cover_letter_by_id(db, cover_letter_id)
     if not cl:
         return Response("Cover letter non trovata", status_code=404)
