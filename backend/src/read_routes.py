@@ -18,7 +18,7 @@ from .analysis.service import (
 from .contacts.service import search_all_contacts
 from .cover_letter.models import CoverLetter
 from .dashboard.service import get_dashboard, get_followup_alerts, get_spending
-from .dependencies import CurrentUser, DbSession
+from .dependencies import CurrentUser, DbSession, validate_uuid
 from .interview.service import get_upcoming_interviews
 
 router = APIRouter(tags=["read-api"])
@@ -111,6 +111,7 @@ def candidature_detail(
     user: CurrentUser,
 ):
     """Get full detail for a single candidature."""
+    validate_uuid(analysis_id)
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:
         return JSONResponse({"error": "Analysis not found"}, status_code=404)
@@ -132,6 +133,7 @@ def interview_prep(
     user: CurrentUser,
 ):
     """Get interview preparation data: strengths, gaps, scripts, advice."""
+    validate_uuid(analysis_id)
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:
         return JSONResponse({"error": "Analysis not found"}, status_code=404)
@@ -157,6 +159,7 @@ def cover_letters(
     user: CurrentUser,
 ):
     """Get cover letters for an analysis."""
+    validate_uuid(analysis_id)
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:
         return JSONResponse({"error": "Analysis not found"}, status_code=404)

@@ -10,7 +10,7 @@ from ..config import settings
 from ..cover_letter.models import CoverLetter
 from ..cv.service import get_latest_cv
 from ..dashboard.service import add_spending, check_budget_available, remove_spending
-from ..dependencies import Cache, CurrentUser, DbSession
+from ..dependencies import Cache, CurrentUser, DbSession, validate_uuid
 from ..integrations.anthropic_client import MODELS, content_hash
 from ..rate_limit import limiter
 from .models import AnalysisStatus
@@ -80,6 +80,7 @@ def change_status(
     db: DbSession,
     user: CurrentUser,
 ):
+    validate_uuid(analysis_id)
     try:
         status_enum = AnalysisStatus(new_status)
     except ValueError:
@@ -102,6 +103,7 @@ def delete_analysis(
     db: DbSession,
     user: CurrentUser,
 ):
+    validate_uuid(analysis_id)
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:
         return JSONResponse({"error": "Analysis not found"}, status_code=404)

@@ -13,7 +13,7 @@ router = APIRouter(tags=["dashboard"])
 def spending_api(
     db: DbSession,
     user: CurrentUser,
-):
+) -> JSONResponse:
     return JSONResponse(get_spending(db))
 
 
@@ -22,7 +22,9 @@ def set_budget(
     db: DbSession,
     user: CurrentUser,
     budget: float = Form(...),
-):
+) -> JSONResponse:
+    if budget < 0 or budget > 1000:
+        return JSONResponse({"error": "Budget deve essere tra 0 e 1000 USD"}, status_code=400)
     new_budget = update_budget(db, budget)
     db.commit()
     return JSONResponse({"ok": True, "budget": new_budget})
@@ -32,5 +34,5 @@ def set_budget(
 def dashboard_api(
     db: DbSession,
     user: CurrentUser,
-):
+) -> JSONResponse:
     return JSONResponse(get_dashboard(db))
