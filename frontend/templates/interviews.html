@@ -36,7 +36,7 @@
           <span class="interview-date">{{ iv.date_display }}</span>
           <span class="interview-time">{{ iv.time_display }}</span>
         </div>
-        <span class="tag">{% if iv.platform == 'google_meet' %}&#x1F4F9; Google Meet{% elif iv.platform == 'teams' %}&#x1F4BB; Teams{% elif iv.platform == 'zoom' %}&#x1F4F9; Zoom{% elif iv.platform == 'phone' %}&#x1F4DE; Telefonico{% elif iv.platform == 'in_person' %}&#x1F3E2; In presenza{% elif iv.platform %}{{ iv.platform }}{% else %}&#x1F4BB; N/D{% endif %}</span>
+        <span class="tag">{% if iv.platform == 'google_meet' %}&#x1F4F9; Google Meet{% elif iv.platform == 'teams' %}&#x1F4BB; Teams{% elif iv.platform == 'zoom' %}&#x1F4F9; Zoom{% elif iv.platform == 'phone' %}&#x1F4DE; Telefonico{% elif iv.platform == 'in_person' %}&#x1F3E2; In presenza{% elif iv.platform == 'other' %}Altro{% elif iv.platform %}{{ iv.platform }}{% else %}N/D{% endif %}</span>
       </div>
       <a href="/analysis/{{ iv.analysis_id }}" class="interview-card-role">
         {{ iv.role }} @ {{ iv.company }}
@@ -71,7 +71,7 @@
           <span class="interview-date">{{ iv.scheduled_at.strftime('%d/%m/%Y') }}</span>
           <span class="interview-time">{{ iv.scheduled_at.strftime('%H:%M') }}{% if iv.ends_at %} &ndash; {{ iv.ends_at.strftime('%H:%M') }}{% endif %}</span>
         </div>
-        <span class="tag">{% if iv.platform == 'google_meet' %}&#x1F4F9; Google Meet{% elif iv.platform == 'teams' %}&#x1F4BB; Teams{% elif iv.platform == 'zoom' %}&#x1F4F9; Zoom{% elif iv.platform == 'phone' %}&#x1F4DE; Telefonico{% elif iv.platform == 'in_person' %}&#x1F3E2; In presenza{% elif iv.platform %}{{ iv.platform }}{% else %}&#x1F4BB; N/D{% endif %}</span>
+        <span class="tag">{% if iv.platform == 'google_meet' %}&#x1F4F9; Google Meet{% elif iv.platform == 'teams' %}&#x1F4BB; Teams{% elif iv.platform == 'zoom' %}&#x1F4F9; Zoom{% elif iv.platform == 'phone' %}&#x1F4DE; Telefonico{% elif iv.platform == 'in_person' %}&#x1F3E2; In presenza{% elif iv.platform == 'other' %}Altro{% elif iv.platform %}{{ iv.platform }}{% else %}N/D{% endif %}</span>
       </div>
       {% if iv.analysis %}
       <a href="/analysis/{{ iv.analysis_id }}" class="interview-card-role">

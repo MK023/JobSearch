@@ -111,6 +111,14 @@ class AnalysisAIResponse(BaseModel):
         s = str(v).upper().strip()
         return s if s in allowed else "CONSIDER"
 
+    @field_validator("job_summary", mode="before")
+    @classmethod
+    def coerce_job_summary(cls, v: object) -> str:
+        """Accept string or list of bullet points, joining with newlines."""
+        if isinstance(v, list):
+            return "\n".join(str(item) for item in v)
+        return str(v) if v else ""
+
     @field_validator("confidence", mode="before")
     @classmethod
     def normalize_confidence(cls, v: object) -> str:
@@ -331,4 +339,7 @@ def _apply_analysis_defaults(raw: dict) -> dict:
         result["score"] = max(0, min(100, int(float(str(result["score"])))))
     except (ValueError, TypeError):
         result["score"] = 0
+    # Coerce job_summary (AI sometimes returns a list)
+    if isinstance(result.get("job_summary"), list):
+        result["job_summary"] = "\n".join(str(item) for item in result["job_summary"])
     return result

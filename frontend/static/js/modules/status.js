@@ -23,6 +23,8 @@ function setStatus(btn) {
     .then(function(r) { return r.json(); })
     .then(function(data) {
         if (data.ok) {
+            var labels = {da_valutare: 'Da valutare', candidato: 'Candidato', colloquio: 'Colloquio', scartato: 'Scartato'};
+
             // Update status options
             group.querySelectorAll('.status-option').forEach(function(b) {
                 b.classList.remove('active');
@@ -36,7 +38,7 @@ function setStatus(btn) {
                 var stEl = histItem.querySelector('.status-badge');
                 if (stEl) {
                     stEl.className = 'status-badge status-' + status;
-                    stEl.textContent = status.replace('_', ' ').toUpperCase();
+                    stEl.textContent = labels[status] || status;
                 }
             }
 
@@ -45,21 +47,14 @@ function setStatus(btn) {
             if (typeof refreshDashboard === 'function') refreshDashboard();
 
             // Hide cover letter if rejected
-            var clCard = document.getElementById('cover-letter-card');
-            var clResult = document.getElementById('cover-letter-result-card');
             if (status === 'scartato') {
+                var clCard = document.getElementById('cover-letter-card');
+                var clResult = document.getElementById('cover-letter-result-card');
                 if (clCard) clCard.style.display = 'none';
                 if (clResult) clResult.style.display = 'none';
             }
 
-            showToast('Stato aggiornato: ' + status.replace('_', ' '), 'success');
-
-            // Redirect to new analysis after brief delay (detail page only)
-            if (window.location.pathname.indexOf('/analysis/') !== -1) {
-                setTimeout(function() {
-                    window.location.href = '/analyze';
-                }, 1200);
-            }
+            showToast('Stato aggiornato: ' + (labels[status] || status), 'success');
         }
     })
     .catch(function(e) {
