@@ -204,10 +204,13 @@ function submitInterview(e) {
             if (typeof refreshSpending === 'function') refreshSpending();
             if (typeof refreshDashboard === 'function') refreshDashboard();
             showToast('Colloquio salvato', 'success');
-            // Reload current page to reflect changes
-            setTimeout(function() {
-                window.location.reload();
-            }, 1200);
+            // On detail page, reload to show interview details
+            // On history page, stay in place (DOM already updated above)
+            if (window.location.pathname.indexOf('/analysis/') !== -1) {
+                setTimeout(function() {
+                    window.location.reload();
+                }, 1200);
+            }
         }
     })
     .catch(function(e) {

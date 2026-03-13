@@ -58,7 +58,7 @@
               {{ analysis.created_at.strftime('%d/%m %H:%M') if analysis.created_at else '' }}
             </span>
           </a>
-          <button class="btn-icon btn-icon-danger" onclick="deleteAnalysis('{{ analysis.id }}')" title="Elimina">
+          <button class="btn-icon btn-icon-danger" data-action-delete="{{ analysis.id }}" title="Elimina">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
           </button>
         </div>
@@ -75,6 +75,6 @@
 </div>
 {% endblock %}
 {% block scripts_extra %}
-<script src="{{ url_for('static', path='js/modules/status.js') }}?v=20"></script>
-<script src="{{ url_for('static', path='js/modules/history.js') }}?v=20"></script>
+<script src="{{ url_for('static', path='js/modules/status.js') }}?v=23"></script>
+<script src="{{ url_for('static', path='js/modules/history.js') }}?v=21"></script>
 {% endblock %}
