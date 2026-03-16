@@ -187,7 +187,7 @@ def create_app() -> FastAPI:
     import subprocess as _sp
     try:
         _asset_v = _sp.check_output(
-            ["git", "rev-parse", "--short", "HEAD"],
+            ["git", "rev-parse", "--short", "HEAD"],  # noqa: S607
             text=True,
             stderr=_sp.DEVNULL,
         ).strip()

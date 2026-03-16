@@ -8,8 +8,6 @@ from uuid import UUID
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-logger = logging.getLogger(__name__)
-
 from ..audit.service import audit
 from ..config import settings
 from ..cover_letter.models import CoverLetter
@@ -21,6 +19,8 @@ from ..rate_limit import limiter
 from .models import AnalysisStatus
 from .schemas import AnalyzeRequest
 from .service import find_existing_analysis, get_analysis_by_id, run_analysis, update_status
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["analysis-api"])
 

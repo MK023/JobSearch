@@ -50,8 +50,8 @@ def _extract_doc(data: bytes) -> str:
     with tempfile.NamedTemporaryFile(suffix=".doc", delete=True) as tmp:
         tmp.write(data)
         tmp.flush()
-        result = subprocess.run(
-            ["antiword", tmp.name],
+        result = subprocess.run(  # noqa: S603
+            ["antiword", tmp.name],  # noqa: S607
             capture_output=True,
             text=True,
             timeout=10,

@@ -8,8 +8,6 @@ from uuid import UUID
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 
-logger = logging.getLogger(__name__)
-
 from ..analysis.service import get_analysis_by_id
 from ..audit.service import audit
 from ..config import settings
@@ -18,6 +16,8 @@ from ..dashboard.service import add_spending, check_budget_available
 from ..dependencies import Cache, CurrentUser, DbSession, validate_uuid
 from ..rate_limit import limiter
 from .service import build_docx, create_cover_letter, get_cover_letter_by_id
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["cover_letter"])
 
