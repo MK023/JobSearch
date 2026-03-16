@@ -18,8 +18,8 @@ function refreshUpcomingBanners() {
     fetch('/api/v1/interviews-upcoming')
         .then(function(r) { return r.json(); })
         .then(function(interviews) {
-            // Remove old dynamic banners
-            document.querySelectorAll('.upcoming-interview-banner.dynamic').forEach(function(el) {
+            // Remove all interview banners (server-rendered + previous dynamic)
+            document.querySelectorAll('.upcoming-interview-banner').forEach(function(el) {
                 el.remove();
             });
 
