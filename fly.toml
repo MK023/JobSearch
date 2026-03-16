@@ -22,13 +22,12 @@ primary_region = "cdg"
   min_machines_running = 0
   processes = ["app"]
 
-[http_service.checks]
-  [http_service.checks.health]
-    interval = "30s"
-    timeout = "5s"
-    grace_period = "15s"
-    method = "GET"
-    path = "/health"
+[[http_service.checks]]
+  interval = "30s"
+  timeout = "5s"
+  grace_period = "15s"
+  method = "GET"
+  path = "/health"
 
 [[vm]]
   memory = "512mb"
