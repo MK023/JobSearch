@@ -203,19 +203,19 @@
       <div class="actions-section">
         <div class="actions-label">Stato</div>
         <div class="status-toggle" data-analysis-id="{{ current.id }}">
-          <button type="button" class="status-option status-opt-da_valutare {{ 'active' if current.status.value == 'da_valutare' }}" data-status="da_valutare">
+          <button type="button" class="status-option status-opt-da_valutare {{ 'active' if current.status.value == 'da_valutare' }}" data-status="da_valutare" onclick="setStatus(this)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
             Da valutare
           </button>
-          <button type="button" class="status-option status-opt-candidato {{ 'active' if current.status.value == 'candidato' }}" data-status="candidato">
+          <button type="button" class="status-option status-opt-candidato {{ 'active' if current.status.value == 'candidato' }}" data-status="candidato" onclick="setStatus(this)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg>
             Candidato
           </button>
-          <button type="button" class="status-option status-opt-colloquio {{ 'active' if current.status.value == 'colloquio' }}" data-status="colloquio">
+          <button type="button" class="status-option status-opt-colloquio {{ 'active' if current.status.value == 'colloquio' }}" data-status="colloquio" onclick="setStatus(this)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             Colloquio
           </button>
-          <button type="button" class="status-option status-opt-scartato {{ 'active' if current.status.value == 'scartato' }}" data-status="scartato">
+          <button type="button" class="status-option status-opt-scartato {{ 'active' if current.status.value == 'scartato' }}" data-status="scartato" onclick="setStatus(this)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
             Scartato
           </button>
@@ -226,19 +226,19 @@
       <div class="actions-section">
         <div class="actions-label">Strumenti</div>
         <div class="actions-grid">
-          <button type="button" class="action-card" data-action="interview" data-id="{{ current.id }}">
+          <button type="button" class="action-card" onclick="openInterviewModal('{{ current.id }}')">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="M12 14v4"/><path d="M10 16h4"/></svg>
             <span>Colloquio</span>
           </button>
-          <button type="button" class="action-card" data-action="followup" data-id="{{ current.id }}">
+          <button type="button" class="action-card" onclick="genFollowup('{{ current.id }}')">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
             <span>Email</span>
           </button>
-          <button type="button" class="action-card" data-action="linkedin" data-id="{{ current.id }}">
+          <button type="button" class="action-card" onclick="genLinkedin('{{ current.id }}')">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
             <span>LinkedIn</span>
           </button>
-          <button type="button" class="action-card" data-action="contacts" data-id="{{ current.id }}">
+          <button type="button" class="action-card" onclick="toggleContacts('{{ current.id }}')">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             <span>Contatti</span>
           </button>
@@ -253,7 +253,7 @@
           Apri annuncio
         </a>
         {% endif %}
-        <button type="button" class="btn btn-ghost btn-sm btn-danger-text" data-action-delete="{{ current.id }}">
+        <button type="button" class="btn btn-ghost btn-sm btn-danger-text" onclick="deleteAnalysis('{{ current.id }}')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
           Elimina
         </button>
@@ -320,8 +320,8 @@
         integrity="sha384-XmcRqh+m1SV0CoktEURItyTPYrm018EIiFIZnaIFP1lRvHRna9DduiTvO+TQzcTJ"
         crossorigin="anonymous"></script>
 <script src="{{ url_for('static', path='js/modules/status.js') }}?v=24"></script>
-<script src="{{ url_for('static', path='js/modules/interview.js') }}?v=20"></script>
-<script src="{{ url_for('static', path='js/modules/contacts.js') }}?v=20"></script>
-<script src="{{ url_for('static', path='js/modules/followup.js') }}?v=20"></script>
-<script src="{{ url_for('static', path='js/modules/spending.js') }}?v=20"></script>
+<script src="{{ url_for('static', path='js/modules/interview.js') }}?v=24"></script>
+<script src="{{ url_for('static', path='js/modules/contacts.js') }}?v=24"></script>
+<script src="{{ url_for('static', path='js/modules/followup.js') }}?v=24"></script>
+<script src="{{ url_for('static', path='js/modules/spending.js') }}?v=24"></script>
 {% endblock %}
