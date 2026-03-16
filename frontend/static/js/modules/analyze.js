@@ -28,17 +28,20 @@ function submitAnalysis(e) {
         startedAt: new Date().toISOString()
     }));
 
+    var payload = JSON.stringify({
+        job_description: jobDesc,
+        job_url: jobUrl,
+        model: model
+    });
+
     fetch('/api/v1/analyze', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json'
         },
-        body: JSON.stringify({
-            job_description: jobDesc,
-            job_url: jobUrl,
-            model: model
-        })
+        body: payload,
+        keepalive: true
     })
     .then(function(r) {
         if (r.status === 429) {
@@ -59,14 +62,15 @@ function submitAnalysis(e) {
             window.location.href = data.redirect;
         }
     })
-    .catch(function() {
-        // Fetch aborted (user navigated away) — flag stays in sessionStorage
-        // If it's a real network error and user is still here, show toast
-        if (document.visibilityState !== 'hidden') {
+    .catch(function(err) {
+        if (err && err.name === 'AbortError') return;
+        if (document.visibilityState === 'hidden') return;
+        setTimeout(function() {
+            if (document.visibilityState === 'hidden') return;
             showToast('Errore di rete', 'error');
             resetLoading(wrapper);
             sessionStorage.removeItem('pendingAnalysis');
-        }
+        }, 200);
     });
 
     return false;
