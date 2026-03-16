@@ -152,9 +152,18 @@
   animation: fade-in 300ms ease;
 }
 
+.completion-banner-error {
+  background: rgb(255 69 58 / 10%);
+  border-color: rgb(255 69 58 / 25%);
+}
+
 .completion-banner-info {
   flex: 1;
   color: var(--accent-blue);
+}
+
+.completion-banner-error .completion-banner-info {
+  color: var(--accent-red, #ff453a);
 }
 
 .completion-dismiss {

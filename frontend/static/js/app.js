@@ -58,6 +58,7 @@ function toggleTheme() {
 /**
  * Check if a background analysis completed while user was on another page.
  * Polls /api/v1/analysis/latest and shows a banner if new analysis found.
+ * Shows error banner after 90s if analysis never completes.
  */
 function _checkPendingAnalysis() {
     var raw = sessionStorage.getItem('pendingAnalysis');
@@ -66,8 +67,9 @@ function _checkPendingAnalysis() {
     var pending;
     try { pending = JSON.parse(raw); } catch (_) { sessionStorage.removeItem('pendingAnalysis'); return; }
 
-    // Timeout after 5 minutes
-    var elapsed = Date.now() - new Date(pending.startedAt).getTime();
+    var startedAt = new Date(pending.startedAt).getTime();
+    var elapsed = Date.now() - startedAt;
+
     if (elapsed > 300000) {
         sessionStorage.removeItem('pendingAnalysis');
         return;
@@ -79,9 +81,7 @@ function _checkPendingAnalysis() {
             .then(function(data) {
                 if (!data || !data.id || !data.created_at) return scheduleNext();
                 var createdAt = new Date(data.created_at).getTime();
-                var startedAt = new Date(pending.startedAt).getTime();
                 if (createdAt >= startedAt) {
-                    // Re-check flag (main fetch may have already handled it)
                     if (!sessionStorage.getItem('pendingAnalysis')) return;
                     sessionStorage.removeItem('pendingAnalysis');
                     _showCompletionBanner(data);
@@ -94,8 +94,14 @@ function _checkPendingAnalysis() {
 
     function scheduleNext() {
         if (!sessionStorage.getItem('pendingAnalysis')) return;
-        // Stop polling after 5 minutes
-        if (Date.now() - new Date(pending.startedAt).getTime() > 300000) {
+        var now = Date.now();
+        var age = now - startedAt;
+        if (age > 90000) {
+            sessionStorage.removeItem('pendingAnalysis');
+            _showErrorBanner('Analisi non completata. Riprova dalla pagina di analisi.');
+            return;
+        }
+        if (age > 300000) {
             sessionStorage.removeItem('pendingAnalysis');
             return;
         }
@@ -103,6 +109,38 @@ function _checkPendingAnalysis() {
     }
 
     poll();
+}
+
+function _showErrorBanner(msg) {
+    if (document.querySelector('.completion-banner-error')) return;
+
+    var banner = document.createElement('div');
+    banner.className = 'completion-banner completion-banner-error';
+
+    var info = document.createElement('div');
+    info.className = 'completion-banner-info';
+    var strong = document.createElement('strong');
+    strong.textContent = msg;
+    info.appendChild(strong);
+    banner.appendChild(info);
+
+    var link = document.createElement('a');
+    link.href = '/analyze';
+    link.className = 'btn btn-primary btn-sm no-underline';
+    link.textContent = 'Riprova';
+    banner.appendChild(link);
+
+    var dismiss = document.createElement('button');
+    dismiss.type = 'button';
+    dismiss.className = 'btn btn-ghost btn-sm completion-dismiss';
+    dismiss.textContent = '\u00D7';
+    dismiss.onclick = function() { banner.remove(); };
+    banner.appendChild(dismiss);
+
+    var content = document.querySelector('.content-inner') || document.querySelector('main') || document.body;
+    content.insertBefore(banner, content.firstChild);
+
+    if (typeof showToast === 'function') showToast(msg, 'error');
 }
 
 function _showCompletionBanner(data) {

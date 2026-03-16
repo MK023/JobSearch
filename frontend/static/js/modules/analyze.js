@@ -69,7 +69,6 @@ function submitAnalysis(e) {
             if (document.visibilityState === 'hidden') return;
             showToast('Errore di rete', 'error');
             resetLoading(wrapper);
-            sessionStorage.removeItem('pendingAnalysis');
         }, 200);
     });
 
