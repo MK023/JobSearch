@@ -48,7 +48,13 @@ def create_followup_email(
 
     try:
         result = generate_followup_email(
-            cast(str, cv.raw_text), cast(str, analysis.role), cast(str, analysis.company), days_since, language, model, cache
+            cast(str, cv.raw_text),
+            cast(str, analysis.role),
+            cast(str, analysis.company),
+            days_since,
+            language,
+            model,
+            cache,
         )
     except Exception as exc:
         logger.exception("Follow-up email generation failed")
@@ -101,7 +107,13 @@ def create_linkedin_message(
 
     try:
         result = generate_linkedin_message(
-            cast(str, cv.raw_text), cast(str, analysis.role), cast(str, analysis.company), contact_info, language, model, cache
+            cast(str, cv.raw_text),
+            cast(str, analysis.role),
+            cast(str, analysis.company),
+            contact_info,
+            language,
+            model,
+            cache,
         )
     except Exception as exc:
         logger.exception("LinkedIn message generation failed")

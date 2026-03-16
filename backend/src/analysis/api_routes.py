@@ -91,19 +91,18 @@ def latest_analysis(
 
     user_cv_ids = db.query(CVProfile.id).filter(CVProfile.user_id == user.id)
     analysis = (
-        db.query(JobAnalysis)
-        .filter(JobAnalysis.cv_id.in_(user_cv_ids))
-        .order_by(JobAnalysis.created_at.desc())
-        .first()
+        db.query(JobAnalysis).filter(JobAnalysis.cv_id.in_(user_cv_ids)).order_by(JobAnalysis.created_at.desc()).first()
     )
     if not analysis:
         return JSONResponse({"id": None})
-    return JSONResponse({
-        "id": str(analysis.id),
-        "company": analysis.company,
-        "role": analysis.role,
-        "created_at": analysis.created_at.isoformat() if analysis.created_at else None,
-    })
+    return JSONResponse(
+        {
+            "id": str(analysis.id),
+            "company": analysis.company,
+            "role": analysis.role,
+            "created_at": analysis.created_at.isoformat() if analysis.created_at else None,
+        }
+    )
 
 
 @router.post("/status/{analysis_id}/{new_status}")

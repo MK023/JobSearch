@@ -185,6 +185,7 @@ def create_app() -> FastAPI:
     app.state.templates = Jinja2Templates(directory=str(_TEMPLATE_DIR))
     # Auto cache-bust: short git commit hash, fallback to timestamp
     import subprocess as _sp
+
     try:
         _asset_v = _sp.check_output(
             ["git", "rev-parse", "--short", "HEAD"],  # noqa: S607
