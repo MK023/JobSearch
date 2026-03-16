@@ -65,7 +65,6 @@
 </div>
 {% endblock %}
 {% block scripts_extra %}
-<script src="{{ url_for('static', path='js/modules/spending.js') }}?v=24"></script>
-<script src="{{ url_for('static', path='js/modules/batch.js') }}?v=24"></script>
-<script src="{{ url_for('static', path='js/modules/analyze.js') }}?v=24"></script>
+<script src="{{ url_for('static', path='js/modules/batch.js') }}?v={{ asset_v }}"></script>
+<script src="{{ url_for('static', path='js/modules/analyze.js') }}?v={{ asset_v }}"></script>
 {% endblock %}

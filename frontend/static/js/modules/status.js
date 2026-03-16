@@ -2,8 +2,15 @@
  * Analysis status management and deletion.
  *
  * Status buttons use .status-toggle container + .status-option buttons.
- * After status change, redirects to /analyze for next analysis.
+ * After status change, redirects based on navigation context.
  */
+
+function _getReturnUrl() {
+    var ref = document.referrer;
+    if (ref && ref.indexOf('/history') !== -1) return '/history';
+    if (ref && ref.indexOf('/interviews') !== -1) return '/interviews';
+    return '/analyze';
+}
 
 function setStatus(btn) {
     var group = btn.closest('.status-toggle');
@@ -56,10 +63,10 @@ function setStatus(btn) {
 
             showToast('Stato aggiornato: ' + (labels[status] || status), 'success');
 
-            // On detail page, redirect to new analysis after brief delay
+            // On detail page, redirect back to context after brief delay
             if (window.location.pathname.indexOf('/analysis/') !== -1) {
                 setTimeout(function() {
-                    window.location.href = '/analyze';
+                    window.location.href = _getReturnUrl();
                 }, 1200);
             }
         }
@@ -93,9 +100,9 @@ function deleteAnalysis(id) {
 
             showToast('Analisi eliminata', 'success');
 
-            // If on detail page, redirect to analyze
+            // If on detail page, redirect back to context
             if (window.location.pathname.indexOf('/analysis/') !== -1) {
-                window.location.href = '/analyze';
+                window.location.href = _getReturnUrl();
             }
         }
     })

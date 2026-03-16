@@ -34,6 +34,9 @@ function app() {
                     if (typeof refreshSpending === 'function') refreshSpending();
                 }, 60000);
             }
+
+            // Check for background analysis completion
+            _checkPendingAnalysis();
         }
     };
 }
@@ -49,6 +52,91 @@ function toggleTheme() {
     var next = current === 'dark' ? 'light' : 'dark';
     html.setAttribute('data-theme', next);
     localStorage.setItem('theme', next);
+}
+
+
+/**
+ * Check if a background analysis completed while user was on another page.
+ * Polls /api/v1/analysis/latest and shows a banner if new analysis found.
+ */
+function _checkPendingAnalysis() {
+    var raw = sessionStorage.getItem('pendingAnalysis');
+    if (!raw) return;
+
+    var pending;
+    try { pending = JSON.parse(raw); } catch (_) { sessionStorage.removeItem('pendingAnalysis'); return; }
+
+    // Timeout after 5 minutes
+    var elapsed = Date.now() - new Date(pending.startedAt).getTime();
+    if (elapsed > 300000) {
+        sessionStorage.removeItem('pendingAnalysis');
+        return;
+    }
+
+    function poll() {
+        fetch('/api/v1/analysis/latest', { headers: { 'Accept': 'application/json' } })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (!data || !data.id || !data.created_at) return scheduleNext();
+                var createdAt = new Date(data.created_at).getTime();
+                var startedAt = new Date(pending.startedAt).getTime();
+                if (createdAt >= startedAt) {
+                    // Re-check flag (main fetch may have already handled it)
+                    if (!sessionStorage.getItem('pendingAnalysis')) return;
+                    sessionStorage.removeItem('pendingAnalysis');
+                    _showCompletionBanner(data);
+                } else {
+                    scheduleNext();
+                }
+            })
+            .catch(function() { scheduleNext(); });
+    }
+
+    function scheduleNext() {
+        if (!sessionStorage.getItem('pendingAnalysis')) return;
+        // Stop polling after 5 minutes
+        if (Date.now() - new Date(pending.startedAt).getTime() > 300000) {
+            sessionStorage.removeItem('pendingAnalysis');
+            return;
+        }
+        setTimeout(poll, 3000);
+    }
+
+    poll();
+}
+
+function _showCompletionBanner(data) {
+    if (window.location.pathname === '/analysis/' + data.id) return;
+    if (document.querySelector('.completion-banner')) return;
+
+    var banner = document.createElement('div');
+    banner.className = 'completion-banner';
+
+    var info = document.createElement('div');
+    info.className = 'completion-banner-info';
+    var strong = document.createElement('strong');
+    strong.textContent = 'Analisi completata!';
+    var span = document.createElement('span');
+    span.textContent = ' ' + (data.role || '') + ' @ ' + (data.company || '');
+    info.appendChild(strong);
+    info.appendChild(span);
+    banner.appendChild(info);
+
+    var link = document.createElement('a');
+    link.href = '/analysis/' + encodeURIComponent(data.id);
+    link.className = 'btn btn-primary btn-sm no-underline';
+    link.textContent = 'Apri';
+    banner.appendChild(link);
+
+    var dismiss = document.createElement('button');
+    dismiss.type = 'button';
+    dismiss.className = 'btn btn-ghost btn-sm completion-dismiss';
+    dismiss.textContent = '\u00D7';
+    dismiss.onclick = function() { banner.remove(); };
+    banner.appendChild(dismiss);
+
+    var content = document.querySelector('.content-inner') || document.querySelector('main') || document.body;
+    content.insertBefore(banner, content.firstChild);
 }
 
 

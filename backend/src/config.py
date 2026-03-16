@@ -16,12 +16,7 @@ class Settings(BaseSettings):
     admin_email: str = ""
     admin_password: str = ""
 
-    # Email notifications
-    smtp_host: str = "smtp.gmail.com"
-    smtp_port: int = 587
-    smtp_user: str = ""
-    smtp_password: str = ""
-    notification_email: str = ""
+    # Follow-up reminders
     followup_reminder_days: int = 5
 
     # Cloudflare R2 (file upload)

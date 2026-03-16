@@ -3,32 +3,43 @@
 from unittest.mock import MagicMock
 
 from src.audit.models import AuditLog
-from src.audit.service import _get_ip, audit
+from src.audit.service import audit
+from src.rate_limit import get_client_ip
 
 
 class TestGetIp:
-    def test_extracts_forwarded_ip(self):
+    def test_extracts_fly_client_ip(self):
         request = MagicMock()
-        request.headers = {"X-Forwarded-For": "1.2.3.4, 5.6.7.8"}
-        assert _get_ip(request) == "1.2.3.4"
+        request.headers = {"Fly-Client-IP": "1.2.3.4"}
+        assert get_client_ip(request) == "1.2.3.4"
+
+    def test_extracts_x_real_ip(self):
+        request = MagicMock()
+        request.headers = {"X-Real-IP": "5.6.7.8"}
+        assert get_client_ip(request) == "5.6.7.8"
+
+    def test_fly_client_ip_takes_precedence(self):
+        request = MagicMock()
+        request.headers = {"Fly-Client-IP": "1.2.3.4", "X-Real-IP": "5.6.7.8"}
+        assert get_client_ip(request) == "1.2.3.4"
 
     def test_uses_client_host(self):
         request = MagicMock()
         request.headers = {}
         request.client.host = "10.0.0.1"
-        assert _get_ip(request) == "10.0.0.1"
+        assert get_client_ip(request) == "10.0.0.1"
 
     def test_returns_empty_when_no_client(self):
         request = MagicMock()
         request.headers = {}
         request.client = None
-        assert _get_ip(request) == ""
+        assert get_client_ip(request) == "unknown"
 
 
 class TestAudit:
     def test_creates_audit_log(self, db_session, test_user):
         request = MagicMock()
-        request.headers = {"X-Forwarded-For": "192.168.1.1"}
+        request.headers = {"Fly-Client-IP": "192.168.1.1"}
         request.session = {"user_id": str(test_user.id)}
 
         audit(db_session, request, "test_action", "some detail")

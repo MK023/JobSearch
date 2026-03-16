@@ -61,6 +61,8 @@ def upsert_interview(
 
     try:
         scheduled = datetime.fromisoformat(payload.scheduled_at)
+        if scheduled.tzinfo is None:
+            scheduled = scheduled.replace(tzinfo=UTC)
     except ValueError:
         return JSONResponse({"error": "Invalid scheduled_at format"}, status_code=400)
 
@@ -72,6 +74,8 @@ def upsert_interview(
     if payload.ends_at:
         try:
             ends = datetime.fromisoformat(payload.ends_at)
+            if ends.tzinfo is None:
+                ends = ends.replace(tzinfo=UTC)
         except ValueError:
             return JSONResponse({"error": "Invalid ends_at format"}, status_code=400)
         if ends <= scheduled:

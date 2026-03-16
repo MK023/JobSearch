@@ -1,5 +1,6 @@
 """Follow-up email and LinkedIn message routes."""
 
+import logging
 from datetime import UTC, datetime
 from typing import cast
 from uuid import UUID
@@ -12,10 +13,12 @@ from ..config import settings
 from ..contacts.models import Contact
 from ..cv.service import get_latest_cv
 from ..dashboard.service import add_spending
-from ..dependencies import CurrentUser, DbSession, validate_uuid
+from ..dependencies import Cache, CurrentUser, DbSession, validate_uuid
 from ..integrations.anthropic_client import generate_followup_email, generate_linkedin_message
 from ..rate_limit import limiter
 from .service import get_analysis_by_id
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["followup"])
 
@@ -26,6 +29,7 @@ def create_followup_email(
     request: Request,
     db: DbSession,
     user: CurrentUser,
+    cache: Cache,
     analysis_id: str = Form(...),
     language: str = Form("italiano"),
     model: str = Form("haiku"),
@@ -44,12 +48,13 @@ def create_followup_email(
 
     try:
         result = generate_followup_email(
-            cast(str, cv.raw_text), cast(str, analysis.role), cast(str, analysis.company), days_since, language, model
+            cast(str, cv.raw_text), cast(str, analysis.role), cast(str, analysis.company), days_since, language, model, cache
         )
     except Exception as exc:
+        logger.exception("Follow-up email generation failed")
         audit(db, request, "followup_email_error", str(exc))
         db.commit()
-        return JSONResponse({"error": str(exc)}, status_code=500)
+        return JSONResponse({"error": "Generazione email non disponibile, riprova."}, status_code=500)
 
     add_spending(
         db,
@@ -69,6 +74,7 @@ def create_linkedin_message(
     request: Request,
     db: DbSession,
     user: CurrentUser,
+    cache: Cache,
     analysis_id: str = Form(...),
     language: str = Form("italiano"),
     model: str = Form("haiku"),
@@ -95,12 +101,13 @@ def create_linkedin_message(
 
     try:
         result = generate_linkedin_message(
-            cast(str, cv.raw_text), cast(str, analysis.role), cast(str, analysis.company), contact_info, language, model
+            cast(str, cv.raw_text), cast(str, analysis.role), cast(str, analysis.company), contact_info, language, model, cache
         )
     except Exception as exc:
+        logger.exception("LinkedIn message generation failed")
         audit(db, request, "linkedin_msg_error", str(exc))
         db.commit()
-        return JSONResponse({"error": str(exc)}, status_code=500)
+        return JSONResponse({"error": "Generazione messaggio non disponibile, riprova."}, status_code=500)
 
     add_spending(
         db,

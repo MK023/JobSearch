@@ -925,7 +925,7 @@ details[open] summary::before {
 
 .actions-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: var(--space-sm);
 }
 
@@ -1022,13 +1022,13 @@ details[open] summary::before {
 /* ---- Micro-animations (Apple-style) ---- */
 
 @media (hover: hover) {
-  .card:hover {
+  .card:hover:not(.result-card) {
     transform: translateY(-1px);
     box-shadow: var(--shadow-hover);
   }
 }
 
-.card:active, .btn:active {
+.card:active:not(.result-card) {
   transform: scale(0.98);
 }
 

@@ -62,7 +62,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     if not settings.anthropic_api_key:
         raise RuntimeError("ANTHROPIC_API_KEY missing. Configure .env file")
 
-    _run_migrations()
+    # Migrations run via fly.toml release_command; run here only for local dev
+    if "localhost" in settings.trusted_hosts:
+        _run_migrations()
 
     app.state.cache = create_cache_service()
 
@@ -71,20 +73,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         ensure_admin_user(db)
         seed_spending_totals(db)
         db.commit()
-
-        # Send pending follow-up reminder emails on startup
-        from .notifications.service import check_and_send_followup_reminders
-
-        sent = check_and_send_followup_reminders(db)
-        if sent:
-            db.commit()
-
-        # Send pending document reminders on startup
-        from .notifications.document_reminder import send_document_reminders
-
-        doc_sent = send_document_reminders(db)
-        if doc_sent:
-            db.commit()
     finally:
         db.close()
 
@@ -146,10 +134,13 @@ def create_app() -> FastAPI:
     # Order matters: first added = innermost, last added = outermost.
     # Request flow: CORS → TrustedHost → SecurityHeaders → SlowAPI → Session → App
 
+    _is_production = "localhost" not in settings.trusted_hosts
     app.add_middleware(
         SessionMiddleware,
         secret_key=settings.secret_key,
-        max_age=86400 * 7,
+        max_age=86400 * 2,
+        https_only=_is_production,
+        same_site="lax",
     )
 
     app.state.limiter = limiter
@@ -167,7 +158,7 @@ def create_app() -> FastAPI:
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data:; "
-            "connect-src 'self' https://*.r2.cloudflarestorage.com; "
+            "connect-src 'self' https://*.r2.cloudflarestorage.com https://api.open-meteo.com; "
             "frame-ancestors 'none'"
         )
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
@@ -192,6 +183,17 @@ def create_app() -> FastAPI:
 
     # --- Templates & static files ---
     app.state.templates = Jinja2Templates(directory=str(_TEMPLATE_DIR))
+    # Auto cache-bust: short git commit hash, fallback to timestamp
+    import subprocess as _sp
+    try:
+        _asset_v = _sp.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            text=True,
+            stderr=_sp.DEVNULL,
+        ).strip()
+    except Exception:
+        _asset_v = str(int(time.time()))
+    app.state.templates.env.globals["asset_v"] = _asset_v
     app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
     # --- HTML routers (root level) ---

@@ -4,12 +4,17 @@ from fastapi import Request
 from slowapi import Limiter
 
 
-def _get_real_ip(request: Request) -> str:
-    """Extract client IP, supporting X-Forwarded-For behind nginx proxy."""
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
+def get_client_ip(request: Request) -> str:
+    """Extract client IP using trusted proxy headers (Fly-Client-IP, X-Real-IP)."""
+    # Fly.io sets Fly-Client-IP with the real client IP (cannot be spoofed)
+    fly_ip = request.headers.get("Fly-Client-IP")
+    if fly_ip:
+        return fly_ip.strip()
+    # Nginx sets X-Real-IP from the direct connection
+    real_ip = request.headers.get("X-Real-IP")
+    if real_ip:
+        return real_ip.strip()
     return request.client.host if request.client else "unknown"
 
 
-limiter = Limiter(key_func=_get_real_ip)
+limiter = Limiter(key_func=get_client_ip)

@@ -11,7 +11,6 @@ from src.interview.file_service import (
     get_file_by_id,
     get_interview_by_id,
     get_not_compiled_files,
-    get_unscanned_files,
     update_scan_result,
 )
 from src.interview.service import create_or_update_interview
@@ -80,27 +79,6 @@ class TestUpdateScanResult:
 
         assert file.status == FileStatus.COMPILED
         assert file.scan_result == "Il documento risulta compilato."
-
-
-class TestGetUnscannedFiles:
-    def test_returns_uploaded_files(self, db_session, test_analysis):
-        interview = create_or_update_interview(
-            db_session, test_analysis.id, scheduled_at=datetime(2026, 3, 15, 10, 0, tzinfo=UTC)
-        )
-        db_session.flush()
-
-        file = create_file_record(
-            db_session,
-            interview_id=interview.id,
-            original_filename="doc.pdf",
-            content_type="application/pdf",
-            r2_key="interviews/abc/123.pdf",
-        )
-        file.status = FileStatus.UPLOADED  # type: ignore[assignment]
-        db_session.flush()
-
-        unscanned = get_unscanned_files(db_session)
-        assert len(unscanned) == 1
 
 
 class TestGetNotCompiledFiles:

@@ -1,6 +1,6 @@
 /**
- * AJAX analysis submission — replaces blocking form POST.
- * Shows spinner via Alpine state, redirects to result on success.
+ * AJAX analysis submission with background completion tracking.
+ * If user navigates away during analysis, a banner appears when done.
  */
 
 function submitAnalysis(e) {
@@ -23,6 +23,11 @@ function submitAnalysis(e) {
         try { Alpine.$data(wrapper).analyzeLoading = true; } catch (_) {}
     }
 
+    // Track pending analysis for cross-page notification
+    sessionStorage.setItem('pendingAnalysis', JSON.stringify({
+        startedAt: new Date().toISOString()
+    }));
+
     fetch('/api/v1/analyze', {
         method: 'POST',
         headers: {
@@ -39,22 +44,29 @@ function submitAnalysis(e) {
         if (r.status === 429) {
             showToast('Troppe richieste, riprova tra poco', 'error');
             resetLoading(wrapper);
+            sessionStorage.removeItem('pendingAnalysis');
             return null;
         }
         return r.json();
     })
     .then(function(data) {
         if (!data) return;
+        sessionStorage.removeItem('pendingAnalysis');
         if (data.error) {
-            showToast(data.error, 'error');
+            _showAnalysisError(data.error);
             resetLoading(wrapper);
         } else if (data.redirect) {
             window.location.href = data.redirect;
         }
     })
     .catch(function() {
-        showToast('Errore di rete', 'error');
-        resetLoading(wrapper);
+        // Fetch aborted (user navigated away) — flag stays in sessionStorage
+        // If it's a real network error and user is still here, show toast
+        if (document.visibilityState !== 'hidden') {
+            showToast('Errore di rete', 'error');
+            resetLoading(wrapper);
+            sessionStorage.removeItem('pendingAnalysis');
+        }
     });
 
     return false;
@@ -64,4 +76,34 @@ function resetLoading(wrapper) {
     if (wrapper && typeof Alpine !== 'undefined') {
         try { Alpine.$data(wrapper).analyzeLoading = false; } catch (_) {}
     }
+}
+
+function _showAnalysisError(msg) {
+    var existing = document.querySelector('.analysis-error-banner');
+    if (existing) existing.remove();
+
+    var banner = document.createElement('div');
+    banner.className = 'message-banner banner-error analysis-error-banner';
+
+    var text = document.createElement('span');
+    text.textContent = msg;
+    banner.appendChild(text);
+
+    var dismiss = document.createElement('button');
+    dismiss.type = 'button';
+    dismiss.className = 'btn btn-ghost btn-sm';
+    dismiss.textContent = '\u00D7';
+    dismiss.style.marginLeft = 'auto';
+    dismiss.onclick = function() { banner.remove(); };
+    banner.appendChild(dismiss);
+
+    var target = document.querySelector('.content-inner');
+    var header = target ? target.querySelector('.page-header') : null;
+    if (header && header.nextSibling) {
+        target.insertBefore(banner, header.nextSibling);
+    } else if (target) {
+        target.insertBefore(banner, target.firstChild);
+    }
+
+    if (typeof showToast === 'function') showToast(msg, 'error');
 }

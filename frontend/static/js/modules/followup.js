@@ -3,9 +3,7 @@
  */
 
 function _createGenBox(label, id) {
-    // Try followup alerts area first, then dashboard area
-    var area = document.getElementById('generated-area-' + id)
-            || document.getElementById('dash-generated-area-' + id);
+    var area = document.getElementById('generated-area-' + id);
     if (!area) {
         var alertEl = document.getElementById('followup-' + id);
         if (alertEl) {

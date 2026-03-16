@@ -77,7 +77,7 @@ def analyze(
         db.rollback()
         audit(db, request, "analyze_error", str(exc))
         db.commit()
-        request.session["flash_error"] = f"Analisi AI fallita: {exc}"
+        request.session["flash_error"] = "Analisi AI fallita, riprova più tardi."
         return RedirectResponse(url="/analyze", status_code=303)
 
     return RedirectResponse(url=f"/analysis/{analysis.id}", status_code=303)

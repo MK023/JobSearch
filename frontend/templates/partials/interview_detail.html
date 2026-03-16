@@ -93,7 +93,7 @@
         </div>
     </div>
 
-    <script src="/static/js/file-upload.js"></script>
+    <script src="{{ url_for('static', path='js/file-upload.js') }}?v={{ asset_v }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             FileUpload.init('{{ iv.id }}');

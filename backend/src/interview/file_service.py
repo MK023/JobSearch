@@ -85,16 +85,6 @@ def delete_file_record(db: Session, file: InterviewFile) -> None:
     db.flush()
 
 
-def get_unscanned_files(db: Session) -> list[InterviewFile]:
-    """Get all files with 'uploaded' status that haven't been scanned yet."""
-    return (
-        db.query(InterviewFile)
-        .filter(InterviewFile.status == FileStatus.UPLOADED)
-        .order_by(InterviewFile.created_at.asc())
-        .all()
-    )
-
-
 def get_not_compiled_files(db: Session) -> list[InterviewFile]:
     """Get all files with 'not_compiled' status (for reminder emails)."""
     return (

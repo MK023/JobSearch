@@ -126,8 +126,10 @@ function populateInterviewForm(data) {
 
 
 function isoToLocalInput(iso) {
-    // Extract YYYY-MM-DDTHH:MM from ISO string, ignoring any timezone offset
-    return iso.substring(0, 16);
+    var d = new Date(iso);
+    var pad = function(n) { return String(n).padStart(2, '0'); };
+    return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate())
+           + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
 }
 
 
@@ -177,11 +179,15 @@ function submitInterview(e) {
         },
         body: JSON.stringify(payload)
     })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
+    .then(function(r) { return r.json().then(function(d) { return {status: r.status, data: d}; }); })
+    .then(function(res) {
+        if (res.status >= 400 || res.data.error) {
+            showToast(res.data.error || 'Errore salvataggio colloquio', 'error');
+            return;
+        }
+        var data = res.data;
         if (data.ok) {
             closeInterviewModal();
-            // Update status toggle
             var group = document.querySelector('[data-analysis-id="' + analysisId + '"]');
             if (group) {
                 group.querySelectorAll('.status-option').forEach(function(b) {
@@ -190,7 +196,6 @@ function submitInterview(e) {
                 var collBtn = group.querySelector('[data-status="colloquio"]');
                 if (collBtn) collBtn.classList.add('active');
             }
-            // Update history item
             var histItem = document.querySelector('[data-hist-id="' + analysisId + '"]');
             if (histItem) {
                 histItem.dataset.histStatus = 'colloquio';
@@ -204,11 +209,14 @@ function submitInterview(e) {
             if (typeof refreshSpending === 'function') refreshSpending();
             if (typeof refreshDashboard === 'function') refreshDashboard();
             showToast('Colloquio salvato', 'success');
-            // On detail page, reload to show interview details
-            // On history page, stay in place (DOM already updated above)
             if (window.location.pathname.indexOf('/analysis/') !== -1) {
                 setTimeout(function() {
-                    window.location.reload();
+                    var ref = document.referrer;
+                    if (ref && ref.indexOf('/interviews') !== -1) {
+                        window.location.href = '/interviews';
+                    } else {
+                        window.location.reload();
+                    }
                 }, 1200);
             }
         }

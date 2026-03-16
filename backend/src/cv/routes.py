@@ -3,26 +3,37 @@
 from typing import cast
 from uuid import UUID
 
-from fastapi import APIRouter, Form, Request
+from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
 
 from ..audit.service import audit
 from ..config import settings
 from ..dependencies import CurrentUser, DbSession
 from .service import get_latest_cv, save_cv
+from .text_extract import extract_text
 
 router = APIRouter(tags=["cv"])
 
 
 @router.post("/cv", response_class=HTMLResponse)
-def save_cv_route(
+async def save_cv_route(
     request: Request,
     db: DbSession,
     user: CurrentUser,
-    cv_text: str = Form(...),
+    cv_text: str = Form(""),
     cv_name: str = Form(""),
+    cv_file: UploadFile | None = File(None),
 ) -> Response:
-    """Validate and save the user's CV text."""
+    """Validate and save the user's CV text or uploaded file."""
+    # If file uploaded, extract text from it
+    if cv_file and cv_file.filename and cv_file.size:
+        try:
+            file_bytes = await cv_file.read()
+            cv_text = extract_text(file_bytes, cv_file.filename)
+        except ValueError as exc:
+            request.session["flash_error"] = str(exc)
+            return RedirectResponse(url="/settings", status_code=303)
+
     if len(cv_text) < 20:
         request.session["flash_error"] = "CV troppo corto (minimo 20 caratteri)"
         return RedirectResponse(url="/settings", status_code=303)

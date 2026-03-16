@@ -1,11 +1,14 @@
 """Analysis JSON API routes (status changes, deletion, AJAX analysis)."""
 
+import logging
 from datetime import date
 from typing import cast
 from uuid import UUID
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
+
+logger = logging.getLogger(__name__)
 
 from ..audit.service import audit
 from ..config import settings
@@ -71,9 +74,36 @@ def analyze_api(
         db.rollback()
         audit(db, request, "analyze_error", str(exc))
         db.commit()
-        return JSONResponse({"error": f"Analisi AI fallita: {exc}"}, status_code=500)
+        logger.exception("AI analysis failed")
+        return JSONResponse({"error": "Analisi AI non disponibile, riprova."}, status_code=500)
 
     return JSONResponse({"ok": True, "redirect": f"/analysis/{analysis.id}"})
+
+
+@router.get("/analysis/latest")
+def latest_analysis(
+    db: DbSession,
+    user: CurrentUser,
+) -> JSONResponse:
+    """Return the most recent analysis for the current user (background completion polling)."""
+    from ..cv.models import CVProfile
+    from .models import JobAnalysis
+
+    user_cv_ids = db.query(CVProfile.id).filter(CVProfile.user_id == user.id)
+    analysis = (
+        db.query(JobAnalysis)
+        .filter(JobAnalysis.cv_id.in_(user_cv_ids))
+        .order_by(JobAnalysis.created_at.desc())
+        .first()
+    )
+    if not analysis:
+        return JSONResponse({"id": None})
+    return JSONResponse({
+        "id": str(analysis.id),
+        "company": analysis.company,
+        "role": analysis.role,
+        "created_at": analysis.created_at.isoformat() if analysis.created_at else None,
+    })
 
 
 @router.post("/status/{analysis_id}/{new_status}")

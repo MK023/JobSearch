@@ -248,13 +248,20 @@ def _retry_json_fix(model_id: str, broken_json: str) -> dict[str, Any] | None:
         truncated = broken_json[:8000]
         fix_msg = client.messages.create(
             model=model_id,
-            max_tokens=4096,
+            max_tokens=2048,
             system=(
                 "You fix malformed JSON. Respond ONLY with the corrected JSON object, "
                 "no text before or after, no markdown code blocks. "
                 "Don't change content, only fix JSON syntax errors."
             ),
             messages=[{"role": "user", "content": f"Fix this malformed JSON:\n\n{truncated}"}],
+        )
+        repair_cost = _calculate_cost(fix_msg.usage, model_id)
+        logger.info(
+            "JSON repair API call: input=%d, output=%d, cost=$%.6f",
+            fix_msg.usage.input_tokens,
+            fix_msg.usage.output_tokens,
+            repair_cost,
         )
         content_block = fix_msg.content[0]
         if not hasattr(content_block, "text"):
@@ -330,8 +337,8 @@ def analyze_job(
             cached["content_hash"] = ch
             return cached
 
-    user_prompt = ANALYSIS_USER_PROMPT.format(cv_text=cv_text, job_description=job_description)
-    result, usage = _call_api(ANALYSIS_SYSTEM_PROMPT, user_prompt, model_id, 4096)
+    user_prompt = ANALYSIS_USER_PROMPT.format(cv_text=cv_text[:20000], job_description=job_description)
+    result, usage = _call_api(ANALYSIS_SYSTEM_PROMPT, user_prompt, model_id, 3072)
 
     result = validate_analysis(result)
 
@@ -365,7 +372,8 @@ def generate_cover_letter(
     model_id = MODELS.get(model, MODELS["haiku"])
 
     if cache:
-        cl_content = f"cl:{model}:{cv_text[:300]}:{job_description[:300]}:{language}"
+        ch = content_hash(cv_text, job_description)
+        cl_content = f"cl:{model}:{ch[:16]}:{language}"
         cache_key = f"coverletter:{hashlib.sha256(cl_content.encode()).hexdigest()[:16]}"
         cached = cache.get_json(cache_key)
         if cached:
@@ -381,7 +389,7 @@ def generate_cover_letter(
     gaps_text = ", ".join(g.get("gap", g) if isinstance(g, dict) else str(g) for g in gaps_list[:5])
 
     user_prompt = COVER_LETTER_USER_PROMPT.format(
-        cv_text=cv_text,
+        cv_text=cv_text[:8000],
         job_description=job_description,
         role=analysis_data.get("role", ""),
         company=analysis_data.get("company", ""),
@@ -418,9 +426,21 @@ def generate_followup_email(
     days_since: int,
     language: str,
     model: str = "haiku",
+    cache: CacheService | None = None,
 ) -> dict:
     """Generate a follow-up email after application."""
     model_id = MODELS.get(model, MODELS["haiku"])
+
+    if cache:
+        raw = f"followup:{model}:{role}:{company}:{days_since}:{language}"
+        cache_key = f"followup:{hashlib.sha256(raw.encode()).hexdigest()[:16]}"
+        cached = cache.get_json(cache_key)
+        if cached:
+            cached["from_cache"] = True
+            return cached
+    else:
+        cache_key = None
+
     cv_summary = cv_text[:1500]
 
     user_prompt = FOLLOWUP_EMAIL_USER_PROMPT.format(
@@ -436,12 +456,18 @@ def generate_followup_email(
     result = validate_followup_email(result)
 
     result["model_used"] = model_id
+    result["from_cache"] = False
     result["tokens"] = {
         "input": usage.input_tokens,
         "output": usage.output_tokens,
         "total": usage.input_tokens + usage.output_tokens,
     }
     result["cost_usd"] = _calculate_cost(usage, model_id)
+
+    if cache and cache_key:
+        cache_data = {k: v for k, v in result.items() if k != "from_cache"}
+        cache.set_json(cache_key, cache_data, CACHE_TTL)
+
     return result
 
 
@@ -452,9 +478,21 @@ def generate_linkedin_message(
     contact_info: str,
     language: str,
     model: str = "haiku",
+    cache: CacheService | None = None,
 ) -> dict:
     """Generate a LinkedIn connection message."""
     model_id = MODELS.get(model, MODELS["haiku"])
+
+    if cache:
+        raw = f"linkedin:{model}:{role}:{company}:{contact_info}:{language}"
+        cache_key = f"linkedin:{hashlib.sha256(raw.encode()).hexdigest()[:16]}"
+        cached = cache.get_json(cache_key)
+        if cached:
+            cached["from_cache"] = True
+            return cached
+    else:
+        cache_key = None
+
     cv_summary = cv_text[:1500]
 
     user_prompt = LINKEDIN_MESSAGE_USER_PROMPT.format(
@@ -470,10 +508,16 @@ def generate_linkedin_message(
     result = validate_linkedin_message(result)
 
     result["model_used"] = model_id
+    result["from_cache"] = False
     result["tokens"] = {
         "input": usage.input_tokens,
         "output": usage.output_tokens,
         "total": usage.input_tokens + usage.output_tokens,
     }
     result["cost_usd"] = _calculate_cost(usage, model_id)
+
+    if cache and cache_key:
+        cache_data = {k: v for k, v in result.items() if k != "from_cache"}
+        cache.set_json(cache_key, cache_data, CACHE_TTL)
+
     return result

@@ -106,6 +106,67 @@
    DASHBOARD
    ================================================================ */
 
+/* --- Weather widget --- */
+
+.weather-widget {
+  text-align: right;
+  line-height: 1.3;
+}
+
+.weather-line {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+.weather-quote {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  font-style: italic;
+  max-width: 380px;
+}
+
+.page-header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+}
+
+@media (width <= 768px) {
+  .weather-widget {
+    display: none;
+  }
+}
+
+/* --- Completion banner (background analysis done) --- */
+
+.completion-banner {
+  background: rgb(10 132 255 / 10%);
+  border: 1px solid rgb(10 132 255 / 25%);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md) var(--space-xl);
+  margin-bottom: var(--space-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  animation: fade-in 300ms ease;
+}
+
+.completion-banner-info {
+  flex: 1;
+  color: var(--accent-blue);
+}
+
+.completion-dismiss {
+  font-size: var(--text-xl);
+  line-height: 1;
+  opacity: 0.6;
+}
+
+.completion-dismiss:hover {
+  opacity: 1;
+}
+
 /* --- Upcoming interview banners --- */
 
 .upcoming-interview-banner {
@@ -200,6 +261,7 @@
 
 .result-card {
   margin-bottom: var(--space-xl);
+  transition: none;
 }
 
 /* --- Hero block --- */
@@ -548,6 +610,18 @@
   display: flex;
   gap: var(--space-sm);
   flex-shrink: 0;
+  align-items: center;
+}
+
+.followup-dismiss {
+  font-size: var(--text-xl);
+  line-height: 1;
+  padding: var(--space-xs) var(--space-sm);
+  opacity: 0.6;
+}
+
+.followup-dismiss:hover {
+  opacity: 1;
 }
 
 

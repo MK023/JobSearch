@@ -167,16 +167,6 @@ def get_followup_alerts(db: Session) -> list[JobAnalysis]:
     )
 
 
-def get_active_applications(db: Session) -> list[JobAnalysis]:
-    """Get analyses with active application status."""
-    return (
-        db.query(JobAnalysis)
-        .filter(JobAnalysis.status.in_([AnalysisStatus.APPLIED, AnalysisStatus.INTERVIEW]))
-        .order_by(JobAnalysis.created_at.desc())
-        .all()
-    )
-
-
 def seed_spending_totals(db: Session) -> None:
     """Calculate initial totals from existing data if app_settings is empty."""
     s = get_or_create_settings(db)

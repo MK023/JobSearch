@@ -1,11 +1,14 @@
 """Cover letter routes."""
 
+import logging
 from typing import cast
 from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import APIRouter, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+
+logger = logging.getLogger(__name__)
 
 from ..analysis.service import get_analysis_by_id
 from ..audit.service import audit
@@ -62,11 +65,26 @@ def generate_cover_letter_route(
         db.rollback()
         audit(db, request, "cover_letter_error", str(exc))
         db.commit()
-        request.session["flash_error"] = f"Generazione cover letter fallita: {exc}"
+        logger.exception("Cover letter generation failed")
+        request.session["flash_error"] = "Generazione cover letter fallita, riprova."
         return RedirectResponse(url=f"/analysis/{analysis_id}", status_code=303)
 
     request.session["flash_message"] = f"Cover letter generata! ({language})"
     return RedirectResponse(url=f"/analysis/{analysis_id}", status_code=303)
+
+
+@router.get("/api/v1/cover-letter/{cover_letter_id}")
+def get_cover_letter_text(
+    cover_letter_id: str,
+    db: DbSession,
+    user: CurrentUser,
+) -> JSONResponse:
+    """Return cover letter content as JSON (for clipboard copy)."""
+    validate_uuid(cover_letter_id)
+    cl = get_cover_letter_by_id(db, cover_letter_id)
+    if not cl:
+        return JSONResponse({"error": "Cover letter non trovata"}, status_code=404)
+    return JSONResponse({"content": cl.content})
 
 
 @router.get("/cover-letter/{cover_letter_id}/download")

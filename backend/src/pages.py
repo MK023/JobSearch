@@ -70,7 +70,6 @@ def analyze_page(
     flash = _flash(request)
 
     cv = get_latest_cv(db, cast(UUID, user.id))
-    spending = get_spending(db)
     batch = get_batch_status()
 
     return templates.TemplateResponse(  # type: ignore[no-any-return]
@@ -80,7 +79,6 @@ def analyze_page(
             "user": user,
             "active_page": "analyze",
             "cv": cv,
-            "spending": spending,
             "batch": batch,
             "error": flash["error"],
             "message": flash["message"],
@@ -142,7 +140,7 @@ def interviews_page(
         .order_by(Interview.scheduled_at.asc())
         .all()
     )
-    from .interview.service import _format_date, _format_time
+    from .interview.service import format_date, format_time
 
     upcoming = [
         {
@@ -151,8 +149,8 @@ def interviews_page(
             "role": a.role,
             "scheduled_at": i.scheduled_at.isoformat(),
             "ends_at": i.ends_at.isoformat() if i.ends_at else None,
-            "date_display": _format_date(i.scheduled_at),
-            "time_display": _format_time(i.scheduled_at, i.ends_at),
+            "date_display": format_date(i.scheduled_at),
+            "time_display": format_time(i.scheduled_at, i.ends_at),
             "platform": i.platform,
             "interview_type": i.interview_type,
             "meeting_link": i.meeting_link,

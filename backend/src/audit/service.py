@@ -5,15 +5,8 @@ from uuid import UUID
 from fastapi import Request
 from sqlalchemy.orm import Session
 
+from ..rate_limit import get_client_ip
 from .models import AuditLog
-
-
-def _get_ip(request: Request) -> str:
-    """Extract client IP, supporting X-Forwarded-For behind a proxy."""
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else ""
 
 
 def audit(db: Session, request: Request, action: str, detail: str = "", user_id: UUID | None = None) -> None:
@@ -32,6 +25,6 @@ def audit(db: Session, request: Request, action: str, detail: str = "", user_id:
             user_id=user_id,
             action=action,
             detail=detail,
-            ip_address=_get_ip(request),
+            ip_address=get_client_ip(request),
         )
     )
