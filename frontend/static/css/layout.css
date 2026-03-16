@@ -98,14 +98,9 @@ html[data-theme="light"] .theme-icon-moon {
 
 /* === Content area === */
 .content-area {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: var(--sidebar-width);
+  margin-left: var(--sidebar-width);
   padding: var(--content-padding);
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  min-height: 100vh;
 }
 
 .content-inner {
@@ -229,8 +224,8 @@ html[data-theme="light"] .theme-icon-moon {
   }
 
   .content-area {
-    left: 0;
-    bottom: calc(56px + env(safe-area-inset-bottom));
+    margin-left: 0;
+    margin-bottom: calc(56px + env(safe-area-inset-bottom));
     padding: var(--space-lg);
   }
 
