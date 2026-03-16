@@ -139,8 +139,6 @@ function _showErrorBanner(msg) {
 
     var content = document.querySelector('.content-inner') || document.querySelector('main') || document.body;
     content.insertBefore(banner, content.firstChild);
-
-    if (typeof showToast === 'function') showToast(msg, 'error');
 }
 
 function _showCompletionBanner(data) {

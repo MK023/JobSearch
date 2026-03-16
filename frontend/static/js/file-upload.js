@@ -21,7 +21,7 @@ const FileUpload = {
 
         const input = document.createElement('input');
         input.type = 'file';
-        input.accept = '.pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        input.accept = '.pdf,.docx,.doc,.txt,.xlsx,.xls';
         input.style.display = 'none';
         document.body.appendChild(input);
 
@@ -48,13 +48,17 @@ const FileUpload = {
         const allowedTypes = [
             'application/pdf',
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-excel',
+            'text/plain',
         ];
         if (!allowedTypes.includes(file.type)) {
-            alert('Tipo file non supportato. Usa PDF o DOCX.');
+            if (typeof showToast === 'function') showToast('Tipo file non supportato. Usa PDF, DOCX, DOC, TXT o XLSX.', 'error');
             return;
         }
         if (file.size > 10 * 1024 * 1024) {
-            alert('File troppo grande. Massimo 10 MB.');
+            if (typeof showToast === 'function') showToast('File troppo grande. Massimo 10 MB.', 'error');
             return;
         }
 
@@ -73,12 +77,12 @@ const FileUpload = {
             });
             uploadData = await resp.json();
             if (!resp.ok) {
-                alert(uploadData.error || 'Errore nella richiesta di upload');
+                if (typeof showToast === 'function') showToast(uploadData.error || 'Errore nella richiesta di upload', 'error');
                 this._hideUploadProgress();
                 return;
             }
         } catch (err) {
-            alert('Errore di rete. Riprova.');
+            if (typeof showToast === 'function') showToast('Errore di rete. Riprova.', 'error');
             this._hideUploadProgress();
             return;
         }
@@ -94,7 +98,7 @@ const FileUpload = {
                 throw new Error('R2 upload failed: ' + putResp.status);
             }
         } catch (err) {
-            alert('Upload fallito. Riprova.');
+            if (typeof showToast === 'function') showToast('Upload fallito. Riprova.', 'error');
             this._hideUploadProgress();
             return;
         }
@@ -106,12 +110,12 @@ const FileUpload = {
             });
             if (!confirmResp.ok) {
                 const errData = await confirmResp.json();
-                alert(errData.error || 'Conferma upload fallita');
+                if (typeof showToast === 'function') showToast(errData.error || 'Conferma upload fallita', 'error');
                 this._hideUploadProgress();
                 return;
             }
         } catch (err) {
-            alert('Errore nella conferma. Il file potrebbe essere stato caricato.');
+            if (typeof showToast === 'function') showToast('Errore nella conferma. Il file potrebbe essere stato caricato.', 'error');
             this._hideUploadProgress();
             return;
         }
@@ -131,10 +135,10 @@ const FileUpload = {
             const resp = await fetch('/api/v1/files/' + fileId + '/scan', { method: 'POST' });
             const data = await resp.json();
             if (!resp.ok) {
-                alert(data.error || 'Scansione fallita');
+                if (typeof showToast === 'function') showToast(data.error || 'Scansione fallita', 'error');
             }
         } catch (err) {
-            alert('Errore nella scansione. Riprova.');
+            if (typeof showToast === 'function') showToast('Errore nella scansione. Riprova.', 'error');
         }
 
         this.loadFiles();  // Refresh list
@@ -147,11 +151,11 @@ const FileUpload = {
             const resp = await fetch('/api/v1/files/' + fileId, { method: 'DELETE' });
             if (!resp.ok) {
                 const data = await resp.json();
-                alert(data.error || 'Eliminazione fallita');
+                if (typeof showToast === 'function') showToast(data.error || 'Eliminazione fallita', 'error');
                 return;
             }
         } catch (err) {
-            alert('Errore nella eliminazione. Riprova.');
+            if (typeof showToast === 'function') showToast('Errore nella eliminazione. Riprova.', 'error');
             return;
         }
 

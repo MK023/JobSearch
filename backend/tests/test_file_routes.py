@@ -23,7 +23,9 @@ class TestRequestUploadValidation:
         """Invalid content type should be rejected."""
         assert "image/png" not in ALLOWED_CONTENT_TYPES
         assert "application/pdf" in ALLOWED_CONTENT_TYPES
-        assert "text/plain" not in ALLOWED_CONTENT_TYPES
+        assert "text/plain" in ALLOWED_CONTENT_TYPES
+        assert "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" in ALLOWED_CONTENT_TYPES
+        assert "application/zip" not in ALLOWED_CONTENT_TYPES
 
     def test_validates_filename_path_traversal(self):
         """Filenames with path traversal should be rejected."""

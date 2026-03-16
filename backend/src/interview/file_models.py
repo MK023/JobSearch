@@ -32,6 +32,10 @@ VALID_FILE_STATUSES = {
 ALLOWED_CONTENT_TYPES = {
     "application/pdf",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",  # .docx
+    "application/msword",  # .doc
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",  # .xlsx
+    "application/vnd.ms-excel",  # .xls
+    "text/plain",  # .txt
 }
 MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
 PRESIGNED_URL_EXPIRY_SECONDS = 600  # 10 minutes

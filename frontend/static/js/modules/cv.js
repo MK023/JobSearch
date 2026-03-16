@@ -3,7 +3,7 @@
  * Uploads the file directly to the backend for server-side text extraction.
  */
 
-var CV_ALLOWED_EXT = ['.txt', '.pdf', '.doc', '.docx'];
+var CV_ALLOWED_EXT = ['.txt', '.pdf', '.doc', '.docx', '.xlsx', '.xls'];
 var CV_MAX_SIZE = 10 * 1024 * 1024; // 10 MB
 
 function uploadCV() {
@@ -21,7 +21,7 @@ function initCVUpload() {
         // Validate extension
         var ext = '.' + file.name.split('.').pop().toLowerCase();
         if (CV_ALLOWED_EXT.indexOf(ext) === -1) {
-            showToast('Formato non supportato. Usa PDF, DOCX, DOC o TXT.', 'error');
+            showToast('Formato non supportato. Usa PDF, DOCX, DOC, TXT o XLSX.', 'error');
             this.value = '';
             return;
         }

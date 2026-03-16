@@ -1,4 +1,4 @@
-"""Extract plain text from CV files (PDF, DOCX, DOC, TXT)."""
+"""Extract plain text from CV files (PDF, DOCX, DOC, TXT, XLSX, XLS)."""
 
 import subprocess
 import tempfile
@@ -6,9 +6,10 @@ from io import BytesIO
 from pathlib import Path
 
 from docx import Document
+from openpyxl import load_workbook
 from pypdf import PdfReader
 
-ALLOWED_EXTENSIONS = {".txt", ".pdf", ".doc", ".docx"}
+ALLOWED_EXTENSIONS = {".txt", ".pdf", ".doc", ".docx", ".xlsx", ".xls"}
 MAX_FILE_BYTES = 10 * 1024 * 1024  # 10 MB
 
 
@@ -16,7 +17,7 @@ def extract_text(file_bytes: bytes, filename: str) -> str:
     """Extract plain text from an uploaded file. Raises ValueError on failure."""
     ext = Path(filename).suffix.lower()
     if ext not in ALLOWED_EXTENSIONS:
-        raise ValueError(f"Formato non supportato: {ext}. Usa PDF, DOCX, DOC o TXT.")
+        raise ValueError(f"Formato non supportato: {ext}. Usa PDF, DOCX, DOC, TXT o XLSX.")
     if len(file_bytes) > MAX_FILE_BYTES:
         raise ValueError("File troppo grande (max 10 MB).")
     if len(file_bytes) == 0:
@@ -27,6 +28,8 @@ def extract_text(file_bytes: bytes, filename: str) -> str:
         ".docx": _extract_docx,
         ".doc": _extract_doc,
         ".txt": _extract_txt,
+        ".xlsx": _extract_xlsx,
+        ".xls": _extract_xlsx,
     }
     text = extractors[ext](file_bytes)
     text = text.strip()
@@ -59,6 +62,19 @@ def _extract_doc(data: bytes) -> str:
         if result.returncode != 0:
             raise ValueError("Impossibile leggere il file DOC. Prova a convertirlo in DOCX.")
         return result.stdout
+
+
+def _extract_xlsx(data: bytes) -> str:
+    """Extract text from all cells across all sheets."""
+    wb = load_workbook(BytesIO(data), read_only=True, data_only=True)
+    lines: list[str] = []
+    for sheet in wb.worksheets:
+        for row in sheet.iter_rows(values_only=True):
+            cells = [str(c) for c in row if c is not None]
+            if cells:
+                lines.append(" | ".join(cells))
+    wb.close()
+    return "\n".join(lines)
 
 
 def _extract_txt(data: bytes) -> str:

@@ -108,5 +108,4 @@ function _showAnalysisError(msg) {
         target.insertBefore(banner, target.firstChild);
     }
 
-    if (typeof showToast === 'function') showToast(msg, 'error');
 }
