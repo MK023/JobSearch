@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
-from sqlalchemy import text
+from sqlalchemy import select
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -216,7 +216,7 @@ def create_app() -> FastAPI:
         """Return application health status including DB connectivity and uptime."""
         db_status = "ok"
         try:
-            db.execute(text("SELECT 1"))
+            db.execute(select(1))
         except Exception:
             db_status = "unreachable"
 

@@ -1,5 +1,6 @@
 """CV routes."""
 
+import re
 from typing import cast
 from uuid import UUID
 
@@ -60,7 +61,8 @@ def download_cv(
         return RedirectResponse(url="/", status_code=303)
     audit(db, request, "cv_download", f"name={cv.name}")
     db.commit()
-    filename = f"CV_{cv.name or 'unnamed'}.txt".replace(" ", "_")
+    safe_name = re.sub(r"[^a-zA-Z0-9\s\-_]", "", str(cv.name or "unnamed"))[:50]
+    filename = f"CV_{safe_name}.txt".replace(" ", "_")
     return PlainTextResponse(
         cv.raw_text,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},

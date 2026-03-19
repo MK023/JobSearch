@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     rapidapi_key: str = ""
 
     # Authentication
-    secret_key: str = "change-me-to-a-random-string"
+    secret_key: str = "dev-only-change-me"
     admin_email: str = ""
     admin_password: str = ""
 
@@ -65,3 +65,7 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Prevent deployment with default secret key
+if settings.secret_key == "dev-only-change-me" and settings.trusted_hosts != "localhost,127.0.0.1":
+    raise RuntimeError("SECRET_KEY must be set to a secure random value in production")

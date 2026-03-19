@@ -33,6 +33,9 @@ def generate_cover_letter_route(
     language: str = Form("italiano"),
     model: str = Form("haiku"),
 ) -> Response:
+    ALLOWED_LANGUAGES = {"italiano", "inglese", "francese", "tedesco", "spagnolo"}
+    if language not in ALLOWED_LANGUAGES:
+        language = "italiano"
     """Generate a cover letter via AI and redirect back to the analysis page."""
     safe_id = str(validate_uuid(analysis_id))
     analysis = get_analysis_by_id(db, safe_id)
