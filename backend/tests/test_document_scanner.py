@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 from src.integrations.document_scanner import (
     _extract_text_from_docx,
+    _extract_text_from_xlsx,
     scan_document,
 )
 from src.interview.file_models import FileStatus
@@ -172,3 +173,123 @@ class TestScanDocument:
         assert result["status"] == FileStatus.COMPILED
         assert result["compiled"] is True
         mock_client.messages.create.assert_called_once()
+
+
+class TestExtractTextFromXlsx:
+    def test_extracts_cell_text(self):
+        """Create a minimal XLSX in memory and extract text."""
+        from openpyxl import Workbook
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Dati"
+        ws["A1"] = "Nome"
+        ws["B1"] = "Mario Rossi"
+        ws["A2"] = "Ruolo"
+        ws["B2"] = "Developer"
+
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+
+        text = _extract_text_from_xlsx(buffer.read())
+        assert "Mario Rossi" in text
+        assert "Developer" in text
+        assert "[Foglio: Dati]" in text
+
+    def test_empty_xlsx(self):
+        from openpyxl import Workbook
+
+        wb = Workbook()
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+
+        text = _extract_text_from_xlsx(buffer.read())
+        assert "[Foglio:" in text
+
+
+class TestScanXlsx:
+    @patch("src.integrations.document_scanner.get_client")
+    def test_scan_xlsx_compiled(self, mock_get_client):
+        """XLSX with content calls Claude API via text extraction."""
+        from openpyxl import Workbook
+
+        wb = Workbook()
+        ws = wb.active
+        ws["A1"] = "Autovalutazione"
+        ws["B1"] = "Completata"
+
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+
+        mock_client = MagicMock()
+        mock_message = MagicMock()
+        mock_message.content = [
+            MagicMock(
+                text=json.dumps(
+                    {
+                        "compiled": True,
+                        "confidence": "high",
+                        "summary": "Foglio Excel compilato.",
+                    }
+                )
+            )
+        ]
+        mock_message.usage = MagicMock(input_tokens=300, output_tokens=40)
+        mock_client.messages.create.return_value = mock_message
+        mock_get_client.return_value = mock_client
+
+        result = scan_document(
+            file_bytes=buffer.read(),
+            filename="autovalutazione.xlsx",
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
+        assert result["status"] == FileStatus.COMPILED
+        assert result["compiled"] is True
+        mock_client.messages.create.assert_called_once()
+
+
+class TestScanTxt:
+    @patch("src.integrations.document_scanner.get_client")
+    def test_scan_txt_compiled(self, mock_get_client):
+        """TXT file with content calls Claude API."""
+        mock_client = MagicMock()
+        mock_message = MagicMock()
+        mock_message.content = [
+            MagicMock(
+                text=json.dumps(
+                    {
+                        "compiled": True,
+                        "confidence": "high",
+                        "summary": "File di testo compilato.",
+                    }
+                )
+            )
+        ]
+        mock_message.usage = MagicMock(input_tokens=200, output_tokens=30)
+        mock_client.messages.create.return_value = mock_message
+        mock_get_client.return_value = mock_client
+
+        result = scan_document(
+            file_bytes=b"Nome: Mario Rossi\nIndirizzo: Via Roma 1",
+            filename="note.txt",
+            content_type="text/plain",
+        )
+
+        assert result["status"] == FileStatus.COMPILED
+        assert result["compiled"] is True
+
+    def test_scan_empty_txt(self):
+        """Empty TXT returns NOT_COMPILED without calling API."""
+        result = scan_document(
+            file_bytes=b"",
+            filename="empty.txt",
+            content_type="text/plain",
+        )
+
+        assert result["status"] == FileStatus.NOT_COMPILED
+        assert result["compiled"] is False
+        assert result["cost_usd"] == 0.0

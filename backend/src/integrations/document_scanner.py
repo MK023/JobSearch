@@ -1,6 +1,6 @@
 """Document scanning service using Claude API.
 
-Analyzes uploaded PDF/DOCX files to determine if they have been
+Analyzes uploaded PDF/DOCX/XLSX/TXT files to determine if they have been
 properly filled/compiled by the user, or are still blank/template.
 """
 
@@ -10,6 +10,7 @@ import logging
 
 import anthropic
 from docx import Document as DocxDocument
+from openpyxl import load_workbook
 
 from ..interview.file_models import FileStatus
 from .anthropic_client import MODELS, _calculate_cost, _extract_and_parse_json, get_client
@@ -64,6 +65,20 @@ def _extract_text_from_docx(file_bytes: bytes) -> str:
     return "\n".join(paragraphs)
 
 
+def _extract_text_from_xlsx(file_bytes: bytes) -> str:
+    """Extract text content from an XLSX file."""
+    wb = load_workbook(io.BytesIO(file_bytes), read_only=True, data_only=True)
+    lines: list[str] = []
+    for sheet in wb.worksheets:
+        lines.append(f"[Foglio: {sheet.title}]")
+        for row in sheet.iter_rows(values_only=True):
+            cells = [str(c) for c in row if c is not None]
+            if cells:
+                lines.append(" | ".join(cells))
+    wb.close()
+    return "\n".join(lines)
+
+
 def scan_document(
     file_bytes: bytes,
     filename: str,
@@ -93,10 +108,40 @@ def scan_document(
     model_id = MODELS.get(model, MODELS["haiku"])
     client = get_client()
 
+    # Content types that need XLSX extraction
+    XLSX_TYPES = {
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/vnd.ms-excel",
+    }
+    # Content types that need DOCX extraction
+    DOCX_TYPES = {
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/msword",
+    }
+
     try:
         if content_type == "application/pdf":
             return _scan_pdf(client, file_bytes, filename, content_type, model_id)
-        return _scan_docx(client, file_bytes, filename, content_type, model_id)
+        if content_type in XLSX_TYPES:
+            return _scan_text_based(
+                client, _extract_text_from_xlsx(file_bytes),
+                filename, content_type, model_id,
+            )
+        if content_type in DOCX_TYPES:
+            return _scan_text_based(
+                client, _extract_text_from_docx(file_bytes),
+                filename, content_type, model_id,
+            )
+        if content_type == "text/plain":
+            return _scan_text_based(
+                client, file_bytes.decode("utf-8", errors="replace"),
+                filename, content_type, model_id,
+            )
+        # Fallback: try DOCX extraction (legacy behavior)
+        return _scan_text_based(
+            client, _extract_text_from_docx(file_bytes),
+            filename, content_type, model_id,
+        )
     except Exception:
         logger.exception("Document scan failed for %s", filename)
         return {
@@ -151,16 +196,14 @@ def _scan_pdf(
     return _parse_scan_response(message, model_id)
 
 
-def _scan_docx(
+def _scan_text_based(
     client: anthropic.Anthropic,
-    file_bytes: bytes,
+    text_content: str,
     filename: str,
     content_type: str,
     model_id: str,
 ) -> dict:
-    """Scan a DOCX by extracting text and sending to Claude."""
-    text_content = _extract_text_from_docx(file_bytes)
-
+    """Scan a text-based document (DOCX, XLSX, TXT) by sending extracted text to Claude."""
     if not text_content.strip():
         return {
             "status": FileStatus.NOT_COMPILED,
