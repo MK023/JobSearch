@@ -124,23 +124,35 @@ def scan_document(
             return _scan_pdf(client, file_bytes, filename, content_type, model_id)
         if content_type in XLSX_TYPES:
             return _scan_text_based(
-                client, _extract_text_from_xlsx(file_bytes),
-                filename, content_type, model_id,
+                client,
+                _extract_text_from_xlsx(file_bytes),
+                filename,
+                content_type,
+                model_id,
             )
         if content_type in DOCX_TYPES:
             return _scan_text_based(
-                client, _extract_text_from_docx(file_bytes),
-                filename, content_type, model_id,
+                client,
+                _extract_text_from_docx(file_bytes),
+                filename,
+                content_type,
+                model_id,
             )
         if content_type == "text/plain":
             return _scan_text_based(
-                client, file_bytes.decode("utf-8", errors="replace"),
-                filename, content_type, model_id,
+                client,
+                file_bytes.decode("utf-8", errors="replace"),
+                filename,
+                content_type,
+                model_id,
             )
         # Fallback: try DOCX extraction (legacy behavior)
         return _scan_text_based(
-            client, _extract_text_from_docx(file_bytes),
-            filename, content_type, model_id,
+            client,
+            _extract_text_from_docx(file_bytes),
+            filename,
+            content_type,
+            model_id,
         )
     except Exception:
         logger.exception("Document scan failed for %s", filename)
