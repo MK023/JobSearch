@@ -1,22 +1,22 @@
 # Contributing
 
-Grazie per il tuo interesse nel contribuire a Job Search Command Center!
+Thanks for your interest in contributing to Job Search Command Center!
 
-## Setup locale
+## Local Setup
 
 ```bash
 git clone https://github.com/MK023/JobSearch.git
 cd JobSearch
 cp .env.example .env
-# Configura: ANTHROPIC_API_KEY, ADMIN_EMAIL, ADMIN_PASSWORD
+# Configure: ANTHROPIC_API_KEY, ADMIN_EMAIL, ADMIN_PASSWORD
 docker compose up -d
 ```
 
 ## Workflow
 
-1. Crea un branch dal `main`: `git checkout -b feat/nome-feature`
-2. Scrivi codice + test
-3. Verifica che la CI passi localmente:
+1. Create a branch from `main`: `git checkout -b feat/feature-name`
+2. Write code + tests
+3. Make sure CI passes locally:
    ```bash
    cd backend
    ruff check .
@@ -24,22 +24,22 @@ docker compose up -d
    mypy src --strict
    pytest tests/ -x -q
    ```
-4. Apri una PR verso `main`
+4. Open a PR against `main`
 
-## Convenzioni
+## Conventions
 
-- **Commit**: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`
+- **Commits**: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`
 - **Python**: ruff (format + lint), mypy strict, bandit
 - **CSS**: stylelint
-- **Test**: pytest, ogni feature deve avere test
+- **Tests**: pytest — every feature must include tests
 
-## Struttura branch
+## Branch Naming
 
-- `feat/` — nuove funzionalita
-- `fix/` — bug fix
-- `cleanup/` — refactoring, pulizia
-- `security/` — hardening sicurezza
+- `feat/` — new features
+- `fix/` — bug fixes
+- `cleanup/` — refactoring, cleanup
+- `security/` — security hardening
 
-## Segnalazioni sicurezza
+## Security Reports
 
-Non aprire issue pubbliche. Vedi [SECURITY.md](SECURITY.md).
+Do not open public issues. See [SECURITY.md](SECURITY.md).
