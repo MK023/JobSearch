@@ -262,4 +262,64 @@ html[data-theme="light"] .theme-icon-moon {
     right: var(--space-md);
     left: var(--space-md);
   }
+
+  .login-wrapper {
+    padding: var(--space-lg);
+  }
+
+  .login-card {
+    padding: var(--space-xl) var(--space-lg);
+  }
+
+  .login-card h1 {
+    font-size: var(--text-xl);
+    margin-bottom: var(--space-xl);
+  }
+}
+
+/* === Landscape: hide bottom bar, show compact sidebar === */
+@media (width <= 768px) and (orientation: landscape) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 56px;
+    height: 100%;
+    flex-direction: column;
+    justify-content: center;
+    padding: var(--space-sm) 0;
+    padding-left: env(safe-area-inset-left);
+    border-top: none;
+    border-right: 1px solid var(--border-subtle);
+    background: var(--bg-glass);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .sidebar-top, .sidebar-bottom {
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+
+  .sidebar-item.active::before {
+    left: 0;
+    top: 50%;
+    bottom: auto;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 20px;
+  }
+
+  .content-area {
+    margin-left: calc(56px + env(safe-area-inset-left));
+    margin-bottom: 0;
+    padding-right: max(var(--space-md), env(safe-area-inset-right));
+  }
+
+  .toast-container {
+    bottom: var(--space-md);
+    left: calc(56px + env(safe-area-inset-left) + var(--space-md));
+    right: max(var(--space-md), env(safe-area-inset-right));
+  }
 }

@@ -456,7 +456,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--space-lg);
+  padding: max(var(--space-lg), env(safe-area-inset-top))
+           max(var(--space-lg), env(safe-area-inset-right))
+           max(var(--space-lg), env(safe-area-inset-bottom))
+           max(var(--space-lg), env(safe-area-inset-left));
 }
 
 .modal-content {
@@ -1107,9 +1110,35 @@ details[open] summary::before {
   .modal-content {
     max-width: 100%;
     margin: var(--space-md);
+    padding: var(--space-lg);
   }
 
   .job-card {
     padding: var(--space-sm) var(--space-md);
+  }
+}
+
+@media (width <= 480px) {
+  .actions-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .action-card {
+    padding: var(--space-sm);
+    font-size: var(--text-xs);
+  }
+
+  .modal-content {
+    margin: var(--space-xs);
+    padding: var(--space-md);
+    border-radius: var(--radius-lg);
+  }
+
+  .card {
+    padding: var(--space-lg);
+  }
+
+  .metric-card {
+    padding: var(--space-lg);
   }
 }

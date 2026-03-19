@@ -31,6 +31,8 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   animation: fade-in 150ms ease;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 /* ---- Page fade-in ---- */
@@ -295,5 +297,15 @@ input:focus::placeholder {
   textarea,
   select {
     min-height: 44px;
+  }
+
+  textarea {
+    min-height: 100px;
+  }
+}
+
+@media (width <= 480px) {
+  textarea {
+    min-height: 80px;
   }
 }
