@@ -34,8 +34,8 @@ def generate_cover_letter_route(
     model: str = Form("haiku"),
 ) -> Response:
     """Generate a cover letter via AI and redirect back to the analysis page."""
-    validate_uuid(analysis_id)
-    analysis = get_analysis_by_id(db, analysis_id)
+    safe_id = str(validate_uuid(analysis_id))
+    analysis = get_analysis_by_id(db, safe_id)
     if not analysis:
         request.session["flash_error"] = "Analisi non trovata"
         return RedirectResponse(url="/history", status_code=303)
@@ -43,12 +43,12 @@ def generate_cover_letter_route(
     cv = get_latest_cv(db, cast(UUID, user.id))
     if not cv:
         request.session["flash_error"] = "CV non trovato"
-        return RedirectResponse(url=f"/analysis/{analysis_id}", status_code=303)
+        return RedirectResponse(url=f"/analysis/{safe_id}", status_code=303)
 
     budget_ok, budget_msg = check_budget_available(db)
     if not budget_ok:
         request.session["flash_error"] = budget_msg
-        return RedirectResponse(url=f"/analysis/{analysis_id}", status_code=303)
+        return RedirectResponse(url=f"/analysis/{safe_id}", status_code=303)
 
     try:
         cl, result = create_cover_letter(db, analysis, cast(str, cv.raw_text), language, model, cache)
@@ -59,7 +59,7 @@ def generate_cover_letter_route(
             result.get("tokens", {}).get("output", 0),
             is_analysis=False,
         )
-        audit(db, request, "cover_letter", f"analysis={analysis_id}, lang={language}")
+        audit(db, request, "cover_letter", f"analysis={safe_id}, lang={language}")
         db.commit()
     except Exception as exc:
         db.rollback()
@@ -67,10 +67,10 @@ def generate_cover_letter_route(
         db.commit()
         logger.exception("Cover letter generation failed")
         request.session["flash_error"] = "Generazione cover letter fallita, riprova."
-        return RedirectResponse(url=f"/analysis/{analysis_id}", status_code=303)
+        return RedirectResponse(url=f"/analysis/{safe_id}", status_code=303)
 
     request.session["flash_message"] = f"Cover letter generata! ({language})"
-    return RedirectResponse(url=f"/analysis/{analysis_id}", status_code=303)
+    return RedirectResponse(url=f"/analysis/{safe_id}", status_code=303)
 
 
 @router.get("/api/v1/cover-letter/{cover_letter_id}")

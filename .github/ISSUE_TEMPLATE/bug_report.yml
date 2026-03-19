@@ -1,0 +1,50 @@
+name: Bug Report
+description: Segnala un bug
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Descrizione
+      description: Cosa non funziona?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Passi per riprodurre
+      description: Come si riproduce il bug?
+      placeholder: |
+        1. Vai a ...
+        2. Clicca su ...
+        3. Errore ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportamento atteso
+      description: Cosa dovrebbe succedere?
+    validations:
+      required: true
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Browser
+      options:
+        - Chrome
+        - Firefox
+        - Safari
+        - Edge
+        - Mobile Safari
+        - Mobile Chrome
+        - Altro
+    validations:
+      required: false
+  - type: textarea
+    id: context
+    attributes:
+      label: Contesto aggiuntivo
+      description: Screenshot, log, ecc.
+    validations:
+      required: false

@@ -4,13 +4,13 @@
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.131-009688?logo=fastapi&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-274_passed-30D158)
+![Tests](https://img.shields.io/badge/Tests-275_passed-30D158)
 ![mypy](https://img.shields.io/badge/mypy-strict-blue)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
 Piattaforma AI per la ricerca lavoro. Incolla il CV, analizza annunci, ottieni score di compatibilità, gap analysis, preparazione colloqui, cover letter e strumenti di outreach automatizzati. Interroga i dati da Claude Desktop via MCP.
 
-**[Live](https://jobsearch.fly.dev)** | **[API](https://api.jobsearches.cc/health)** | **[MCP](https://jobsearch-mcp.fly.dev/mcp)**
+**[Live](https://jobsearches.cc)** | **[API](https://api.jobsearches.cc/health)** | **[MCP](https://jobsearch-mcp.fly.dev/mcp)**
 
 ---
 
