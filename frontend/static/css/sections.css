@@ -19,7 +19,7 @@
 }
 
 .error-code {
-  font-size: 6rem;
+  font-size: clamp(3rem, 15vw, 6rem);
   font-weight: var(--weight-bold);
   color: var(--text-primary);
   line-height: 1;
@@ -123,7 +123,7 @@
   font-size: var(--text-xs);
   color: var(--text-tertiary);
   font-style: italic;
-  max-width: 380px;
+  max-width: min(380px, 100%);
 }
 
 .page-header-right {
@@ -1465,6 +1465,34 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
     font-size: var(--text-xs);
   }
 
+  .result-hero-role {
+    overflow-wrap: break-word;
+  }
+
+  .interview-card-detail {
+    overflow-wrap: anywhere;
+  }
+
+  .strengths-section,
+  .gaps-section {
+    padding: var(--space-lg);
+  }
+
+  .strength-item,
+  .gap-item {
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .interview-script {
+    padding: var(--space-md);
+  }
+
+  .result-verdict,
+  .job-summary-box,
+  .advice-box {
+    padding: var(--space-lg);
+  }
+
   .analyze-tabs {
     max-width: 100%;
   }
@@ -1494,5 +1522,56 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
   .subject-line-row {
     flex-direction: column;
     gap: var(--space-sm);
+  }
+}
+
+@media (width <= 480px) {
+  .sub-rating-label {
+    width: 60px;
+  }
+
+  .error-page {
+    padding: var(--space-xl);
+  }
+
+  .strengths-section,
+  .gaps-section {
+    padding: var(--space-md);
+  }
+
+  .interview-detail-card {
+    padding: var(--space-lg);
+  }
+
+  .result-verdict,
+  .job-summary-box,
+  .advice-box {
+    padding: var(--space-md);
+    font-size: var(--text-base);
+  }
+
+  .advice-text {
+    font-size: var(--text-base);
+  }
+
+  .generated-box {
+    padding: var(--space-lg);
+  }
+
+  .completion-banner {
+    padding: var(--space-md);
+    gap: var(--space-sm);
+  }
+
+  .upcoming-interview-banner {
+    padding: var(--space-md);
+  }
+
+  .followup-alert {
+    padding: var(--space-md);
+  }
+
+  .reputation-col {
+    padding: var(--space-md);
   }
 }
