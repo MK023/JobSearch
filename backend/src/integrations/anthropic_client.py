@@ -371,7 +371,7 @@ def analyze_job(
             return cached
 
     user_prompt = ANALYSIS_USER_PROMPT.format(cv_text=cv_text[:12000], job_description=job_description)
-    result, usage = _call_api(ANALYSIS_SYSTEM_PROMPT, user_prompt, model_id, 2048)
+    result, usage = _call_api(ANALYSIS_SYSTEM_PROMPT, user_prompt, model_id, 4096)
 
     result = validate_analysis(result)
 

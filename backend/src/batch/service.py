@@ -4,6 +4,7 @@ Manages a persistent queue of job descriptions to analyze sequentially.
 State is stored in PostgreSQL via the BatchItem model.
 """
 
+import time
 import uuid as uuid_mod
 from typing import Any, cast
 from uuid import UUID
@@ -195,6 +196,10 @@ def run_batch(batch_id: str, db: Session, user_id: UUID, cache: CacheService | N
             item.analysis_id = analysis.id
             item.attempt_count = (item.attempt_count or 0) + 1  # type: ignore[assignment]
             db.commit()
+
+            # Throttle between API calls to avoid Fly.io autostop
+            # and Anthropic rate limits on free/low tier
+            time.sleep(2)
 
         except Exception as exc:
             db.rollback()
