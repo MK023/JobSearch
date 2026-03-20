@@ -92,6 +92,7 @@ def run_batch(batch_id: str, db: Session, user_id: UUID, cache: CacheService | N
             existing = find_existing_analysis(db, ch, model_id)
             if existing:
                 item["status"] = "done"
+                item["analysis_id"] = str(existing.id)
                 item["result_preview"] = f"{existing.role} @ {existing.company} -- {existing.score}/100 (duplicate)"
                 continue
 
@@ -112,6 +113,7 @@ def run_batch(batch_id: str, db: Session, user_id: UUID, cache: CacheService | N
             )
             db.commit()
             item["status"] = "done"
+            item["analysis_id"] = str(analysis.id)
             item["result_preview"] = (
                 f"{result.get('role', '?')} @ {result.get('company', '?')} -- {result.get('score', 0)}/100"
             )
