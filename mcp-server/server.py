@@ -1,6 +1,12 @@
 """JobSearch MCP Server — tools for querying and managing job candidature data."""
 
-from api_client import api_delete, api_get, api_post
+from api_client import (
+    _BATCH_TIMEOUT,
+    _WAKE_TIMEOUT,
+    api_delete,
+    api_get,
+    api_post,
+)
 from mcp.server.fastmcp import FastMCP
 
 from config import settings
@@ -12,6 +18,20 @@ mcp = FastMCP(
     host=settings.mcp_host,
     port=settings.mcp_port,
 )
+
+
+# ── Backend Health ─────────────────────────────────────────────────
+
+
+@mcp.tool()
+async def wake_backend() -> dict:
+    """Sveglia il backend Fly.io e verifica che sia pronto.
+
+    Chiama GET /health per forzare il wake-up della macchina.
+    Usare PRIMA di un batch per evitare timeout da cold start.
+    Ritorna: status, db, uptime.
+    """
+    return await api_get("/health", timeout=_WAKE_TIMEOUT)
 
 
 # ── Candidature ─────────────────────────────────────────────────────
@@ -143,7 +163,7 @@ async def batch_add(job_description: str, job_url: str = "", model: str = "haiku
 @mcp.tool()
 async def batch_run() -> dict:
     """Avvia l'elaborazione del batch. Le analisi partono in background."""
-    return await api_post("/api/v1/batch/run")
+    return await api_post("/api/v1/batch/run", timeout=_BATCH_TIMEOUT)
 
 
 @mcp.tool()

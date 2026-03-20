@@ -9,11 +9,13 @@ from fastapi.responses import JSONResponse
 from ..analysis.service import get_analysis_by_id, rebuild_result
 from ..audit.service import audit
 from ..config import settings
+from ..cv.service import get_latest_cv
 from ..dashboard.service import check_budget_available
 from ..database import SessionLocal
 from ..dependencies import Cache, CurrentUser, DbSession
 from ..rate_limit import limiter
-from .service import add_to_queue, clear_completed, get_batch_status, get_pending_batch_id, run_batch
+from .models import BatchItemStatus
+from .service import add_to_queue, batch_results, clear_completed, get_batch_status, get_pending_batch_id, run_batch
 
 router = APIRouter(prefix="/batch", tags=["batch"])
 
@@ -33,10 +35,21 @@ def batch_add(
             {"error": f"Descrizione troppo lunga (max {settings.max_job_desc_size} caratteri)"}, status_code=400
         )
 
-    batch_id, count = add_to_queue(job_description, job_url, model)
-    audit(db, request, "batch_add", f"batch={batch_id}, count={count}")
+    cv = get_latest_cv(db, cast(UUID, user.id))
+    if not cv:
+        return JSONResponse({"error": "Nessun CV trovato. Carica un CV prima di usare il batch."}, status_code=400)
+
+    batch_id, count, skipped = add_to_queue(
+        db,
+        cv_id=cast(UUID, cv.id),
+        job_description=job_description,
+        job_url=job_url,
+        model=model,
+        cv_text=cast(str, cv.raw_text),
+    )
+    audit(db, request, "batch_add", f"batch={batch_id}, count={count}, skipped={skipped}")
     db.commit()
-    return JSONResponse({"ok": True, "batch_id": batch_id, "count": count})
+    return JSONResponse({"ok": True, "batch_id": batch_id, "count": count, "skipped": skipped})
 
 
 @router.post("/run")
@@ -49,7 +62,7 @@ def batch_run(
     db: DbSession,
 ) -> JSONResponse:
     """Start processing the pending batch queue in the background."""
-    batch_id = get_pending_batch_id()
+    batch_id = get_pending_batch_id(db)
     if not batch_id:
         return JSONResponse({"error": "No pending batch"}, status_code=400)
 
@@ -71,31 +84,34 @@ def batch_run(
 
 
 @router.get("/status")
-def batch_status_route(user: CurrentUser) -> JSONResponse:
+def batch_status_route(user: CurrentUser, db: DbSession) -> JSONResponse:
     """Return the current batch queue status."""
-    return JSONResponse(get_batch_status())
+    return JSONResponse(get_batch_status(db))
 
 
 @router.get("/results")
-def batch_results(user: CurrentUser, db: DbSession) -> JSONResponse:
+def batch_results_route(user: CurrentUser, db: DbSession) -> JSONResponse:
     """Return structured analysis data for all completed batch items."""
-    batch = get_batch_status()
-    if batch.get("status") == "empty":
+    status = get_batch_status(db)
+    if status.get("status") == "empty":
         return JSONResponse({"status": "empty", "results": [], "total": 0})
+
+    batch_id = status["batch_id"]
+    items = batch_results(db, batch_id)
 
     results = []
     total_cost = 0.0
 
-    for item in batch.get("items", []):
-        analysis_id = item.get("analysis_id")
-        if item.get("status") != "done" or not analysis_id:
+    for item in items:
+        if item.status not in (BatchItemStatus.DONE, BatchItemStatus.SKIPPED) or not item.analysis_id:
             continue
 
-        analysis = get_analysis_by_id(db, analysis_id)
+        analysis = get_analysis_by_id(db, str(item.analysis_id))
         if not analysis:
             continue
 
         full = rebuild_result(analysis)
+        is_dedup = item.status == BatchItemStatus.SKIPPED
         results.append(
             {
                 "id": str(analysis.id),
@@ -109,11 +125,11 @@ def batch_results(user: CurrentUser, db: DbSession) -> JSONResponse:
                 "strengths": (analysis.strengths or [])[:3],
                 "gaps": (analysis.gaps or [])[:3],
                 "job_url": analysis.job_url,
-                "source": item.get("source", ""),
                 "model_used": analysis.model_used,
                 "cost_usd": analysis.cost_usd or 0.0,
                 "analyzed_at": analysis.created_at.isoformat() if analysis.created_at else "",
                 "status": str(analysis.status),
+                "is_duplicate": is_dedup,
             }
         )
         total_cost += analysis.cost_usd or 0.0
@@ -122,8 +138,8 @@ def batch_results(user: CurrentUser, db: DbSession) -> JSONResponse:
 
     return JSONResponse(
         {
-            "batch_id": batch.get("batch_id", ""),
-            "batch_status": batch.get("status", ""),
+            "batch_id": batch_id,
+            "batch_status": status.get("status", ""),
             "total": len(results),
             "total_cost_usd": round(total_cost, 6),
             "results": results,
@@ -142,7 +158,7 @@ def _score_label(score: int) -> str:
 
 
 @router.delete("/clear")
-def batch_clear(user: CurrentUser) -> JSONResponse:
-    """Clear completed and pending batches from memory."""
-    clear_completed()
+def batch_clear(user: CurrentUser, db: DbSession) -> JSONResponse:
+    """Clear completed, skipped, and errored batch items from the database."""
+    clear_completed(db)
     return JSONResponse({"ok": True})

@@ -9,9 +9,8 @@ class Settings(BaseSettings):
     # Backend API base URL (internal Fly.io network)
     backend_url: str = "http://localhost:8080"
 
-    # Credentials for session-based auth against the backend
-    backend_email: str = ""
-    backend_password: str = ""
+    # API key for authenticating against the backend
+    api_key: str = ""
 
     # MCP server settings
     mcp_host: str = "0.0.0.0"

@@ -62,11 +62,34 @@ def content_hash(cv_text: str, job_description: str) -> str:
 
 
 def _calculate_cost(usage: anthropic.types.Usage, model_id: str) -> float:
-    """Calculate USD cost from token usage and model pricing."""
+    """Calculate USD cost from token usage and model pricing.
+
+    Accounts for prompt caching: cache reads are 90% cheaper,
+    cache writes cost 25% more than base input price.
+    """
     pricing = PRICING.get(model_id, PRICING["claude-haiku-4-5-20251001"])
-    input_cost = (usage.input_tokens / 1_000_000) * pricing["input"]
+    base_input_rate = pricing["input"]
+
+    # Cached tokens from usage (0 if not present)
+    cache_read = getattr(usage, "cache_read_input_tokens", 0) or 0
+    cache_create = getattr(usage, "cache_creation_input_tokens", 0) or 0
+
+    # Non-cached input tokens (input_tokens includes all input)
+    regular_input = usage.input_tokens - cache_read - cache_create
+
+    input_cost = (regular_input / 1_000_000) * base_input_rate
+    cache_read_cost = (cache_read / 1_000_000) * base_input_rate * 0.1
+    cache_create_cost = (cache_create / 1_000_000) * base_input_rate * 1.25
     output_cost = (usage.output_tokens / 1_000_000) * pricing["output"]
-    return round(input_cost + output_cost, 6)
+
+    if cache_read > 0:
+        logger.debug(
+            "Prompt cache hit: %d tokens read from cache (saved ~%.6f USD)",
+            cache_read,
+            (cache_read / 1_000_000) * base_input_rate * 0.9,
+        )
+
+    return round(input_cost + cache_read_cost + cache_create_cost + output_cost, 6)
 
 
 def _clean_json_text(text: str) -> str:
@@ -293,7 +316,13 @@ def _call_api(
     message = client.messages.create(
         model=model_id,
         max_tokens=max_tokens,
-        system=system_prompt,
+        system=[
+            {
+                "type": "text",
+                "text": system_prompt,
+                "cache_control": {"type": "ephemeral"},
+            }
+        ],
         messages=[{"role": "user", "content": user_prompt}],
     )
 
@@ -337,8 +366,8 @@ def analyze_job(
             cached["content_hash"] = ch
             return cached
 
-    user_prompt = ANALYSIS_USER_PROMPT.format(cv_text=cv_text[:20000], job_description=job_description)
-    result, usage = _call_api(ANALYSIS_SYSTEM_PROMPT, user_prompt, model_id, 3072)
+    user_prompt = ANALYSIS_USER_PROMPT.format(cv_text=cv_text[:12000], job_description=job_description)
+    result, usage = _call_api(ANALYSIS_SYSTEM_PROMPT, user_prompt, model_id, 2048)
 
     result = validate_analysis(result)
 
