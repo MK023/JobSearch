@@ -1,6 +1,6 @@
-"""JobSearch MCP Server — read-only tools for querying job candidature data."""
+"""JobSearch MCP Server — tools for querying and managing job candidature data."""
 
-from api_client import api_get
+from api_client import api_delete, api_get, api_post
 from mcp.server.fastmcp import FastMCP
 
 from config import settings
@@ -114,6 +114,66 @@ async def get_pending_followups() -> dict:
 async def get_activity_summary(days: int = 7) -> dict:
     """Riepilogo attivita' degli ultimi N giorni: nuove candidature, colloqui, score medio."""
     return await api_get("/api/v1/activity-summary", {"days": days})
+
+
+# ── Batch Analysis ─────────────────────────────────────────────────
+
+
+@mcp.tool()
+async def batch_clear() -> dict:
+    """Svuota la coda batch corrente. Chiamare prima di iniziare un nuovo batch."""
+    return await api_delete("/api/v1/batch/clear")
+
+
+@mcp.tool()
+async def batch_add(job_description: str, job_url: str = "", model: str = "haiku") -> dict:
+    """Aggiunge una job description alla coda batch per analisi.
+
+    Args:
+        job_description: Testo completo della job description.
+        job_url: URL dell'offerta (opzionale, per riferimento).
+        model: Modello AI da usare: "haiku" (economico) o "opus" (preciso).
+    """
+    return await api_post(
+        "/api/v1/batch/add",
+        data={"job_description": job_description, "job_url": job_url, "model": model},
+    )
+
+
+@mcp.tool()
+async def batch_run() -> dict:
+    """Avvia l'elaborazione del batch. Le analisi partono in background."""
+    return await api_post("/api/v1/batch/run")
+
+
+@mcp.tool()
+async def batch_status() -> dict:
+    """Stato del batch corrente: pending, running, done, error."""
+    return await api_get("/api/v1/batch/status")
+
+
+@mcp.tool()
+async def batch_results() -> dict:
+    """Risultati strutturati del batch: score, azienda, ruolo, gaps, strengths per ogni offerta."""
+    return await api_get("/api/v1/batch/results")
+
+
+# ── Analisi Singola ────────────────────────────────────────────────
+
+
+@mcp.tool()
+async def analyze_job(job_description: str, job_url: str = "", model: str = "haiku") -> dict:
+    """Analizza una singola offerta contro il CV. Restituisce score, gaps, strengths, advice.
+
+    Args:
+        job_description: Testo completo della job description.
+        job_url: URL dell'offerta (opzionale).
+        model: Modello AI: "haiku" (economico) o "sonnet" (piu' preciso).
+    """
+    return await api_post(
+        "/api/v1/analyze",
+        data={"job_description": job_description, "job_url": job_url, "model": model},
+    )
 
 
 if __name__ == "__main__":
