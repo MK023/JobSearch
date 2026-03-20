@@ -10,6 +10,7 @@ from sqlalchemy.pool import StaticPool
 from src.analysis.models import AnalysisStatus, AppSettings, JobAnalysis
 from src.audit.models import AuditLog
 from src.auth.models import User
+from src.batch.models import BatchItem
 from src.contacts.models import Contact
 from src.cover_letter.models import CoverLetter
 from src.cv.models import CVProfile
@@ -21,7 +22,17 @@ from src.interview.models import Interview
 from src.notifications.models import NotificationLog
 
 # Models must be imported so Base.metadata.create_all() sees all tables.
-_ALL_MODELS = [AppSettings, CoverLetter, Contact, GlassdoorCache, AuditLog, NotificationLog, Interview, InterviewFile]
+_ALL_MODELS = [
+    AppSettings,
+    CoverLetter,
+    Contact,
+    GlassdoorCache,
+    AuditLog,
+    NotificationLog,
+    Interview,
+    InterviewFile,
+    BatchItem,
+]
 
 
 @pytest.fixture
