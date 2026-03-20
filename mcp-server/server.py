@@ -1,6 +1,9 @@
 """JobSearch MCP Server — tools for querying and managing job candidature data."""
 
+import asyncio
+import logging
 import os
+import threading
 
 from api_client import (
     _WAKE_TIMEOUT,
@@ -162,75 +165,49 @@ async def batch_add(job_description: str, job_url: str = "", model: str = "haiku
     )
 
 
-@mcp.tool()
-async def batch_run() -> dict:
-    """Avvia l'elaborazione del batch IN LOCALE.
+_batch_logger = logging.getLogger("batch_local")
 
-    Chiama Anthropic direttamente dal Mac, poi salva i risultati sul backend.
-    Piu' robusto del processing server-side perche' non dipende da Fly.io.
-    """
-    import asyncio
+# Background batch state (survives across tool calls within the same MCP process)
+_batch_thread: threading.Thread | None = None
+
+
+def _run_batch_sync(items: list, cv_text: str, batch_id: str) -> None:
+    """Process batch items synchronously in a background thread."""
+    import contextlib
 
     from anthropic_client import analyze_job as local_analyze
 
-    # 1. Get pending items + CV from backend
-    resp = await api_get("/api/v1/batch/pending-items")
-    items = resp.get("items", [])
-    cv_text = resp.get("cv_text", "")
-    batch_id = resp.get("batch_id", "")
-
-    if not items:
-        return {"status": "empty", "message": "Nessun item pending nel batch"}
-    if not cv_text:
-        return {"status": "error", "message": "Nessun CV trovato sul backend"}
-
-    results = []
-    total_cost = 0.0
-    done = 0
-    skipped = 0
-    errors = 0
+    loop = asyncio.new_event_loop()
 
     for i, item in enumerate(items, 1):
         item_id = item["id"]
 
         # Mark as running
-        await api_post(f"/api/v1/batch/item/{item_id}/status", data={"status": "running"})
+        loop.run_until_complete(api_post(f"/api/v1/batch/item/{item_id}/status", data={"status": "running"}))
 
         try:
-            # Check dedup first
-            dedup = await api_get(
-                "/api/v1/analysis/check-dedup",
-                {
-                    "content_hash": item["content_hash"],
-                    "model_id": item["model_id"],
-                },
+            # Check dedup
+            dedup = loop.run_until_complete(
+                api_get(
+                    "/api/v1/analysis/check-dedup",
+                    {"content_hash": item["content_hash"], "model_id": item["model_id"]},
+                )
             )
 
             if dedup.get("exists"):
-                await api_post(
-                    f"/api/v1/batch/item/{item_id}/status",
-                    data={
-                        "status": "skipped",
-                        "analysis_id": dedup["analysis_id"],
-                    },
+                loop.run_until_complete(
+                    api_post(
+                        f"/api/v1/batch/item/{item_id}/status",
+                        data={"status": "skipped", "analysis_id": dedup["analysis_id"]},
+                    )
                 )
-                skipped += 1
-                results.append(
-                    {
-                        "item": i,
-                        "status": "skipped",
-                        "company": "dedup",
-                        "analysis_id": dedup["analysis_id"],
-                    }
-                )
+                _batch_logger.info("Item %d/%d: skipped (dedup)", i, len(items))
                 continue
 
-            # Analyze locally (synchronous call wrapped in thread)
-            result = await asyncio.to_thread(
-                local_analyze, cv_text, item["job_description"], item.get("model", "haiku")
-            )
+            # Analyze locally
+            result = local_analyze(cv_text, item["job_description"], item.get("model", "haiku"))
 
-            # Save to backend via /analysis/import
+            # Save to backend
             import_data = {
                 "job_description": item["job_description"],
                 "job_url": item.get("job_url", ""),
@@ -255,54 +232,77 @@ async def batch_run() -> dict:
                 "cost_usd": result.get("cost_usd", 0.0),
             }
 
-            import_resp = await api_post_json("/api/v1/analysis/import", import_data)
+            import_resp = loop.run_until_complete(api_post_json("/api/v1/analysis/import", import_data))
 
-            # Update batch item status
-            await api_post(
-                f"/api/v1/batch/item/{item_id}/status",
-                data={
-                    "status": "done",
-                    "analysis_id": import_resp.get("analysis_id", ""),
-                },
+            loop.run_until_complete(
+                api_post(
+                    f"/api/v1/batch/item/{item_id}/status",
+                    data={"status": "done", "analysis_id": import_resp.get("analysis_id", "")},
+                )
             )
 
-            cost = result.get("cost_usd", 0.0)
-            total_cost += cost
-            done += 1
-            results.append(
-                {
-                    "item": i,
-                    "status": "done",
-                    "company": result.get("company", "?"),
-                    "role": result.get("role", "?"),
-                    "score": result.get("score", 0),
-                    "cost_usd": cost,
-                    "analysis_id": import_resp.get("analysis_id", ""),
-                }
+            _batch_logger.info(
+                "Item %d/%d: done — %s @ %s, score=%s",
+                i,
+                len(items),
+                result.get("role", "?"),
+                result.get("company", "?"),
+                result.get("score", 0),
             )
 
         except Exception as exc:
-            # Try to update backend status (ignore if backend is down)
-            try:  # noqa: SIM105
-                await api_post(
-                    f"/api/v1/batch/item/{item_id}/status",
-                    data={"status": "error", "error_message": str(exc)},
+            with contextlib.suppress(Exception):
+                loop.run_until_complete(
+                    api_post(
+                        f"/api/v1/batch/item/{item_id}/status",
+                        data={"status": "error", "error_message": str(exc)},
+                    )
                 )
-            except Exception:  # noqa: S110
-                pass
+            _batch_logger.error("Item %d/%d: error — %s", i, len(items), exc)
 
-            errors += 1
-            results.append({"item": i, "status": "error", "error": str(exc)})
+    loop.close()
+
+
+@mcp.tool()
+async def batch_run() -> dict:
+    """Avvia l'elaborazione del batch IN LOCALE in background.
+
+    Lancia l'analisi e ritorna SUBITO — non blocca.
+    Usa batch_status() per monitorare il progresso, batch_results() per i risultati.
+    """
+    global _batch_thread
+
+    if _batch_thread and _batch_thread.is_alive():
+        return {
+            "status": "already_running",
+            "message": "Batch gia' in elaborazione. Usa batch_status() per il progresso.",
+        }
+
+    # Get pending items + CV from backend
+    resp = await api_get("/api/v1/batch/pending-items")
+    items = resp.get("items", [])
+    cv_text = resp.get("cv_text", "")
+    batch_id = resp.get("batch_id", "")
+
+    if not items:
+        return {"status": "empty", "message": "Nessun item pending nel batch"}
+    if not cv_text:
+        return {"status": "error", "message": "Nessun CV trovato sul backend"}
+
+    # Launch background thread (won't be killed by MCP tool timeout)
+    _batch_thread = threading.Thread(
+        target=_run_batch_sync,
+        args=(items, cv_text, batch_id),
+        daemon=True,
+        name="batch_local",
+    )
+    _batch_thread.start()
 
     return {
-        "status": "done",
+        "status": "started",
         "batch_id": batch_id,
-        "total": len(items),
-        "done": done,
-        "skipped": skipped,
-        "errors": errors,
-        "total_cost_usd": round(total_cost, 6),
-        "results": results,
+        "total_items": len(items),
+        "message": f"Analisi avviata per {len(items)} offerte. Usa batch_status() ogni 10 secondi per il progresso.",
     }
 
 
