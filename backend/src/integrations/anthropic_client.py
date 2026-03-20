@@ -70,9 +70,13 @@ def _calculate_cost(usage: anthropic.types.Usage, model_id: str) -> float:
     pricing = PRICING.get(model_id, PRICING["claude-haiku-4-5-20251001"])
     base_input_rate = pricing["input"]
 
-    # Cached tokens from usage (0 if not present)
-    cache_read = getattr(usage, "cache_read_input_tokens", 0) or 0
-    cache_create = getattr(usage, "cache_creation_input_tokens", 0) or 0
+    # Cached tokens from usage (0 if not present).
+    # Use isinstance check because MagicMock auto-generates attributes
+    # instead of returning the getattr default.
+    _cr = getattr(usage, "cache_read_input_tokens", 0)
+    cache_read = _cr if isinstance(_cr, int) else 0
+    _cc = getattr(usage, "cache_creation_input_tokens", 0)
+    cache_create = _cc if isinstance(_cc, int) else 0
 
     # Non-cached input tokens (input_tokens includes all input)
     regular_input = usage.input_tokens - cache_read - cache_create
