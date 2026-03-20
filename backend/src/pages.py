@@ -70,7 +70,7 @@ def analyze_page(
     flash = _flash(request)
 
     cv = get_latest_cv(db, cast(UUID, user.id))
-    batch = get_batch_status()
+    batch = get_batch_status(db)
 
     return templates.TemplateResponse(  # type: ignore[no-any-return]
         request,

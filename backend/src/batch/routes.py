@@ -120,7 +120,7 @@ def batch_results_route(user: CurrentUser, db: DbSession) -> JSONResponse:
                 "location": analysis.location,
                 "work_mode": analysis.work_mode,
                 "score": analysis.score,
-                "score_label": full.get("score_label", _score_label(analysis.score)),
+                "score_label": full.get("score_label", _score_label(int(analysis.score or 0))),
                 "recommendation": analysis.recommendation,
                 "strengths": (analysis.strengths or [])[:3],
                 "gaps": (analysis.gaps or [])[:3],
@@ -132,7 +132,7 @@ def batch_results_route(user: CurrentUser, db: DbSession) -> JSONResponse:
                 "is_duplicate": is_dedup,
             }
         )
-        total_cost += analysis.cost_usd or 0.0
+        total_cost += float(analysis.cost_usd or 0.0)
 
     results.sort(key=lambda r: r["score"], reverse=True)
 
