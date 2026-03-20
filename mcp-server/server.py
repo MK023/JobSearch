@@ -1,5 +1,7 @@
 """JobSearch MCP Server — tools for querying and managing job candidature data."""
 
+import os
+
 from api_client import (
     _WAKE_TIMEOUT,
     api_delete,
@@ -11,12 +13,12 @@ from mcp.server.fastmcp import FastMCP
 
 from config import settings
 
+# Use stdio for Claude Desktop (local), streamable-http for remote deployment
+_transport = os.environ.get("MCP_TRANSPORT", "stdio")
+
 mcp = FastMCP(
     "JobSearch",
-    stateless_http=True,
-    json_response=True,
-    host=settings.mcp_host,
-    port=settings.mcp_port,
+    **({"stateless_http": True, "host": settings.mcp_host, "port": settings.mcp_port} if _transport != "stdio" else {}),
 )
 
 
@@ -335,4 +337,4 @@ async def analyze_job(job_description: str, job_url: str = "", model: str = "hai
 
 
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http")
+    mcp.run(transport=_transport)
