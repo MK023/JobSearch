@@ -10,6 +10,7 @@ primary_region = "cdg"
 [env]
   REDIS_URL = ""
   LOG_LEVEL = "INFO"
+  API_KEY = ""  # actual value set via `fly secrets set API_KEY=...`
 
 [processes]
   app = "uvicorn src.main:app --host 0.0.0.0 --port 8080 --proxy-headers --forwarded-allow-ips='*'"

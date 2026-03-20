@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     secret_key: str = "dev-only-change-me"
     admin_email: str = ""
     admin_password: str = ""
+    api_key: str = ""  # API key for programmatic access (MCP server)
 
     # Follow-up reminders
     followup_reminder_days: int = 5

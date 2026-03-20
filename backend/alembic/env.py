@@ -8,6 +8,7 @@ from sqlalchemy import engine_from_config, pool
 from src.analysis.models import AppSettings, JobAnalysis  # noqa: F401
 from src.audit.models import AuditLog  # noqa: F401
 from src.auth.models import User  # noqa: F401
+from src.batch.models import BatchItem  # noqa: F401
 from src.config import settings
 from src.contacts.models import Contact  # noqa: F401
 from src.cover_letter.models import CoverLetter  # noqa: F401
