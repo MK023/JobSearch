@@ -1,16 +1,16 @@
 """JobSearch MCP Server — tools for querying and managing job candidature data."""
 
-import asyncio
 import logging
 import os
 import threading
+import time as _time
 
+import httpx
 from api_client import (
     _WAKE_TIMEOUT,
     api_delete,
     api_get,
     api_post,
-    api_post_json,
 )
 from mcp.server.fastmcp import FastMCP
 
@@ -171,96 +171,133 @@ _batch_logger = logging.getLogger("batch_local")
 _batch_thread: threading.Thread | None = None
 
 
+def _sync_post(client: httpx.Client, path: str, **kwargs) -> dict:
+    """Synchronous POST with retry for Fly.io cold starts."""
+    for attempt in range(4):
+        try:
+            resp = client.post(path, **kwargs)
+            resp.raise_for_status()
+            return resp.json()
+        except (httpx.ConnectTimeout, httpx.ReadTimeout, httpx.ConnectError):
+            if attempt < 3:
+                _time.sleep(3 * (2**attempt))
+                continue
+            raise
+    return {}
+
+
+def _sync_get(client: httpx.Client, path: str, params: dict | None = None) -> dict:
+    """Synchronous GET with retry for Fly.io cold starts."""
+    for attempt in range(4):
+        try:
+            resp = client.get(path, params=params)
+            resp.raise_for_status()
+            return resp.json()
+        except (httpx.ConnectTimeout, httpx.ReadTimeout, httpx.ConnectError):
+            if attempt < 3:
+                _time.sleep(3 * (2**attempt))
+                continue
+            raise
+    return {}
+
+
 def _run_batch_sync(items: list, cv_text: str, batch_id: str) -> None:
-    """Process batch items synchronously in a background thread."""
+    """Process batch items synchronously in a background thread.
+
+    Uses a dedicated synchronous httpx.Client (not the async one from api_client.py)
+    because asyncio event loops cannot be shared across threads.
+    """
     import contextlib
 
     from anthropic_client import analyze_job as local_analyze
 
-    loop = asyncio.new_event_loop()
+    # Dedicated sync client for this thread
+    headers = {"X-API-Key": settings.api_key} if settings.api_key else {}
+    client = httpx.Client(
+        base_url=settings.backend_url,
+        timeout=60.0,
+        headers=headers,
+    )
 
-    for i, item in enumerate(items, 1):
-        item_id = item["id"]
+    try:
+        for i, item in enumerate(items, 1):
+            item_id = item["id"]
 
-        # Mark as running
-        loop.run_until_complete(api_post(f"/api/v1/batch/item/{item_id}/status", data={"status": "running"}))
+            # Mark as running
+            _sync_post(client, f"/api/v1/batch/item/{item_id}/status", data={"status": "running"})
 
-        try:
-            # Check dedup
-            dedup = loop.run_until_complete(
-                api_get(
+            try:
+                # Check dedup
+                dedup = _sync_get(
+                    client,
                     "/api/v1/analysis/check-dedup",
-                    {"content_hash": item["content_hash"], "model_id": item["model_id"]},
+                    params={"content_hash": item["content_hash"], "model_id": item["model_id"]},
                 )
-            )
 
-            if dedup.get("exists"):
-                loop.run_until_complete(
-                    api_post(
+                if dedup.get("exists"):
+                    _sync_post(
+                        client,
                         f"/api/v1/batch/item/{item_id}/status",
                         data={"status": "skipped", "analysis_id": dedup["analysis_id"]},
                     )
-                )
-                _batch_logger.info("Item %d/%d: skipped (dedup)", i, len(items))
-                continue
+                    _batch_logger.info("Item %d/%d: skipped (dedup)", i, len(items))
+                    continue
 
-            # Analyze locally
-            result = local_analyze(cv_text, item["job_description"], item.get("model", "haiku"))
+                # Analyze locally (this calls Anthropic API — takes 15-30s)
+                result = local_analyze(cv_text, item["job_description"], item.get("model", "haiku"))
 
-            # Save to backend
-            import_data = {
-                "job_description": item["job_description"],
-                "job_url": item.get("job_url", ""),
-                "content_hash": item["content_hash"],
-                "job_summary": result.get("job_summary", ""),
-                "company": result.get("company", ""),
-                "role": result.get("role", ""),
-                "location": result.get("location", ""),
-                "work_mode": result.get("work_mode", ""),
-                "salary_info": result.get("salary_info", ""),
-                "score": result.get("score", 0),
-                "recommendation": result.get("recommendation", ""),
-                "strengths": result.get("strengths", []),
-                "gaps": result.get("gaps", []),
-                "interview_scripts": result.get("interview_scripts", []),
-                "advice": result.get("advice", ""),
-                "company_reputation": result.get("company_reputation", {}),
-                "full_response": result.get("full_response", ""),
-                "model_used": result.get("model_used", ""),
-                "tokens_input": result.get("tokens", {}).get("input", 0),
-                "tokens_output": result.get("tokens", {}).get("output", 0),
-                "cost_usd": result.get("cost_usd", 0.0),
-            }
+                # Save to backend
+                import_data = {
+                    "job_description": item["job_description"],
+                    "job_url": item.get("job_url", ""),
+                    "content_hash": item["content_hash"],
+                    "job_summary": result.get("job_summary", ""),
+                    "company": result.get("company", ""),
+                    "role": result.get("role", ""),
+                    "location": result.get("location", ""),
+                    "work_mode": result.get("work_mode", ""),
+                    "salary_info": result.get("salary_info", ""),
+                    "score": result.get("score", 0),
+                    "recommendation": result.get("recommendation", ""),
+                    "strengths": result.get("strengths", []),
+                    "gaps": result.get("gaps", []),
+                    "interview_scripts": result.get("interview_scripts", []),
+                    "advice": result.get("advice", ""),
+                    "company_reputation": result.get("company_reputation", {}),
+                    "full_response": result.get("full_response", ""),
+                    "model_used": result.get("model_used", ""),
+                    "tokens_input": result.get("tokens", {}).get("input", 0),
+                    "tokens_output": result.get("tokens", {}).get("output", 0),
+                    "cost_usd": result.get("cost_usd", 0.0),
+                }
 
-            import_resp = loop.run_until_complete(api_post_json("/api/v1/analysis/import", import_data))
+                import_resp = _sync_post(client, "/api/v1/analysis/import", json=import_data)
 
-            loop.run_until_complete(
-                api_post(
+                _sync_post(
+                    client,
                     f"/api/v1/batch/item/{item_id}/status",
                     data={"status": "done", "analysis_id": import_resp.get("analysis_id", "")},
                 )
-            )
 
-            _batch_logger.info(
-                "Item %d/%d: done — %s @ %s, score=%s",
-                i,
-                len(items),
-                result.get("role", "?"),
-                result.get("company", "?"),
-                result.get("score", 0),
-            )
+                _batch_logger.info(
+                    "Item %d/%d: done — %s @ %s, score=%s",
+                    i,
+                    len(items),
+                    result.get("role", "?"),
+                    result.get("company", "?"),
+                    result.get("score", 0),
+                )
 
-        except Exception as exc:
-            with contextlib.suppress(Exception):
-                loop.run_until_complete(
-                    api_post(
+            except Exception as exc:
+                with contextlib.suppress(Exception):
+                    _sync_post(
+                        client,
                         f"/api/v1/batch/item/{item_id}/status",
                         data={"status": "error", "error_message": str(exc)},
                     )
-                )
-            _batch_logger.error("Item %d/%d: error — %s", i, len(items), exc)
-
-    loop.close()
+                _batch_logger.error("Item %d/%d: error — %s", i, len(items), exc)
+    finally:
+        client.close()
 
 
 @mcp.tool()
