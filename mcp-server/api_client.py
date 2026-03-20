@@ -95,6 +95,18 @@ async def api_post(path: str, data: dict | None = None, *, timeout: float | None
     return resp.json()
 
 
+async def api_post_json(path: str, payload: dict, *, timeout: float | None = None) -> dict | list:
+    """Make an authenticated POST request with JSON body.
+
+    Args:
+        path: API path.
+        payload: JSON request body.
+        timeout: Optional timeout override in seconds.
+    """
+    resp = await _request_with_retry("post", path, timeout=timeout, json=payload)
+    return resp.json()
+
+
 async def api_delete(path: str, *, timeout: float | None = None) -> dict | list:
     """Make an authenticated DELETE request to the backend API.
 

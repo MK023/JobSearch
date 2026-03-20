@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     # API key for authenticating against the backend
     api_key: str = ""
 
+    # Anthropic API key for local analysis
+    anthropic_api_key: str = ""
+
     # MCP server settings
     mcp_host: str = "0.0.0.0"
     mcp_port: int = 8081

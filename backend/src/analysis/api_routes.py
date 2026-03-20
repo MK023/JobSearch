@@ -16,8 +16,8 @@ from ..dashboard.service import add_spending, check_budget_available, remove_spe
 from ..dependencies import Cache, CurrentUser, DbSession, validate_uuid
 from ..integrations.anthropic_client import MODELS, content_hash
 from ..rate_limit import limiter
-from .models import AnalysisStatus
-from .schemas import AnalyzeRequest
+from .models import AnalysisStatus, JobAnalysis
+from .schemas import AnalysisImportRequest, AnalyzeRequest
 from .service import find_existing_analysis, get_analysis_by_id, run_analysis, update_status
 
 logger = logging.getLogger(__name__)
@@ -172,3 +172,71 @@ def delete_analysis(
     db.commit()
 
     return JSONResponse({"ok": True})
+
+
+@router.post("/analysis/import")
+@limiter.limit(settings.rate_limit_analyze)
+def import_analysis(
+    request: Request,
+    body: AnalysisImportRequest,
+    db: DbSession,
+    user: CurrentUser,
+) -> JSONResponse:
+    """Import a pre-computed analysis from the MCP server and persist it."""
+    cv = get_latest_cv(db, cast(UUID, user.id))
+    if not cv:
+        return JSONResponse({"error": "No CV found. Upload a CV first."}, status_code=400)
+
+    # Dedup check
+    existing = find_existing_analysis(db, body.content_hash, body.model_used)
+    if existing:
+        audit(db, request, "import_analysis_dedup", f"id={existing.id}")
+        db.commit()
+        return JSONResponse({"ok": True, "analysis_id": str(existing.id), "duplicate": True})
+
+    analysis = JobAnalysis(
+        cv_id=cv.id,
+        job_description=body.job_description,
+        job_url=body.job_url,
+        content_hash=body.content_hash,
+        job_summary=body.job_summary,
+        company=body.company,
+        role=body.role,
+        location=body.location,
+        work_mode=body.work_mode,
+        salary_info=body.salary_info,
+        score=body.score,
+        recommendation=body.recommendation,
+        strengths=body.strengths,
+        gaps=body.gaps,
+        interview_scripts=body.interview_scripts,
+        advice=body.advice,
+        company_reputation=body.company_reputation,
+        full_response=body.full_response,
+        model_used=body.model_used,
+        tokens_input=body.tokens_input,
+        tokens_output=body.tokens_output,
+        cost_usd=body.cost_usd,
+    )
+    db.add(analysis)
+    db.flush()
+
+    add_spending(db, body.cost_usd, body.tokens_input, body.tokens_output)
+    audit(db, request, "import_analysis", f"id={analysis.id}, company={body.company}, score={body.score}")
+    db.commit()
+
+    return JSONResponse({"ok": True, "analysis_id": str(analysis.id), "duplicate": False})
+
+
+@router.get("/analysis/check-dedup")
+def check_dedup(
+    content_hash: str,
+    model_id: str,
+    db: DbSession,
+    user: CurrentUser,
+) -> JSONResponse:
+    """Check if an analysis with the given content_hash and model_id already exists."""
+    existing = find_existing_analysis(db, content_hash, model_id)
+    if existing:
+        return JSONResponse({"exists": True, "analysis_id": str(existing.id)})
+    return JSONResponse({"exists": False})

@@ -1,11 +1,11 @@
 """JobSearch MCP Server — tools for querying and managing job candidature data."""
 
 from api_client import (
-    _BATCH_TIMEOUT,
     _WAKE_TIMEOUT,
     api_delete,
     api_get,
     api_post,
+    api_post_json,
 )
 from mcp.server.fastmcp import FastMCP
 
@@ -162,8 +162,146 @@ async def batch_add(job_description: str, job_url: str = "", model: str = "haiku
 
 @mcp.tool()
 async def batch_run() -> dict:
-    """Avvia l'elaborazione del batch. Le analisi partono in background."""
-    return await api_post("/api/v1/batch/run", timeout=_BATCH_TIMEOUT)
+    """Avvia l'elaborazione del batch IN LOCALE.
+
+    Chiama Anthropic direttamente dal Mac, poi salva i risultati sul backend.
+    Piu' robusto del processing server-side perche' non dipende da Fly.io.
+    """
+    import asyncio
+
+    from anthropic_client import analyze_job as local_analyze
+
+    # 1. Get pending items + CV from backend
+    resp = await api_get("/api/v1/batch/pending-items")
+    items = resp.get("items", [])
+    cv_text = resp.get("cv_text", "")
+    batch_id = resp.get("batch_id", "")
+
+    if not items:
+        return {"status": "empty", "message": "Nessun item pending nel batch"}
+    if not cv_text:
+        return {"status": "error", "message": "Nessun CV trovato sul backend"}
+
+    results = []
+    total_cost = 0.0
+    done = 0
+    skipped = 0
+    errors = 0
+
+    for i, item in enumerate(items, 1):
+        item_id = item["id"]
+
+        # Mark as running
+        await api_post(f"/api/v1/batch/item/{item_id}/status", data={"status": "running"})
+
+        try:
+            # Check dedup first
+            dedup = await api_get(
+                "/api/v1/analysis/check-dedup",
+                {
+                    "content_hash": item["content_hash"],
+                    "model_id": item["model_id"],
+                },
+            )
+
+            if dedup.get("exists"):
+                await api_post(
+                    f"/api/v1/batch/item/{item_id}/status",
+                    data={
+                        "status": "skipped",
+                        "analysis_id": dedup["analysis_id"],
+                    },
+                )
+                skipped += 1
+                results.append(
+                    {
+                        "item": i,
+                        "status": "skipped",
+                        "company": "dedup",
+                        "analysis_id": dedup["analysis_id"],
+                    }
+                )
+                continue
+
+            # Analyze locally (synchronous call wrapped in thread)
+            result = await asyncio.to_thread(
+                local_analyze, cv_text, item["job_description"], item.get("model", "haiku")
+            )
+
+            # Save to backend via /analysis/import
+            import_data = {
+                "job_description": item["job_description"],
+                "job_url": item.get("job_url", ""),
+                "content_hash": item["content_hash"],
+                "job_summary": result.get("job_summary", ""),
+                "company": result.get("company", ""),
+                "role": result.get("role", ""),
+                "location": result.get("location", ""),
+                "work_mode": result.get("work_mode", ""),
+                "salary_info": result.get("salary_info", ""),
+                "score": result.get("score", 0),
+                "recommendation": result.get("recommendation", ""),
+                "strengths": result.get("strengths", []),
+                "gaps": result.get("gaps", []),
+                "interview_scripts": result.get("interview_scripts", []),
+                "advice": result.get("advice", ""),
+                "company_reputation": result.get("company_reputation", {}),
+                "full_response": result.get("full_response", ""),
+                "model_used": result.get("model_used", ""),
+                "tokens_input": result.get("tokens", {}).get("input", 0),
+                "tokens_output": result.get("tokens", {}).get("output", 0),
+                "cost_usd": result.get("cost_usd", 0.0),
+            }
+
+            import_resp = await api_post_json("/api/v1/analysis/import", import_data)
+
+            # Update batch item status
+            await api_post(
+                f"/api/v1/batch/item/{item_id}/status",
+                data={
+                    "status": "done",
+                    "analysis_id": import_resp.get("analysis_id", ""),
+                },
+            )
+
+            cost = result.get("cost_usd", 0.0)
+            total_cost += cost
+            done += 1
+            results.append(
+                {
+                    "item": i,
+                    "status": "done",
+                    "company": result.get("company", "?"),
+                    "role": result.get("role", "?"),
+                    "score": result.get("score", 0),
+                    "cost_usd": cost,
+                    "analysis_id": import_resp.get("analysis_id", ""),
+                }
+            )
+
+        except Exception as exc:
+            # Try to update backend status (ignore if backend is down)
+            try:  # noqa: SIM105
+                await api_post(
+                    f"/api/v1/batch/item/{item_id}/status",
+                    data={"status": "error", "error_message": str(exc)},
+                )
+            except Exception:  # noqa: S110
+                pass
+
+            errors += 1
+            results.append({"item": i, "status": "error", "error": str(exc)})
+
+    return {
+        "status": "done",
+        "batch_id": batch_id,
+        "total": len(items),
+        "done": done,
+        "skipped": skipped,
+        "errors": errors,
+        "total_cost_usd": round(total_cost, 6),
+        "results": results,
+    }
 
 
 @mcp.tool()
