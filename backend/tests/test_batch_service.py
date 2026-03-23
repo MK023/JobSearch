@@ -95,15 +95,62 @@ class TestClearCompleted:
         clear_completed(db_session)
         assert db_session.query(BatchItem).count() == 0
 
-    def test_keeps_pending_items(self, db_session, test_cv):
+    def test_clears_pending_items(self, db_session, test_cv):
+        """clear_completed now deletes ALL items including pending."""
         add_to_queue(db_session, test_cv.id, "Test job", cv_text="test cv")
-        clear_completed(db_session)
         assert db_session.query(BatchItem).count() == 1
+        clear_completed(db_session)
+        assert db_session.query(BatchItem).count() == 0
 
-    def test_keeps_running_items(self, db_session, test_cv):
+    def test_clears_running_items(self, db_session, test_cv):
+        """clear_completed now deletes ALL items including running."""
         bid, _, _ = add_to_queue(db_session, test_cv.id, "Test job", cv_text="test cv")
         item = db_session.query(BatchItem).filter(BatchItem.batch_id == bid).first()
         item.status = BatchItemStatus.RUNNING
         db_session.commit()
         clear_completed(db_session)
+        assert db_session.query(BatchItem).count() == 0
+
+    def test_clears_error_items(self, db_session, test_cv):
+        bid, _, _ = add_to_queue(db_session, test_cv.id, "Test job", cv_text="test cv")
+        item = db_session.query(BatchItem).filter(BatchItem.batch_id == bid).first()
+        item.status = BatchItemStatus.ERROR
+        db_session.commit()
+        clear_completed(db_session)
+        assert db_session.query(BatchItem).count() == 0
+
+    def test_clears_all_statuses_at_once(self, db_session, test_cv):
+        """Ensure clear_completed wipes items of every status."""
+        statuses = [
+            BatchItemStatus.PENDING,
+            BatchItemStatus.RUNNING,
+            BatchItemStatus.DONE,
+            BatchItemStatus.SKIPPED,
+            BatchItemStatus.ERROR,
+        ]
+        for i, st in enumerate(statuses):
+            bid, _, _ = add_to_queue(db_session, test_cv.id, f"Job {i}", cv_text="test cv")
+            item = (
+                db_session.query(BatchItem)
+                .filter(BatchItem.batch_id == bid, BatchItem.job_description == f"Job {i}")
+                .first()
+            )
+            item.status = st
+        db_session.commit()
+        assert db_session.query(BatchItem).count() == len(statuses)
+        clear_completed(db_session)
+        assert db_session.query(BatchItem).count() == 0
+
+    def test_clears_only_specific_batch_id(self, db_session, test_cv):
+        """When batch_id is provided, only that batch is cleared."""
+        bid1, _, _ = add_to_queue(db_session, test_cv.id, "Job 1", cv_text="test cv")
+        # Mark first done so a new batch_id is created for the next add
+        item1 = db_session.query(BatchItem).filter(BatchItem.batch_id == bid1).first()
+        item1.status = BatchItemStatus.DONE
+        db_session.commit()
+        bid2, _, _ = add_to_queue(db_session, test_cv.id, "Job 2", cv_text="test cv")
+        assert db_session.query(BatchItem).count() == 2
+        clear_completed(db_session, batch_id=bid1)
         assert db_session.query(BatchItem).count() == 1
+        remaining = db_session.query(BatchItem).first()
+        assert remaining.batch_id == bid2
