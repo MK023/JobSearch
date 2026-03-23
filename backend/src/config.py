@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     # Input limits
     max_cv_size: int = 100_000  # ~100KB chars
     max_job_desc_size: int = 50_000  # ~50KB chars
+    max_batch_size: int = 10  # Hard limit: max items per batch (free tier constraint)
 
     # CORS
     cors_allowed_origins: str = "http://localhost,http://localhost:80"

@@ -5,6 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Form, Request
 from fastapi.responses import JSONResponse
+from sqlalchemy import func
 
 from ..analysis.service import get_analysis_by_id, rebuild_result
 from ..audit.service import audit
@@ -34,6 +35,22 @@ def batch_add(
     if len(job_description) > settings.max_job_desc_size:
         return JSONResponse(
             {"error": f"Descrizione troppo lunga (max {settings.max_job_desc_size} caratteri)"}, status_code=400
+        )
+
+    # Hard limit: max items per batch (free tier constraint)
+    pending_count = (
+        db.query(func.count(BatchItem.id))
+        .filter(BatchItem.status.in_([BatchItemStatus.PENDING, BatchItemStatus.RUNNING]))
+        .scalar()
+        or 0
+    )
+    if pending_count >= settings.max_batch_size:
+        return JSONResponse(
+            {
+                "error": f"Batch pieno: massimo {settings.max_batch_size} offerte per batch. "
+                f"Attualmente {pending_count} in coda. Attendi che finiscano o usa batch_clear()."
+            },
+            status_code=400,
         )
 
     cv = get_latest_cv(db, cast(UUID, user.id))
