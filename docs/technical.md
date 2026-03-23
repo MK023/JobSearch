@@ -1,44 +1,58 @@
-# Documentazione Tecnica - Job Search Command Center
+# Technical Documentation - Job Search Command Center
 
-## Indice
+## Table of Contents
 
-1. [Panoramica Architetturale](#1-panoramica-architetturale)
-2. [Struttura del Progetto](#2-struttura-del-progetto)
-3. [Backend: FastAPI e App Factory](#3-backend-fastapi-e-app-factory)
-4. [Database e ORM](#4-database-e-orm)
-5. [Autenticazione e Sicurezza](#5-autenticazione-e-sicurezza)
-6. [Integrazione AI (Anthropic Claude)](#6-integrazione-ai-anthropic-claude)
-7. [Cache e Performance](#7-cache-e-performance)
+1. [Architecture Overview](#1-architecture-overview)
+2. [Project Structure](#2-project-structure)
+3. [Backend: FastAPI and App Factory](#3-backend-fastapi-and-app-factory)
+4. [Database and ORM](#4-database-and-orm)
+5. [Authentication and Security](#5-authentication-and-security)
+6. [AI Integration (Anthropic Claude)](#6-ai-integration-anthropic-claude)
+7. [Cache and Performance](#7-cache-and-performance)
 8. [API Versioning](#8-api-versioning)
-9. [Frontend e SSR](#9-frontend-e-ssr)
-10. [Infrastruttura Docker](#10-infrastruttura-docker)
+9. [Frontend and SSR](#9-frontend-and-ssr)
+10. [Docker Infrastructure](#10-docker-infrastructure)
 11. [CI/CD](#11-cicd)
-12. [Deploy su Fly.io](#12-deploy-su-flyio)
-13. [Pattern e Decisioni Architetturali](#13-pattern-e-decisioni-architetturali)
+12. [Fly.io Deployment](#12-flyio-deployment)
+13. [Architectural Patterns and Decisions](#13-architectural-patterns-and-decisions)
 14. [MCP Server (Claude Desktop Integration)](#14-mcp-server-claude-desktop-integration)
 
 ---
 
-## 1. Panoramica Architetturale
+## 1. Architecture Overview
 
-Il progetto segue un'architettura a **microservizi containerizzati** con 4 componenti:
+The system has two runtime components:
+
+1. **Backend (Fly.io, CDG region)** — does everything: AI analysis via Anthropic API, PostgreSQL persistence, deduplication via content_hash, cost tracking, and serves the web UI (Jinja2 SSR). Single container, 512MB shared CPU, auto-stop after ~5 min inactivity.
+2. **MCP server (local, macOS)** — thin HTTP proxy (~120 lines) that runs on the developer's machine via Claude Desktop (stdio transport). All 23 tools are HTTP calls to the backend, authenticated with an API key (X-API-Key header).
 
 ```
-Browser → Nginx (reverse proxy) → FastAPI (backend) → PostgreSQL + Redis
-                                                     → Anthropic Claude API
-                                                     → RapidAPI (Glassdoor)
+Claude Desktop (stdio)     Browser
+       |                      |
+       v                      |
+  MCP Server (local)          |
+  23 tools, thin proxy        |
+       | HTTP (X-API-Key)     |
+       v                      v
+  FastAPI + Jinja2 (Fly.io) ---- Anthropic Claude API (Haiku/Sonnet)
+       |                     ---- Cloudflare R2 (file storage)
+       |                     ---- Resend (email reminders)
+       |                     ---- RapidAPI (Glassdoor ratings)
+       v
+  PostgreSQL (Fly.io, 1GB free tier)
 ```
 
-### Principi di design
+### Design Principles
 
-- **Separation of concerns**: nginx gestisce static files e routing, il backend gestisce logica e rendering
-- **Graceful degradation**: Redis e Glassdoor sono opzionali, l'app funziona senza
-- **Fail-fast**: variabili d'ambiente mancanti bloccano lo startup (non il runtime)
+- **Separation of concerns**: backend handles all business logic, MCP is a stateless proxy
+- **Graceful degradation**: Redis and Glassdoor are optional, the app works without them
+- **Fail-fast**: missing environment variables block startup (not runtime)
 - **Defense in depth**: rate limiting + CORS + security headers + trusted hosts + audit trail
+- **Crash-resistant batch**: PostgreSQL-backed batch queue survives server restarts and Fly.io autostop
 
 ---
 
-## 2. Struttura del Progetto
+## 2. Project Structure
 
 ```
 backend/src/
@@ -86,8 +100,9 @@ backend/src/
 │   ├── service.py       # add_spending, seed_totals
 │   └── routes.py        # /spending, /dashboard (JSON API)
 │
-├── batch/               # Analisi batch
-│   ├── service.py       # Coda in-memory, run_batch
+├── batch/               # Batch analysis (persistent PostgreSQL queue)
+│   ├── models.py        # BatchItem model (batch_items table)
+│   ├── service.py       # Persistent queue, run_batch, item status
 │   └── routes.py        # /batch/* (JSON API)
 │
 ├── audit/               # Audit trail
@@ -110,21 +125,20 @@ backend/src/
     └── glassdoor.py         # Company ratings (RapidAPI)
 
 mcp-server/
-├── server.py              # FastMCP app, 15 tool read-only
-├── api_client.py          # HTTP client → backend API (session auth)
-├── Dockerfile             # Python 3.12-slim, porta 8081
-├── fly.toml               # Deploy Fly.io (256MB, CDG, auto-sleep)
-├── requirements.txt       # fastmcp, httpx
+├── server.py              # FastMCP app, 23 tools (thin HTTP proxy)
+├── api_client.py          # HTTP client → backend API (X-API-Key auth, retry with backoff)
+├── config.py              # Pydantic settings (backend_url, api_key, mcp_host/port)
+├── requirements.txt       # fastmcp, httpx, pydantic-settings
 ├── tests/
-│   ├── test_server.py     # 16 test: tool → endpoint mapping
-│   └── test_api_client.py # 3 test: login, cookie, errori
+│   ├── test_server.py     # Tool → endpoint mapping tests
+│   └── test_api_client.py # Auth, retry, error handling tests
 └── pyproject.toml         # Ruff + mypy config
 ```
 
-Ogni modulo segue il pattern **models → service → routes**:
-- `models.py`: definizione tabella SQLAlchemy
-- `service.py`: logica di business (nessuna dipendenza da HTTP)
-- `routes.py`: handler HTTP che chiama il service
+Each backend module follows the **models -> service -> routes** pattern:
+- `models.py`: SQLAlchemy table definition
+- `service.py`: business logic (no HTTP dependency)
+- `routes.py`: HTTP handler that calls the service
 
 ---
 
@@ -295,7 +309,8 @@ Tutte le tabelle ereditano da `Base`. I modelli usano:
 | `glassdoor_cache` | Cache rating aziende | Nessuna FK |
 | `audit_logs` | Trail azioni utente | FK user_id (SET NULL) |
 | `notification_logs` | Log email inviate | FK analysis_id (CASCADE) |
-| `interviews` | Colloqui prenotati (1:1) | FK analysis_id (CASCADE, UNIQUE) |
+| `interviews` | Scheduled interviews (1:1) | FK analysis_id (CASCADE, UNIQUE) |
+| `batch_items` | Persistent batch queue items | FK cv_id (CASCADE), FK analysis_id (SET NULL) |
 
 ### Indici
 
@@ -315,10 +330,13 @@ backend/alembic/
 ├── alembic.ini         # Config (sqlalchemy.url da settings)
 ├── env.py              # Import tutti i modelli
 └── versions/
-    ├── 001_initial_schema.py        # Tutte le tabelle originali
-    ├── 002_add_audit_logs.py        # Tabella audit
-    ├── 003_add_notification_logs.py # Tabella notification_logs
-    └── 004_add_interviews.py      # Tabella interviews
+    ├── 001_initial_schema.py        # All original tables
+    ├── 002_add_audit_logs.py        # Audit table
+    ├── 003_add_notification_logs.py # Notification logs table
+    ├── 004_add_interviews.py        # Interviews table
+    ├── 005_interview_redesign.py    # Interview schema redesign
+    ├── 006_add_interview_files.py   # Interview file uploads
+    └── 007_add_batch_items.py       # Persistent batch queue table
 ```
 
 `env.py` importa tutti i modelli per farli "vedere" ad Alembic:
@@ -1086,15 +1104,18 @@ Questo permette di testare i service senza HTTP e di cambiare il transport layer
 
 ### Batch Processing
 
-La coda batch e' **in-memory** (dict Python), non persistente:
+The batch queue is **persistent in PostgreSQL** via the `batch_items` table. Each item stores the full job description, content hash, model choice, and processing status (`pending`, `running`, `done`, `skipped`, `error`). This design survives Fly.io autostop, server crashes, and restarts — pending items are picked up on the next `batch_run` call.
 
-```python
-_batch_queue: dict[str, dict] = {}
-```
+Key endpoints:
+- `POST /api/v1/batch/add` — enqueue a job description
+- `POST /api/v1/batch/run` — start processing pending items
+- `GET /api/v1/batch/status` — poll progress (batch_status polling every ~7s from the Cowork agent keeps Fly.io awake during batch processing)
+- `GET /api/v1/batch/results` — retrieve completed analyses
+- `DELETE /api/v1/batch/clear` — clear the current batch queue
+- `GET /api/v1/batch/pending-items` — return pending items + CV (for external processing)
+- `POST /api/v1/batch/item/{id}/status` — update a single item's status
 
-Scelta deliberata: il batch e' una feature di sessione, non un job queue persistente. Se il server riavvia, la coda si svuota. Per un job queue persistente servirebbe Celery + broker (over-engineering per questo caso d'uso).
-
-Il processing avviene come `BackgroundTask` di FastAPI: la risposta HTTP torna subito, l'elaborazione continua in background.
+Deduplication: each item has a `content_hash` (SHA-256 of CV + job description). If an analysis with the same hash and model already exists, the item is marked `skipped` without calling the Anthropic API.
 
 ### Glassdoor con DB Cache
 

@@ -138,6 +138,28 @@ async def get_activity_summary(days: int = 7) -> dict:
     return await api_get("/api/v1/activity-summary", {"days": days})
 
 
+@mcp.tool()
+async def db_usage() -> dict:
+    """Mostra utilizzo DB: numero analisi, batch items, audit logs, stima dimensione.
+    Utile per monitorare il limite di 1GB del free tier PostgreSQL.
+    """
+    return await api_get("/api/v1/db-usage")
+
+
+@mcp.tool()
+async def cleanup_old_analyses(days: int = 90, max_score: int = 40, dry_run: bool = True) -> dict:
+    """Pulisce analisi vecchie con score basso per liberare spazio DB (1GB limit).
+
+    Args:
+        days: Cancella analisi piu vecchie di N giorni (default 90).
+        max_score: Solo analisi con score <= questo valore (default 40).
+        dry_run: Se True, mostra solo quante verrebbero cancellate senza cancellare.
+    """
+    return await api_delete(
+        f"/api/v1/analysis/cleanup?days={days}&max_score={max_score}&dry_run={str(dry_run).lower()}"
+    )
+
+
 # ── Batch Analysis ─────────────────────────────────────────────────
 
 

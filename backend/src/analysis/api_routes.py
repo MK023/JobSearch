@@ -1,11 +1,11 @@
 """Analysis JSON API routes (status changes, deletion, AJAX analysis)."""
 
 import logging
-from datetime import date
-from typing import cast
+from datetime import UTC, date, datetime, timedelta
+from typing import Annotated, cast
 from uuid import UUID
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse
 
 from ..audit.service import audit
@@ -240,3 +240,70 @@ def check_dedup(
     if existing:
         return JSONResponse({"exists": True, "analysis_id": str(existing.id)})
     return JSONResponse({"exists": False})
+
+
+@router.delete("/analysis/cleanup")
+@limiter.limit(settings.rate_limit_analyze)
+def cleanup_analyses(
+    request: Request,
+    db: DbSession,
+    user: CurrentUser,
+    days: Annotated[int, Query(ge=1, le=365, description="Delete analyses older than N days")] = 90,
+    max_score: Annotated[int, Query(ge=0, le=100, description="Only delete analyses with score <= this")] = 40,
+    dry_run: Annotated[bool, Query(description="If True, return count without deleting")] = True,
+) -> JSONResponse:
+    """Delete old low-score analyses to free DB space (1GB free-tier limit).
+
+    Only deletes analyses with status=PENDING (da_valutare).
+    Analyses marked as applied/interview/rejected are preserved.
+    """
+    cutoff = datetime.now(UTC) - timedelta(days=days)
+
+    candidates = (
+        db.query(JobAnalysis)
+        .filter(
+            JobAnalysis.score <= max_score,
+            JobAnalysis.created_at < cutoff,
+            JobAnalysis.status == AnalysisStatus.PENDING,
+        )
+        .all()
+    )
+
+    count = len(candidates)
+
+    if dry_run:
+        audit(db, request, "cleanup_dry_run", f"would_delete={count}, days={days}, max_score={max_score}")
+        db.commit()
+        return JSONResponse({"ok": True, "deleted": count, "dry_run": True})
+
+    today = date.today()
+    for analysis in candidates:
+        # Reverse spending for associated cover letters
+        cover_letters = db.query(CoverLetter).filter(CoverLetter.analysis_id == analysis.id).all()
+        for cl in cover_letters:
+            cl_today = cl.created_at and cl.created_at.date() == today
+            remove_spending(
+                db,
+                float(cl.cost_usd or 0),
+                int(cl.tokens_input or 0),
+                int(cl.tokens_output or 0),
+                is_analysis=False,
+                created_today=bool(cl_today),
+            )
+
+        # Reverse spending for the analysis itself
+        a_today = analysis.created_at and analysis.created_at.date() == today
+        remove_spending(
+            db,
+            float(analysis.cost_usd or 0),
+            int(analysis.tokens_input or 0),
+            int(analysis.tokens_output or 0),
+            is_analysis=True,
+            created_today=bool(a_today),
+        )
+        db.delete(analysis)
+
+    audit(db, request, "cleanup", f"deleted={count}, days={days}, max_score={max_score}")
+    db.commit()
+
+    return JSONResponse({"ok": True, "deleted": count, "dry_run": False})

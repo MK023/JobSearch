@@ -10,7 +10,7 @@
 
 AI-powered job search platform. Paste your CV, analyze job postings, get compatibility scores, gap analysis, interview prep, cover letters, and automated outreach tools. Query your data from Claude Desktop via MCP.
 
-**[Live](https://jobsearches.cc)** | **[API](https://api.jobsearches.cc/health)** | **[MCP](https://jobsearch-mcp.fly.dev/mcp)**
+**[Live](https://jobsearches.cc)** | **[API](https://api.jobsearches.cc/health)**
 
 ---
 
@@ -18,27 +18,30 @@ AI-powered job search platform. Paste your CV, analyze job postings, get compati
 
 ```
   Claude Desktop          Browser
-       │                     │
-       ▼                     │
-  ┌──────────────┐           │
-  │  MCP Server  │           │
-  │ (15 tools,   │           │
-  │  read-only)  │           │
-  └──────┬───────┘           │
-         │ HTTP              │
-         ▼                   ▼
-  ┌─────────────────────────────────┐
-  │        FastAPI + Jinja2         │──── Claude API (Haiku/Sonnet)
-  │      (Fly.io, 512MB x2)        │──── Cloudflare R2 (file storage)
-  └──────────────┬──────────────────┘──── Resend (email reminders)
-                 │
-          ┌──────┴──────┐
-          │             │
-    ┌─────▼──────┐ ┌────▼────┐
-    │ PostgreSQL │ │  Redis  │
-    │   (Fly.io) │ │  (opt)  │
-    └────────────┘ └─────────┘
+       |                     |
+       v                     |
+  +---------------+          |
+  |  MCP Server   |          |
+  | (local, stdio)|          |
+  | 23 tools,     |          |
+  | thin proxy    |          |
+  +-------+-------+          |
+          | HTTP (X-API-Key) |
+          v                  v
+  +----------------------------------+
+  |       FastAPI + Jinja2           |---- Claude API (Haiku/Sonnet)
+  |     (Fly.io free tier, CDG)     |---- Cloudflare R2 (file storage)
+  +---------------+------------------+---- Resend (email reminders)
+                  |
+           +------+------+
+           |              |
+     +-----v------+  +----v----+
+     | PostgreSQL |  |  Redis  |
+     |  (Fly.io)  |  |  (opt)  |
+     +------------+  +---------+
 ```
+
+The MCP server runs locally on macOS via Claude Desktop (stdio transport). It is a thin HTTP proxy (~120 lines) — every tool is a single HTTP call to the backend. The backend on Fly.io does everything: AI analysis via Anthropic API, PostgreSQL persistence, deduplication, cost tracking, and serves the web UI.
 
 ---
 
@@ -55,13 +58,14 @@ AI-powered job search platform. Paste your CV, analyze job postings, get compati
 | **File Upload** | Document upload via Cloudflare R2 with presigned URLs |
 | **Document Scanner** | Claude API checks if uploaded documents are filled in |
 | **Email Reminder** | Resend notifies about unfilled documents |
-| **Batch Analysis** | Multi-job queue with sequential processing |
+| **Batch Analysis** | Persistent PostgreSQL queue, survives crashes and autostop |
 | **Recruiter Contacts** | Per-application CRM: name, email, phone, LinkedIn |
 | **Company Reputation** | Glassdoor rating via RapidAPI with 30-day cache |
 | **Cost Tracking** | Per-analysis cost, daily totals, configurable budget |
+| **DB Usage Monitoring** | Track PostgreSQL usage against 1GB free tier limit |
 | **Audit Trail** | DB log of all user actions |
 | **Dashboard** | Stats, top matches, active applications, upcoming interviews |
-| **Claude MCP** | 15 read-only tools to query data from Claude Desktop |
+| **Claude MCP** | 23 tools to query and manage data from Claude Desktop |
 
 ---
 
@@ -71,15 +75,15 @@ AI-powered job search platform. Paste your CV, analyze job postings, get compati
 |-------|-----------|
 | **Backend** | FastAPI + Uvicorn + Jinja2 SSR |
 | **ORM** | SQLAlchemy 2.0 + Alembic |
-| **Database** | PostgreSQL 16 (Fly.io) |
+| **Database** | PostgreSQL 16 (Fly.io, 1GB free tier) |
 | **Cache** | Redis 7 (optional, graceful degradation) |
 | **AI** | Anthropic Claude API + 7-strategy JSON parsing |
 | **File Storage** | Cloudflare R2 (S3-compatible, presigned URLs) |
 | **Email** | Resend (document reminders) |
-| **Auth** | Session + bcrypt + rate limiting (slowapi) |
-| **MCP** | FastMCP + streamable-http (15 read-only tools) |
+| **Auth** | Session + bcrypt + rate limiting (slowapi) for web UI; API key (X-API-Key) for MCP |
+| **MCP** | FastMCP (local, stdio) — 23 tools, thin HTTP proxy |
 | **CI/CD** | GitHub Actions (ruff, mypy strict, bandit, pip-audit, pytest, docker) |
-| **Deploy** | Fly.io (512MB x2) + Cloudflare (DNS, R2, domain) |
+| **Deploy** | Fly.io (512MB shared CPU, CDG) + Cloudflare (DNS, R2, domain) |
 
 ---
 
@@ -91,7 +95,9 @@ AI-powered job search platform. Paste your CV, analyze job postings, get compati
 - UUID validation on all path parameters (anti-injection)
 - Pydantic schema validation on all inputs (email regex, URL whitelist, enum whitelist)
 - Rate limiting: 60/min global, 10/min AI routes, 5/min login
-- bcrypt password hashing + session-based auth
+- bcrypt password hashing + session-based auth for web UI
+- API key auth (X-API-Key header) for MCP-to-backend calls
+- HTTPS only (force_https=true)
 - TrustedHost middleware + restrictive CORS origins
 - DB audit trail for all user actions
 - Bandit security scanning + pip-audit in CI
@@ -124,10 +130,13 @@ fly postgres attach jobsearch-db
 fly secrets set ANTHROPIC_API_KEY=sk-ant-... SECRET_KEY=$(openssl rand -hex 32)
 fly secrets set ADMIN_EMAIL=you@example.com ADMIN_PASSWORD=your-password
 fly secrets set R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=... R2_ENDPOINT_URL=... R2_BUCKET_NAME=...
+fly secrets set API_KEY=your-mcp-api-key
 fly deploy
 ```
 
 Alembic migrations run automatically on deploy (`release_command`).
+
+Free tier limits: 512MB shared CPU, PostgreSQL 1GB / 300 connections, auto-stop after ~5 min inactivity, auto-start on first request.
 
 ---
 
