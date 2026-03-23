@@ -135,10 +135,13 @@ def get_batch_status(db: Session) -> dict[str, Any]:
 
 
 def clear_completed(db: Session, batch_id: str | None = None) -> None:
-    """Delete batch_items with status done, skipped, or error."""
-    q = db.query(BatchItem).filter(
-        BatchItem.status.in_([BatchItemStatus.DONE, BatchItemStatus.SKIPPED, BatchItemStatus.ERROR])
-    )
+    """Delete ALL batch_items (done, skipped, error, AND pending).
+
+    Called before starting a new batch to ensure a clean slate.
+    Pending items from old batches would otherwise accumulate and
+    cause the batch to exceed the max_batch_size limit.
+    """
+    q = db.query(BatchItem)
     if batch_id:
         q = q.filter(BatchItem.batch_id == batch_id)
     q.delete(synchronize_session="fetch")
