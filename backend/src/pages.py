@@ -1,6 +1,6 @@
 """Page routes for the multi-page frontend (SSR)."""
 
-from typing import cast
+from typing import Any, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Request
@@ -16,7 +16,7 @@ from .interview.service import get_upcoming_interviews
 router = APIRouter(tags=["pages"])
 
 
-def _flash(request: Request) -> dict:
+def _flash(request: Request) -> dict[str, Any]:
     """Pop flash messages from the session."""
     return {
         "error": request.session.pop("flash_error", None),
@@ -97,7 +97,7 @@ def history_page(
     flash = _flash(request)
 
     analyses = get_recent_analyses(db, limit=50)
-    counts = {}
+    counts: dict[str, int] = {}
     for status in AnalysisStatus:
         counts[status.value] = sum(1 for a in analyses if a.status == status)
 

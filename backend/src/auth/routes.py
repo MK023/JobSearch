@@ -26,7 +26,7 @@ def login_page(request: Request) -> Response:
     templates = _get_templates(request)
     if request.session.get("user_id"):
         return RedirectResponse(url="/", status_code=303)
-    return templates.TemplateResponse(request, "login.html")  # type: ignore[return-value]
+    return templates.TemplateResponse(request, "login.html")
 
 
 @router.post("/login")
@@ -43,7 +43,7 @@ def login(
     if not user:
         audit(db, request, "login_failed", f"email={email}")
         db.commit()
-        return templates.TemplateResponse(  # type: ignore[return-value]
+        return templates.TemplateResponse(
             request,
             "login.html",
             {"error": "Invalid credentials"},

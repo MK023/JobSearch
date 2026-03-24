@@ -38,7 +38,7 @@ class GlassdoorCache(Base):
     )
 
 
-def fetch_glassdoor_rating(company_name: str, db: Session) -> dict | None:
+def fetch_glassdoor_rating(company_name: str, db: Session) -> dict[str, Any] | None:
     """Fetch Glassdoor rating for a company using DB cache.
 
     Returns a dict with rating data, or None if unavailable.
@@ -89,7 +89,7 @@ def fetch_glassdoor_rating(company_name: str, db: Session) -> dict | None:
         return None
 
 
-def _call_api(query: str) -> dict | None:
+def _call_api(query: str) -> dict[str, Any] | None:
     """Call company-data12 company-search endpoint."""
     try:
         response = httpx.get(
@@ -109,7 +109,7 @@ def _call_api(query: str) -> dict | None:
         return None
 
 
-def _best_match(data: dict, query: str) -> dict | None:
+def _best_match(data: dict[str, Any], query: str) -> dict[str, Any] | None:
     """Pick the best matching company from API results.
 
     Requires at least 3 reviews for reliability.
@@ -145,12 +145,12 @@ def _best_match(data: dict, query: str) -> dict | None:
     return None
 
 
-def _parse_company(c: dict) -> dict:
+def _parse_company(c: dict[str, Any]) -> dict[str, Any]:
     """Parse a company-data12 company object into our standard format."""
     rating = float(c.get("rating", 0))
     review_count = int(c.get("review_count", 0))
 
-    sub_ratings = {}
+    sub_ratings: dict[str, float] = {}
     rating_map = {
         "culture_and_values_rating": "culture",
         "compensation_and_benefits_rating": "compensation",
@@ -194,7 +194,7 @@ def _parse_company(c: dict) -> dict:
     }
 
 
-def _parse_cached(cached: GlassdoorCache) -> dict | None:
+def _parse_cached(cached: GlassdoorCache) -> dict[str, Any] | None:
     """Build result dict from cached DB record."""
     try:
         company = json.loads(str(cached.glassdoor_data)) if cached.glassdoor_data else {}

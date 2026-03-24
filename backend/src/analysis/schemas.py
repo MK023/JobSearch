@@ -1,6 +1,7 @@
 """Analysis request/response schemas."""
 
 import enum
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -34,11 +35,11 @@ class AnalysisImportRequest(BaseModel):
     salary_info: str = Field("", max_length=255)
     score: int = Field(0, ge=0, le=100)
     recommendation: str = Field("", max_length=2_000)
-    strengths: list = []
-    gaps: list = []
-    interview_scripts: list = []
+    strengths: list[Any] = []
+    gaps: list[Any] = []
+    interview_scripts: list[Any] = []
     advice: str = Field("", max_length=10_000)
-    company_reputation: dict = {}
+    company_reputation: dict[str, Any] = {}
     full_response: str = Field("", max_length=100_000)
     model_used: str = Field("", max_length=100)
     tokens_input: int = Field(0, ge=0, le=10_000_000)

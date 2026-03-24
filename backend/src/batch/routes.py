@@ -235,7 +235,7 @@ def update_item_status(
     item_id: str,
     db: DbSession,
     user: CurrentUser,
-    status: Annotated[str, Form(max_length=20)] = ...,
+    status: Annotated[str, Form(max_length=20)],
     analysis_id: Annotated[str, Form(max_length=36)] = "",
     error_message: Annotated[str, Form(max_length=2000)] = "",
 ) -> JSONResponse:

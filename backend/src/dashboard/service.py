@@ -1,6 +1,7 @@
 """Dashboard and spending service."""
 
 from datetime import UTC, date, datetime, timedelta
+from typing import Any
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -48,10 +49,10 @@ def add_spending(db: Session, cost: float, tokens_in: int, tokens_out: int, is_a
     """Update running totals after an insert."""
     s = get_or_create_settings(db)
     _check_today_reset(s)
-    s.total_cost_usd = round(float(s.total_cost_usd or 0) + cost, 6)  # type: ignore[assignment,arg-type]
+    s.total_cost_usd = round(float(s.total_cost_usd or 0) + cost, 6)  # type: ignore[arg-type]
     s.total_tokens_input = int(s.total_tokens_input or 0) + tokens_in  # type: ignore[assignment]
     s.total_tokens_output = int(s.total_tokens_output or 0) + tokens_out  # type: ignore[assignment]
-    s.today_cost_usd = round(float(s.today_cost_usd or 0) + cost, 6)  # type: ignore[assignment,arg-type]
+    s.today_cost_usd = round(float(s.today_cost_usd or 0) + cost, 6)  # type: ignore[arg-type]
     s.today_tokens_input = int(s.today_tokens_input or 0) + tokens_in  # type: ignore[assignment]
     s.today_tokens_output = int(s.today_tokens_output or 0) + tokens_out  # type: ignore[assignment]
     if is_analysis:
@@ -72,22 +73,22 @@ def remove_spending(
     """Update running totals after a delete."""
     s = get_or_create_settings(db)
     _check_today_reset(s)
-    s.total_cost_usd = round(max(float(s.total_cost_usd or 0) - cost, 0), 6)  # type: ignore[assignment,arg-type]
-    s.total_tokens_input = max(int(s.total_tokens_input or 0) - tokens_in, 0)  # type: ignore[assignment,arg-type]
-    s.total_tokens_output = max(int(s.total_tokens_output or 0) - tokens_out, 0)  # type: ignore[assignment,arg-type]
+    s.total_cost_usd = round(max(float(s.total_cost_usd or 0) - cost, 0), 6)  # type: ignore[arg-type]
+    s.total_tokens_input = max(int(s.total_tokens_input or 0) - tokens_in, 0)  # type: ignore[arg-type]
+    s.total_tokens_output = max(int(s.total_tokens_output or 0) - tokens_out, 0)  # type: ignore[arg-type]
     if is_analysis:
-        s.total_analyses = max(int(s.total_analyses or 0) - 1, 0)  # type: ignore[assignment,arg-type]
+        s.total_analyses = max(int(s.total_analyses or 0) - 1, 0)  # type: ignore[arg-type]
     else:
-        s.total_cover_letters = max(int(s.total_cover_letters or 0) - 1, 0)  # type: ignore[assignment,arg-type]
+        s.total_cover_letters = max(int(s.total_cover_letters or 0) - 1, 0)  # type: ignore[arg-type]
     if created_today:
-        s.today_cost_usd = round(max(float(s.today_cost_usd or 0) - cost, 0), 6)  # type: ignore[assignment,arg-type]
-        s.today_tokens_input = max(int(s.today_tokens_input or 0) - tokens_in, 0)  # type: ignore[assignment,arg-type]
-        s.today_tokens_output = max(int(s.today_tokens_output or 0) - tokens_out, 0)  # type: ignore[assignment,arg-type]
+        s.today_cost_usd = round(max(float(s.today_cost_usd or 0) - cost, 0), 6)  # type: ignore[arg-type]
+        s.today_tokens_input = max(int(s.today_tokens_input or 0) - tokens_in, 0)  # type: ignore[arg-type]
+        s.today_tokens_output = max(int(s.today_tokens_output or 0) - tokens_out, 0)  # type: ignore[arg-type]
         if is_analysis:
-            s.today_analyses = max(int(s.today_analyses or 0) - 1, 0)  # type: ignore[assignment,arg-type]
+            s.today_analyses = max(int(s.today_analyses or 0) - 1, 0)  # type: ignore[arg-type]
 
 
-def get_spending(db: Session) -> dict:
+def get_spending(db: Session) -> dict[str, Any]:
     """Get current spending totals."""
     s = get_or_create_settings(db)
     _check_today_reset(s)
@@ -112,12 +113,12 @@ def get_spending(db: Session) -> dict:
 def update_budget(db: Session, budget: float) -> float:
     """Set the Anthropic API budget and return the persisted value."""
     s = get_or_create_settings(db)
-    s.anthropic_budget = max(budget, 0)  # type: ignore[assignment,arg-type]
+    s.anthropic_budget = max(budget, 0)  # type: ignore[arg-type]
     db.flush()
     return round(float(s.anthropic_budget or 0), 2)
 
 
-def get_dashboard(db: Session) -> dict:
+def get_dashboard(db: Session) -> dict[str, Any]:
     """Build dashboard stats."""
     analyses = db.query(JobAnalysis).order_by(JobAnalysis.created_at.desc()).limit(50).all()
     total = len(analyses)
@@ -186,7 +187,7 @@ def seed_spending_totals(db: Session) -> None:
             func.count(CoverLetter.id),
         ).first()
         if a and cl:
-            s.total_cost_usd = round(float(a[0]) + float(cl[0]), 6)  # type: ignore[assignment,arg-type]
+            s.total_cost_usd = round(float(a[0]) + float(cl[0]), 6)  # type: ignore[arg-type]
             s.total_tokens_input = int(a[1]) + int(cl[1])  # type: ignore[assignment]
             s.total_tokens_output = int(a[2]) + int(cl[2])  # type: ignore[assignment]
             s.total_analyses = int(a[3])  # type: ignore[assignment]

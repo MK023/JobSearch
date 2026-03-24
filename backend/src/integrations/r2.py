@@ -5,7 +5,7 @@ Uses boto3 S3-compatible API. R2 acts as an S3 drop-in replacement.
 
 import logging
 import uuid
-from typing import cast
+from typing import Any, cast
 
 import boto3
 from botocore.config import Config as BotoConfig
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 _client = None
 
 
-def _get_r2_client():  # type: ignore[no-untyped-def]
+def _get_r2_client() -> Any:
     """Get or create the singleton boto3 S3 client for R2."""
     global _client
     if _client is None:

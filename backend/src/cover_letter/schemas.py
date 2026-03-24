@@ -1,6 +1,7 @@
 """Cover letter request/response schemas."""
 
 import enum
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -29,6 +30,6 @@ class CoverLetterResult(BaseModel):
     cover_letter: str = ""
     subject_lines: list[str] = Field(default_factory=list)
     model_used: str = ""
-    tokens: dict = Field(default_factory=dict)
+    tokens: dict[str, Any] = Field(default_factory=dict)
     cost_usd: float = 0.0
     from_cache: bool = False

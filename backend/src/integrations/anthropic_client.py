@@ -307,7 +307,7 @@ def _call_api(
     user_prompt: str,
     model_id: str,
     max_tokens: int,
-) -> tuple[dict, anthropic.types.Usage]:
+) -> tuple[dict[str, Any], anthropic.types.Usage]:
     """Make an API call and parse the JSON response.
 
     Parsing pipeline:
@@ -357,7 +357,7 @@ def analyze_job(
     job_description: str,
     model: str = "haiku",
     cache: CacheService | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Analyze CV-to-job compatibility."""
     model_id = MODELS.get(model, MODELS["haiku"])
     ch = content_hash(cv_text, job_description)
@@ -396,11 +396,11 @@ def analyze_job(
 def generate_cover_letter(
     cv_text: str,
     job_description: str,
-    analysis_data: dict,
+    analysis_data: dict[str, Any],
     language: str,
     model: str = "haiku",
     cache: CacheService | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Generate a cover letter based on CV, job description, and analysis."""
     model_id = MODELS.get(model, MODELS["haiku"])
 
@@ -460,7 +460,7 @@ def generate_followup_email(
     language: str,
     model: str = "haiku",
     cache: CacheService | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Generate a follow-up email after application."""
     model_id = MODELS.get(model, MODELS["haiku"])
 
@@ -512,7 +512,7 @@ def generate_linkedin_message(
     language: str,
     model: str = "haiku",
     cache: CacheService | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Generate a LinkedIn connection message."""
     model_id = MODELS.get(model, MODELS["haiku"])
 

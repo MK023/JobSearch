@@ -7,6 +7,7 @@ properly filled/compiled by the user, or are still blank/template.
 import base64
 import io
 import logging
+from typing import Any
 
 import anthropic
 from docx import Document as DocxDocument
@@ -84,7 +85,7 @@ def scan_document(
     filename: str,
     content_type: str,
     model: str = "haiku",
-) -> dict:
+) -> dict[str, Any]:
     """Scan a document with Claude API to check if it's been compiled.
 
     For PDFs: sends as base64 document to Claude's vision/document support.
@@ -172,7 +173,7 @@ def _scan_pdf(
     filename: str,
     content_type: str,
     model_id: str,
-) -> dict:
+) -> dict[str, Any]:
     """Scan a PDF using Claude's document understanding (base64 input)."""
     b64_data = base64.b64encode(file_bytes).decode("utf-8")
 
@@ -214,7 +215,7 @@ def _scan_text_based(
     filename: str,
     content_type: str,
     model_id: str,
-) -> dict:
+) -> dict[str, Any]:
     """Scan a text-based document (DOCX, XLSX, TXT) by sending extracted text to Claude."""
     if not text_content.strip():
         return {
@@ -245,7 +246,7 @@ def _scan_text_based(
     return _parse_scan_response(message, model_id)
 
 
-def _parse_scan_response(message: anthropic.types.Message, model_id: str) -> dict:
+def _parse_scan_response(message: anthropic.types.Message, model_id: str) -> dict[str, Any]:
     """Parse Claude's response and return structured result."""
     import json
 
