@@ -4,7 +4,7 @@
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.131-009688?logo=fastapi&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-280_passed-30D158)
+![Tests](https://img.shields.io/badge/Tests-320_passed-30D158)
 ![mypy](https://img.shields.io/badge/mypy-strict-blue)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
@@ -23,7 +23,7 @@ AI-powered job search platform. Paste your CV, analyze job postings, get compati
   +---------------+          |
   |  MCP Server   |          |
   | (local, stdio)|          |
-  | 23 tools,     |          |
+  | 25 tools,     |          |
   | thin proxy    |          |
   +-------+-------+          |
           | HTTP (X-API-Key) |
@@ -65,7 +65,8 @@ The MCP server runs locally on macOS via Claude Desktop (stdio transport). It is
 | **DB Usage Monitoring** | Track PostgreSQL usage against 1GB free tier limit |
 | **Audit Trail** | DB log of all user actions |
 | **Dashboard** | Stats, top matches, active applications, upcoming interviews |
-| **Claude MCP** | 23 tools to query and manage data from Claude Desktop |
+| **DB Cleanup** | Delete old low-score analyses to free 1GB storage (dry-run default) |
+| **Claude MCP** | 25 tools to query and manage data from Claude Desktop |
 
 ---
 
@@ -81,7 +82,7 @@ The MCP server runs locally on macOS via Claude Desktop (stdio transport). It is
 | **File Storage** | Cloudflare R2 (S3-compatible, presigned URLs) |
 | **Email** | Resend (document reminders) |
 | **Auth** | Session + bcrypt + rate limiting (slowapi) for web UI; API key (X-API-Key) for MCP |
-| **MCP** | FastMCP (local, stdio) — 23 tools, thin HTTP proxy |
+| **MCP** | FastMCP (local, stdio) — 25 tools, thin HTTP proxy |
 | **CI/CD** | GitHub Actions (ruff, mypy strict, bandit, pip-audit, pytest, docker) |
 | **Deploy** | Fly.io (512MB shared CPU, CDG) + Cloudflare (DNS, R2, domain) |
 
@@ -103,6 +104,10 @@ The MCP server runs locally on macOS via Claude Desktop (stdio transport). It is
 - Bandit security scanning + pip-audit in CI
 - mypy strict on all modules (0 errors, 67 files)
 - Input size limits (CV 100KB, job description 50KB)
+- API key rejection when unconfigured (prevents auth bypass)
+- BOLA protection on batch item status updates
+- Field-level input validation (max_length on all import fields)
+- URL scheme validation on job URLs
 - Budget hard stop: analysis blocked when budget exhausted
 
 ---

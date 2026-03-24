@@ -24,14 +24,14 @@
 The system has two runtime components:
 
 1. **Backend (Fly.io, CDG region)** — does everything: AI analysis via Anthropic API, PostgreSQL persistence, deduplication via content_hash, cost tracking, and serves the web UI (Jinja2 SSR). Single container, 512MB shared CPU, auto-stop after ~5 min inactivity.
-2. **MCP server (local, macOS)** — thin HTTP proxy (~120 lines) that runs on the developer's machine via Claude Desktop (stdio transport). All 23 tools are HTTP calls to the backend, authenticated with an API key (X-API-Key header).
+2. **MCP server (local, macOS)** — thin HTTP proxy (~120 lines) that runs on the developer's machine via Claude Desktop (stdio transport). All 25 tools are HTTP calls to the backend, authenticated with an API key (X-API-Key header).
 
 ```
 Claude Desktop (stdio)     Browser
        |                      |
        v                      |
   MCP Server (local)          |
-  23 tools, thin proxy        |
+  25 tools, thin proxy        |
        | HTTP (X-API-Key)     |
        v                      v
   FastAPI + Jinja2 (Fly.io) ---- Anthropic Claude API (Haiku/Sonnet)
@@ -125,7 +125,7 @@ backend/src/
     └── glassdoor.py         # Company ratings (RapidAPI)
 
 mcp-server/
-├── server.py              # FastMCP app, 23 tools (thin HTTP proxy)
+├── server.py              # FastMCP app, 25 tools (thin HTTP proxy)
 ├── api_client.py          # HTTP client → backend API (X-API-Key auth, retry with backoff)
 ├── config.py              # Pydantic settings (backend_url, api_key, mcp_host/port)
 ├── requirements.txt       # fastmcp, httpx, pydantic-settings
@@ -1186,10 +1186,10 @@ def encrypt_credential(value: str) -> str:
 
 ### Architettura
 
-Il MCP server è un servizio separato che espone 15 tool read-only via Model Context Protocol (MCP), permettendo di interrogare il database delle candidature direttamente da Claude Desktop.
+Il MCP server è un thin proxy locale (~120 righe) che espone 25 tool via Model Context Protocol (MCP), permettendo di interrogare e gestire il database delle candidature direttamente da Claude Desktop.
 
 ```
-Claude Desktop → mcp-remote (stdio bridge) → MCP Server (Fly.io :8081) → Backend API → PostgreSQL
+Claude Desktop (stdio) → MCP Server (local) → HTTPS + X-API-Key → FastAPI backend (Fly.io) → PostgreSQL
 ```
 
 ### Stack tecnico
@@ -1197,10 +1197,10 @@ Claude Desktop → mcp-remote (stdio bridge) → MCP Server (Fly.io :8081) → B
 | Componente | Tecnologia |
 |-----------|-----------|
 | Framework | FastMCP (Python MCP SDK) |
-| Trasporto | streamable-http (stateless) |
-| Auth | Session cookie (login al backend, auto-relogin su 401/403) |
-| Deploy | Fly.io (256MB shared-cpu, auto-sleep, regione CDG) |
-| Client bridge | mcp-remote (npm, stdio → HTTP proxy) |
+| Trasporto | stdio (local, macOS) |
+| Auth | API key (X-API-Key header) |
+| Deploy | Locale via Claude Desktop |
+| HTTP client | httpx (async, retry with backoff) |
 
 ### Pattern MCP → Backend API → DB
 
@@ -1224,7 +1224,7 @@ Vantaggi:
 
 Il MCP server usa l'URL pubblico del backend (`https://jobsearch.fly.dev`) invece della rete interna Fly.io (`*.internal`). Questo perché i nomi `.internal` non triggerano l'auto-start delle VM in sleep — solo il proxy pubblico di Fly.io sveglia le macchine automaticamente.
 
-### Tool disponibili (15)
+### Tool disponibili (25)
 
 | Tool | Endpoint | Descrizione |
 |------|----------|------------|
@@ -1242,6 +1242,8 @@ Il MCP server usa l'URL pubblico del backend (`https://jobsearch.fly.dev`) invec
 | `get_spending` | `/api/v1/spending` | Costi API |
 | `get_pending_followups` | `/api/v1/followups/pending` | Follow-up in attesa |
 | `get_activity_summary` | `/api/v1/activity-summary` | Riepilogo attività |
+| `db_usage` | `/api/v1/db-usage` | Monitoraggio utilizzo PostgreSQL vs 1GB free tier |
+| `cleanup_old_analyses` | `/api/v1/cleanup` | Pulizia analisi vecchie a basso score (dry-run default) |
 
 ### Configurazione Claude Desktop
 
@@ -1249,8 +1251,12 @@ Il MCP server usa l'URL pubblico del backend (`https://jobsearch.fly.dev`) invec
 {
   "mcpServers": {
     "JobSearch": {
-      "command": "npx",
-      "args": ["mcp-remote", "https://jobsearch-mcp.fly.dev/mcp"]
+      "command": "python",
+      "args": ["/path/to/mcp-server/server.py"],
+      "env": {
+        "BACKEND_URL": "https://api.jobsearches.cc",
+        "API_KEY": "your-api-key"
+      }
     }
   }
 }
