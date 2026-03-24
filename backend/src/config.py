@@ -1,5 +1,7 @@
 """Application configuration via environment variables."""
 
+import os as _os
+
 from pydantic_settings import BaseSettings
 
 
@@ -69,5 +71,5 @@ class Settings(BaseSettings):
 settings = Settings()
 
 # Prevent deployment with default secret key
-if settings.secret_key == "dev-only-change-me" and settings.trusted_hosts != "localhost,127.0.0.1":
-    raise RuntimeError("SECRET_KEY must be set to a secure random value in production")
+if settings.secret_key == "dev-only-change-me" and _os.environ.get("FLY_APP_NAME"):
+    raise RuntimeError("SECRET_KEY must be set to a secure random value in production (Fly.io detected)")

@@ -34,7 +34,7 @@ def run_analysis(
     job_url: str,
     model: str,
     cache: CacheService | None = None,
-) -> tuple[JobAnalysis, dict]:
+) -> tuple[JobAnalysis, dict[str, Any]]:
     """Run a new analysis and persist it."""
     result = analyze_job(cv_text, job_description, model, cache)
     _merge_glassdoor(result, db)
@@ -68,7 +68,7 @@ def run_analysis(
     return analysis, result
 
 
-def rebuild_result(analysis: JobAnalysis, from_cache: bool = False) -> dict:
+def rebuild_result(analysis: JobAnalysis, from_cache: bool = False) -> dict[str, Any]:
     """Rebuild the full result dict from a stored analysis row."""
     result = {
         "company": analysis.company,
@@ -198,7 +198,7 @@ def get_stale_candidature(db: Session, days: int = 7) -> list[JobAnalysis]:
     )
 
 
-def _merge_glassdoor(result: dict, db: Session) -> None:
+def _merge_glassdoor(result: dict[str, Any], db: Session) -> None:
     """Merge Glassdoor API data into result's company_reputation."""
     company = result.get("company", "")
     if not company:

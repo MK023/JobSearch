@@ -6,6 +6,7 @@ This is the last line of defense against malformed AI output.
 """
 
 import logging
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -75,12 +76,12 @@ class AnalysisAIResponse(BaseModel):
     recommendation: str = "CONSIDER"
     job_summary: str = ""
     summary: str = ""
-    strengths: list = Field(default_factory=list)
-    gaps: list = Field(default_factory=list)
-    interview_scripts: list = Field(default_factory=list)
+    strengths: list[Any] = Field(default_factory=list)
+    gaps: list[Any] = Field(default_factory=list)
+    interview_scripts: list[Any] = Field(default_factory=list)
     advice: str = ""
-    application_method: dict = Field(default_factory=dict)
-    company_reputation: dict = Field(default_factory=dict)
+    application_method: dict[str, Any] = Field(default_factory=dict)
+    company_reputation: dict[str, Any] = Field(default_factory=dict)
     full_response: str = ""
 
     @field_validator("score", mode="before")
@@ -129,7 +130,7 @@ class AnalysisAIResponse(BaseModel):
 
     @field_validator("strengths", mode="before")
     @classmethod
-    def coerce_strengths(cls, v: object) -> list:
+    def coerce_strengths(cls, v: object) -> list[Any]:
         """Accept list of strings or list of dicts with 'skill' key."""
         if isinstance(v, str):
             return [s.strip() for s in v.split(",") if s.strip()]
@@ -139,7 +140,7 @@ class AnalysisAIResponse(BaseModel):
 
     @field_validator("gaps", mode="before")
     @classmethod
-    def coerce_gaps(cls, v: object) -> list:
+    def coerce_gaps(cls, v: object) -> list[Any]:
         """Accept list of dicts, list of strings, or comma-separated string."""
         if isinstance(v, str):
             return [
@@ -159,7 +160,7 @@ class AnalysisAIResponse(BaseModel):
 
     @field_validator("interview_scripts", mode="before")
     @classmethod
-    def coerce_interview_scripts(cls, v: object) -> list:
+    def coerce_interview_scripts(cls, v: object) -> list[Any]:
         """Accept list of dicts or list of question strings."""
         if isinstance(v, list):
             result = []
@@ -233,7 +234,7 @@ class LinkedInMessageAIResponse(BaseModel):
 # ── Validation entry points ───────────────────────────────────────────
 
 
-def validate_analysis(raw: dict) -> dict:
+def validate_analysis(raw: dict[str, Any]) -> dict[str, Any]:
     """Validate and coerce an analysis response dict.
 
     Applies Pydantic validation, fills defaults, coerces types.
@@ -252,7 +253,7 @@ def validate_analysis(raw: dict) -> dict:
         return _apply_analysis_defaults(raw)
 
 
-def validate_cover_letter(raw: dict) -> dict:
+def validate_cover_letter(raw: dict[str, Any]) -> dict[str, Any]:
     """Validate and coerce a cover letter response."""
     try:
         validated = CoverLetterAIResponse.model_validate(raw)
@@ -270,7 +271,7 @@ def validate_cover_letter(raw: dict) -> dict:
         }
 
 
-def validate_followup_email(raw: dict) -> dict:
+def validate_followup_email(raw: dict[str, Any]) -> dict[str, Any]:
     """Validate and coerce a follow-up email response."""
     try:
         validated = FollowupEmailAIResponse.model_validate(raw)
@@ -289,7 +290,7 @@ def validate_followup_email(raw: dict) -> dict:
         }
 
 
-def validate_linkedin_message(raw: dict) -> dict:
+def validate_linkedin_message(raw: dict[str, Any]) -> dict[str, Any]:
     """Validate and coerce a LinkedIn message response."""
     try:
         validated = LinkedInMessageAIResponse.model_validate(raw)
@@ -308,7 +309,7 @@ def validate_linkedin_message(raw: dict) -> dict:
         }
 
 
-def _apply_analysis_defaults(raw: dict) -> dict:
+def _apply_analysis_defaults(raw: dict[str, Any]) -> dict[str, Any]:
     """Apply defaults to a raw analysis dict (fallback when Pydantic fails)."""
     defaults = {
         "company": "",

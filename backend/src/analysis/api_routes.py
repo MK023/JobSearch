@@ -230,8 +230,8 @@ def import_analysis(
 
 @router.get("/analysis/check-dedup")
 def check_dedup(
-    content_hash: str,
-    model_id: str,
+    content_hash: Annotated[str, Query(max_length=128, pattern=r"^[a-f0-9]+$")],
+    model_id: Annotated[str, Query(max_length=100)],
     db: DbSession,
     user: CurrentUser,
 ) -> JSONResponse:
@@ -303,7 +303,8 @@ def cleanup_analyses(
         )
         db.delete(analysis)
 
-    audit(db, request, "cleanup", f"deleted={count}, days={days}, max_score={max_score}")
+    sample_ids = [str(a.id) for a in candidates[:5]]
+    audit(db, request, "cleanup", f"deleted={count}, days={days}, max_score={max_score}, sample={sample_ids}")
     db.commit()
 
     return JSONResponse({"ok": True, "deleted": count, "dry_run": False})

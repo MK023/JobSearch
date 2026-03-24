@@ -10,6 +10,8 @@ Flow:
 7. DELETE /files/{file_id} -> delete file from R2 + DB
 """
 
+from typing import Any
+
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -49,7 +51,7 @@ class RequestUploadPayload(BaseModel):
     content_type: str = Field(max_length=100)
 
 
-def _file_to_dict(file: InterviewFile, include_download_url: bool = False) -> dict:
+def _file_to_dict(file: InterviewFile, include_download_url: bool = False) -> dict[str, Any]:
     """Serialize an InterviewFile to a dict."""
     data = {
         "id": str(file.id),

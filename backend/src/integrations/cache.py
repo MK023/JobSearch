@@ -24,7 +24,7 @@ class RedisCacheService:
     """Redis-backed cache implementation."""
 
     def __init__(self, redis_url: str) -> None:
-        self._client = redis.from_url(redis_url, decode_responses=True)
+        self._client = redis.from_url(redis_url, decode_responses=True)  # type: ignore[no-untyped-call]
         self._client.ping()
 
     def get(self, key: str) -> str | None:

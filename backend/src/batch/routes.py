@@ -1,6 +1,6 @@
 """Batch analysis routes."""
 
-from typing import cast
+from typing import Annotated, cast
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Form, Request
@@ -10,6 +10,7 @@ from sqlalchemy import func
 from ..analysis.service import get_analysis_by_id, rebuild_result
 from ..audit.service import audit
 from ..config import settings
+from ..cv.models import CVProfile
 from ..cv.service import get_latest_cv
 from ..dashboard.service import check_budget_available
 from ..database import SessionLocal
@@ -23,6 +24,7 @@ router = APIRouter(prefix="/batch", tags=["batch"])
 
 
 @router.post("/add")
+@limiter.limit(settings.rate_limit_analyze)
 def batch_add(
     request: Request,
     user: CurrentUser,
@@ -32,6 +34,9 @@ def batch_add(
     model: str = Form("haiku"),
 ) -> JSONResponse:
     """Add a job description to the pending batch queue."""
+    if job_url and not job_url.startswith(("https://", "http://")):
+        return JSONResponse({"error": "job_url deve essere un URL valido (https://...)"}, status_code=400)
+
     if len(job_description) > settings.max_job_desc_size:
         return JSONResponse(
             {"error": f"Descrizione troppo lunga (max {settings.max_job_desc_size} caratteri)"}, status_code=400
@@ -187,7 +192,12 @@ def pending_items(
     user: CurrentUser,
     db: DbSession,
 ) -> JSONResponse:
-    """Return all pending batch items plus CV text, so the MCP can process them locally."""
+    """Return all pending batch items plus CV text, so the MCP can process them locally.
+
+    SECURITY NOTE: This endpoint returns raw CV text over HTTPS.
+    Acceptable in current threat model (MCP local -> Fly.io via HTTPS).
+    If MCP transport changes to remote/public, add CV text encryption or remove this field.
+    """
     batch_id = get_pending_batch_id(db)
     if not batch_id:
         return JSONResponse({"batch_id": None, "cv_text": "", "items": []})
@@ -225,9 +235,9 @@ def update_item_status(
     item_id: str,
     db: DbSession,
     user: CurrentUser,
-    status: str = Form(...),
-    analysis_id: str = Form(""),
-    error_message: str = Form(""),
+    status: Annotated[str, Form(max_length=20)],
+    analysis_id: Annotated[str, Form(max_length=36)] = "",
+    error_message: Annotated[str, Form(max_length=2000)] = "",
 ) -> JSONResponse:
     """Update a single batch item's status. Called by the MCP after each analysis."""
     uid = validate_uuid(item_id)
@@ -235,6 +245,11 @@ def update_item_status(
     item = db.query(BatchItem).filter(BatchItem.id == uid).first()
     if not item:
         return JSONResponse({"error": "Batch item not found"}, status_code=404)
+
+    # BOLA protection: verify the batch item belongs to the authenticated user
+    user_cv = db.query(CVProfile.id).filter(CVProfile.user_id == user.id).first()
+    if not user_cv or item.cv_id != user_cv[0]:
+        return JSONResponse({"error": "Not authorized"}, status_code=403)
 
     try:
         status_enum = BatchItemStatus(status)

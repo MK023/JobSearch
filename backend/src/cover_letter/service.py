@@ -3,7 +3,7 @@
 import io
 import re
 from datetime import UTC, datetime
-from typing import cast
+from typing import Any, cast
 from uuid import UUID
 
 from docx import Document
@@ -24,7 +24,7 @@ def create_cover_letter(
     language: str,
     model: str = "haiku",
     cache: CacheService | None = None,
-) -> tuple[CoverLetter, dict]:
+) -> tuple[CoverLetter, dict[str, Any]]:
     """Generate and persist a cover letter for an analysis."""
     analysis_data = {
         "role": analysis.role,

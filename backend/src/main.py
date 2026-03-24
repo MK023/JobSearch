@@ -178,7 +178,7 @@ def create_app() -> FastAPI:
         allow_origins=settings.cors_origins_list,
         allow_credentials=settings.cors_allow_credentials,
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+        allow_headers=["Content-Type", "Authorization", "X-Requested-With", "X-API-Key"],
     )
 
     # --- Templates & static files ---
@@ -187,7 +187,7 @@ def create_app() -> FastAPI:
     import subprocess as _sp
 
     try:
-        _asset_v = _sp.check_output(
+        _asset_v = _sp.check_output(  # noqa: S603
             ["git", "rev-parse", "--short", "HEAD"],  # noqa: S607
             text=True,
             stderr=_sp.DEVNULL,

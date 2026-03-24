@@ -1,6 +1,7 @@
 """Interview scheduling service."""
 
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -86,7 +87,7 @@ def delete_interview(db: Session, analysis_id: UUID | str) -> bool:
     return True
 
 
-def get_upcoming_interviews(db: Session, hours: int = 48, days: int | None = None) -> list[dict]:
+def get_upcoming_interviews(db: Session, hours: int = 48, days: int | None = None) -> list[dict[str, Any]]:
     """Get interviews scheduled within the next N hours (or N days if specified)."""
     now = datetime.now(UTC)
     cutoff = now + timedelta(days=days) if days is not None else now + timedelta(hours=hours)
