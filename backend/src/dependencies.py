@@ -52,13 +52,10 @@ def _get_user_from_session(request: Request, db: Session) -> User | None:
 def _verify_api_key(api_key_header: str | None) -> bool:
     """Check if the provided API key matches the configured one.
 
-    Returns True if:
-    - api_key is not configured (dev mode, allow all)
-    - api_key is configured and the header matches
+    Returns False if api_key is not configured (reject — require explicit key).
     """
     if not settings.api_key:
-        # Dev mode: no API key configured, allow all API key attempts
-        return True
+        return False  # API key auth disabled if not configured
     if not api_key_header:
         return False
     return secrets.compare_digest(api_key_header, settings.api_key)
