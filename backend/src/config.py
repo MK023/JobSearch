@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     rapidapi_key: str = ""
 
     # Authentication
-    secret_key: str = "dev-only-change-me"
+    secret_key: str = "dev-only-change-me"  # noqa: S105 — dev default, blocked in prod by FLY_APP_NAME guard
     admin_email: str = ""
     admin_password: str = ""
     api_key: str = ""  # API key for programmatic access (MCP server)
@@ -71,5 +71,5 @@ class Settings(BaseSettings):
 settings = Settings()
 
 # Prevent deployment with default secret key
-if settings.secret_key == "dev-only-change-me" and _os.environ.get("FLY_APP_NAME"):
+if settings.secret_key == "dev-only-change-me" and _os.environ.get("FLY_APP_NAME"):  # noqa: S105
     raise RuntimeError("SECRET_KEY must be set to a secure random value in production (Fly.io detected)")
