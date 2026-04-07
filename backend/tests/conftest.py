@@ -15,7 +15,6 @@ from src.contacts.models import Contact
 from src.cover_letter.models import CoverLetter
 from src.cv.models import CVProfile
 from src.database.base import Base
-from src.integrations.cache import NullCacheService
 from src.integrations.glassdoor import GlassdoorCache
 from src.interview.file_models import InterviewFile
 from src.interview.models import Interview
@@ -108,9 +107,3 @@ def test_analysis(db_session, test_cv):
     db_session.add(analysis)
     db_session.commit()
     return analysis
-
-
-@pytest.fixture
-def null_cache():
-    """No-op cache for testing."""
-    return NullCacheService()

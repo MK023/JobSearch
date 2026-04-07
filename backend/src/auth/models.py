@@ -3,11 +3,15 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, Column, DateTime, String
+from sqlalchemy import Boolean, Column, DateTime, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from ..database.base import Base
+
+# Lockout policy
+MAX_FAILED_ATTEMPTS = 5
+LOCKOUT_MINUTES = 30
 
 
 class User(Base):
@@ -24,4 +28,20 @@ class User(Base):
         default=lambda: datetime.now(UTC),
     )
 
+    # Brute-force protection
+    failed_login_attempts = Column(Integer, default=0)
+    locked_until = Column(DateTime(timezone=True), nullable=True)
+
     cv_profiles = relationship("CVProfile", back_populates="user", cascade="all, delete-orphan")
+
+    @property
+    def is_locked(self) -> bool:
+        """Check if the account is currently locked out."""
+        if not self.locked_until:
+            return False
+        now = datetime.now(UTC)
+        lock = self.locked_until
+        # SQLite returns naive datetimes; normalize for comparison
+        if lock.tzinfo is None:
+            lock = lock.replace(tzinfo=UTC)
+        return bool(now < lock)

@@ -1,12 +1,13 @@
 """Authentication service: user management, password hashing, session handling."""
 
+from datetime import UTC, datetime, timedelta
 from typing import cast as type_cast
 
 import bcrypt
 from sqlalchemy.orm import Session
 
 from ..config import settings
-from .models import User
+from .models import LOCKOUT_MINUTES, MAX_FAILED_ATTEMPTS, User
 
 
 def hash_password(password: str) -> str:
@@ -25,10 +26,39 @@ def get_user_by_email(db: Session, email: str) -> User | None:
 
 
 def authenticate_user(db: Session, email: str, password: str) -> User | None:
-    """Verify credentials and return user, or None if invalid."""
+    """Verify credentials with brute-force protection.
+
+    - Returns None if credentials are invalid or account is locked.
+    - Increments failed_login_attempts on failure.
+    - Locks account after MAX_FAILED_ATTEMPTS for LOCKOUT_MINUTES.
+    - Resets counter on successful login.
+    - Uses constant-time comparison even when user is not found.
+    """
     user = get_user_by_email(db, email)
-    if not user or not verify_password(password, type_cast(str, user.password_hash)):
+
+    if not user:
+        # Timing-safe: always run bcrypt even if user doesn't exist,
+        # so attacker can't distinguish "user not found" from "wrong password".
+        _dummy_hash = "$2b$12$LJ3m4ys3Lg2VBe5E5pYave.1RnMqCuOYjxoQWMOcLbHZDNMqDHbG2"  # noqa: S105
+        verify_password(password, _dummy_hash)
         return None
+
+    # Check lockout
+    if user.is_locked:
+        return None
+
+    if not verify_password(password, type_cast(str, user.password_hash)):
+        # Increment failed attempts
+        user.failed_login_attempts = (user.failed_login_attempts or 0) + 1  # type: ignore[assignment]
+        if user.failed_login_attempts >= MAX_FAILED_ATTEMPTS:
+            user.locked_until = datetime.now(UTC) + timedelta(minutes=LOCKOUT_MINUTES)  # type: ignore[assignment]
+        db.flush()
+        return None
+
+    # Success: reset lockout state
+    user.failed_login_attempts = 0  # type: ignore[assignment]
+    user.locked_until = None  # type: ignore[assignment]
+    db.flush()
     return user
 
 

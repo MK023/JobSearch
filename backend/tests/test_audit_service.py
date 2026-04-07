@@ -13,12 +13,14 @@ class TestGetIp:
         request.headers = {"Fly-Client-IP": "1.2.3.4"}
         assert get_client_ip(request) == "1.2.3.4"
 
-    def test_extracts_x_real_ip(self):
+    def test_ignores_x_real_ip(self):
+        """X-Real-IP is not trusted — it can be spoofed to bypass rate limits."""
         request = MagicMock()
         request.headers = {"X-Real-IP": "5.6.7.8"}
-        assert get_client_ip(request) == "5.6.7.8"
+        request.client.host = "10.0.0.1"
+        assert get_client_ip(request) == "10.0.0.1"
 
-    def test_fly_client_ip_takes_precedence(self):
+    def test_fly_client_ip_ignores_x_real_ip(self):
         request = MagicMock()
         request.headers = {"Fly-Client-IP": "1.2.3.4", "X-Real-IP": "5.6.7.8"}
         assert get_client_ip(request) == "1.2.3.4"

@@ -49,6 +49,9 @@ def login(
             {"error": "Invalid credentials"},
             status_code=401,
         )
+    # Session regeneration: clear old session before setting new one
+    # to prevent session fixation attacks.
+    request.session.clear()
     request.session["user_id"] = str(user.id)
     audit(db, request, "login", f"email={email}", user_id=cast(UUID, user.id))
     db.commit()

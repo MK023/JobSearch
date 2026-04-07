@@ -138,13 +138,39 @@ def create_app() -> FastAPI:
     app.add_middleware(
         SessionMiddleware,
         secret_key=settings.secret_key,
-        max_age=86400 * 2,
+        max_age=14400,  # 4 hours (was 48h — too long for exposed app)
         https_only=_is_production,
-        same_site="lax",
+        same_site="strict",  # Blocks cross-site requests entirely (CSRF protection)
     )
 
     app.state.limiter = limiter
     app.add_middleware(SlowAPIMiddleware)
+
+    @app.middleware("http")
+    async def csrf_origin_check(request: Request, call_next: Any) -> Response:
+        """Block cross-origin state-changing requests (CSRF protection).
+
+        Validates Origin header on POST/PUT/DELETE against trusted hosts.
+        Combined with SameSite=strict cookies, this provides robust CSRF defense.
+        """
+        if request.method in ("POST", "PUT", "DELETE"):
+            origin = request.headers.get("origin")
+            # API key requests (MCP server) are exempt — no browser session
+            has_api_key = bool(request.headers.get("x-api-key"))
+            if origin and not has_api_key:
+                from urllib.parse import urlparse
+
+                origin_host = urlparse(origin).hostname or ""
+                allowed = settings.trusted_hosts_list + ["localhost", "127.0.0.1"]
+                if origin_host not in allowed:
+                    from fastapi.responses import JSONResponse
+
+                    return JSONResponse(
+                        {"error": "Cross-origin request blocked"},
+                        status_code=403,
+                    )
+        response: Response = await call_next(request)
+        return response
 
     @app.middleware("http")
     async def security_headers(request: Request, call_next: Any) -> Response:

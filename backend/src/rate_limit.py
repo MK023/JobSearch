@@ -5,15 +5,16 @@ from slowapi import Limiter
 
 
 def get_client_ip(request: Request) -> str:
-    """Extract client IP using trusted proxy headers (Fly-Client-IP, X-Real-IP)."""
-    # Fly.io sets Fly-Client-IP with the real client IP (cannot be spoofed)
+    """Extract client IP from trusted proxy header only.
+
+    On Fly.io, Fly-Client-IP is set by the proxy and cannot be spoofed
+    by the client. We do NOT trust X-Real-IP or X-Forwarded-For as those
+    can be injected by attackers to bypass rate limits.
+    """
     fly_ip = request.headers.get("Fly-Client-IP")
     if fly_ip:
         return fly_ip.strip()
-    # Nginx sets X-Real-IP from the direct connection
-    real_ip = request.headers.get("X-Real-IP")
-    if real_ip:
-        return real_ip.strip()
+    # Local development fallback (no proxy)
     return request.client.host if request.client else "unknown"
 
 

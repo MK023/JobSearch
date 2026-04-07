@@ -1,5 +1,6 @@
 """Audit log service."""
 
+import contextlib
 from uuid import UUID
 
 from fastapi import Request
@@ -14,9 +15,6 @@ def audit(db: Session, request: Request, action: str, detail: str = "", user_id:
     if user_id is None:
         uid = request.session.get("user_id")
         if uid:
-            import contextlib
-            from uuid import UUID
-
             with contextlib.suppress(ValueError, AttributeError):
                 user_id = UUID(uid)
 

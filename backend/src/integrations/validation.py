@@ -13,49 +13,6 @@ from pydantic import BaseModel, Field, field_validator
 logger = logging.getLogger(__name__)
 
 
-# ── Gap item ──────────────────────────────────────────────────────────
-
-
-class GapItem(BaseModel):
-    """A single gap/skill deficit."""
-
-    gap: str = ""
-    severity: str = "minore"
-    closable: bool = True
-    how: str = ""
-
-    @field_validator("severity", mode="before")
-    @classmethod
-    def normalize_severity(cls, v: object) -> str:
-        allowed = {"bloccante", "importante", "minore"}
-        s = str(v).lower().strip()
-        return s if s in allowed else "minore"
-
-
-class InterviewScript(BaseModel):
-    """A single interview Q&A."""
-
-    question: str = ""
-    suggested_answer: str = ""
-
-
-class ApplicationMethod(BaseModel):
-    """How to apply for the job (email, link, quick_apply, etc.)."""
-
-    type: str = "sconosciuto"
-    detail: str = ""
-    note: str = ""
-
-
-class CompanyReputation(BaseModel):
-    """AI-estimated company reputation data."""
-
-    glassdoor_estimate: str = "non disponibile"
-    known_pros: list[str] = Field(default_factory=list)
-    known_cons: list[str] = Field(default_factory=list)
-    note: str = ""
-
-
 # ── Analysis response ─────────────────────────────────────────────────
 
 

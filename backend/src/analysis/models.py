@@ -16,9 +16,6 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy import (
-    Enum as SQLEnum,
-)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -61,8 +58,8 @@ class JobAnalysis(Base):
     score = Column(Integer, default=0)
     recommendation = Column(String(20), default="")
     status: Column[str] = Column(
-        SQLEnum(AnalysisStatus, values_callable=lambda e: [s.value for s in e]),
-        default=AnalysisStatus.PENDING,
+        String(20),
+        default=AnalysisStatus.PENDING.value,
     )
     strengths = Column(JSON, default=list)
     gaps = Column(JSON, default=list)
