@@ -38,7 +38,7 @@
         {% for analysis in analyses %}
         <div class="history-item"
              data-hist-id="{{ analysis.id }}"
-             data-hist-status="{{ analysis.status.value }}">
+             data-hist-status="{{ analysis.status }}">
           <a href="/analysis/{{ analysis.id }}" class="history-item-link">
             <div class="job-card-score">
               {% with score=analysis.score|default(0), size="sm" %}
@@ -49,7 +49,7 @@
               <div class="history-item-role">{{ analysis.role or 'Ruolo sconosciuto' }}</div>
               <div class="history-item-company">{{ analysis.company or 'Azienda sconosciuta' }}{% if analysis.work_mode %} &middot; {{ analysis.work_mode }}{% endif %}{% if analysis.salary_info %} &middot; {{ analysis.salary_info }}{% endif %}</div>
             </div>
-            {% set status_val = analysis.status.value if analysis.status is not string else analysis.status %}
+            {% set status_val = analysis.status if analysis.status is not string else analysis.status %}
             {% set status_labels = {'da_valutare': 'Da valutare', 'candidato': 'Candidato', 'colloquio': 'Colloquio', 'scartato': 'Scartato'} %}
             <span class="status-badge status-{{ status_val|default('da_valutare') }}">
               {{ status_labels.get(status_val, status_val|replace('_', ' ')|capitalize) }}

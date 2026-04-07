@@ -1,5 +1,5 @@
 {# Interview detail card - shown when status is colloquio and interview exists #}
-{% if current and current.interview and current.status.value == 'colloquio' %}
+{% if current and current.interview and current.status == 'colloquio' %}
 <div class="interview-detail-card">
     <div class="interview-detail-header">
         <span class="interview-detail-title">Colloquio prenotato</span>

@@ -18,7 +18,7 @@
     <span class="job-card-date">
       {{ analysis.created_at.strftime('%d %b · %H:%M') if analysis.created_at else '' }}
     </span>
-    {% set status_val = analysis.status.value if analysis.status is not string else analysis.status %}
+    {% set status_val = analysis.status %}
     {% set status_labels = {'da_valutare': 'Da valutare', 'candidato': 'Candidato', 'colloquio': 'Colloquio', 'scartato': 'Scartato'} %}
     <span class="status-badge status-{{ status_val | default('da_valutare') }}">
       {{ status_labels.get(status_val, status_val | replace('_', ' ') | capitalize) }}

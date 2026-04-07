@@ -32,7 +32,7 @@ def _analysis_summary(a: JobAnalysis) -> dict[str, Any]:
         "company": a.company,
         "role": a.role,
         "score": a.score,
-        "status": a.status.value if a.status else None,
+        "status": a.status or None,
         "location": a.location,
         "work_mode": a.work_mode,
         "created_at": a.created_at.isoformat() if a.created_at else None,
@@ -119,7 +119,7 @@ def candidature_detail(
 
     result = rebuild_result(analysis)
     result["id"] = str(analysis.id)
-    result["status"] = analysis.status.value if analysis.status else None
+    result["status"] = analysis.status or None
     result["created_at"] = analysis.created_at.isoformat() if analysis.created_at else None
     result["applied_at"] = analysis.applied_at.isoformat() if analysis.applied_at else None
     result["followed_up"] = analysis.followed_up
@@ -225,7 +225,7 @@ def pending_followups(
                     "company": a.company,
                     "role": a.role,
                     "applied_at": a.applied_at.isoformat() if a.applied_at else None,
-                    "status": a.status.value if a.status else None,
+                    "status": a.status or None,
                 }
                 for a in analyses
             ]
@@ -257,9 +257,9 @@ def activity_summary(
         {
             "period_days": days,
             "new_candidature": total,
-            "applied": sum(1 for a in analyses if a.status and a.status.value == "candidato"),
+            "applied": sum(1 for a in analyses if a.status and a.status == "candidato"),
             "interviews_scheduled": len(interviews),
-            "rejected": sum(1 for a in analyses if a.status and a.status.value == "scartato"),
+            "rejected": sum(1 for a in analyses if a.status and a.status == "scartato"),
             "avg_score": avg_score,
             "dashboard": dashboard,
             "spending": spending,

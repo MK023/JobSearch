@@ -59,7 +59,7 @@
       <h2 class="section-title">Da valutare</h2>
       <a href="/history" class="link-subtle">Storico &rarr;</a>
     </div>
-    {% set pending = analyses|selectattr("status.value", "equalto", "da_valutare")|list %}
+    {% set pending = analyses|selectattr("status", "equalto", "da_valutare")|list %}
     {% if pending %}
       {% for analysis in pending %}
         {% include "partials/job_card.html" %}

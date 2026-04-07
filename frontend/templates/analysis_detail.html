@@ -163,7 +163,7 @@
     {# ---- 8. Cover letter section ---- #}
     {% if cover_letter %}
     {% include "partials/cover_letter_result.html" %}
-    {% elif current and current.status.value != 'scartato' %}
+    {% elif current and current.status != 'scartato' %}
     <div class="card card-mb" id="cover-letter-card">
       <h2>&#x2709;&#xFE0F; Lettera di presentazione &mdash; <span class="cover-letter-ref">{{ current.role or 'Ruolo' }} @ {{ current.company or 'Azienda' }}</span></h2>
       <form method="post" action="/cover-letter" id="cover-letter-form"
@@ -205,19 +205,19 @@
       <div class="actions-section">
         <div class="actions-label">Stato</div>
         <div class="status-toggle" data-analysis-id="{{ current.id }}">
-          <button type="button" class="status-option status-opt-da_valutare {{ 'active' if current.status.value == 'da_valutare' }}" data-status="da_valutare" onclick="setStatus(this)">
+          <button type="button" class="status-option status-opt-da_valutare {{ 'active' if current.status == 'da_valutare' }}" data-status="da_valutare" onclick="setStatus(this)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
             Da valutare
           </button>
-          <button type="button" class="status-option status-opt-candidato {{ 'active' if current.status.value == 'candidato' }}" data-status="candidato" onclick="setStatus(this)">
+          <button type="button" class="status-option status-opt-candidato {{ 'active' if current.status == 'candidato' }}" data-status="candidato" onclick="setStatus(this)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg>
             Candidato
           </button>
-          <button type="button" class="status-option status-opt-colloquio {{ 'active' if current.status.value == 'colloquio' }}" data-status="colloquio" onclick="setStatus(this)">
+          <button type="button" class="status-option status-opt-colloquio {{ 'active' if current.status == 'colloquio' }}" data-status="colloquio" onclick="setStatus(this)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             Colloquio
           </button>
-          <button type="button" class="status-option status-opt-scartato {{ 'active' if current.status.value == 'scartato' }}" data-status="scartato" onclick="setStatus(this)">
+          <button type="button" class="status-option status-opt-scartato {{ 'active' if current.status == 'scartato' }}" data-status="scartato" onclick="setStatus(this)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
             Scartato
           </button>
