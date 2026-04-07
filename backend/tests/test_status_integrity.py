@@ -90,6 +90,6 @@ class TestStatusEnumValues:
             db_session.flush()
 
             db_session.refresh(analysis)
-            assert (
-                analysis.status == status.value
-            ), f"Status roundtrip failed: wrote {status.value!r}, read back {analysis.status!r}"
+            assert analysis.status == status.value, (
+                f"Status roundtrip failed: wrote {status.value!r}, read back {analysis.status!r}"
+            )
