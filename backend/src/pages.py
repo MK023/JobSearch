@@ -96,7 +96,7 @@ def history_page(
     templates = request.app.state.templates
     flash = _flash(request)
 
-    analyses = get_recent_analyses(db, limit=50)
+    analyses = get_recent_analyses(db, limit=300)
     counts: dict[str, int] = {}
     for status in AnalysisStatus:
         counts[status.value] = sum(1 for a in analyses if a.status == status)
