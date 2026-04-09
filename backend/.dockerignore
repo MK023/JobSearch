@@ -2,6 +2,6 @@ __pycache__
 *.pyc
 .env
 logs/
-fly.toml
+render.yaml
 .git
 .gitignore

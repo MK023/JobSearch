@@ -1,7 +1,6 @@
 """HTTP client for the JobSearch backend API with API key auth.
 
-Handles Fly.io cold starts with retry logic — the backend may take
-10-15s to wake from sleep on the free tier.
+Includes retry logic with exponential backoff for transient failures.
 """
 
 import asyncio
@@ -12,7 +11,7 @@ from config import settings
 
 _client: httpx.AsyncClient | None = None
 
-# Fly.io free tier: machine sleeps after inactivity, first request may timeout
+# Timeouts and retry config
 _WAKE_TIMEOUT = 60.0  # generous timeout for cold start / health check
 _NORMAL_TIMEOUT = 30.0  # regular API calls
 _BATCH_TIMEOUT = 120.0  # batch operations that may take longer to start
@@ -41,7 +40,7 @@ async def get_client() -> httpx.AsyncClient:
 
 
 async def _request_with_retry(method: str, path: str, *, timeout: float | None = None, **kwargs) -> httpx.Response:
-    """Execute an HTTP request with retry and exponential backoff for Fly.io cold starts.
+    """Execute an HTTP request with retry and exponential backoff.
 
     Args:
         method: HTTP method (get, post, delete).
@@ -64,9 +63,7 @@ async def _request_with_retry(method: str, path: str, *, timeout: float | None =
                 delay = _RETRY_BASE_DELAY * (2**attempt)  # 3s, 6s, 12s
                 await asyncio.sleep(delay)
                 continue
-            raise RuntimeError(
-                f"Backend unreachable after {_MAX_RETRIES + 1} attempts " f"(Fly.io may be sleeping): {exc}"
-            ) from exc
+            raise RuntimeError(f"Backend unreachable after {_MAX_RETRIES + 1} attempts: {exc}") from exc
 
     raise RuntimeError("Unreachable: retry loop completed without return or raise")
 

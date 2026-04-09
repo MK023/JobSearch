@@ -27,9 +27,9 @@ mcp = FastMCP(
 
 @mcp.tool()
 async def wake_backend() -> dict:
-    """Sveglia il backend Fly.io e verifica che sia pronto.
+    """Sveglia il backend e verifica che sia pronto.
 
-    Chiama GET /health per forzare il wake-up della macchina.
+    Chiama GET /health per verificare che il server risponda.
     Usare PRIMA di un batch per evitare timeout da cold start.
     Ritorna: status, db, uptime.
     """

@@ -8,9 +8,9 @@ from src.rate_limit import get_client_ip
 
 
 class TestGetIp:
-    def test_extracts_fly_client_ip(self):
+    def test_extracts_x_forwarded_for(self):
         request = MagicMock()
-        request.headers = {"Fly-Client-IP": "1.2.3.4"}
+        request.headers = {"X-Forwarded-For": "1.2.3.4, 10.0.0.1"}
         assert get_client_ip(request) == "1.2.3.4"
 
     def test_ignores_x_real_ip(self):
@@ -20,9 +20,9 @@ class TestGetIp:
         request.client.host = "10.0.0.1"
         assert get_client_ip(request) == "10.0.0.1"
 
-    def test_fly_client_ip_ignores_x_real_ip(self):
+    def test_xff_single_ip(self):
         request = MagicMock()
-        request.headers = {"Fly-Client-IP": "1.2.3.4", "X-Real-IP": "5.6.7.8"}
+        request.headers = {"X-Forwarded-For": "1.2.3.4"}
         assert get_client_ip(request) == "1.2.3.4"
 
     def test_uses_client_host(self):

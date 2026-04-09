@@ -61,14 +61,17 @@ class Settings(BaseSettings):
     def effective_database_url(self) -> str:
         """Normalize DATABASE_URL for SQLAlchemy compatibility.
 
-        - Converts postgres:// to postgresql:// (Fly/Neon use old prefix)
+        - Converts postgres:// to postgresql:// (Neon/Heroku use old prefix)
         - Strips channel_binding param (unsupported by psycopg2)
+        - Passes through non-postgresql URLs unchanged (e.g. sqlite for CI)
         """
-        from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
-
         url = self.database_url
         if url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql://", 1)
+        if not url.startswith("postgresql://"):
+            return url
+        from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
+
         parsed = urlparse(url)
         params = parse_qs(parsed.query, keep_blank_values=True)
         params.pop("channel_binding", None)
@@ -81,7 +84,5 @@ class Settings(BaseSettings):
 settings = Settings()
 
 # Prevent deployment with default secret key
-_is_render = bool(_os.environ.get("RENDER"))
-_is_flyio = bool(_os.environ.get("FLY_APP_NAME"))
-if settings.secret_key == "dev-only-change-me" and (_is_render or _is_flyio):  # noqa: S105
+if settings.secret_key == "dev-only-change-me" and _os.environ.get("RENDER"):  # noqa: S105
     raise RuntimeError("SECRET_KEY must be set to a secure random value in production")

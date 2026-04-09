@@ -189,7 +189,7 @@ def run_batch(batch_id: str, db: Session, user_id: UUID, cache: CacheService | N
                 db.commit()
                 continue
 
-            # Run analysis with a hard timeout to prevent Fly.io stalls.
+            # Run analysis with a hard timeout to prevent stalls on free tier.
             # Haiku responds in 3-5s; if it takes >45s, the call is stuck.
             with ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(
@@ -221,7 +221,7 @@ def run_batch(batch_id: str, db: Session, user_id: UUID, cache: CacheService | N
             db.commit()
             logger.info("Batch item done: %s (%s)", item.preview, item.id)
 
-            # Throttle between API calls to avoid Fly.io shared-CPU
+            # Throttle between API calls to avoid shared-CPU
             # throttling and Anthropic rate limits.
             # 8s keeps CPU utilization ~33% — safe for free tier.
             time.sleep(8)

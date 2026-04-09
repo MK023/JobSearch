@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     """MCP server settings loaded from environment variables."""
 
-    # Backend API base URL (internal Fly.io network)
+    # Backend API base URL
     backend_url: str = "http://localhost:8080"
 
     # API key for authenticating against the backend
