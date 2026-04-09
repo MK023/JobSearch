@@ -4,8 +4,11 @@ Manages a persistent queue of job descriptions to analyze sequentially.
 State is stored in PostgreSQL via the BatchItem model.
 """
 
+import logging
 import time
 import uuid as uuid_mod
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 from typing import Any, cast
 from uuid import UUID
 
@@ -18,6 +21,13 @@ from ..dashboard.service import add_spending
 from ..integrations.anthropic_client import MODELS, content_hash
 from ..integrations.cache import CacheService
 from .models import BatchItem, BatchItemStatus
+
+logger = logging.getLogger(__name__)
+
+# Max seconds to wait for a single Haiku analysis.
+# Haiku typically responds in 3-5s. If it takes longer than 45s
+# on free tier, it's stalled — skip and move on.
+_BATCH_ITEM_TIMEOUT = 45
 
 
 def add_to_queue(
@@ -179,15 +189,25 @@ def run_batch(batch_id: str, db: Session, user_id: UUID, cache: CacheService | N
                 db.commit()
                 continue
 
-            analysis, result = run_analysis(
-                db,
-                cast(str, cv.raw_text),
-                cast(UUID, cv.id),
-                cast(str, item.job_description),
-                cast(str, item.job_url) or "",
-                cast(str, item.model) or "haiku",
-                cache,
-            )
+            # Run analysis with a hard timeout to prevent Fly.io stalls.
+            # Haiku responds in 3-5s; if it takes >45s, the call is stuck.
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(
+                    run_analysis,
+                    db,
+                    cast(str, cv.raw_text),
+                    cast(UUID, cv.id),
+                    cast(str, item.job_description),
+                    cast(str, item.job_url) or "",
+                    cast(str, item.model) or "haiku",
+                    cache,
+                )
+                try:
+                    analysis, result = future.result(timeout=_BATCH_ITEM_TIMEOUT)
+                except FuturesTimeoutError:
+                    future.cancel()
+                    raise TimeoutError(f"Analysis timed out after {_BATCH_ITEM_TIMEOUT}s") from None
+
             add_spending(
                 db,
                 result.get("cost_usd", 0.0),
@@ -199,10 +219,12 @@ def run_batch(batch_id: str, db: Session, user_id: UUID, cache: CacheService | N
             item.analysis_id = analysis.id
             item.attempt_count = (item.attempt_count or 0) + 1  # type: ignore[assignment]
             db.commit()
+            logger.info("Batch item done: %s (%s)", item.preview, item.id)
 
-            # Throttle between API calls to avoid Fly.io autostop
-            # and Anthropic rate limits on free/low tier
-            time.sleep(2)
+            # Throttle between API calls to avoid Fly.io shared-CPU
+            # throttling and Anthropic rate limits.
+            # 8s keeps CPU utilization ~33% — safe for free tier.
+            time.sleep(8)
 
         except Exception as exc:
             db.rollback()
@@ -210,6 +232,7 @@ def run_batch(batch_id: str, db: Session, user_id: UUID, cache: CacheService | N
             item.error_message = str(exc)  # type: ignore[assignment]
             item.attempt_count = (item.attempt_count or 0) + 1  # type: ignore[assignment]
             db.commit()
+            logger.warning("Batch item error: %s — %s", item.preview, exc)
 
 
 def batch_results(db: Session, batch_id: str) -> list[BatchItem]:

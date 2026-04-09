@@ -446,7 +446,7 @@ Il singleton evita di ricreare il client HTTP ad ogni chiamata.
 ```python
 MODELS = {
     "haiku": "claude-haiku-4-5-20251001",    # Veloce, economico
-    "sonnet": "claude-sonnet-4-5-20250929",  # Approfondito, costoso
+    "sonnet": "claude-sonnet-4-6",            # Approfondito, costoso
 }
 ```
 
@@ -512,7 +512,7 @@ Se CV + annuncio producono lo stesso hash di un'analisi esistente con lo stesso 
 ```python
 PRICING = {
     "claude-haiku-4-5-20251001": {"input": 0.80, "output": 4.00},
-    "claude-sonnet-4-5-20250929": {"input": 3.00, "output": 15.00},
+    "claude-sonnet-4-6": {"input": 3.00, "output": 15.00},
 }
 
 def _calculate_cost(usage, model_id):

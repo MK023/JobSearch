@@ -122,7 +122,7 @@ class TestImportAnalysisDedup:
 
     def test_different_model_allows_import(self, db_session, test_analysis):
         """Same hash but different model should NOT trigger dedup."""
-        existing = find_existing_analysis(db_session, "abc123", "claude-sonnet-4-5-20250929")
+        existing = find_existing_analysis(db_session, "abc123", "claude-sonnet-4-6")
         assert existing is None
 
 

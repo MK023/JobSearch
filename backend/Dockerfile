@@ -9,6 +9,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ .
 COPY frontend/ /app/frontend/
 
-# Default command for local development (--reload enabled)
-# Production (fly.toml) overrides this with its own process command
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Production command. Render uses PORT env var (default 10000).
+# Local dev: docker-compose overrides with --reload --port 8000
+CMD sh -c "uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*'"

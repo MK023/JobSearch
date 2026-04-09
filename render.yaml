@@ -1,0 +1,70 @@
+services:
+  - type: web
+    runtime: docker
+    name: jobsearch
+    repo: https://github.com/MK023/JobSearch.git
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./
+    region: frankfurt
+    plan: free
+    healthCheckPath: /health
+    preDeployCommand: "cd /app/backend && python -m alembic upgrade head"
+
+    envVars:
+      # Database (Neon PostgreSQL — set manually on Render dashboard)
+      - key: DATABASE_URL
+        sync: false
+
+      # Anthropic API key
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
+      # Session encryption (auto-generated)
+      - key: SECRET_KEY
+        generateValue: true
+
+      # MCP server API key (auto-generated)
+      - key: API_KEY
+        generateValue: true
+
+      # Admin credentials
+      - key: ADMIN_EMAIL
+        value: marco.bellingeri@gmail.com
+      - key: ADMIN_PASSWORD
+        sync: false
+
+      # CORS and trusted hosts (Render domain — update after deploy)
+      - key: CORS_ALLOWED_ORIGINS
+        value: "https://jobsearch.fly.dev,https://jobsearch-xxxx.onrender.com"
+      - key: TRUSTED_HOSTS
+        value: "jobsearch-xxxx.onrender.com,jobsearch.fly.dev"
+
+      # Cloudflare R2 (file uploads)
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_ENDPOINT_URL
+        sync: false
+      - key: R2_BUCKET_NAME
+        value: jobsearch-files
+
+      # Glassdoor data (optional)
+      - key: RAPIDAPI_KEY
+        sync: false
+
+      # Resend email (optional)
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        value: "noreply@jobsearches.cc"
+      - key: DOCUMENT_REMINDER_EMAIL
+        value: "marco.bellingeri@gmail.com"
+
+      # Redis (empty = NullCacheService fallback, app works fine without)
+      - key: REDIS_URL
+        value: ""
+
+      # Logging
+      - key: LOG_LEVEL
+        value: INFO

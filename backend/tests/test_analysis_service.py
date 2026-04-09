@@ -24,7 +24,7 @@ class TestFindExistingAnalysis:
         assert result is None
 
     def test_returns_none_for_different_model(self, db_session, test_analysis):
-        result = find_existing_analysis(db_session, "abc123", "claude-sonnet-4-5-20250929")
+        result = find_existing_analysis(db_session, "abc123", "claude-sonnet-4-6")
         assert result is None
 
 
