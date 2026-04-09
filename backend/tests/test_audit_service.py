@@ -41,7 +41,7 @@ class TestGetIp:
 class TestAudit:
     def test_creates_audit_log(self, db_session, test_user):
         request = MagicMock()
-        request.headers = {"Fly-Client-IP": "192.168.1.1"}
+        request.headers = {"X-Forwarded-For": "192.168.1.1"}
         request.session = {"user_id": str(test_user.id)}
 
         audit(db_session, request, "test_action", "some detail")
