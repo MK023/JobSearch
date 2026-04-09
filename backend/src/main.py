@@ -62,9 +62,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     if not settings.anthropic_api_key:
         raise RuntimeError("ANTHROPIC_API_KEY missing. Configure .env file")
 
-    # Migrations run via platform pre-deploy command; run here only for local dev
-    if "localhost" in settings.trusted_hosts:
-        _run_migrations()
+    # Run migrations on startup (safe: alembic upgrade head is idempotent)
+    _run_migrations()
 
     app.state.cache = create_cache_service()
 

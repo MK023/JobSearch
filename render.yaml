@@ -8,7 +8,6 @@ services:
     region: frankfurt
     plan: free
     healthCheckPath: /health
-    preDeployCommand: "cd /app/backend && python -m alembic upgrade head"
 
     envVars:
       # Database (Neon PostgreSQL — set manually on Render dashboard)
