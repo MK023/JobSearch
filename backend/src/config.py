@@ -72,7 +72,7 @@ class Settings(BaseSettings):
         parsed = urlparse(url)
         params = parse_qs(parsed.query, keep_blank_values=True)
         params.pop("channel_binding", None)
-        clean_query = urlencode({k: v[0] for k, v in params.items()})
+        clean_query = urlencode({k: v[0].strip() for k, v in params.items()})
         return urlunparse(parsed._replace(query=clean_query))
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
