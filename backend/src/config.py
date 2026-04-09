@@ -59,11 +59,21 @@ class Settings(BaseSettings):
 
     @property
     def effective_database_url(self) -> str:
-        """Fly Postgres uses postgres:// but SQLAlchemy requires postgresql://."""
+        """Normalize DATABASE_URL for SQLAlchemy compatibility.
+
+        - Converts postgres:// to postgresql:// (Fly/Neon use old prefix)
+        - Strips channel_binding param (unsupported by psycopg2)
+        """
+        from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
+
         url = self.database_url
         if url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql://", 1)
-        return url
+        parsed = urlparse(url)
+        params = parse_qs(parsed.query, keep_blank_values=True)
+        params.pop("channel_binding", None)
+        clean_query = urlencode({k: v[0] for k, v in params.items()})
+        return urlunparse(parsed._replace(query=clean_query))
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 

@@ -1,0 +1,17 @@
+__pycache__
+*.pyc
+.env
+.env.*
+backend/logs/
+backend/.venv/
+mcp-server/
+.git
+.gitignore
+.github
+.mypy_cache
+.pytest_cache
+.ruff_cache
+.playwright-mcp
+*.md
+!backend/README.md
+firebase-debug.log
