@@ -25,9 +25,9 @@ from .models import BatchItem, BatchItemStatus
 logger = logging.getLogger(__name__)
 
 # Max seconds to wait for a single Haiku analysis.
-# Haiku typically responds in 3-5s. If it takes longer than 45s
-# on free tier, it's stalled — skip and move on.
-_BATCH_ITEM_TIMEOUT = 45
+# Haiku typically responds in 3-5s. On Render (no CPU throttle)
+# allow up to 90s for slow API responses before skipping.
+_BATCH_ITEM_TIMEOUT = 90
 
 
 def add_to_queue(
@@ -221,10 +221,9 @@ def run_batch(batch_id: str, db: Session, user_id: UUID, cache: CacheService | N
             db.commit()
             logger.info("Batch item done: %s (%s)", item.preview, item.id)
 
-            # Throttle between API calls to avoid shared-CPU
-            # throttling and Anthropic rate limits.
-            # 8s keeps CPU utilization ~33% — safe for free tier.
-            time.sleep(8)
+            # Throttle between API calls to respect Anthropic rate limits.
+            # Render has no CPU throttle, so 4s is sufficient.
+            time.sleep(4)
 
         except Exception as exc:
             db.rollback()
