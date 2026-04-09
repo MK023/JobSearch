@@ -8,7 +8,6 @@ services:
     region: frankfurt
     plan: free
     healthCheckPath: /health
-    healthCheckGracePeriod: 60
 
     envVars:
       # Database (Neon PostgreSQL — set manually on Render dashboard)
