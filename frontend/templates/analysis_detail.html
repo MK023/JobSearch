@@ -144,33 +144,38 @@
     <div class="advice-box">
       <div class="advice-title">&#x1F4C5; Esperienza richiesta</div>
       <div class="advice-text">
+        {%- if has_level -%}livello {{ er.level }}{%- endif -%}
+        {%- if has_level and has_years %}: {% elif has_years %}{% endif -%}
         {%- if er.years_min and er.years_max -%}{{ er.years_min }}&ndash;{{ er.years_max }} anni
         {%- elif er.years_min -%}{{ er.years_min }}+ anni
         {%- elif er.years_max -%}fino a {{ er.years_max }} anni
         {%- endif -%}
-        {%- if has_years and has_level %} &middot; {% endif -%}
-        {%- if has_level -%}livello {{ er.level }}{%- endif -%}
       </div>
     </div>
     {% endif %}
 
-    {# ---- 5b. BENEFITS ---- #}
+    {# ---- 5b. BENEFITS — same pattern as strengths (positive items, green ticks) ---- #}
     {% if result.benefits %}
-    <div class="advice-box">
-      <div class="advice-title">&#x1F381; Benefits aziendali</div>
-      <div class="advice-text">{% for b in result.benefits %}&bull; {{ b }}
-{% endfor %}</div>
+    <div class="strengths-section">
+      <div class="section-header">
+        <div class="section-title">&#x1F381; Benefits aziendali</div>
+        <span class="section-count">{{ result.benefits|length }}</span>
+      </div>
+      {% for b in result.benefits %}
+      <div class="strength-item">
+        <span class="strength-icon">&#x2705;</span>
+        <span class="strength-text">{{ b }}</span>
+      </div>
+      {% endfor %}
     </div>
     {% endif %}
 
-    {# ---- 5c. BODY RENTAL WARNING ---- #}
+    {# ---- 5c. BODY RENTAL WARNING — text inline (same spacing as the advice box) ---- #}
     {% if result.recruiter_info and result.recruiter_info.is_body_rental %}
     <div class="advice-box advice-box-danger">
       <div class="advice-title">&#x26A0;&#xFE0F; Body rental / Staff augmentation</div>
-      <div class="advice-text">
-        {% if result.recruiter_info.body_rental_company %}<strong>{{ result.recruiter_info.body_rental_company }}</strong> ti assume per girarti in consulenza presso un cliente finale.{% else %}Annuncio classificato come body rental.{% endif %}
-      </div>
-      <div class="advice-subtitle">Tipicamente: contratto con l'azienda intermediaria, lavoro presso il cliente, scarsa visibilita' sul prodotto finale. Da escludere secondo il tuo profilo.</div>
+      <div class="advice-text">{% if result.recruiter_info.body_rental_company %}{{ result.recruiter_info.body_rental_company }} ti assume per girarti in consulenza presso un cliente finale.{% else %}Annuncio classificato come body rental.{% endif %}
+Tipicamente: contratto con l'azienda intermediaria, lavoro presso il cliente, scarsa visibilita' sul prodotto finale. Da escludere secondo il tuo profilo.</div>
     </div>
     {% endif %}
 

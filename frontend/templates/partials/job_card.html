@@ -19,12 +19,12 @@
         {% set has_years = er.years_min or er.years_max %}
         {% set has_level = er.level and er.level != 'unspecified' %}
         {% if has_years or has_level %} ·
+          {%- if has_level %} livello {{ er.level }}{% endif -%}
+          {%- if has_level and has_years %}:{% endif -%}
           {%- if er.years_min and er.years_max %} {{ er.years_min }}&ndash;{{ er.years_max }} anni
           {%- elif er.years_min %} {{ er.years_min }}+ anni
           {%- elif er.years_max %} fino a {{ er.years_max }} anni
           {%- endif -%}
-          {%- if has_years and has_level %} ·{% endif -%}
-          {%- if has_level %} livello {{ er.level }}{% endif -%}
         {% endif %}
       {% endif %}
     </span>
