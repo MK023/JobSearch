@@ -253,11 +253,18 @@ def create_app() -> FastAPI:
         status = "ok" if db_status == "ok" else "degraded"
         uptime = round(time.time() - _startup_time, 1) if _startup_time else 0.0
 
+        import contextlib
+
+        cache_stats: dict[str, int] = {}
+        with contextlib.suppress(Exception):
+            cache_stats = app.state.cache.stats()
+
         return {
             "status": status,
             "db": db_status,
             "version": "2.0.0",
             "uptime_seconds": uptime,
+            "cache": cache_stats,
         }
 
     return app
