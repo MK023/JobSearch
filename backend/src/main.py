@@ -67,10 +67,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     app.state.cache = create_cache_service()
 
+    from .batch.service import cleanup_stale_running
+
     db = SessionLocal()
     try:
         ensure_admin_user(db)
         seed_spending_totals(db)
+        # Recover batch items left RUNNING by a prior crash/deploy (SIGTERM
+        # kills background tasks without a chance to mark items failed).
+        cleanup_stale_running(db)
         db.commit()
     finally:
         db.close()

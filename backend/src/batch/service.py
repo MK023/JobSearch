@@ -9,6 +9,7 @@ import time
 import uuid as uuid_mod
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeoutError
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 from uuid import UUID
 
@@ -28,6 +29,10 @@ logger = logging.getLogger(__name__)
 # Haiku typically responds in 3-5s. On Render (no CPU throttle)
 # allow up to 90s for slow API responses before skipping.
 _BATCH_ITEM_TIMEOUT = 90
+
+# Any item stuck in RUNNING longer than this is considered orphaned
+# (e.g. the worker died mid-batch on deploy/SIGTERM).
+_STALE_RUNNING_THRESHOLD_MINUTES = 10
 
 
 def add_to_queue(
@@ -144,18 +149,48 @@ def get_batch_status(db: Session) -> dict[str, Any]:
     }
 
 
-def clear_completed(db: Session, batch_id: str | None = None) -> None:
-    """Delete ALL batch_items (done, skipped, error, AND pending).
+def clear_completed(db: Session, batch_id: str | None = None) -> int:
+    """Delete batch_items, but never touch items currently RUNNING.
 
-    Called before starting a new batch to ensure a clean slate.
-    Pending items from old batches would otherwise accumulate and
-    cause the batch to exceed the max_batch_size limit.
+    Without the RUNNING guard, calling `/batch/clear` while a batch_run
+    background task is mid-loop would orphan in-flight items (deleted rows
+    while a worker still holds them in memory) and lose partial results.
+
+    Returns the number of deleted rows.
     """
-    q = db.query(BatchItem)
+    q = db.query(BatchItem).filter(BatchItem.status != BatchItemStatus.RUNNING)
     if batch_id:
         q = q.filter(BatchItem.batch_id == batch_id)
-    q.delete(synchronize_session="fetch")
+    deleted = q.delete(synchronize_session="fetch")
     db.commit()
+    return int(deleted or 0)
+
+
+def cleanup_stale_running(db: Session, threshold_minutes: int = _STALE_RUNNING_THRESHOLD_MINUTES) -> int:
+    """Mark any item stuck in RUNNING longer than threshold as ERROR.
+
+    Called on app startup to recover from crashes/deploys that killed a
+    batch worker mid-loop. Without this, items stay RUNNING forever and
+    `get_batch_status` reports the batch as still active.
+
+    Returns the number of items recovered.
+    """
+    threshold = datetime.now(UTC) - timedelta(minutes=threshold_minutes)
+    stale = (
+        db.query(BatchItem)
+        .filter(
+            BatchItem.status == BatchItemStatus.RUNNING,
+            BatchItem.updated_at < threshold,
+        )
+        .all()
+    )
+    for item in stale:
+        item.status = BatchItemStatus.ERROR  # type: ignore[assignment]
+        item.error_message = f"stale_running_recovered_after_{threshold_minutes}m"  # type: ignore[assignment]
+    if stale:
+        db.commit()
+        logger.warning("Recovered %d stale RUNNING batch items on startup", len(stale))
+    return len(stale)
 
 
 def run_batch(batch_id: str, db: Session, user_id: UUID, cache: CacheService | None = None) -> None:
@@ -175,23 +210,29 @@ def run_batch(batch_id: str, db: Session, user_id: UUID, cache: CacheService | N
         db.commit()
         return
 
-    for item in items:
-        item.status = BatchItemStatus.RUNNING  # type: ignore[assignment]
-        db.commit()
+    # One ThreadPoolExecutor for the whole batch instead of one per item.
+    # The previous "with" inside the loop paid thread-lifecycle overhead
+    # on every iteration — relevant on Render free tier (512MB shared vCPU).
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        for item in items:
+            item.status = BatchItemStatus.RUNNING  # type: ignore[assignment]
+            db.commit()
 
-        try:
-            # Re-check dedup (race condition safety)
-            model_id = MODELS.get(cast(str, item.model) or "haiku", MODELS["haiku"])
-            existing = find_existing_analysis(db, cast(str, item.content_hash), model_id)
-            if existing:
-                item.status = BatchItemStatus.DONE  # type: ignore[assignment]
-                item.analysis_id = existing.id
-                db.commit()
-                continue
+            try:
+                # Re-check dedup (race condition safety)
+                model_id = MODELS.get(cast(str, item.model) or "haiku", MODELS["haiku"])
+                existing = find_existing_analysis(db, cast(str, item.content_hash), model_id)
+                if existing:
+                    # Dedup hit discovered at run time → SKIPPED, not DONE.
+                    # DONE means "this batch produced a fresh analysis";
+                    # SKIPPED means "we reused an earlier one".
+                    item.status = BatchItemStatus.SKIPPED  # type: ignore[assignment]
+                    item.analysis_id = existing.id
+                    db.commit()
+                    continue
 
-            # Run analysis with a hard timeout to prevent stalls on free tier.
-            # Haiku responds in 3-5s; if it takes >45s, the call is stuck.
-            with ThreadPoolExecutor(max_workers=1) as executor:
+                # Hard timeout prevents stuck API calls from blocking the batch.
+                # Haiku responds in 3-5s; the 90s ceiling catches real stalls.
                 future = executor.submit(
                     run_analysis,
                     db,
@@ -208,30 +249,29 @@ def run_batch(batch_id: str, db: Session, user_id: UUID, cache: CacheService | N
                     future.cancel()
                     raise TimeoutError(f"Analysis timed out after {_BATCH_ITEM_TIMEOUT}s") from None
 
-            add_spending(
-                db,
-                result.get("cost_usd", 0.0),
-                result.get("tokens", {}).get("input", 0),
-                result.get("tokens", {}).get("output", 0),
-            )
+                add_spending(
+                    db,
+                    result.get("cost_usd", 0.0),
+                    result.get("tokens", {}).get("input", 0),
+                    result.get("tokens", {}).get("output", 0),
+                )
 
-            item.status = BatchItemStatus.DONE  # type: ignore[assignment]
-            item.analysis_id = analysis.id
-            item.attempt_count = (item.attempt_count or 0) + 1  # type: ignore[assignment]
-            db.commit()
-            logger.info("Batch item done: %s (%s)", item.preview, item.id)
+                item.status = BatchItemStatus.DONE  # type: ignore[assignment]
+                item.analysis_id = analysis.id
+                item.attempt_count = (item.attempt_count or 0) + 1  # type: ignore[assignment]
+                db.commit()
+                logger.info("Batch item done: %s (%s)", item.preview, item.id)
 
-            # Throttle between API calls to respect Anthropic rate limits.
-            # Render has no CPU throttle, so 4s is sufficient.
-            time.sleep(4)
+                # Throttle between API calls to respect Anthropic rate limits.
+                time.sleep(4)
 
-        except Exception as exc:
-            db.rollback()
-            item.status = BatchItemStatus.ERROR  # type: ignore[assignment]
-            item.error_message = str(exc)  # type: ignore[assignment]
-            item.attempt_count = (item.attempt_count or 0) + 1  # type: ignore[assignment]
-            db.commit()
-            logger.warning("Batch item error: %s — %s", item.preview, exc)
+            except Exception as exc:
+                db.rollback()
+                item.status = BatchItemStatus.ERROR  # type: ignore[assignment]
+                item.error_message = str(exc)  # type: ignore[assignment]
+                item.attempt_count = (item.attempt_count or 0) + 1  # type: ignore[assignment]
+                db.commit()
+                logger.warning("Batch item error: %s — %s", item.preview, exc)
 
 
 def batch_results(db: Session, batch_id: str) -> list[BatchItem]:

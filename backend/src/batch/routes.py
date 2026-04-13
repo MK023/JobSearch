@@ -181,10 +181,18 @@ def _score_label(score: int) -> str:
 
 
 @router.delete("/clear")
-def batch_clear(user: CurrentUser, db: DbSession) -> JSONResponse:
-    """Clear completed, skipped, and errored batch items from the database."""
-    clear_completed(db)
-    return JSONResponse({"ok": True})
+def batch_clear(
+    user: CurrentUser,
+    db: DbSession,
+    batch_id: str | None = None,
+) -> JSONResponse:
+    """Clear completed/skipped/errored batch items.
+
+    RUNNING items are never deleted (would orphan in-flight workers).
+    Without `batch_id`, clears across all batches.
+    """
+    deleted = clear_completed(db, batch_id=batch_id)
+    return JSONResponse({"ok": True, "deleted": deleted})
 
 
 @router.get("/pending-items")
