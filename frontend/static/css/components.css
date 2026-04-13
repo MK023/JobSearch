@@ -686,27 +686,9 @@
   color: var(--accent-red);
 }
 
-.tag-success {
-  background: rgb(48 209 88 / 12%);
-  color: var(--accent-green);
-}
-
 .tag-neutral {
   background: var(--bg-tertiary);
   color: var(--text-secondary);
-}
-
-/* ---- Tag group (flex wrapper for inline tag lists) ---- */
-
-.tag-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
-  margin: 0;
-}
-
-.tag-group .tag {
-  margin: 0;
 }
 
 /* ---- Links ---- */

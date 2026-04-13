@@ -372,21 +372,11 @@
   margin-bottom: var(--space-xl);
 }
 
-/* Variants — same shape, different accent for warning/danger/success */
+/* Danger variant — red border + tinted background for warnings (body rental) */
 
 .advice-box-danger {
   border-left-color: var(--accent-red);
   background: rgb(255 69 58 / 8%);
-}
-
-.advice-box-warning {
-  border-left-color: var(--accent-orange);
-  background: rgb(255 159 10 / 8%);
-}
-
-.advice-box-success {
-  border-left-color: var(--accent-green);
-  background: rgb(48 209 88 / 8%);
 }
 
 .advice-title {
@@ -400,11 +390,8 @@
 
 .advice-title-green { color: var(--accent-green); }
 .advice-title-amber { color: var(--accent-orange); }
-.advice-title-red { color: var(--accent-red); }
 
 .advice-box-danger .advice-title { color: var(--accent-red); }
-.advice-box-warning .advice-title { color: var(--accent-orange); }
-.advice-box-success .advice-title { color: var(--accent-green); }
 
 .advice-text {
   color: var(--text-primary);
