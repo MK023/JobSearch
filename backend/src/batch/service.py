@@ -218,6 +218,9 @@ def run_batch(batch_id: str, db: Session, user_id: UUID, cache: CacheService | N
             item.status = BatchItemStatus.RUNNING  # type: ignore[assignment]
             db.commit()
 
+            item_started_at = time.monotonic()
+            ch_short = (cast(str, item.content_hash) or "")[:8]
+
             try:
                 # Re-check dedup (race condition safety)
                 model_id = MODELS.get(cast(str, item.model) or "haiku", MODELS["haiku"])
@@ -229,6 +232,7 @@ def run_batch(batch_id: str, db: Session, user_id: UUID, cache: CacheService | N
                     item.status = BatchItemStatus.SKIPPED  # type: ignore[assignment]
                     item.analysis_id = existing.id
                     db.commit()
+                    logger.info("batch_item skipped (dedup) hash=%s preview=%r", ch_short, item.preview)
                     continue
 
                 # Hard timeout prevents stuck API calls from blocking the batch.
@@ -260,7 +264,20 @@ def run_batch(batch_id: str, db: Session, user_id: UUID, cache: CacheService | N
                 item.analysis_id = analysis.id
                 item.attempt_count = (item.attempt_count or 0) + 1  # type: ignore[assignment]
                 db.commit()
-                logger.info("Batch item done: %s (%s)", item.preview, item.id)
+
+                duration_ms = int((time.monotonic() - item_started_at) * 1000)
+                tokens = result.get("tokens", {}) or {}
+                logger.info(
+                    "batch_item done hash=%s duration_ms=%d cost_usd=%.6f "
+                    "tokens_in=%d tokens_out=%d model=%s preview=%r",
+                    ch_short,
+                    duration_ms,
+                    float(result.get("cost_usd", 0.0)),
+                    int(tokens.get("input", 0)),
+                    int(tokens.get("output", 0)),
+                    cast(str, item.model) or "haiku",
+                    item.preview,
+                )
 
                 # Throttle between API calls to respect Anthropic rate limits.
                 time.sleep(4)
@@ -271,7 +288,14 @@ def run_batch(batch_id: str, db: Session, user_id: UUID, cache: CacheService | N
                 item.error_message = str(exc)  # type: ignore[assignment]
                 item.attempt_count = (item.attempt_count or 0) + 1  # type: ignore[assignment]
                 db.commit()
-                logger.warning("Batch item error: %s — %s", item.preview, exc)
+                duration_ms = int((time.monotonic() - item_started_at) * 1000)
+                logger.warning(
+                    "batch_item error hash=%s duration_ms=%d preview=%r — %s",
+                    ch_short,
+                    duration_ms,
+                    item.preview,
+                    exc,
+                )
 
 
 def batch_results(db: Session, batch_id: str) -> list[BatchItem]:
