@@ -46,6 +46,18 @@ class TestStripMarkdownWrapper:
         result = _strip_markdown_wrapper(text)
         assert result == text
 
+    def test_unclosed_fence_still_strips_opening(self):
+        """Truncated AI response: opening ```json but no closing ```."""
+        text = '```json\n{"company": "Acme", "role": "Dev"'
+        result = _strip_markdown_wrapper(text)
+        assert result == '{"company": "Acme", "role": "Dev"'
+
+    def test_unclosed_fence_plain(self):
+        """Truncated response with plain ``` opening fence."""
+        text = '```\n{"partial": "data"'
+        result = _strip_markdown_wrapper(text)
+        assert result == '{"partial": "data"'
+
 
 class TestCleanJsonText:
     def test_removes_trailing_commas(self):
