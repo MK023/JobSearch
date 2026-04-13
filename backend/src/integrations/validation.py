@@ -39,6 +39,9 @@ class AnalysisAIResponse(BaseModel):
     advice: str = ""
     application_method: dict[str, Any] = Field(default_factory=dict)
     company_reputation: dict[str, Any] = Field(default_factory=dict)
+    benefits: list[Any] = Field(default_factory=list)
+    recruiter_info: dict[str, Any] = Field(default_factory=dict)
+    experience_required: dict[str, Any] = Field(default_factory=dict)
     full_response: str = ""
 
     @field_validator("score", mode="before")
@@ -128,6 +131,56 @@ class AnalysisAIResponse(BaseModel):
                     result.append({"question": item, "suggested_answer": ""})
             return result
         return []
+
+    @field_validator("benefits", mode="before")
+    @classmethod
+    def coerce_benefits(cls, v: object) -> list[Any]:
+        """Accept list of strings, list of dicts, or comma-separated string."""
+        if v is None:
+            return []
+        if isinstance(v, str):
+            return [s.strip() for s in v.split(",") if s.strip()]
+        if isinstance(v, list):
+            return v
+        return []
+
+    @field_validator("recruiter_info", mode="before")
+    @classmethod
+    def coerce_recruiter_info(cls, v: object) -> dict[str, Any]:
+        """Accept dict (preferred) or string (treated as agency name)."""
+        if v is None:
+            return {}
+        if isinstance(v, str):
+            return {"agency": v, "is_recruiter": bool(v.strip())}
+        if isinstance(v, dict):
+            return v
+        return {}
+
+    @field_validator("experience_required", mode="before")
+    @classmethod
+    def coerce_experience_required(cls, v: object) -> dict[str, Any]:
+        """Accept dict with years_min/max/level, or string (raw text)."""
+        if v is None:
+            return {}
+        if isinstance(v, str):
+            return {"raw_text": v, "level": "unspecified", "years_min": None, "years_max": None}
+        if isinstance(v, dict):
+            # Normalize numeric fields — accept int, float, string, or None
+            for key in ("years_min", "years_max"):
+                val = v.get(key)
+                if val in (None, "", "null"):
+                    v[key] = None
+                else:
+                    try:
+                        v[key] = int(float(str(val)))
+                    except (ValueError, TypeError):
+                        v[key] = None
+            # Normalize level
+            allowed_levels = {"junior", "mid", "senior", "lead", "principal", "unspecified"}
+            lvl = str(v.get("level", "unspecified")).lower().strip()
+            v["level"] = lvl if lvl in allowed_levels else "unspecified"
+            return v
+        return {}
 
 
 # ── Cover letter response ─────────────────────────────────────────────
@@ -289,6 +342,9 @@ def _apply_analysis_defaults(raw: dict[str, Any]) -> dict[str, Any]:
         "advice": "",
         "application_method": {},
         "company_reputation": {},
+        "benefits": [],
+        "recruiter_info": {},
+        "experience_required": {},
         "full_response": "",
     }
     result = {**defaults, **raw}
