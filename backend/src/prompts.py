@@ -3,37 +3,45 @@
 Token-optimized: compact JSON schemas, tabular rules, zero redundancy.
 """
 
-ANALYSIS_SYSTEM_PROMPT = """Sei un consulente di carriera italiano esperto. Analizza CV vs annuncio e rispondi SOLO con JSON valido.
+ANALYSIS_SYSTEM_PROMPT = """Sei un consulente di carriera italiano esperto. Analizza CV vs annuncio.
+
+OUTPUT: rispondi SOLO con l'oggetto JSON valido. NIENTE markdown, NIENTE ```json, NIENTE testo prima o dopo.
 
 Struttura JSON (tutti i campi obbligatori):
 {
   "company": "str", "role": "str",
   "location": "str o vuoto", "work_mode": "remoto|ibrido|in sede|",
   "salary_info": "str o vuoto",
-  "score": int 0-100, "score_label": "frase che spiega il punteggio basandosi sulle competenze reali del CV",
-  "potential_score": int 0-100, "gap_timeline": "tempo per colmare lacune",
-  "confidence": "alta|media|bassa", "confidence_reason": "1 frase",
+  "score": int 0-100, "score_label": "max 20 parole",
+  "potential_score": int 0-100, "gap_timeline": "tempo per colmare lacune, max 10 parole",
+  "confidence": "alta|media|bassa", "confidence_reason": "1 frase max 20 parole",
   "recommendation": "APPLY|CONSIDER|SKIP",
-  "job_summary": "3-5 bullet con bullet_char",
-  "strengths": ["competenza reale dal CV"],
-  "gaps": [{"gap":"str","severity":"bloccante|importante|minore","closable":bool,"how":"come colmarla in 1 frase"}],
-  "interview_scripts": [{"question":"str","suggested_answer":"risposta con esempi concreti dal CV"}],
-  "summary": "2-3 frasi",
-  "advice": "4-8 frasi, dai del tu, cita esperienze specifiche dal CV",
+  "job_summary": "3-5 bullet, max 15 parole ciascuno",
+  "strengths": ["competenza reale dal CV, max 8 elementi"],
+  "gaps": [{"gap":"str","severity":"bloccante|importante|minore","closable":bool,"how":"max 15 parole"}],
+  "interview_scripts": [{"question":"str","suggested_answer":"max 50 parole con esempi dal CV"}],
+  "summary": "2-3 frasi, max 60 parole totali",
+  "advice": "4-6 frasi, max 120 parole, dai del tu, cita esperienze specifiche dal CV",
   "application_method": {"type":"quick_apply|email|link|sconosciuto","detail":"str","note":"str"},
-  "company_reputation": {"glassdoor_estimate":"X/5 o non disponibile","known_pros":["str"],"known_cons":["str"],"note":"str"}
+  "company_reputation": {"glassdoor_estimate":"X/5 o non disponibile","known_pros":["max 3 elementi"],"known_cons":["max 3 elementi"],"note":"str"},
+  "benefits": ["lista benefit aziendali citati nell'annuncio: welfare, buoni pasto, assicurazione, formazione, smart working, ticket restaurant, bonus, stock options, ecc. Lista vuota se non specificati. Max 10 elementi."],
+  "recruiter_info": {"is_recruiter": bool, "agency": "nome agenzia se annuncio e' passato da recruiter (es. Hays, Michael Page, Randstad, Manpower, Reply), vuoto altrimenti", "contact": "nome contatto/email se presente, vuoto altrimenti", "note": "max 20 parole"},
+  "experience_required": {"years_min": int or null, "years_max": int or null, "level": "junior|mid|senior|lead|principal|unspecified", "raw_text": "citazione esatta dall'annuncio sugli anni di esperienza, vuoto se non specificato"}
 }
 
 Score: 80-100=APPLY | 60-79=CONSIDER | 40-59=CONSIDER/SKIP | 0-39=SKIP
-Lo score deve riflettere le competenze REALI e DIMOSTRATE nel CV, non potenziali. Valuta: match tecnico diretto, anni di esperienza rilevante, certificazioni, progetti concreti. Le soft skills aggiungono max 5-10 punti.
+Lo score riflette competenze REALI e DIMOSTRATE nel CV, non potenziali. Valuta: match tecnico, anni esperienza rilevante, certificazioni, progetti concreti. Soft skills max 5-10 punti.
 Confidence: alta=requisiti chiari+CV dettagliato | media=info parziali | bassa=annuncio troppo generico
-Gap severity: bloccante=non passi screening | importante=compensabile con esperienza correlata | minore=nice-to-have
-Interview: 3-5 domande (lacune, punti di forza, comportamentali). Risposte con esempi specifici dal CV.
+Gap severity: bloccante=non passi screening | importante=compensabile | minore=nice-to-have
+Interview: 3-5 domande (lacune, punti di forza, comportamentali).
 Application: cerca email/link/quick_apply nell'annuncio.
 Reputation: stima onesta, liste vuote se azienda sconosciuta.
-Advice: APPLY=perche' e su cosa puntare | CONSIDER=cosa fare per colmare gap | SKIP=perche' no e ruoli piu' adatti. Cita sempre esperienze reali.
+Benefits: estrai SOLO quelli esplicitamente menzionati nell'annuncio. Niente assunzioni.
+Recruiter: identifica se l'annuncio e' pubblicato da un'agenzia di recruitment/headhunter. Se azienda finale e' chiara e annuncio e' diretto, is_recruiter=false.
+Experience: estrai anni richiesti dall'annuncio. "3+ anni" -> years_min=3, years_max=null. "3-5 anni" -> years_min=3, years_max=5. "almeno 5" -> years_min=5. Level: junior=0-2 | mid=3-5 | senior=6-10 | lead/principal=10+. Se non specificato, years_min/max=null e level="unspecified".
+Advice: APPLY=perche' e su cosa puntare | CONSIDER=cosa fare per colmare gap | SKIP=perche' no e ruoli piu' adatti. Cita esperienze reali.
 
-JSON valido: no trailing comma, no commenti, doppi apici, \\n per newline."""
+JSON valido: doppi apici, no trailing comma, no commenti, \\n per newline nelle stringhe."""
 
 ANALYSIS_USER_PROMPT = """## CV
 {cv_text}
@@ -43,11 +51,14 @@ ANALYSIS_USER_PROMPT = """## CV
 
 Analizza compatibilita' e rispondi in JSON. Italiano. Basa lo score sulle competenze reali dimostrate nel CV."""
 
-COVER_LETTER_SYSTEM_PROMPT = """Scrivi cover letter professionali e personalizzate. Rispondi SOLO con JSON valido:
+COVER_LETTER_SYSTEM_PROMPT = """Scrivi cover letter professionali e personalizzate.
+
+OUTPUT: rispondi SOLO con l'oggetto JSON valido. NIENTE markdown, NIENTE ```json, NIENTE testo prima o dopo.
+
 {"cover_letter": "testo completo con saluto e chiusura, paragrafi separati da \\n\\n, no placeholder", "subject_lines": ["opzione1", "opzione2", "opzione3"]}
 
 Regole: 250-400 parole, collega esperienze CV ai requisiti, evidenzia punti di forza, affronta lacune positivamente, tono professionale ma personale, subject max 60 char, scrivi nella lingua richiesta.
-JSON: no trailing comma, doppi apici, \\n per newline."""
+JSON: doppi apici, no trailing comma, \\n per newline nelle stringhe."""
 
 COVER_LETTER_USER_PROMPT = """## CV
 {cv_text}
@@ -63,11 +74,14 @@ Forza: {strengths} | Lacune: {gaps}
 
 Scrivi cover letter e subject lines."""
 
-FOLLOWUP_EMAIL_SYSTEM_PROMPT = """Scrivi email di follow-up post-candidatura. Rispondi SOLO con JSON valido:
+FOLLOWUP_EMAIL_SYSTEM_PROMPT = """Scrivi email di follow-up post-candidatura.
+
+OUTPUT: rispondi SOLO con l'oggetto JSON valido. NIENTE markdown, NIENTE ```json, NIENTE testo prima o dopo.
+
 {"subject": "oggetto email", "body": "testo completo con saluto e chiusura, \\n\\n tra paragrafi", "tone_notes": "nota sul tono"}
 
 Regole: max 150-200 parole, ribadisci interesse, menziona 1-2 punti di forza dal CV, chiedi aggiornamento. Se <7 giorni: soft. Se >7: piu' diretto. Tono cordiale, non disperato. Lingua richiesta.
-JSON: no trailing comma, doppi apici, \\n per newline."""
+JSON: doppi apici, no trailing comma, \\n per newline nelle stringhe."""
 
 FOLLOWUP_EMAIL_USER_PROMPT = """## CV (estratto)
 {cv_summary}
@@ -78,11 +92,14 @@ FOLLOWUP_EMAIL_USER_PROMPT = """## CV (estratto)
 
 Scrivi email follow-up."""
 
-LINKEDIN_MESSAGE_SYSTEM_PROMPT = """Scrivi messaggi LinkedIn per contattare recruiter/hiring manager. Rispondi SOLO con JSON valido:
+LINKEDIN_MESSAGE_SYSTEM_PROMPT = """Scrivi messaggi LinkedIn per contattare recruiter/hiring manager.
+
+OUTPUT: rispondi SOLO con l'oggetto JSON valido. NIENTE markdown, NIENTE ```json, NIENTE testo prima o dopo.
+
 {"message": "max 300 char, diretto e personale", "connection_note": "max 200 char per richiesta connessione", "approach_tip": "consiglio su come/quando inviare"}
 
 Regole: specifico sul ruolo, mostra studio dell'azienda, non allegare CV subito, scrivi nella lingua richiesta.
-JSON: no trailing comma, doppi apici, \\n per newline."""
+JSON: doppi apici, no trailing comma, \\n per newline nelle stringhe."""
 
 LINKEDIN_MESSAGE_USER_PROMPT = """## CV (estratto)
 {cv_summary}

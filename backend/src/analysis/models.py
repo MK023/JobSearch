@@ -66,6 +66,9 @@ class JobAnalysis(Base):
     interview_scripts = Column(JSON, default=list)
     advice = Column(Text, default="")
     company_reputation = Column(JSON, default=dict)
+    benefits = Column(JSON, nullable=True)
+    recruiter_info = Column(JSON, nullable=True)
+    experience_required = Column(JSON, nullable=True)
     full_response = Column(Text, default="")
 
     # Cost tracking
