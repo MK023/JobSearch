@@ -155,6 +155,9 @@ def batch_results_route(request: Request, user: CurrentUser, db: DbSession) -> J
                 "analyzed_at": analysis.created_at.isoformat() if analysis.created_at else "",
                 "status": str(analysis.status),
                 "is_duplicate": is_dedup,
+                "benefits": analysis.benefits or [],
+                "recruiter_info": analysis.recruiter_info or {},
+                "experience_required": analysis.experience_required or {},
             }
         )
         total_cost += float(analysis.cost_usd or 0.0)
