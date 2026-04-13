@@ -353,6 +353,14 @@ def _call_api(
         )
         fixed = _retry_json_fix(model_id, raw_text)
         if fixed is None:
+            # Log the full raw response so we can post-mortem the parse
+            # failure without re-running the call (and re-paying tokens).
+            logger.error(
+                "JSON parse fully failed model=%s len=%d raw_text=%r",
+                model_id,
+                len(raw_text),
+                raw_text,
+            )
             raise
         result = fixed
 
