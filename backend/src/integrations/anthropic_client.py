@@ -178,16 +178,23 @@ def _fix_single_quotes(text: str) -> str:
 
 
 def _strip_markdown_wrapper(text: str) -> str:
-    """Remove markdown code block wrappers (```json ... ``` or ``` ... ```)."""
+    """Remove markdown code block wrappers (```json ... ``` or ``` ... ```).
+
+    Handles unclosed fences gracefully: if the response was truncated and the
+    closing ``` is missing, still strip the opening fence so the caller can
+    attempt JSON parse on the partial payload.
+    """
     text = text.strip()
-    if text.startswith("```"):
-        # Remove opening line (```json or ```)
-        text = text.split("\n", 1)[1] if "\n" in text else text[3:]
-        # Remove closing ```
-        if "```" in text:
-            text = text.rsplit("```", 1)[0]
-        text = text.strip()
-    return text
+    if not text.startswith("```"):
+        return text
+    # Remove opening line (```json or ```)
+    text = text.split("\n", 1)[1] if "\n" in text else text[3:]
+    # Remove closing ``` if present
+    if "```" in text:
+        text = text.rsplit("```", 1)[0]
+    else:
+        logger.warning("Markdown fence opened but not closed — response likely truncated")
+    return text.strip()
 
 
 def _extract_and_parse_json(raw_text: str) -> dict[str, Any]:
@@ -272,10 +279,10 @@ def _retry_json_fix(model_id: str, broken_json: str) -> dict[str, Any] | None:
     try:
         client = get_client()
         # Truncate to avoid sending huge broken payloads
-        truncated = broken_json[:8000]
+        truncated = broken_json[:16000]
         fix_msg = client.messages.create(
             model=model_id,
-            max_tokens=2048,
+            max_tokens=8192,
             system=(
                 "You fix malformed JSON. Respond ONLY with the corrected JSON object, "
                 "no text before or after, no markdown code blocks. "
@@ -371,7 +378,7 @@ def analyze_job(
             return cached
 
     user_prompt = ANALYSIS_USER_PROMPT.format(cv_text=cv_text[:12000], job_description=job_description)
-    result, usage = _call_api(ANALYSIS_SYSTEM_PROMPT, user_prompt, model_id, 4096)
+    result, usage = _call_api(ANALYSIS_SYSTEM_PROMPT, user_prompt, model_id, 8192)
 
     result = validate_analysis(result)
 
