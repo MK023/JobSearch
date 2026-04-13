@@ -137,7 +137,7 @@
     </div>
 
     {# ---- 5a. EXPERIENCE REQUIRED ---- #}
-    {% if result.experience_required and (result.experience_required.years_min or result.experience_required.years_max or result.experience_required.raw_text) %}
+    {% if result.experience_required and (result.experience_required.years_min or result.experience_required.years_max or (result.experience_required.level and result.experience_required.level != 'unspecified')) %}
     {% set er = result.experience_required %}
     {% set has_years = er.years_min or er.years_max %}
     {% set has_level = er.level and er.level != 'unspecified' %}
@@ -150,9 +150,7 @@
         {%- endif -%}
         {%- if has_years and has_level %} &middot; {% endif -%}
         {%- if has_level -%}livello {{ er.level }}{%- endif -%}
-        {%- if not has_years and not has_level -%}Non specificato{%- endif -%}
       </div>
-      {% if er.raw_text %}<div class="advice-subtitle">&ldquo;{{ er.raw_text }}&rdquo;</div>{% endif %}
     </div>
     {% endif %}
 

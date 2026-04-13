@@ -10,13 +10,22 @@
   <div class="job-card-info">
     <span class="job-card-role">{{ analysis.role | default('—') }}</span>
     <span class="job-card-meta">
-      {% if analysis.recruiter_info and analysis.recruiter_info.is_body_rental %}<span class="tag tag-danger" style="margin-right:6px;font-size:.7em;padding:1px 6px" title="Body rental: {{ analysis.recruiter_info.body_rental_company | default('staff augmentation') }}">BR</span>{% endif %}
+      {% if analysis.recruiter_info and analysis.recruiter_info.is_body_rental %}<span class="tag tag-danger" title="Body rental: {{ analysis.recruiter_info.body_rental_company | default('staff augmentation') }}">body rental</span> {% endif %}
       {% if analysis.recruiter_info and analysis.recruiter_info.is_recruiter %}<span title="Annuncio gestito da {{ analysis.recruiter_info.agency | default('agenzia') }}" aria-label="recruiter">&#x1F3E2;</span> {% endif %}
       {{ analysis.company | default('—') }}
       {% if analysis.work_mode %} · {{ analysis.work_mode }}{% endif %}
-      {% if analysis.experience_required and analysis.experience_required.level and analysis.experience_required.level != 'unspecified' %}
-        {% set lvl_short = {'junior':'J', 'mid':'M', 'senior':'S', 'lead':'L', 'principal':'P'}.get(analysis.experience_required.level, '?') %}
-        <span class="tag tag-neutral" style="margin-left:6px;font-size:.7em;padding:1px 6px" title="Esperienza richiesta: {{ analysis.experience_required.level }}">{{ lvl_short }}</span>
+      {% if analysis.experience_required %}
+        {% set er = analysis.experience_required %}
+        {% set has_years = er.years_min or er.years_max %}
+        {% set has_level = er.level and er.level != 'unspecified' %}
+        {% if has_years or has_level %} ·
+          {%- if er.years_min and er.years_max %} {{ er.years_min }}&ndash;{{ er.years_max }} anni
+          {%- elif er.years_min %} {{ er.years_min }}+ anni
+          {%- elif er.years_max %} fino a {{ er.years_max }} anni
+          {%- endif -%}
+          {%- if has_years and has_level %} ·{% endif -%}
+          {%- if has_level %} livello {{ er.level }}{% endif -%}
+        {% endif %}
       {% endif %}
     </span>
   </div>
