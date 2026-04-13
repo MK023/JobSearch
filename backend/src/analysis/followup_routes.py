@@ -36,7 +36,7 @@ def create_followup_email(
 ) -> JSONResponse:
     """Generate an AI-drafted follow-up email for a candidature."""
     validate_uuid(analysis_id)
-    analysis = get_analysis_by_id(db, analysis_id)
+    analysis = get_analysis_by_id(db, analysis_id, user_id=cast(UUID, user.id))
     if not analysis:
         return JSONResponse({"error": "Analysis not found"}, status_code=404)
 
@@ -87,7 +87,7 @@ def create_linkedin_message(
 ) -> JSONResponse:
     """Generate an AI-drafted LinkedIn message for a candidature."""
     validate_uuid(analysis_id)
-    analysis = get_analysis_by_id(db, analysis_id)
+    analysis = get_analysis_by_id(db, analysis_id, user_id=cast(UUID, user.id))
     if not analysis:
         return JSONResponse({"error": "Analysis not found"}, status_code=404)
 
@@ -142,7 +142,7 @@ def mark_followup_done(
 ) -> JSONResponse:
     """Mark a candidature's follow-up as completed."""
     validate_uuid(analysis_id)
-    analysis = get_analysis_by_id(db, analysis_id)
+    analysis = get_analysis_by_id(db, analysis_id, user_id=cast(UUID, user.id))
     if not analysis:
         return JSONResponse({"error": "Analysis not found"}, status_code=404)
     analysis.followed_up = True  # type: ignore[assignment]

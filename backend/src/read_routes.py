@@ -1,7 +1,8 @@
 """Read-only API routes for MCP and external consumers."""
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
+from uuid import UUID
 
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
@@ -113,7 +114,7 @@ def candidature_detail(
 ) -> JSONResponse:
     """Get full detail for a single candidature."""
     validate_uuid(analysis_id)
-    analysis = get_analysis_by_id(db, analysis_id)
+    analysis = get_analysis_by_id(db, analysis_id, user_id=cast(UUID, user.id))
     if not analysis:
         return JSONResponse({"error": "Analysis not found"}, status_code=404)
 
@@ -135,7 +136,7 @@ def interview_prep(
 ) -> JSONResponse:
     """Get interview preparation data: strengths, gaps, scripts, advice."""
     validate_uuid(analysis_id)
-    analysis = get_analysis_by_id(db, analysis_id)
+    analysis = get_analysis_by_id(db, analysis_id, user_id=cast(UUID, user.id))
     if not analysis:
         return JSONResponse({"error": "Analysis not found"}, status_code=404)
 
@@ -161,7 +162,7 @@ def cover_letters(
 ) -> JSONResponse:
     """Get cover letters for an analysis."""
     validate_uuid(analysis_id)
-    analysis = get_analysis_by_id(db, analysis_id)
+    analysis = get_analysis_by_id(db, analysis_id, user_id=cast(UUID, user.id))
     if not analysis:
         return JSONResponse({"error": "Analysis not found"}, status_code=404)
 

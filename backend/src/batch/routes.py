@@ -107,13 +107,15 @@ def batch_run(
 
 
 @router.get("/status")
-def batch_status_route(user: CurrentUser, db: DbSession) -> JSONResponse:
+@limiter.limit(settings.rate_limit_default)
+def batch_status_route(request: Request, user: CurrentUser, db: DbSession) -> JSONResponse:
     """Return the current batch queue status."""
     return JSONResponse(get_batch_status(db))
 
 
 @router.get("/results")
-def batch_results_route(user: CurrentUser, db: DbSession) -> JSONResponse:
+@limiter.limit(settings.rate_limit_default)
+def batch_results_route(request: Request, user: CurrentUser, db: DbSession) -> JSONResponse:
     """Return structured analysis data for all completed batch items."""
     status = get_batch_status(db)
     if status.get("status") == "empty":
@@ -129,7 +131,7 @@ def batch_results_route(user: CurrentUser, db: DbSession) -> JSONResponse:
         if item.status not in (BatchItemStatus.DONE, BatchItemStatus.SKIPPED) or not item.analysis_id:
             continue
 
-        analysis = get_analysis_by_id(db, str(item.analysis_id))
+        analysis = get_analysis_by_id(db, str(item.analysis_id), user_id=cast(UUID, user.id))
         if not analysis:
             continue
 
