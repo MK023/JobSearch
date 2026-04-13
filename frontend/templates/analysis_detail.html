@@ -179,7 +179,18 @@
     </div>
     {% endif %}
 
-    {# ---- 5d. RECRUITER INFO (added P3.5) ---- #}
+    {# ---- 5d. BODY RENTAL WARNING (added P3.6) ---- #}
+    {% if result.recruiter_info and result.recruiter_info.is_body_rental %}
+    <div class="advice-box" style="border-color:var(--accent-red);background:rgba(255,69,58,.08)">
+      <div class="advice-title">&#x26A0;&#xFE0F; Body rental / Staff augmentation</div>
+      <div class="advice-text">
+        {% if result.recruiter_info.body_rental_company %}<strong>{{ result.recruiter_info.body_rental_company }}</strong> ti assume per girarti in consulenza presso un cliente finale.{% else %}Annuncio classificato come body rental.{% endif %}
+        <div style="margin-top:6px;opacity:.85;font-size:.9em">Tipicamente: contratto con l'azienda intermediaria, lavoro presso il cliente, scarsa visibilita' sul prodotto finale. Da escludere secondo il tuo profilo.</div>
+      </div>
+    </div>
+    {% endif %}
+
+    {# ---- 5e. RECRUITER INFO (added P3.5) ---- #}
     {% if result.recruiter_info and result.recruiter_info.is_recruiter %}
     <div class="advice-box">
       <div class="advice-title">&#x1F3E2; Annuncio gestito da agenzia</div>
@@ -189,7 +200,7 @@
         {% if result.recruiter_info.note %}<div style="margin-top:6px;opacity:.75;font-size:.9em">{{ result.recruiter_info.note }}</div>{% endif %}
       </div>
     </div>
-    {% elif result.recruiter_info and result.recruiter_info.contact %}
+    {% elif result.recruiter_info and result.recruiter_info.contact and not result.recruiter_info.is_body_rental %}
     <div class="advice-box">
       <div class="advice-title">&#x1F464; Contatto HR</div>
       <div class="advice-text">{{ result.recruiter_info.contact }}</div>

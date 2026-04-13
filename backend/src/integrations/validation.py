@@ -147,12 +147,28 @@ class AnalysisAIResponse(BaseModel):
     @field_validator("recruiter_info", mode="before")
     @classmethod
     def coerce_recruiter_info(cls, v: object) -> dict[str, Any]:
-        """Accept dict (preferred) or string (treated as agency name)."""
+        """Accept dict (preferred) or string (treated as agency name).
+
+        Ensures is_recruiter and is_body_rental are always present as bool.
+        Body rental is independent from recruiter (Capgemini & co are
+        "fake final companies", not agencies — they hire then place you
+        as consultant at a client).
+        """
         if v is None:
             return {}
         if isinstance(v, str):
-            return {"agency": v, "is_recruiter": bool(v.strip())}
+            return {
+                "agency": v,
+                "is_recruiter": bool(v.strip()),
+                "is_body_rental": False,
+                "body_rental_company": "",
+            }
         if isinstance(v, dict):
+            v.setdefault("is_recruiter", False)
+            v.setdefault("is_body_rental", False)
+            v.setdefault("body_rental_company", "")
+            v["is_recruiter"] = bool(v.get("is_recruiter"))
+            v["is_body_rental"] = bool(v.get("is_body_rental"))
             return v
         return {}
 

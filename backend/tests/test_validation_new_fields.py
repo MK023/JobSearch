@@ -47,6 +47,27 @@ class TestRecruiterInfo:
         assert result["recruiter_info"]["agency"] == ""
         assert result["recruiter_info"]["is_recruiter"] is False
 
+    def test_body_rental_flag_preserved(self):
+        raw = {"recruiter_info": {"is_body_rental": True, "body_rental_company": "Capgemini"}}
+        result = validate_analysis(raw)
+        assert result["recruiter_info"]["is_body_rental"] is True
+        assert result["recruiter_info"]["body_rental_company"] == "Capgemini"
+        # is_recruiter defaults to False even when body_rental is set
+        assert result["recruiter_info"]["is_recruiter"] is False
+
+    def test_body_rental_defaults_to_false_when_missing(self):
+        raw = {"recruiter_info": {"is_recruiter": True, "agency": "Hays"}}
+        result = validate_analysis(raw)
+        assert result["recruiter_info"]["is_recruiter"] is True
+        assert result["recruiter_info"]["is_body_rental"] is False
+        assert result["recruiter_info"]["body_rental_company"] == ""
+
+    def test_string_form_initializes_body_rental_false(self):
+        raw = {"recruiter_info": "Hays"}
+        result = validate_analysis(raw)
+        assert result["recruiter_info"]["is_body_rental"] is False
+        assert result["recruiter_info"]["body_rental_company"] == ""
+
 
 class TestExperienceRequired:
     def test_empty_dict_default(self):

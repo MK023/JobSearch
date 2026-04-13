@@ -25,7 +25,7 @@ Struttura JSON (tutti i campi obbligatori):
   "application_method": {"type":"quick_apply|email|link|sconosciuto","detail":"str","note":"str"},
   "company_reputation": {"glassdoor_estimate":"X/5 o non disponibile","known_pros":["max 3 elementi"],"known_cons":["max 3 elementi"],"note":"str"},
   "benefits": ["lista benefit aziendali citati nell'annuncio: welfare, buoni pasto, assicurazione, formazione, smart working, ticket restaurant, bonus, stock options, ecc. Lista vuota se non specificati. Max 10 elementi."],
-  "recruiter_info": {"is_recruiter": bool, "agency": "nome agenzia se annuncio e' passato da recruiter (es. Hays, Michael Page, Randstad, Manpower, Reply), vuoto altrimenti", "contact": "nome contatto/email se presente, vuoto altrimenti", "note": "max 20 parole"},
+  "recruiter_info": {"is_recruiter": bool, "agency": "nome agenzia recruitment esterna (Hays, Michael Page, Randstad, Manpower) se applicabile, vuoto altrimenti", "contact": "nome contatto/email se presente, vuoto altrimenti", "is_body_rental": bool, "body_rental_company": "nome azienda body rental/staff augmentation (Capgemini, Reply, Accenture, Deloitte, NTT DATA, Almaviva, Engineering, TCS, Wipro, Infosys, Cognizant, HCLTech, Avanade, ALTEN, Modis, Experis, Adecco, Gi Group, Synergie, Umana, Orienta, Etjca) se applicabile, vuoto altrimenti", "note": "max 20 parole"},
   "experience_required": {"years_min": int or null, "years_max": int or null, "level": "junior|mid|senior|lead|principal|unspecified", "raw_text": "citazione esatta dall'annuncio sugli anni di esperienza, vuoto se non specificato"}
 }
 
@@ -37,7 +37,8 @@ Interview: 3-5 domande (lacune, punti di forza, comportamentali).
 Application: cerca email/link/quick_apply nell'annuncio.
 Reputation: stima onesta, liste vuote se azienda sconosciuta.
 Benefits: estrai SOLO quelli esplicitamente menzionati nell'annuncio. Niente assunzioni.
-Recruiter: identifica se l'annuncio e' pubblicato da un'agenzia di recruitment/headhunter. Se azienda finale e' chiara e annuncio e' diretto, is_recruiter=false.
+Recruiter: identifica se l'annuncio e' pubblicato da un'agenzia di recruitment esterna (Hays, Michael Page, Randstad, Manpower). Se azienda finale e' chiara e annuncio e' diretto da dipendente interno, is_recruiter=false.
+Body rental: aziende di consulenza/staff augmentation che ti assumono per girarti in consulenza presso clienti finali. Lista nota: Capgemini, Reply, Accenture, Deloitte, NTT DATA, Almaviva, Engineering Ingegneria Informatica, TCS, Wipro, Infosys, Cognizant, HCLTech, Avanade, ALTEN, Modis, Experis, Adecco, Gi Group, Synergie, Umana, Orienta, Etjca. Se l'azienda corrisponde a una di queste, oppure l'annuncio menziona "consulenza presso cliente", "staff augmentation", "presso il cliente", "team in outsourcing", is_body_rental=true e body_rental_company=nome. Independente da is_recruiter (un body rental non e' un recruiter, e' una "fake azienda finale").
 Experience: estrai anni richiesti dall'annuncio. "3+ anni" -> years_min=3, years_max=null. "3-5 anni" -> years_min=3, years_max=5. "almeno 5" -> years_min=5. Level: junior=0-2 | mid=3-5 | senior=6-10 | lead/principal=10+. Se non specificato, years_min/max=null e level="unspecified".
 Advice: APPLY=perche' e su cosa puntare | CONSIDER=cosa fare per colmare gap | SKIP=perche' no e ruoli piu' adatti. Cita esperienze reali.
 
