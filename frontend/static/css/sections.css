@@ -414,6 +414,7 @@
   background: var(--bg-secondary);
   border-radius: var(--radius-lg);
   border: 1px solid rgb(48 209 88 / 20%);
+  margin-bottom: var(--space-xl);
 }
 
 .strength-item {
@@ -448,6 +449,7 @@
   background: var(--bg-secondary);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-subtle);
+  margin-bottom: var(--space-xl);
 }
 
 .gap-item {
