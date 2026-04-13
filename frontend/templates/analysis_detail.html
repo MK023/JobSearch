@@ -136,7 +136,7 @@
       </div>
     </div>
 
-    {# ---- 5a. EXPERIENCE REQUIRED (added P3.5, moved before advice in P3.7) ---- #}
+    {# ---- 5a. EXPERIENCE REQUIRED ---- #}
     {% if result.experience_required and (result.experience_required.years_min or result.experience_required.years_max or result.experience_required.raw_text) %}
     {% set er = result.experience_required %}
     <div class="advice-box">
@@ -144,41 +144,41 @@
       <div class="advice-text">
         {%- if er.years_min and er.years_max -%}{{ er.years_min }}&ndash;{{ er.years_max }} anni{%- elif er.years_min -%}{{ er.years_min }}+ anni{%- elif er.years_max -%}fino a {{ er.years_max }} anni{%- endif -%}
         {%- if er.level and er.level != 'unspecified' %} &middot; {{ er.level }}{% endif -%}
-        {%- if er.raw_text %} &middot; <span style="opacity:.7">&ldquo;{{ er.raw_text }}&rdquo;</span>{% endif -%}
       </div>
+      {% if er.raw_text %}<div class="advice-subtitle">&ldquo;{{ er.raw_text }}&rdquo;</div>{% endif %}
     </div>
     {% endif %}
 
-    {# ---- 5b. BENEFITS (added P3.5, moved before advice in P3.7) ---- #}
+    {# ---- 5b. BENEFITS ---- #}
     {% if result.benefits %}
     <div class="advice-box">
       <div class="advice-title">&#x1F381; Benefits aziendali</div>
-      <div class="advice-text">
-        {% for b in result.benefits %}<span class="tag tag-success" style="display:inline-block;margin:2px 4px 2px 0">{{ b }}</span>{% endfor %}
+      <div class="tag-group">
+        {% for b in result.benefits %}<span class="tag tag-success">{{ b }}</span>{% endfor %}
       </div>
     </div>
     {% endif %}
 
-    {# ---- 5c. BODY RENTAL WARNING (added P3.6) ---- #}
+    {# ---- 5c. BODY RENTAL WARNING ---- #}
     {% if result.recruiter_info and result.recruiter_info.is_body_rental %}
-    <div class="advice-box" style="border-color:var(--accent-red);background:rgba(255,69,58,.08)">
+    <div class="advice-box advice-box-danger">
       <div class="advice-title">&#x26A0;&#xFE0F; Body rental / Staff augmentation</div>
       <div class="advice-text">
         {% if result.recruiter_info.body_rental_company %}<strong>{{ result.recruiter_info.body_rental_company }}</strong> ti assume per girarti in consulenza presso un cliente finale.{% else %}Annuncio classificato come body rental.{% endif %}
-        <div style="margin-top:6px;opacity:.85;font-size:.9em">Tipicamente: contratto con l'azienda intermediaria, lavoro presso il cliente, scarsa visibilita' sul prodotto finale. Da escludere secondo il tuo profilo.</div>
       </div>
+      <div class="advice-subtitle">Tipicamente: contratto con l'azienda intermediaria, lavoro presso il cliente, scarsa visibilita' sul prodotto finale. Da escludere secondo il tuo profilo.</div>
     </div>
     {% endif %}
 
-    {# ---- 5d. RECRUITER INFO (added P3.5) ---- #}
+    {# ---- 5d. RECRUITER INFO ---- #}
     {% if result.recruiter_info and result.recruiter_info.is_recruiter %}
     <div class="advice-box">
       <div class="advice-title">&#x1F3E2; Annuncio gestito da agenzia</div>
       <div class="advice-text">
         {% if result.recruiter_info.agency %}<strong>{{ result.recruiter_info.agency }}</strong>{% endif %}
-        {% if result.recruiter_info.contact %}<div>Contatto: {{ result.recruiter_info.contact }}</div>{% endif %}
-        {% if result.recruiter_info.note %}<div style="margin-top:6px;opacity:.75;font-size:.9em">{{ result.recruiter_info.note }}</div>{% endif %}
+        {% if result.recruiter_info.contact %} &middot; {{ result.recruiter_info.contact }}{% endif %}
       </div>
+      {% if result.recruiter_info.note %}<div class="advice-subtitle">{{ result.recruiter_info.note }}</div>{% endif %}
     </div>
     {% elif result.recruiter_info and result.recruiter_info.contact and not result.recruiter_info.is_body_rental %}
     <div class="advice-box">

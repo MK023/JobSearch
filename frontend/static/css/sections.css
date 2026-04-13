@@ -372,6 +372,23 @@
   margin-bottom: var(--space-xl);
 }
 
+/* Variants — same shape, different accent for warning/danger/success */
+
+.advice-box-danger {
+  border-left-color: var(--accent-red);
+  background: rgb(255 69 58 / 8%);
+}
+
+.advice-box-warning {
+  border-left-color: var(--accent-orange);
+  background: rgb(255 159 10 / 8%);
+}
+
+.advice-box-success {
+  border-left-color: var(--accent-green);
+  background: rgb(48 209 88 / 8%);
+}
+
 .advice-title {
   font-size: var(--text-sm);
   font-weight: var(--weight-bold);
@@ -383,12 +400,24 @@
 
 .advice-title-green { color: var(--accent-green); }
 .advice-title-amber { color: var(--accent-orange); }
+.advice-title-red { color: var(--accent-red); }
+
+.advice-box-danger .advice-title { color: var(--accent-red); }
+.advice-box-warning .advice-title { color: var(--accent-orange); }
+.advice-box-success .advice-title { color: var(--accent-green); }
 
 .advice-text {
   color: var(--text-primary);
   font-size: var(--text-lg);
   line-height: 1.6;
   white-space: pre-line;
+}
+
+.advice-subtitle {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-top: var(--space-sm);
+  line-height: 1.5;
 }
 
 /* --- Strengths --- */
