@@ -1,7 +1,15 @@
 """Tests for batch service (persistent PostgreSQL queue)."""
 
+from datetime import UTC, datetime, timedelta
+
 from src.batch.models import BatchItem, BatchItemStatus
-from src.batch.service import add_to_queue, clear_completed, get_batch_status, get_pending_batch_id
+from src.batch.service import (
+    add_to_queue,
+    cleanup_stale_running,
+    clear_completed,
+    get_batch_status,
+    get_pending_batch_id,
+)
 
 
 class TestAddToQueue:
@@ -102,14 +110,17 @@ class TestClearCompleted:
         clear_completed(db_session)
         assert db_session.query(BatchItem).count() == 0
 
-    def test_clears_running_items(self, db_session, test_cv):
-        """clear_completed now deletes ALL items including running."""
+    def test_preserves_running_items(self, db_session, test_cv):
+        """RUNNING items are protected — deleting them would orphan in-flight workers."""
         bid, _, _ = add_to_queue(db_session, test_cv.id, "Test job", cv_text="test cv")
         item = db_session.query(BatchItem).filter(BatchItem.batch_id == bid).first()
         item.status = BatchItemStatus.RUNNING
         db_session.commit()
-        clear_completed(db_session)
-        assert db_session.query(BatchItem).count() == 0
+        deleted = clear_completed(db_session)
+        assert deleted == 0
+        assert db_session.query(BatchItem).count() == 1
+        remaining = db_session.query(BatchItem).first()
+        assert remaining.status == BatchItemStatus.RUNNING
 
     def test_clears_error_items(self, db_session, test_cv):
         bid, _, _ = add_to_queue(db_session, test_cv.id, "Test job", cv_text="test cv")
@@ -119,8 +130,8 @@ class TestClearCompleted:
         clear_completed(db_session)
         assert db_session.query(BatchItem).count() == 0
 
-    def test_clears_all_statuses_at_once(self, db_session, test_cv):
-        """Ensure clear_completed wipes items of every status."""
+    def test_clears_all_non_running_statuses(self, db_session, test_cv):
+        """clear_completed wipes every status except RUNNING."""
         statuses = [
             BatchItemStatus.PENDING,
             BatchItemStatus.RUNNING,
@@ -138,8 +149,11 @@ class TestClearCompleted:
             item.status = st
         db_session.commit()
         assert db_session.query(BatchItem).count() == len(statuses)
-        clear_completed(db_session)
-        assert db_session.query(BatchItem).count() == 0
+        deleted = clear_completed(db_session)
+        assert deleted == len(statuses) - 1  # everything except RUNNING
+        remaining = db_session.query(BatchItem).all()
+        assert len(remaining) == 1
+        assert remaining[0].status == BatchItemStatus.RUNNING
 
     def test_clears_only_specific_batch_id(self, db_session, test_cv):
         """When batch_id is provided, only that batch is cleared."""
@@ -154,3 +168,50 @@ class TestClearCompleted:
         assert db_session.query(BatchItem).count() == 1
         remaining = db_session.query(BatchItem).first()
         assert remaining.batch_id == bid2
+
+
+class TestCleanupStaleRunning:
+    def test_marks_old_running_items_as_error(self, db_session, test_cv):
+        """Items stuck in RUNNING past the threshold get recovered to ERROR."""
+        bid, _, _ = add_to_queue(db_session, test_cv.id, "Stuck job", cv_text="test cv")
+        item = db_session.query(BatchItem).filter(BatchItem.batch_id == bid).first()
+        item.status = BatchItemStatus.RUNNING
+        # Force updated_at into the past (SQLAlchemy onupdate doesn't fire on direct assignment)
+        item.updated_at = datetime.now(UTC) - timedelta(minutes=30)
+        db_session.commit()
+
+        recovered = cleanup_stale_running(db_session, threshold_minutes=10)
+        assert recovered == 1
+
+        db_session.refresh(item)
+        assert item.status == BatchItemStatus.ERROR
+        assert "stale_running_recovered" in (item.error_message or "")
+
+    def test_leaves_fresh_running_items_alone(self, db_session, test_cv):
+        """Recently-started RUNNING items are not touched."""
+        bid, _, _ = add_to_queue(db_session, test_cv.id, "Fresh job", cv_text="test cv")
+        item = db_session.query(BatchItem).filter(BatchItem.batch_id == bid).first()
+        item.status = BatchItemStatus.RUNNING
+        db_session.commit()
+
+        recovered = cleanup_stale_running(db_session, threshold_minutes=10)
+        assert recovered == 0
+        db_session.refresh(item)
+        assert item.status == BatchItemStatus.RUNNING
+
+    def test_ignores_non_running_statuses(self, db_session, test_cv):
+        """Old DONE/SKIPPED/ERROR items are ignored even past the threshold."""
+        for status in (BatchItemStatus.DONE, BatchItemStatus.SKIPPED, BatchItemStatus.ERROR):
+            bid, _, _ = add_to_queue(db_session, test_cv.id, f"Job {status.value}", cv_text="test cv")
+            item = (
+                db_session.query(BatchItem)
+                .filter(BatchItem.batch_id == bid)
+                .order_by(BatchItem.created_at.desc())
+                .first()
+            )
+            item.status = status
+            item.updated_at = datetime.now(UTC) - timedelta(hours=2)
+        db_session.commit()
+
+        recovered = cleanup_stale_running(db_session, threshold_minutes=10)
+        assert recovered == 0
