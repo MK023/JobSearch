@@ -10,8 +10,13 @@
   <div class="job-card-info">
     <span class="job-card-role">{{ analysis.role | default('—') }}</span>
     <span class="job-card-meta">
+      {% if analysis.recruiter_info and analysis.recruiter_info.is_recruiter %}<span title="Annuncio gestito da {{ analysis.recruiter_info.agency | default('agenzia') }}" aria-label="recruiter">&#x1F3E2;</span> {% endif %}
       {{ analysis.company | default('—') }}
       {% if analysis.work_mode %} · {{ analysis.work_mode }}{% endif %}
+      {% if analysis.experience_required and analysis.experience_required.level and analysis.experience_required.level != 'unspecified' %}
+        {% set lvl_short = {'junior':'J', 'mid':'M', 'senior':'S', 'lead':'L', 'principal':'P'}.get(analysis.experience_required.level, '?') %}
+        <span class="tag tag-neutral" style="margin-left:6px;font-size:.7em;padding:1px 6px" title="Esperienza richiesta: {{ analysis.experience_required.level }}">{{ lvl_short }}</span>
+      {% endif %}
     </span>
   </div>
   <div class="job-card-end">

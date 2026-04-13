@@ -144,6 +144,58 @@
     </div>
     {% endif %}
 
+    {# ---- 5b. EXPERIENCE REQUIRED (added P3.5) ---- #}
+    {% if result.experience_required and (result.experience_required.years_min or result.experience_required.years_max or result.experience_required.raw_text) %}
+    <div class="advice-box">
+      <div class="advice-title">&#x1F4C5; Esperienza richiesta</div>
+      <div class="advice-text">
+        {% set er = result.experience_required %}
+        {% if er.years_min and er.years_max %}
+          {{ er.years_min }}&ndash;{{ er.years_max }} anni
+        {% elif er.years_min %}
+          {{ er.years_min }}+ anni
+        {% elif er.years_max %}
+          fino a {{ er.years_max }} anni
+        {% endif %}
+        {% if er.level and er.level != 'unspecified' %}
+          <span class="tag tag-neutral" style="margin-left:8px">{{ er.level }}</span>
+        {% endif %}
+        {% if er.raw_text %}
+          <div style="margin-top:6px;opacity:.75;font-size:.9em">&ldquo;{{ er.raw_text }}&rdquo;</div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    {# ---- 5c. BENEFITS (added P3.5) ---- #}
+    {% if result.benefits %}
+    <div class="advice-box">
+      <div class="advice-title">&#x1F381; Benefits aziendali</div>
+      <div class="advice-text">
+        {% for b in result.benefits %}
+          <span class="tag tag-success" style="display:inline-block;margin:2px 4px 2px 0">{{ b }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {# ---- 5d. RECRUITER INFO (added P3.5) ---- #}
+    {% if result.recruiter_info and result.recruiter_info.is_recruiter %}
+    <div class="advice-box">
+      <div class="advice-title">&#x1F3E2; Annuncio gestito da agenzia</div>
+      <div class="advice-text">
+        {% if result.recruiter_info.agency %}<strong>{{ result.recruiter_info.agency }}</strong>{% endif %}
+        {% if result.recruiter_info.contact %}<div>Contatto: {{ result.recruiter_info.contact }}</div>{% endif %}
+        {% if result.recruiter_info.note %}<div style="margin-top:6px;opacity:.75;font-size:.9em">{{ result.recruiter_info.note }}</div>{% endif %}
+      </div>
+    </div>
+    {% elif result.recruiter_info and result.recruiter_info.contact %}
+    <div class="advice-box">
+      <div class="advice-title">&#x1F464; Contatto HR</div>
+      <div class="advice-text">{{ result.recruiter_info.contact }}</div>
+    </div>
+    {% endif %}
+
     {# ---- 6. Interview details ---- #}
     {% include "partials/interview_detail.html" %}
 
