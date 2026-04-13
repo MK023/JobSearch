@@ -14,6 +14,8 @@ engine = create_engine(
     pool_size=5,
     max_overflow=10,
     pool_pre_ping=True,
+    # Recycle connections before Neon's 5-min idle autosuspend kicks in.
+    pool_recycle=240,
 )
 
 SessionLocal = sessionmaker(bind=engine)
