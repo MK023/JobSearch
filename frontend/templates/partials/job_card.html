@@ -10,6 +10,7 @@
   <div class="job-card-info">
     <span class="job-card-role">{{ analysis.role | default('—') }}</span>
     <span class="job-card-meta">
+      {% if analysis.recruiter_info and analysis.recruiter_info.is_body_rental %}<span class="tag tag-danger" style="margin-right:6px;font-size:.7em;padding:1px 6px" title="Body rental: {{ analysis.recruiter_info.body_rental_company | default('staff augmentation') }}">BR</span>{% endif %}
       {% if analysis.recruiter_info and analysis.recruiter_info.is_recruiter %}<span title="Annuncio gestito da {{ analysis.recruiter_info.agency | default('agenzia') }}" aria-label="recruiter">&#x1F3E2;</span> {% endif %}
       {{ analysis.company | default('—') }}
       {% if analysis.work_mode %} · {{ analysis.work_mode }}{% endif %}
