@@ -94,7 +94,7 @@ def view_analysis(
     from ..contacts.service import get_contacts_for_analysis
     from ..interview.service import get_interview_by_analysis
 
-    analysis = get_analysis_by_id(db, analysis_id)
+    analysis = get_analysis_by_id(db, analysis_id, user_id=cast(UUID, user.id))
     if not analysis:
         return RedirectResponse(url="/history", status_code=303)
 

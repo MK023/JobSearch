@@ -120,7 +120,7 @@ def change_status(
     except ValueError:
         return JSONResponse({"error": "invalid status"}, status_code=400)
 
-    analysis = get_analysis_by_id(db, analysis_id)
+    analysis = get_analysis_by_id(db, analysis_id, user_id=cast(UUID, user.id))
     if not analysis:
         return JSONResponse({"error": "not found"}, status_code=404)
 
@@ -139,7 +139,7 @@ def delete_analysis(
 ) -> JSONResponse:
     """Delete an analysis and reverse its spending totals."""
     validate_uuid(analysis_id)
-    analysis = get_analysis_by_id(db, analysis_id)
+    analysis = get_analysis_by_id(db, analysis_id, user_id=cast(UUID, user.id))
     if not analysis:
         return JSONResponse({"error": "Analysis not found"}, status_code=404)
 
@@ -259,9 +259,16 @@ def cleanup_analyses(
     """
     cutoff = datetime.now(UTC) - timedelta(days=days)
 
+    # Scope to the authenticated user's CVs only — cleanup must never
+    # cross user boundaries.
+    from ..cv.models import CVProfile
+
+    user_cv_ids = db.query(CVProfile.id).filter(CVProfile.user_id == user.id)
+
     candidates = (
         db.query(JobAnalysis)
         .filter(
+            JobAnalysis.cv_id.in_(user_cv_ids),
             JobAnalysis.score <= max_score,
             JobAnalysis.created_at < cutoff,
             JobAnalysis.status == AnalysisStatus.PENDING,

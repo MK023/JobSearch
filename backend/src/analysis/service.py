@@ -126,13 +126,30 @@ def update_status(db: Session, analysis: JobAnalysis, new_status: AnalysisStatus
     db.flush()
 
 
-def get_analysis_by_id(db: Session, analysis_id: str) -> JobAnalysis | None:
-    """Fetch a single analysis by its UUID string, returning None if invalid or missing."""
+def get_analysis_by_id(db: Session, analysis_id: str, user_id: UUID | None = None) -> JobAnalysis | None:
+    """Fetch a single analysis by UUID, optionally scoped to the user that owns the CV.
+
+    Passing ``user_id=None`` bypasses the ownership filter — use ONLY for
+    trusted internal callers (batch worker background task, admin tools)
+    that have already authorized the request some other way. Route
+    handlers with a user session MUST pass the authenticated user's id
+    to prevent BOLA (broken object-level authorization).
+
+    Returns None if the id is invalid, the row is missing, or the row
+    belongs to a different user.
+    """
     try:
         uid = UUID(analysis_id)
     except (ValueError, AttributeError):
         return None
-    return db.query(JobAnalysis).filter(JobAnalysis.id == uid).first()
+
+    q = db.query(JobAnalysis).filter(JobAnalysis.id == uid)
+    if user_id is not None:
+        from ..cv.models import CVProfile
+
+        user_cv_ids = db.query(CVProfile.id).filter(CVProfile.user_id == user_id)
+        q = q.filter(JobAnalysis.cv_id.in_(user_cv_ids))
+    return q.first()
 
 
 def get_recent_analyses(db: Session, limit: int = 50) -> list[JobAnalysis]:
