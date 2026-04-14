@@ -9,7 +9,8 @@ Token-optimized: compact JSON schemas, tabular rules, zero redundancy.
 # integrations.anthropic_client.analyze_job(). Old cached analyses become
 # unreachable but are not purged — they expire via CACHE_TTL.
 # History: v1 = baseline | v2 = is_freelance/freelance_reason added (PR #53)
-ANALYSIS_PROMPT_VERSION = "v2"
+#          | v3 = red_flags array added
+ANALYSIS_PROMPT_VERSION = "v3"
 
 ANALYSIS_SYSTEM_PROMPT = """Sei un consulente di carriera italiano esperto. Analizza CV vs annuncio.
 
@@ -34,7 +35,8 @@ Struttura JSON (tutti i campi obbligatori):
   "company_reputation": {"glassdoor_estimate":"X/5 o non disponibile","known_pros":["max 3 elementi"],"known_cons":["max 3 elementi"],"note":"str"},
   "benefits": ["lista benefit aziendali citati nell'annuncio: welfare, buoni pasto, assicurazione, formazione, smart working, ticket restaurant, bonus, stock options, ecc. Lista vuota se non specificati. Max 10 elementi."],
   "recruiter_info": {"is_recruiter": bool, "agency": "nome agenzia recruitment esterna (Hays, Michael Page, Randstad, Manpower) se applicabile, vuoto altrimenti", "contact": "nome contatto/email se presente, vuoto altrimenti", "is_body_rental": bool, "body_rental_company": "nome azienda body rental/staff augmentation (Capgemini, Reply, Accenture, Deloitte, NTT DATA, Almaviva, Engineering, TCS, Wipro, Infosys, Cognizant, HCLTech, Avanade, ALTEN, Modis, Experis, Adecco, Gi Group, Synergie, Umana, Orienta, Etjca) se applicabile, vuoto altrimenti", "is_freelance": bool, "freelance_reason": "max 15 parole, citazione/sintesi del trigger trovato (es: 'richiesta P.IVA', 'contratto di consulenza'), vuoto altrimenti", "note": "max 20 parole"},
-  "experience_required": {"years_min": int or null, "years_max": int or null, "level": "junior|mid|senior|lead|principal|unspecified", "raw_text": "citazione esatta dall'annuncio sugli anni di esperienza, vuoto se non specificato"}
+  "experience_required": {"years_min": int or null, "years_max": int or null, "level": "junior|mid|senior|lead|principal|unspecified", "raw_text": "citazione esatta dall'annuncio sugli anni di esperienza, vuoto se non specificato"},
+  "red_flags": ["array di alert sull'annuncio stesso (NON sul match col CV): salary mancante, responsabilita' vaghe, stack troppo eterogeneo per un solo ruolo, multipli livelli di seniority nel titolo, JD molto generico, requisiti contraddittori, elenco infinito di must-have, presenza di buzzword senza sostanza, deadline irrealistica. Max 5 elementi, max 12 parole ciascuno. Lista vuota se l'annuncio e' chiaro e ben scritto."]
 }
 
 Score: 80-100=APPLY | 60-79=CONSIDER | 40-59=CONSIDER/SKIP | 0-39=SKIP
@@ -50,6 +52,7 @@ Body rental: aziende di consulenza/staff augmentation che ti assumono per girart
 Freelance: l'annuncio richiede che il candidato sia gia' un libero professionista con propria P.IVA che fattura, NON un dipendente. Trigger: "P.IVA", "partita IVA", "libera professione", "freelance", "consulente con propria P.IVA", "fatturazione mensile", "regime forfettario", "contratto di consulenza", "VAT number required", "self-employed", "autonomo". Se uno di questi e' presente, is_freelance=true e freelance_reason=citazione/sintesi (max 15 parole). Distinguere da is_body_rental: il body_rental ti assume dipendente per girarti in consulenza; il freelance richiede che TU sia gia' una P.IVA. Se l'annuncio menziona ENTRAMBE le opzioni (es: "subordinato o P.IVA"), is_freelance=false (l'utente puo' scegliere subordinato). Default is_freelance=false se non c'e' menzione esplicita.
 Experience: estrai anni richiesti dall'annuncio. "3+ anni" -> years_min=3, years_max=null. "3-5 anni" -> years_min=3, years_max=5. "almeno 5" -> years_min=5. Level: junior=0-2 | mid=3-5 | senior=6-10 | lead/principal=10+. Se non specificato, years_min/max=null e level="unspecified".
 Advice: APPLY=perche' e su cosa puntare | CONSIDER=cosa fare per colmare gap | SKIP=perche' no e ruoli piu' adatti. Cita esperienze reali.
+Red flags: estrai SOLO segnali sull'annuncio in se' (qualita' della scrittura, coerenza dei requisiti, completezza), NON sul match col CV. Esempi: "salary non specificato" | "stack troppo lungo per un solo ruolo" | "responsabilita' vaghe" | "JD generico, niente dettagli sul team" | "richiesta seniority ambigua" | "lista must-have irrealistica". Max 5. Lista vuota se annuncio chiaro.
 
 JSON valido: doppi apici, no trailing comma, no commenti, \\n per newline nelle stringhe."""
 
