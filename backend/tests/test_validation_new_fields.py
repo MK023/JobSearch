@@ -131,3 +131,35 @@ class TestExperienceRequired:
         result = validate_analysis(raw)
         assert result["experience_required"]["raw_text"] == "almeno 5 anni di esperienza"
         assert result["experience_required"]["level"] == "unspecified"
+
+
+class TestRedFlags:
+    def test_empty_list_default(self):
+        result = validate_analysis({})
+        assert result["red_flags"] == []
+
+    def test_list_of_strings_preserved(self):
+        raw = {"red_flags": ["salary non specificato", "stack troppo lungo"]}
+        result = validate_analysis(raw)
+        assert result["red_flags"] == ["salary non specificato", "stack troppo lungo"]
+
+    def test_comma_separated_string_split(self):
+        raw = {"red_flags": "salary mancante, stack eterogeneo, JD generico"}
+        result = validate_analysis(raw)
+        assert result["red_flags"] == ["salary mancante", "stack eterogeneo", "JD generico"]
+
+    def test_capped_at_five_items(self):
+        raw = {"red_flags": ["a", "b", "c", "d", "e", "f", "g"]}
+        result = validate_analysis(raw)
+        assert len(result["red_flags"]) == 5
+        assert result["red_flags"] == ["a", "b", "c", "d", "e"]
+
+    def test_none_becomes_empty_list(self):
+        raw = {"red_flags": None}
+        result = validate_analysis(raw)
+        assert result["red_flags"] == []
+
+    def test_empty_strings_filtered(self):
+        raw = {"red_flags": ["valido", "", "  ", "altro"]}
+        result = validate_analysis(raw)
+        assert result["red_flags"] == ["valido", "altro"]

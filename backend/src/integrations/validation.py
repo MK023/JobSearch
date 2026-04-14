@@ -42,6 +42,7 @@ class AnalysisAIResponse(BaseModel):
     benefits: list[Any] = Field(default_factory=list)
     recruiter_info: dict[str, Any] = Field(default_factory=dict)
     experience_required: dict[str, Any] = Field(default_factory=dict)
+    red_flags: list[Any] = Field(default_factory=list)
     full_response: str = ""
 
     @field_validator("score", mode="before")
@@ -143,6 +144,20 @@ class AnalysisAIResponse(BaseModel):
         if isinstance(v, list):
             return v
         return []
+
+    @field_validator("red_flags", mode="before")
+    @classmethod
+    def coerce_red_flags(cls, v: object) -> list[Any]:
+        """Accept list of strings or comma-separated string. Cap at 5 items."""
+        if v is None:
+            return []
+        if isinstance(v, str):
+            items = [s.strip() for s in v.split(",") if s.strip()]
+        elif isinstance(v, list):
+            items = [str(s).strip() for s in v if str(s).strip()]
+        else:
+            return []
+        return items[:5]
 
     @field_validator("recruiter_info", mode="before")
     @classmethod
@@ -366,6 +381,7 @@ def _apply_analysis_defaults(raw: dict[str, Any]) -> dict[str, Any]:
         "benefits": [],
         "recruiter_info": {},
         "experience_required": {},
+        "red_flags": [],
         "full_response": "",
     }
     result = {**defaults, **raw}
