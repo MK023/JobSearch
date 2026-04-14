@@ -87,12 +87,51 @@
     </div>
   </section>
 
+  {# ---- DB Cleanup Section ---- #}
+  <section class="card settings-section" x-data="cleanupForm()">
+    <h2 class="section-title"><svg class="icon-align" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Pulizia DB</h2>
+
+    <p class="meta-small mb-md">
+      Elimina le analisi <strong>vecchie</strong> con score basso e stato &laquo;Da valutare&raquo;.
+      Le candidature, colloqui e scartati vengono sempre preservati.
+    </p>
+
+    <div class="form-grid">
+      <div class="form-group">
+        <label for="cleanup-days" class="form-label">Pi&ugrave; vecchie di (giorni)</label>
+        <input type="number" id="cleanup-days" class="input" min="1" max="365" x-model.number="days" @input.debounce.400ms="preview()">
+      </div>
+      <div class="form-group">
+        <label for="cleanup-max-score" class="form-label">Score massimo</label>
+        <input type="number" id="cleanup-max-score" class="input" min="0" max="100" x-model.number="maxScore" @input.debounce.400ms="preview()">
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button type="button" class="btn btn-ghost btn-sm" @click="preview()" :disabled="loading">
+        <span x-show="!loading">Anteprima</span>
+        <span x-show="loading" x-cloak>...</span>
+      </button>
+      <span x-show="count !== null" x-cloak class="meta-small">
+        <strong x-text="count"></strong> analisi verranno eliminate
+      </span>
+    </div>
+
+    <div x-show="count !== null && count > 0" x-cloak class="form-actions mt-md">
+      <button type="button" class="btn btn-danger btn-sm" @click="confirmDelete()" :disabled="loading">
+        Elimina <span x-text="count"></span> analisi
+      </button>
+      <span x-show="message" x-cloak class="meta-small" x-text="message"></span>
+    </div>
+  </section>
+
 </div>
 {% endblock %}
 
 {% block scripts_extra %}
 <script src="{{ url_for('static', path='js/modules/cv.js') }}?v={{ asset_v }}"></script>
 <script src="{{ url_for('static', path='js/modules/spending.js') }}?v={{ asset_v }}"></script>
+<script src="{{ url_for('static', path='js/modules/cleanup.js') }}?v={{ asset_v }}"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function() {
     if (typeof initCVUpload === 'function') initCVUpload();
