@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
-from sqlalchemy import select
+from sqlalchemy import select, text
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -259,9 +259,18 @@ def create_app() -> FastAPI:
         with contextlib.suppress(Exception):
             cache_stats = app.state.cache.stats()
 
+        # Postgres-only: monitor free-tier usage (Neon 1GB).
+        # SQLite (CI/local tests) silently returns null.
+        db_size_mb: float | None = None
+        with contextlib.suppress(Exception):
+            size_bytes = db.execute(text("SELECT pg_database_size(current_database())")).scalar()
+            if size_bytes is not None:
+                db_size_mb = round(int(size_bytes) / 1024 / 1024, 2)
+
         return {
             "status": status,
             "db": db_status,
+            "db_size_mb": db_size_mb,
             "version": "2.0.0",
             "uptime_seconds": uptime,
             "cache": cache_stats,
