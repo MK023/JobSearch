@@ -14,6 +14,7 @@ import anthropic
 
 from ..config import settings
 from ..prompts import (
+    ANALYSIS_PROMPT_VERSION,
     ANALYSIS_SYSTEM_PROMPT,
     ANALYSIS_USER_PROMPT,
     COVER_LETTER_SYSTEM_PROMPT,
@@ -376,7 +377,7 @@ def analyze_job(
     """Analyze CV-to-job compatibility."""
     model_id = MODELS.get(model, MODELS["haiku"])
     ch = content_hash(cv_text, job_description)
-    cache_key = f"analysis:{model}:{ch[:16]}"
+    cache_key = f"analysis:{ANALYSIS_PROMPT_VERSION}:{model}:{ch[:16]}"
 
     if cache:
         cached = cache.get_json(cache_key)
