@@ -1,17 +1,16 @@
-"""Tests for anthropic client utilities (JSON parsing, hashing, cost calculation)."""
+"""Tests for anthropic client utilities (hashing, tool-use plumbing).
 
-import json
+The ~120 LOC of legacy parser tests (TestStripMarkdownWrapper, TestCleanJsonText,
+TestFixUnescapedNewlines, TestFixSingleQuotes, TestExtractAndParseJson) were
+removed when the tool-use migration eliminated all the custom JSON parsing.
+Anthropic's SDK now delivers the parsed tool input as a dict directly.
+"""
 
-import pytest
+from types import SimpleNamespace
+from unittest.mock import MagicMock
 
-from src.integrations.anthropic_client import (
-    _clean_json_text,
-    _extract_and_parse_json,
-    _fix_single_quotes,
-    _fix_unescaped_newlines,
-    _strip_markdown_wrapper,
-    content_hash,
-)
+from src.integrations import anthropic_client
+from src.integrations.anthropic_client import _call_api_with_tool, content_hash
 
 
 class TestContentHash:
@@ -30,128 +29,89 @@ class TestContentHash:
         assert h1 != h2
 
 
-class TestStripMarkdownWrapper:
-    def test_strips_json_code_block(self):
-        text = '```json\n{"key": "value"}\n```'
-        result = _strip_markdown_wrapper(text)
-        assert result == '{"key": "value"}'
+class TestCallApiWithTool:
+    """_call_api_with_tool forces tool_use output and returns the parsed dict."""
 
-    def test_strips_plain_code_block(self):
-        text = '```\n{"key": "value"}\n```'
-        result = _strip_markdown_wrapper(text)
-        assert result == '{"key": "value"}'
+    def _fake_message(self, tool_input: dict, input_tokens: int = 100, output_tokens: int = 50):
+        tool_use_block = SimpleNamespace(type="tool_use", input=tool_input)
+        usage = SimpleNamespace(input_tokens=input_tokens, output_tokens=output_tokens)
+        return SimpleNamespace(content=[tool_use_block], usage=usage)
 
-    def test_no_wrapping_unchanged(self):
-        text = '{"key": "value"}'
-        result = _strip_markdown_wrapper(text)
-        assert result == text
+    def test_returns_parsed_tool_input(self, monkeypatch):
+        fake_client = MagicMock()
+        fake_client.messages.create.return_value = self._fake_message({"score": 75, "role": "Dev"})
+        monkeypatch.setattr(anthropic_client, "get_client", lambda: fake_client)
 
-    def test_unclosed_fence_still_strips_opening(self):
-        """Truncated AI response: opening ```json but no closing ```."""
-        text = '```json\n{"company": "Acme", "role": "Dev"'
-        result = _strip_markdown_wrapper(text)
-        assert result == '{"company": "Acme", "role": "Dev"'
+        result, usage = _call_api_with_tool(
+            "sys",
+            "user",
+            "claude-haiku-4-5-20251001",
+            1024,
+            tool_name="t",
+            tool_description="desc",
+            input_schema={"type": "object", "properties": {}},
+        )
 
-    def test_unclosed_fence_plain(self):
-        """Truncated response with plain ``` opening fence."""
-        text = '```\n{"partial": "data"'
-        result = _strip_markdown_wrapper(text)
-        assert result == '{"partial": "data"'
+        assert result == {"score": 75, "role": "Dev"}
+        assert usage.input_tokens == 100
+        assert usage.output_tokens == 50
 
+    def test_forces_specific_tool(self, monkeypatch):
+        """tool_choice must pin the named tool so the model cannot skip it."""
+        fake_client = MagicMock()
+        fake_client.messages.create.return_value = self._fake_message({"x": 1})
+        monkeypatch.setattr(anthropic_client, "get_client", lambda: fake_client)
 
-class TestCleanJsonText:
-    def test_removes_trailing_commas(self):
-        text = '{"a": 1, "b": 2, }'
-        result = _clean_json_text(text)
-        assert json.loads(result) == {"a": 1, "b": 2}
+        _call_api_with_tool(
+            "sys",
+            "user",
+            "claude-haiku-4-5-20251001",
+            1024,
+            tool_name="submit_payload",
+            tool_description="desc",
+            input_schema={"type": "object"},
+        )
 
-    def test_removes_single_line_comments(self):
-        text = '{"a": 1 // comment\n}'
-        result = _clean_json_text(text)
-        assert json.loads(result) == {"a": 1}
+        kwargs = fake_client.messages.create.call_args.kwargs
+        assert kwargs["tool_choice"] == {"type": "tool", "name": "submit_payload"}
+        assert kwargs["tools"][0]["name"] == "submit_payload"
+        assert kwargs["tools"][0]["input_schema"] == {"type": "object"}
 
-    def test_replaces_nan_with_null(self):
-        text = '{"a": NaN}'
-        result = _clean_json_text(text)
-        assert json.loads(result) == {"a": None}
+    def test_raises_when_no_tool_use_block(self, monkeypatch):
+        fake_client = MagicMock()
+        fake_client.messages.create.return_value = SimpleNamespace(
+            content=[SimpleNamespace(type="text", text="oops")],
+            usage=SimpleNamespace(input_tokens=10, output_tokens=5),
+        )
+        monkeypatch.setattr(anthropic_client, "get_client", lambda: fake_client)
 
-    def test_replaces_infinity(self):
-        text = '{"a": Infinity}'
-        result = _clean_json_text(text)
-        parsed = json.loads(result)
-        assert parsed["a"] is None
+        import pytest
 
+        with pytest.raises(RuntimeError, match="tool_use"):
+            _call_api_with_tool(
+                "sys",
+                "user",
+                "claude-haiku-4-5-20251001",
+                1024,
+                tool_name="t",
+                tool_description="d",
+                input_schema={"type": "object"},
+            )
 
-class TestFixUnescapedNewlines:
-    def test_fixes_newlines_in_strings(self):
-        text = '{"msg": "hello\nworld"}'
-        result = _fix_unescaped_newlines(text)
-        parsed = json.loads(result)
-        assert parsed["msg"] == "hello\nworld"
+    def test_preserves_cache_control_in_system(self, monkeypatch):
+        """System prompt must keep cache_control=ephemeral so prompt caching works."""
+        fake_client = MagicMock()
+        fake_client.messages.create.return_value = self._fake_message({})
+        monkeypatch.setattr(anthropic_client, "get_client", lambda: fake_client)
 
-    def test_preserves_newlines_outside_strings(self):
-        text = '{\n"a": 1,\n"b": 2\n}'
-        result = _fix_unescaped_newlines(text)
-        assert json.loads(result) == {"a": 1, "b": 2}
-
-    def test_handles_carriage_return(self):
-        text = '{"msg": "line1\r\nline2"}'
-        result = _fix_unescaped_newlines(text)
-        parsed = json.loads(result)
-        assert "line1" in parsed["msg"]
-        assert "line2" in parsed["msg"]
-
-
-class TestFixSingleQuotes:
-    def test_converts_single_to_double_quotes(self):
-        text = "{'key': 'value'}"
-        result = _fix_single_quotes(text)
-        parsed = json.loads(result)
-        assert parsed["key"] == "value"
-
-    def test_fixes_python_booleans(self):
-        text = "{'flag': True, 'other': False, 'empty': None}"
-        result = _fix_single_quotes(text)
-        parsed = json.loads(result)
-        assert parsed["flag"] is True
-        assert parsed["other"] is False
-        assert parsed["empty"] is None
-
-    def test_ignores_normal_json(self):
-        text = '{"key": "value"}'
-        result = _fix_single_quotes(text)
-        assert result == text  # unchanged
-
-
-class TestExtractAndParseJson:
-    def test_parses_clean_json(self):
-        result = _extract_and_parse_json('{"score": 85}')
-        assert result["score"] == 85
-
-    def test_parses_markdown_wrapped(self):
-        result = _extract_and_parse_json('```json\n{"score": 85}\n```')
-        assert result["score"] == 85
-
-    def test_parses_with_trailing_comma(self):
-        result = _extract_and_parse_json('{"a": 1, "b": 2,}')
-        assert result == {"a": 1, "b": 2}
-
-    def test_extracts_from_surrounding_text(self):
-        text = 'Here is the result:\n{"score": 90, "company": "Test"}\nDone!'
-        result = _extract_and_parse_json(text)
-        assert result["score"] == 90
-
-    def test_parses_single_quoted_python_dict(self):
-        text = "{'score': 75, 'company': 'Acme', 'valid': True}"
-        result = _extract_and_parse_json(text)
-        assert result["score"] == 75
-        assert result["valid"] is True
-
-    def test_raises_on_invalid_json(self):
-        with pytest.raises(json.JSONDecodeError):
-            _extract_and_parse_json("this is not json at all")
-
-    def test_handles_nested_json(self):
-        text = '{"data": {"nested": [1, 2, 3]}, "ok": true}'
-        result = _extract_and_parse_json(text)
-        assert result["data"]["nested"] == [1, 2, 3]
+        _call_api_with_tool(
+            "sys",
+            "user",
+            "claude-haiku-4-5-20251001",
+            1024,
+            tool_name="t",
+            tool_description="d",
+            input_schema={"type": "object"},
+        )
+        kwargs = fake_client.messages.create.call_args.kwargs
+        assert kwargs["system"][0]["cache_control"] == {"type": "ephemeral"}

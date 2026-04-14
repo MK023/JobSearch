@@ -10,7 +10,8 @@ Token-optimized: compact JSON schemas, tabular rules, zero redundancy.
 # unreachable but are not purged — they expire via CACHE_TTL.
 # History: v1 = baseline | v2 = is_freelance/freelance_reason added (PR #53)
 #          | v3 = red_flags array added
-ANALYSIS_PROMPT_VERSION = "v3"
+#          | v4 = tool-use migration (no cache changes but pipeline differs)
+ANALYSIS_PROMPT_VERSION = "v4"
 
 ANALYSIS_SYSTEM_PROMPT = """Sei un consulente di carriera italiano esperto. Analizza CV vs annuncio.
 

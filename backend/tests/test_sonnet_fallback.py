@@ -18,21 +18,29 @@ FakeUsage = namedtuple("FakeUsage", ["input_tokens", "output_tokens"])
 
 @pytest.fixture
 def call_log(monkeypatch):
-    """Replace _call_api with a queue-driven stub.
+    """Replace _call_api_with_tool with a queue-driven stub.
 
-    Each test pushes (result_dict, usage) tuples; _call_api pops them in order
+    Each test pushes (result_dict, usage) tuples; the stub pops them in order
     and records the model_id it was called with into `call_log["models"]`.
     """
     queue: list = []
     log: dict = {"models": [], "queue": queue}
 
-    def fake_call_api(system_prompt, user_prompt, model_id, max_tokens):
+    def fake_call_api_with_tool(
+        system_prompt,
+        user_prompt,
+        model_id,
+        max_tokens,
+        tool_name=None,
+        tool_description=None,
+        input_schema=None,
+    ):
         log["models"].append(model_id)
         if not queue:
-            raise AssertionError(f"Unexpected _call_api invocation #{len(log['models'])} on {model_id}")
+            raise AssertionError(f"Unexpected _call_api_with_tool invocation #{len(log['models'])} on {model_id}")
         return queue.pop(0)
 
-    monkeypatch.setattr(anthropic_client, "_call_api", fake_call_api)
+    monkeypatch.setattr(anthropic_client, "_call_api_with_tool", fake_call_api_with_tool)
     return log
 
 
