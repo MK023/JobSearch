@@ -170,6 +170,16 @@
     </div>
     {% endif %}
 
+    {# ---- 5b-bis. RED FLAGS — ad-quality alerts as amber chips ---- #}
+    {% if result.red_flags %}
+    <div class="advice-box">
+      <div class="advice-title">&#x1F6A9; Red flag dell'annuncio</div>
+      <div class="advice-text">
+        {% for rf in result.red_flags %}<span class="tag tag-warning">{{ rf }}</span>{% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
     {# ---- 5c. BODY RENTAL WARNING — text inline (same spacing as the advice box) ---- #}
     {% if result.recruiter_info and result.recruiter_info.is_body_rental %}
     <div class="advice-box advice-box-danger">
