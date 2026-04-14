@@ -374,7 +374,13 @@ def analyze_job(
     model: str = "haiku",
     cache: CacheService | None = None,
 ) -> dict[str, Any]:
-    """Analyze CV-to-job compatibility."""
+    """Analyze CV-to-job compatibility.
+
+    When settings.ai_sonnet_fallback_on_low_confidence is True and the first
+    pass on Haiku returns confidence=="bassa", a second pass is automatically
+    run on Sonnet and replaces the result. Costs/tokens are summed across
+    both passes; result["fallback_used"]=True flags the override.
+    """
     model_id = MODELS.get(model, MODELS["haiku"])
     ch = content_hash(cv_text, job_description)
     cache_key = f"analysis:{ANALYSIS_PROMPT_VERSION}:{model}:{ch[:16]}"
@@ -391,16 +397,41 @@ def analyze_job(
 
     result = validate_analysis(result)
 
-    result["model_used"] = model_id
+    tokens_in = usage.input_tokens
+    tokens_out = usage.output_tokens
+    cost = _calculate_cost(usage, model_id)
+    used_model_id = model_id
+    fallback_used = False
+
+    # Optional fallback: low confidence on a non-Sonnet model triggers a Sonnet retry.
+    sonnet_id = MODELS["sonnet"]
+    if settings.ai_sonnet_fallback_on_low_confidence and result.get("confidence") == "bassa" and model_id != sonnet_id:
+        logger.info(
+            "Low-confidence analysis on %s, retrying on Sonnet (reason: %s)",
+            model_id,
+            result.get("confidence_reason", ""),
+        )
+        sonnet_result, sonnet_usage = _call_api(ANALYSIS_SYSTEM_PROMPT, user_prompt, sonnet_id, 8192)
+        sonnet_result = validate_analysis(sonnet_result)
+        # Sonnet result wins; tokens/cost are cumulative across both passes.
+        result = sonnet_result
+        tokens_in += sonnet_usage.input_tokens
+        tokens_out += sonnet_usage.output_tokens
+        cost += _calculate_cost(sonnet_usage, sonnet_id)
+        used_model_id = sonnet_id
+        fallback_used = True
+
+    result["model_used"] = used_model_id
+    result["fallback_used"] = fallback_used
     result["full_response"] = ""  # Don't cache full response in Redis
     result["from_cache"] = False
     result["content_hash"] = ch
     result["tokens"] = {
-        "input": usage.input_tokens,
-        "output": usage.output_tokens,
-        "total": usage.input_tokens + usage.output_tokens,
+        "input": tokens_in,
+        "output": tokens_out,
+        "total": tokens_in + tokens_out,
     }
-    result["cost_usd"] = _calculate_cost(usage, model_id)
+    result["cost_usd"] = cost
 
     if cache:
         cache_data = {k: v for k, v in result.items() if k != "from_cache"}

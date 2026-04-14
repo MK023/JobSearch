@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     max_job_desc_size: int = 50_000  # ~50KB chars
     max_batch_size: int = 10  # Hard limit: max items per batch (free tier constraint)
 
+    # AI: when an analysis on Haiku returns confidence=="bassa", optionally
+    # retry on Sonnet for a more reliable result. Adds ~$0.015/analysis
+    # ONLY for the borderline cases. Default off — opt-in via env.
+    ai_sonnet_fallback_on_low_confidence: bool = False
+
     # CORS
     cors_allowed_origins: str = "http://localhost,http://localhost:80"
     cors_allow_credentials: bool = True
