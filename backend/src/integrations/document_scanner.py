@@ -266,9 +266,12 @@ def _parse_scan_response(message: anthropic.types.Message, model_id: str) -> dic
 
     tool_input: dict[str, Any] | None = None
     for block in message.content:
-        if getattr(block, "type", None) == "tool_use":
-            tool_input = dict(block.input) if isinstance(block.input, dict) else None
-            break
+        if getattr(block, "type", None) != "tool_use":
+            continue
+        raw = getattr(block, "input", None)
+        if isinstance(raw, dict):
+            tool_input = dict(raw)
+        break
 
     if tool_input is None:
         logger.warning("No tool_use block in scan response (model=%s)", model_id)

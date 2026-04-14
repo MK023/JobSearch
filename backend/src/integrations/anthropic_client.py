@@ -175,9 +175,12 @@ def _call_api_with_tool(
     )
 
     for block in message.content:
-        if getattr(block, "type", None) == "tool_use":
-            # SDK parses tool input from JSON to dict automatically.
-            return cast(dict[str, Any], block.input), message.usage
+        if getattr(block, "type", None) != "tool_use":
+            continue
+        tool_input = getattr(block, "input", None)
+        # SDK parses tool input from JSON to dict automatically.
+        if isinstance(tool_input, dict):
+            return cast(dict[str, Any], tool_input), message.usage
 
     raise RuntimeError(
         f"Expected tool_use block for {tool_name!r} but got content types: "
