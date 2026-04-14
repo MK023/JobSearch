@@ -3,6 +3,14 @@
 Token-optimized: compact JSON schemas, tabular rules, zero redundancy.
 """
 
+# Bump this string whenever ANALYSIS_SYSTEM_PROMPT changes in a way that should
+# invalidate the analysis cache (new fields in the schema, modified detection
+# rules, changed scoring guidance, etc.). Included in the cache key by
+# integrations.anthropic_client.analyze_job(). Old cached analyses become
+# unreachable but are not purged — they expire via CACHE_TTL.
+# History: v1 = baseline | v2 = is_freelance/freelance_reason added (PR #53)
+ANALYSIS_PROMPT_VERSION = "v2"
+
 ANALYSIS_SYSTEM_PROMPT = """Sei un consulente di carriera italiano esperto. Analizza CV vs annuncio.
 
 OUTPUT: rispondi SOLO con l'oggetto JSON valido. NIENTE markdown, NIENTE ```json, NIENTE testo prima o dopo.
