@@ -47,7 +47,12 @@
             </div>
             <div class="history-item-info">
               <div class="history-item-role">{{ analysis.role or 'Ruolo sconosciuto' }}</div>
-              <div class="history-item-company">{{ analysis.company or 'Azienda sconosciuta' }}{% if analysis.work_mode %} &middot; {{ analysis.work_mode }}{% endif %}{% if analysis.salary_info %} &middot; {{ analysis.salary_info }}{% endif %}</div>
+              <div class="history-item-company">
+                {% if analysis.recruiter_info and analysis.recruiter_info.is_freelance %}<span class="tag tag-danger" title="Richiesta P.IVA: {{ analysis.recruiter_info.freelance_reason | default('libera professione') }}">freelance</span> {% endif %}
+                {% if analysis.recruiter_info and analysis.recruiter_info.is_body_rental %}<span class="tag tag-danger" title="Body rental: {{ analysis.recruiter_info.body_rental_company | default('staff augmentation') }}">body rental</span> {% endif %}
+                {% if analysis.recruiter_info and analysis.recruiter_info.is_recruiter %}<span title="Annuncio gestito da {{ analysis.recruiter_info.agency | default('agenzia') }}" aria-label="recruiter">&#x1F3E2;</span> {% endif %}
+                {{ analysis.company or 'Azienda sconosciuta' }}{% if analysis.work_mode %} &middot; {{ analysis.work_mode }}{% endif %}{% if analysis.salary_info %} &middot; {{ analysis.salary_info }}{% endif %}
+              </div>
             </div>
             {% set status_val = analysis.status if analysis.status is not string else analysis.status %}
             {% set status_labels = {'da_valutare': 'Da valutare', 'candidato': 'Candidato', 'colloquio': 'Colloquio', 'scartato': 'Scartato'} %}
