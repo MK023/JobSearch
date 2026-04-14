@@ -31,6 +31,35 @@
     </button>
   </div>
 
+  {# Secondary filter bar — chips toggle + score min slider. State persisted in sessionStorage by historyTabs() #}
+  <div class="filter-bar">
+    <button type="button" class="filter-chip" :class="{ active: filters.hideBodyRental }"
+            @click="toggleFilter('hideBodyRental')" title="Nasconde gli annunci classificati come body rental">
+      Nascondi body rental
+    </button>
+    <button type="button" class="filter-chip" :class="{ active: filters.hideFreelance }"
+            @click="toggleFilter('hideFreelance')" title="Nasconde gli annunci che richiedono P.IVA">
+      Nascondi freelance
+    </button>
+    <button type="button" class="filter-chip" :class="{ active: filters.hideRecruiter }"
+            @click="toggleFilter('hideRecruiter')" title="Nasconde gli annunci gestiti da agenzia di recruitment">
+      Nascondi recruiter
+    </button>
+    <label class="filter-score">
+      Score min: <span class="filter-score-value" x-text="filters.minScore"></span>
+      <input type="range" min="0" max="100" step="5"
+             :value="filters.minScore"
+             @input="setMinScore($event.target.value)"
+             class="filter-score-slider"
+             aria-label="Score minimo">
+    </label>
+    <button type="button" class="filter-chip filter-chip-reset"
+            x-show="filters.hideBodyRental || filters.hideFreelance || filters.hideRecruiter || filters.minScore > 0"
+            @click="resetFilters()">
+      Reset
+    </button>
+  </div>
+
   {# Job card list — history-section class needed for refreshHistoryCounts() in history.js #}
   <div class="history-section">
     <div class="history-list" id="history-list">
@@ -38,7 +67,11 @@
         {% for analysis in analyses %}
         <div class="history-item"
              data-hist-id="{{ analysis.id }}"
-             data-hist-status="{{ analysis.status }}">
+             data-hist-status="{{ analysis.status }}"
+             data-hist-score="{{ analysis.score|default(0) }}"
+             data-hist-bodyrental="{{ '1' if analysis.recruiter_info and analysis.recruiter_info.is_body_rental else '0' }}"
+             data-hist-freelance="{{ '1' if analysis.recruiter_info and analysis.recruiter_info.is_freelance else '0' }}"
+             data-hist-recruiter="{{ '1' if analysis.recruiter_info and analysis.recruiter_info.is_recruiter else '0' }}">
           <a href="/analysis/{{ analysis.id }}" class="history-item-link">
             <div class="job-card-score">
               {% with score=analysis.score|default(0), size="sm" %}

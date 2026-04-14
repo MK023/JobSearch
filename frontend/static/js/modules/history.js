@@ -1,9 +1,13 @@
 /**
- * Alpine.js component: history tabs with DOM-based filtering.
+ * Alpine.js component: history tabs + secondary filters with DOM-based filtering.
  *
  * Items get their status from data-hist-status attributes, which are
  * updated imperatively by status.js when a user changes status.
- * The Alpine component handles tab switching and re-filtering.
+ * The Alpine component handles tab switching, secondary filters
+ * (hide body_rental / freelance / recruiter, min score) and re-filtering.
+ *
+ * Tab counts always reflect the TOTAL per status (independent of secondary
+ * filters) so the user does not see "0" when items are just filtered out.
  *
  * "colloquio" status items are grouped under "candidature" since
  * interviews have their own dedicated page.
@@ -11,6 +15,29 @@
 
 function historyTabs() {
     var validTabs = ['valutazione', 'candidature', 'scartati'];
+    var FILTERS_KEY = 'historyFilters';
+    var defaultFilters = {
+        hideBodyRental: false,
+        hideFreelance: false,
+        hideRecruiter: false,
+        minScore: 0
+    };
+
+    function loadFilters() {
+        try {
+            var raw = sessionStorage.getItem(FILTERS_KEY);
+            if (!raw) return Object.assign({}, defaultFilters);
+            var parsed = JSON.parse(raw);
+            return {
+                hideBodyRental: !!parsed.hideBodyRental,
+                hideFreelance: !!parsed.hideFreelance,
+                hideRecruiter: !!parsed.hideRecruiter,
+                minScore: Math.max(0, Math.min(100, parseInt(parsed.minScore, 10) || 0))
+            };
+        } catch (e) {
+            return Object.assign({}, defaultFilters);
+        }
+    }
 
     return {
         activeTab: 'valutazione',
@@ -21,12 +48,15 @@ function historyTabs() {
             scartati: 0
         },
 
+        filters: Object.assign({}, defaultFilters),
+
         init: function() {
             // Restore tab from URL hash or sessionStorage
             var hash = location.hash.replace('#', '');
             var stored = sessionStorage.getItem('historyTab');
             var restored = validTabs.indexOf(hash) !== -1 ? hash : (validTabs.indexOf(stored) !== -1 ? stored : 'valutazione');
             this.activeTab = restored;
+            this.filters = loadFilters();
             this.filterItems();
         },
 
@@ -37,8 +67,35 @@ function historyTabs() {
             this.filterItems();
         },
 
+        toggleFilter: function(name) {
+            this.filters[name] = !this.filters[name];
+            this.persistFilters();
+            this.filterItems();
+        },
+
+        setMinScore: function(val) {
+            this.filters.minScore = Math.max(0, Math.min(100, parseInt(val, 10) || 0));
+            this.persistFilters();
+            this.filterItems();
+        },
+
+        resetFilters: function() {
+            this.filters = Object.assign({}, defaultFilters);
+            this.persistFilters();
+            this.filterItems();
+        },
+
+        persistFilters: function() {
+            try {
+                sessionStorage.setItem(FILTERS_KEY, JSON.stringify(this.filters));
+            } catch (e) {
+                // sessionStorage full or disabled — silently ignore
+            }
+        },
+
         filterItems: function() {
             var tab = this.activeTab;
+            var f = this.filters;
             var cVal = 0, cCand = 0, cScar = 0;
 
             document.querySelectorAll('.history-item[data-hist-status]').forEach(function(item) {
@@ -49,7 +106,17 @@ function historyTabs() {
                 else if (st === 'candidato' || st === 'colloquio') { cCand++; bucket = 'candidature'; }
                 else { cScar++; bucket = 'scartati'; }
 
-                item.style.display = (tab === bucket) ? '' : 'none';
+                var matchTab = (tab === bucket);
+                var matchFilters = true;
+                if (f.hideBodyRental && item.dataset.histBodyrental === '1') matchFilters = false;
+                if (f.hideFreelance && item.dataset.histFreelance === '1') matchFilters = false;
+                if (f.hideRecruiter && item.dataset.histRecruiter === '1') matchFilters = false;
+                if (f.minScore > 0) {
+                    var score = parseInt(item.dataset.histScore, 10) || 0;
+                    if (score < f.minScore) matchFilters = false;
+                }
+
+                item.style.display = (matchTab && matchFilters) ? '' : 'none';
             });
 
             this.counts.valutazione = cVal;
