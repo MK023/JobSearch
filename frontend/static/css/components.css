@@ -747,6 +747,11 @@
   color: var(--accent-red);
 }
 
+.tag-warning {
+  background: rgb(255 159 10 / 15%);
+  color: var(--accent-orange);
+}
+
 .tag-neutral {
   background: var(--bg-tertiary);
   color: var(--text-secondary);

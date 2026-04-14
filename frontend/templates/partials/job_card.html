@@ -10,6 +10,7 @@
   <div class="job-card-info">
     <span class="job-card-role">{{ analysis.role | default('—') }}</span>
     <span class="job-card-meta">
+      {% if analysis.red_flags %}<span class="tag tag-warning" title="{{ analysis.red_flags | join(' &middot; ') }}">&#x1F6A9; {{ analysis.red_flags | length }}</span> {% endif %}
       {% if analysis.recruiter_info and analysis.recruiter_info.is_freelance %}<span class="tag tag-danger" title="Richiesta P.IVA: {{ analysis.recruiter_info.freelance_reason | default('libera professione') }}">freelance</span> {% endif %}
       {% if analysis.recruiter_info and analysis.recruiter_info.is_body_rental %}<span class="tag tag-danger" title="Body rental: {{ analysis.recruiter_info.body_rental_company | default('staff augmentation') }}">body rental</span> {% endif %}
       {% if analysis.recruiter_info and analysis.recruiter_info.is_recruiter %}<span title="Annuncio gestito da {{ analysis.recruiter_info.agency | default('agenzia') }}" aria-label="recruiter">&#x1F3E2;</span> {% endif %}
