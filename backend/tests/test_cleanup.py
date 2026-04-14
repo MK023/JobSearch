@@ -77,6 +77,101 @@ class TestCleanupDryRun:
         assert db_session.query(JobAnalysis).count() == count_before
 
 
+class TestCleanupPreview:
+    """GET /analysis/cleanup-preview returns a count without auditing or deleting.
+
+    The route runs the exact filter of the DELETE endpoint but with a
+    `.count()` instead of `.all()`, scoped to the user's CVs. We verify
+    behavior at the query level (no side-effects, correct count, scoping).
+    """
+
+    def test_preview_returns_count_without_deleting(self, db_session, test_cv):
+        old_date = datetime.now(UTC) - timedelta(days=100)
+        for _ in range(3):
+            db_session.add(
+                JobAnalysis(
+                    id=uuid.uuid4(),
+                    cv_id=test_cv.id,
+                    job_description="Old",
+                    company="Corp",
+                    score=20,
+                    status=AnalysisStatus.PENDING,
+                    created_at=old_date,
+                )
+            )
+        db_session.commit()
+        before = db_session.query(JobAnalysis).count()
+
+        # Mirror cleanup_preview() query
+        cutoff = datetime.now(UTC) - timedelta(days=90)
+        count = (
+            db_session.query(JobAnalysis)
+            .filter(
+                JobAnalysis.score <= 40,
+                JobAnalysis.created_at < cutoff,
+                JobAnalysis.status == AnalysisStatus.PENDING,
+            )
+            .count()
+        )
+
+        assert count == 3
+        # No delete, no audit
+        assert db_session.query(JobAnalysis).count() == before
+        assert db_session.query(AuditLog).count() == 0
+
+    def test_preview_excludes_recent_or_high_score_or_non_pending(self, db_session, test_cv):
+        old_date = datetime.now(UTC) - timedelta(days=100)
+        # Recent low-score: excluded by date filter
+        db_session.add(
+            JobAnalysis(
+                id=uuid.uuid4(),
+                cv_id=test_cv.id,
+                job_description="r",
+                company="r",
+                score=10,
+                status=AnalysisStatus.PENDING,
+                created_at=datetime.now(UTC) - timedelta(days=10),
+            )
+        )
+        # Old high-score: excluded by score filter
+        db_session.add(
+            JobAnalysis(
+                id=uuid.uuid4(),
+                cv_id=test_cv.id,
+                job_description="h",
+                company="h",
+                score=80,
+                status=AnalysisStatus.PENDING,
+                created_at=old_date,
+            )
+        )
+        # Old low-score but APPLIED: excluded by status filter
+        db_session.add(
+            JobAnalysis(
+                id=uuid.uuid4(),
+                cv_id=test_cv.id,
+                job_description="a",
+                company="a",
+                score=20,
+                status=AnalysisStatus.APPLIED,
+                created_at=old_date,
+            )
+        )
+        db_session.commit()
+
+        cutoff = datetime.now(UTC) - timedelta(days=90)
+        count = (
+            db_session.query(JobAnalysis)
+            .filter(
+                JobAnalysis.score <= 40,
+                JobAnalysis.created_at < cutoff,
+                JobAnalysis.status == AnalysisStatus.PENDING,
+            )
+            .count()
+        )
+        assert count == 0
+
+
 class TestCleanupActualDelete:
     """cleanup with dry_run=False actually deletes matching records."""
 

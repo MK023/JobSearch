@@ -315,3 +315,35 @@ def cleanup_analyses(
     db.commit()
 
     return JSONResponse({"ok": True, "deleted": count, "dry_run": False})
+
+
+@router.get("/analysis/cleanup-preview")
+@limiter.limit(settings.rate_limit_default)
+def cleanup_preview(
+    request: Request,
+    db: DbSession,
+    user: CurrentUser,
+    days: Annotated[int, Query(ge=1, le=365)] = 90,
+    max_score: Annotated[int, Query(ge=0, le=100)] = 40,
+) -> JSONResponse:
+    """Read-only count of analyses that would be deleted by /analysis/cleanup.
+
+    Same filters as the DELETE endpoint, scoped to the authenticated user's
+    CVs. No audit log (called from the UI on every parameter change).
+    """
+    from ..cv.models import CVProfile
+
+    cutoff = datetime.now(UTC) - timedelta(days=days)
+    user_cv_ids = db.query(CVProfile.id).filter(CVProfile.user_id == user.id)
+    count = (
+        db.query(JobAnalysis)
+        .filter(
+            JobAnalysis.cv_id.in_(user_cv_ids),
+            JobAnalysis.score <= max_score,
+            JobAnalysis.created_at < cutoff,
+            JobAnalysis.status == AnalysisStatus.PENDING,
+        )
+        .count()
+    )
+
+    return JSONResponse({"count": count, "days": days, "max_score": max_score})
