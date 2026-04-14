@@ -1,0 +1,48 @@
+name: Weekly DB cleanup
+
+# Calls the production cleanup endpoint to delete old, low-score, pending
+# analyses (status=PENDING). Free-tier Neon limit is 1GB; this keeps usage
+# in check without manual intervention.
+#
+# Auth: X-API-Key header against settings.api_key (same path used by the
+# MCP server). Set the GitHub Actions secret JOBSEARCH_API_KEY.
+#
+# Schedule: every Sunday at 03:00 UTC. Manual trigger via "Run workflow"
+# uses the same hardcoded parameters (no UI inputs to keep the workflow
+# free of any user-controlled values).
+
+on:
+  schedule:
+    - cron: "0 3 * * 0"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    name: Run cleanup
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      API_BASE: https://api.jobsearches.cc
+      API_KEY: ${{ secrets.JOBSEARCH_API_KEY }}
+      DAYS: "180"
+      MAX_SCORE: "30"
+    steps:
+      - name: Call DELETE /analysis/cleanup
+        run: |
+          set -euo pipefail
+          if [ -z "$API_KEY" ]; then
+            echo "::error::JOBSEARCH_API_KEY secret not configured"
+            exit 1
+          fi
+          response=$(curl --silent --show-error --fail-with-body \
+            --request DELETE \
+            --header "X-API-Key: $API_KEY" \
+            --header "Accept: application/json" \
+            --max-time 60 \
+            "${API_BASE}/analysis/cleanup?days=${DAYS}&max_score=${MAX_SCORE}&dry_run=false")
+          echo "Response: $response"
+          # Defensive: endpoint always returns ok=true on success; bail otherwise
+          echo "$response" | grep -q '"ok": *true' || (echo "::error::cleanup did not return ok=true" && exit 1)
