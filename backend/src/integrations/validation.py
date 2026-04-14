@@ -162,13 +162,18 @@ class AnalysisAIResponse(BaseModel):
                 "is_recruiter": bool(v.strip()),
                 "is_body_rental": False,
                 "body_rental_company": "",
+                "is_freelance": False,
+                "freelance_reason": "",
             }
         if isinstance(v, dict):
             v.setdefault("is_recruiter", False)
             v.setdefault("is_body_rental", False)
             v.setdefault("body_rental_company", "")
+            v.setdefault("is_freelance", False)
+            v.setdefault("freelance_reason", "")
             v["is_recruiter"] = bool(v.get("is_recruiter"))
             v["is_body_rental"] = bool(v.get("is_body_rental"))
+            v["is_freelance"] = bool(v.get("is_freelance"))
             return v
         return {}
 
