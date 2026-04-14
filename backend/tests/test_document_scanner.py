@@ -1,7 +1,7 @@
 """Tests for document scanning service."""
 
 import io
-import json
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from src.integrations.document_scanner import (
@@ -10,6 +10,11 @@ from src.integrations.document_scanner import (
     scan_document,
 )
 from src.interview.file_models import FileStatus
+
+
+def _tool_use_block(payload: dict) -> SimpleNamespace:
+    """Fake an Anthropic tool_use content block (post tool-use migration)."""
+    return SimpleNamespace(type="tool_use", input=payload)
 
 
 class TestExtractTextFromDocx:
@@ -47,14 +52,12 @@ class TestScanDocument:
         mock_client = MagicMock()
         mock_message = MagicMock()
         mock_message.content = [
-            MagicMock(
-                text=json.dumps(
-                    {
-                        "compiled": True,
-                        "confidence": "high",
-                        "summary": "Documento compilato con dati personali.",
-                    }
-                )
+            _tool_use_block(
+                {
+                    "compiled": True,
+                    "confidence": "high",
+                    "summary": "Documento compilato con dati personali.",
+                }
             )
         ]
         mock_message.usage = MagicMock(input_tokens=500, output_tokens=50)
@@ -77,14 +80,12 @@ class TestScanDocument:
         mock_client = MagicMock()
         mock_message = MagicMock()
         mock_message.content = [
-            MagicMock(
-                text=json.dumps(
-                    {
-                        "compiled": False,
-                        "confidence": "high",
-                        "summary": "Template vuoto con campi da compilare.",
-                    }
-                )
+            _tool_use_block(
+                {
+                    "compiled": False,
+                    "confidence": "high",
+                    "summary": "Template vuoto con campi da compilare.",
+                }
             )
         ]
         mock_message.usage = MagicMock(input_tokens=500, output_tokens=50)
@@ -150,14 +151,12 @@ class TestScanDocument:
         mock_client = MagicMock()
         mock_message = MagicMock()
         mock_message.content = [
-            MagicMock(
-                text=json.dumps(
-                    {
-                        "compiled": True,
-                        "confidence": "high",
-                        "summary": "Documento compilato.",
-                    }
-                )
+            _tool_use_block(
+                {
+                    "compiled": True,
+                    "confidence": "high",
+                    "summary": "Documento compilato.",
+                }
             )
         ]
         mock_message.usage = MagicMock(input_tokens=300, output_tokens=40)
@@ -227,14 +226,12 @@ class TestScanXlsx:
         mock_client = MagicMock()
         mock_message = MagicMock()
         mock_message.content = [
-            MagicMock(
-                text=json.dumps(
-                    {
-                        "compiled": True,
-                        "confidence": "high",
-                        "summary": "Foglio Excel compilato.",
-                    }
-                )
+            _tool_use_block(
+                {
+                    "compiled": True,
+                    "confidence": "high",
+                    "summary": "Foglio Excel compilato.",
+                }
             )
         ]
         mock_message.usage = MagicMock(input_tokens=300, output_tokens=40)
@@ -259,14 +256,12 @@ class TestScanTxt:
         mock_client = MagicMock()
         mock_message = MagicMock()
         mock_message.content = [
-            MagicMock(
-                text=json.dumps(
-                    {
-                        "compiled": True,
-                        "confidence": "high",
-                        "summary": "File di testo compilato.",
-                    }
-                )
+            _tool_use_block(
+                {
+                    "compiled": True,
+                    "confidence": "high",
+                    "summary": "File di testo compilato.",
+                }
             )
         ]
         mock_message.usage = MagicMock(input_tokens=200, output_tokens=30)

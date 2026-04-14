@@ -1,16 +1,20 @@
-"""Anthropic API client with JSON parsing, retry logic, and cost tracking.
+"""Anthropic API client using tool-use for schema-guaranteed JSON output.
 
-Provides a singleton client and functions for all AI operations:
-analysis, cover letter, follow-up email, LinkedIn message.
+All AI operations (analysis, cover letter, followup email, LinkedIn message)
+use the Anthropic `tool_use` API with `tool_choice={"type": "tool", "name": ...}`
+to force the model to emit a validated JSON payload matching a JSON Schema
+derived from the corresponding Pydantic model.
+
+This replaces the previous text-based pipeline (7 fragile JSON parsing
+strategies + AI self-repair on parse failure) with a single, schema-driven call.
 """
 
 import hashlib
-import json
 import logging
-import re
 from typing import TYPE_CHECKING, Any, cast
 
 import anthropic
+from pydantic import BaseModel
 
 from ..config import settings
 from ..preferences import get_preference
@@ -26,7 +30,16 @@ from ..prompts import (
     LINKEDIN_MESSAGE_USER_PROMPT,
 )
 from .cache import CacheService
-from .validation import validate_analysis, validate_cover_letter, validate_followup_email, validate_linkedin_message
+from .validation import (
+    AnalysisAIResponse,
+    CoverLetterAIResponse,
+    FollowupEmailAIResponse,
+    LinkedInMessageAIResponse,
+    validate_analysis,
+    validate_cover_letter,
+    validate_followup_email,
+    validate_linkedin_message,
+)
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session  # noqa: F401 — used in forward-ref type hint
@@ -101,234 +114,45 @@ def _calculate_cost(usage: anthropic.types.Usage, model_id: str) -> float:
     return round(input_cost + cache_read_cost + cache_create_cost + output_cost, 6)
 
 
-def _clean_json_text(text: str) -> str:
-    """Fix common LLM JSON output issues."""
-    # Remove trailing commas before } or ]
-    text = re.sub(r",\s*([}\]])", r"\1", text)
-    # Remove single-line comments
-    text = re.sub(r"//[^\n]*", "", text)
-    # Add missing commas between adjacent objects/arrays
-    text = re.sub(r'([}\]])\s*\n\s*(["{[\[])', r"\1,\n\2", text)
-    # Fix broken string concatenation across lines
-    text = re.sub(r'"\s*\n\s*"(?=[^:]*":)', '",\n"', text)
-    # Replace NaN/Infinity (not valid JSON) with null
-    text = re.sub(r"\bNaN\b", "null", text)
-    text = re.sub(r"\bInfinity\b", "null", text)
-    text = re.sub(r"\b-Infinity\b", "null", text)
-    return text
+# ── Tool-use plumbing ──────────────────────────────────────────────────
 
 
-def _fix_unescaped_newlines(text: str) -> str:
-    """Fix unescaped newlines inside JSON string values.
+def _schema_from_model(model_cls: type[BaseModel]) -> dict[str, Any]:
+    """Produce a JSON Schema from a Pydantic model suitable for Anthropic tool input_schema.
 
-    This is the #1 cause of JSON parse errors from LLMs - they produce
-    actual newline characters inside string values instead of \\n.
+    Pydantic's ``model_json_schema()`` returns a JSON-Schema-compatible dict.
+    We strip the top-level ``title`` (Anthropic doesn't need it) and leave the rest
+    (including any ``$defs`` references) untouched.
     """
-    result = []
-    in_string = False
-    escape_next = False
-    i = 0
-    while i < len(text):
-        ch = text[i]
-        if escape_next:
-            result.append(ch)
-            escape_next = False
-            i += 1
-            continue
-        if ch == "\\":
-            escape_next = True
-            result.append(ch)
-            i += 1
-            continue
-        if ch == '"':
-            in_string = not in_string
-            result.append(ch)
-            i += 1
-            continue
-        if in_string and ch == "\n":
-            result.append("\\n")
-            i += 1
-            continue
-        if in_string and ch == "\r":
-            # Skip \r (handle \r\n as just \n)
-            if i + 1 < len(text) and text[i + 1] == "\n":
-                result.append("\\n")
-                i += 2
-            else:
-                result.append("\\n")
-                i += 1
-            continue
-        result.append(ch)
-        i += 1
-    return "".join(result)
+    schema = model_cls.model_json_schema()
+    schema.pop("title", None)
+    return schema
 
 
-def _fix_single_quotes(text: str) -> str:
-    """Convert Python-style single-quoted JSON to double-quoted JSON.
-
-    Handles: {'key': 'value', 'flag': True}  ->  {"key": "value", "flag": true}
-    """
-    # Only attempt if it looks like single-quoted JSON (starts with {' or [')
-    stripped = text.strip()
-    if not (stripped.startswith("{'") or stripped.startswith("['")):
-        return text
-    # Replace single quotes used as JSON delimiters (not inside strings)
-    text = re.sub(r"(?<=[\[{,:])\s*'", ' "', text)
-    text = re.sub(r"'\s*(?=[\]}:,])", '"', text)
-    # Fix Python booleans/None
-    text = re.sub(r"\bTrue\b", "true", text)
-    text = re.sub(r"\bFalse\b", "false", text)
-    text = re.sub(r"\bNone\b", "null", text)
-    return text
+# Pre-compute schemas at import time — they never change at runtime.
+_ANALYSIS_SCHEMA = _schema_from_model(AnalysisAIResponse)
+_COVER_LETTER_SCHEMA = _schema_from_model(CoverLetterAIResponse)
+_FOLLOWUP_SCHEMA = _schema_from_model(FollowupEmailAIResponse)
+_LINKEDIN_SCHEMA = _schema_from_model(LinkedInMessageAIResponse)
 
 
-def _strip_markdown_wrapper(text: str) -> str:
-    """Remove markdown code block wrappers (```json ... ``` or ``` ... ```).
-
-    Handles unclosed fences gracefully: if the response was truncated and the
-    closing ``` is missing, still strip the opening fence so the caller can
-    attempt JSON parse on the partial payload.
-    """
-    text = text.strip()
-    if not text.startswith("```"):
-        return text
-    # Remove opening line (```json or ```)
-    text = text.split("\n", 1)[1] if "\n" in text else text[3:]
-    # Remove closing ``` if present
-    if "```" in text:
-        text = text.rsplit("```", 1)[0]
-    else:
-        logger.warning("Markdown fence opened but not closed — response likely truncated")
-    return text.strip()
-
-
-def _extract_and_parse_json(raw_text: str) -> dict[str, Any]:
-    """Extract JSON from AI response, with multiple fallback strategies.
-
-    Strategy order (from cheapest to most aggressive):
-    1. Parse as-is (after stripping markdown)
-    2. Apply common syntax fixes (_clean_json_text)
-    3. Extract outermost { ... } and retry with fixes
-    4. Fix unescaped control characters (tabs, form feeds)
-    5. Fix unescaped newlines inside string values
-    6. Fix single quotes → double quotes (Python-style dicts)
-    """
-    text = _strip_markdown_wrapper(raw_text)
-
-    # Attempt 1: parse as-is
-    try:
-        return cast(dict[str, Any], json.loads(text))
-    except json.JSONDecodeError:
-        pass
-
-    # Attempt 2: common fixes (trailing commas, comments, NaN)
-    cleaned = _clean_json_text(text)
-    try:
-        return cast(dict[str, Any], json.loads(cleaned))
-    except json.JSONDecodeError:
-        pass
-
-    # Attempt 3: extract outermost { ... } block
-    start, end = text.find("{"), text.rfind("}")
-    if start != -1 and end > start:
-        fragment = text[start : end + 1]
-        cleaned_fragment = _clean_json_text(fragment)
-        try:
-            return cast(dict[str, Any], json.loads(cleaned_fragment))
-        except json.JSONDecodeError:
-            pass
-
-        # Attempt 4: fix unescaped control characters
-        ctrl_fixed = fragment.replace("\t", "\\t").replace("\f", "\\f")
-        ctrl_fixed = _clean_json_text(ctrl_fixed)
-        try:
-            return cast(dict[str, Any], json.loads(ctrl_fixed))
-        except json.JSONDecodeError:
-            pass
-
-        # Attempt 5: fix unescaped newlines inside string values
-        nl_fixed = _fix_unescaped_newlines(fragment)
-        nl_fixed = _clean_json_text(nl_fixed)
-        try:
-            return cast(dict[str, Any], json.loads(nl_fixed))
-        except json.JSONDecodeError:
-            pass
-
-        # Attempt 6: combined - control chars + newlines
-        combined = fragment.replace("\t", "\\t").replace("\f", "\\f")
-        combined = _fix_unescaped_newlines(combined)
-        combined = _clean_json_text(combined)
-        try:
-            return cast(dict[str, Any], json.loads(combined))
-        except json.JSONDecodeError:
-            pass
-
-    # Attempt 7: single quotes → double quotes (Python-style)
-    sq_fixed = _fix_single_quotes(text)
-    if sq_fixed != text:
-        try:
-            return cast(dict[str, Any], json.loads(sq_fixed))
-        except json.JSONDecodeError:
-            pass
-
-    raise json.JSONDecodeError("No valid JSON found in AI response", text[:200], 0)
-
-
-def _retry_json_fix(model_id: str, broken_json: str) -> dict[str, Any] | None:
-    """Ask the AI to fix its own broken JSON output (second-chance repair).
-
-    Sends the malformed JSON back to the model with strict instructions
-    to return only valid JSON. Uses a smaller max_tokens to keep costs down.
-    """
-    logger.warning("JSON parse failed, attempting AI-assisted repair (model=%s)", model_id)
-    try:
-        client = get_client()
-        # Truncate to avoid sending huge broken payloads
-        truncated = broken_json[:16000]
-        fix_msg = client.messages.create(
-            model=model_id,
-            max_tokens=8192,
-            system=(
-                "You fix malformed JSON. Respond ONLY with the corrected JSON object, "
-                "no text before or after, no markdown code blocks. "
-                "Don't change content, only fix JSON syntax errors."
-            ),
-            messages=[{"role": "user", "content": f"Fix this malformed JSON:\n\n{truncated}"}],
-        )
-        repair_cost = _calculate_cost(fix_msg.usage, model_id)
-        logger.info(
-            "JSON repair API call: input=%d, output=%d, cost=$%.6f",
-            fix_msg.usage.input_tokens,
-            fix_msg.usage.output_tokens,
-            repair_cost,
-        )
-        content_block = fix_msg.content[0]
-        if not hasattr(content_block, "text"):
-            return None
-        fixed_text = content_block.text
-        result = _extract_and_parse_json(fixed_text)
-        logger.info("AI-assisted JSON repair succeeded")
-        return result
-    except Exception:
-        logger.exception("AI-assisted JSON repair failed")
-        return None
-
-
-def _call_api(
+def _call_api_with_tool(
     system_prompt: str,
     user_prompt: str,
     model_id: str,
     max_tokens: int,
+    tool_name: str,
+    tool_description: str,
+    input_schema: dict[str, Any],
 ) -> tuple[dict[str, Any], anthropic.types.Usage]:
-    """Make an API call and parse the JSON response.
+    """Call Claude forcing a single tool invocation — schema-validated JSON output.
 
-    Parsing pipeline:
-    1. Try _extract_and_parse_json (7 strategies)
-    2. On failure, try _retry_json_fix (AI self-repair)
-    3. On total failure, raise with context for debugging
+    Returns (parsed_input, usage). The parsed_input is the dict Claude passed
+    to the forced tool; Anthropic's SDK already parses it from JSON, so there's
+    zero local parsing. If no ``tool_use`` block is returned (should never
+    happen with forced tool_choice), raises RuntimeError.
     """
     client = get_client()
-
     message = client.messages.create(
         model=model_id,
         max_tokens=max_tokens,
@@ -340,36 +164,31 @@ def _call_api(
             }
         ],
         messages=[{"role": "user", "content": user_prompt}],
+        tools=[
+            {
+                "name": tool_name,
+                "description": tool_description,
+                "input_schema": input_schema,
+            }
+        ],
+        tool_choice={"type": "tool", "name": tool_name},
     )
 
-    content_block = message.content[0]
-    if not hasattr(content_block, "text"):
-        raise json.JSONDecodeError("No text in AI response", "", 0)
-    raw_text = content_block.text
+    for block in message.content:
+        if getattr(block, "type", None) != "tool_use":
+            continue
+        tool_input = getattr(block, "input", None)
+        # SDK parses tool input from JSON to dict automatically.
+        if isinstance(tool_input, dict):
+            return cast(dict[str, Any], tool_input), message.usage
 
-    try:
-        result = _extract_and_parse_json(raw_text)
-    except json.JSONDecodeError:
-        logger.warning(
-            "Primary JSON parse failed (model=%s, response_len=%d, first_100=%r)",
-            model_id,
-            len(raw_text),
-            raw_text[:100],
-        )
-        fixed = _retry_json_fix(model_id, raw_text)
-        if fixed is None:
-            # Log the full raw response so we can post-mortem the parse
-            # failure without re-running the call (and re-paying tokens).
-            logger.error(
-                "JSON parse fully failed model=%s len=%d raw_text=%r",
-                model_id,
-                len(raw_text),
-                raw_text,
-            )
-            raise
-        result = fixed
+    raise RuntimeError(
+        f"Expected tool_use block for {tool_name!r} but got content types: "
+        f"{[getattr(b, 'type', '?') for b in message.content]}"
+    )
 
-    return result, message.usage
+
+# ── Public AI operations ───────────────────────────────────────────────
 
 
 def analyze_job(
@@ -402,7 +221,15 @@ def analyze_job(
             return cached
 
     user_prompt = ANALYSIS_USER_PROMPT.format(cv_text=cv_text[:12000], job_description=job_description)
-    result, usage = _call_api(ANALYSIS_SYSTEM_PROMPT, user_prompt, model_id, 8192)
+    result, usage = _call_api_with_tool(
+        ANALYSIS_SYSTEM_PROMPT,
+        user_prompt,
+        model_id,
+        8192,
+        tool_name="submit_analysis",
+        tool_description="Emit the complete CV-vs-job analysis payload.",
+        input_schema=_ANALYSIS_SCHEMA,
+    )
 
     result = validate_analysis(result)
 
@@ -423,7 +250,15 @@ def analyze_job(
             model_id,
             result.get("confidence_reason", ""),
         )
-        sonnet_result, sonnet_usage = _call_api(ANALYSIS_SYSTEM_PROMPT, user_prompt, sonnet_id, 8192)
+        sonnet_result, sonnet_usage = _call_api_with_tool(
+            ANALYSIS_SYSTEM_PROMPT,
+            user_prompt,
+            sonnet_id,
+            8192,
+            tool_name="submit_analysis",
+            tool_description="Emit the complete CV-vs-job analysis payload.",
+            input_schema=_ANALYSIS_SCHEMA,
+        )
         sonnet_result = validate_analysis(sonnet_result)
         # Sonnet result wins; tokens/cost are cumulative across both passes.
         result = sonnet_result
@@ -491,7 +326,15 @@ def generate_cover_letter(
         language=language,
     )
 
-    result, usage = _call_api(COVER_LETTER_SYSTEM_PROMPT, user_prompt, model_id, 2048)
+    result, usage = _call_api_with_tool(
+        COVER_LETTER_SYSTEM_PROMPT,
+        user_prompt,
+        model_id,
+        2048,
+        tool_name="submit_cover_letter",
+        tool_description="Emit the cover letter and subject line options.",
+        input_schema=_COVER_LETTER_SCHEMA,
+    )
 
     result = validate_cover_letter(result)
 
@@ -543,7 +386,15 @@ def generate_followup_email(
         language=language,
     )
 
-    result, usage = _call_api(FOLLOWUP_EMAIL_SYSTEM_PROMPT, user_prompt, model_id, 1024)
+    result, usage = _call_api_with_tool(
+        FOLLOWUP_EMAIL_SYSTEM_PROMPT,
+        user_prompt,
+        model_id,
+        1024,
+        tool_name="submit_followup_email",
+        tool_description="Emit the follow-up email subject, body, and tone notes.",
+        input_schema=_FOLLOWUP_SCHEMA,
+    )
 
     result = validate_followup_email(result)
 
@@ -595,7 +446,15 @@ def generate_linkedin_message(
         language=language,
     )
 
-    result, usage = _call_api(LINKEDIN_MESSAGE_SYSTEM_PROMPT, user_prompt, model_id, 1024)
+    result, usage = _call_api_with_tool(
+        LINKEDIN_MESSAGE_SYSTEM_PROMPT,
+        user_prompt,
+        model_id,
+        1024,
+        tool_name="submit_linkedin_message",
+        tool_description="Emit the LinkedIn message, connection note, and approach tip.",
+        input_schema=_LINKEDIN_SCHEMA,
+    )
 
     result = validate_linkedin_message(result)
 

@@ -14,7 +14,7 @@ from docx import Document as DocxDocument
 from openpyxl import load_workbook
 
 from ..interview.file_models import FileStatus
-from .anthropic_client import MODELS, _calculate_cost, _extract_and_parse_json, get_client
+from .anthropic_client import MODELS, _calculate_cost, get_client
 
 logger = logging.getLogger(__name__)
 
@@ -22,13 +22,6 @@ SCAN_SYSTEM_PROMPT = """\
 Sei un assistente che analizza documenti relativi a candidature lavorative.
 Il tuo compito e' determinare se il documento e' stato compilato/riempito dall'utente
 oppure se e' ancora un modello vuoto/template non compilato.
-
-Rispondi SOLO con un JSON valido nel seguente formato:
-{
-    "compiled": true/false,
-    "confidence": "high"/"medium"/"low",
-    "summary": "breve descrizione di cosa contiene il documento (max 200 caratteri)"
-}
 
 Criteri per "compiled: true":
 - Il documento contiene dati personali specifici (nome, cognome, indirizzo, ecc.)
@@ -40,6 +33,18 @@ Criteri per "compiled: false":
 - Il documento contiene solo intestazioni senza contenuto
 - Il documento e' praticamente vuoto
 """
+
+SCAN_TOOL_NAME = "submit_scan_result"
+SCAN_TOOL_DESCRIPTION = "Emit the structured document scan result."
+SCAN_INPUT_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "compiled": {"type": "boolean", "description": "True if the document has been filled out."},
+        "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+        "summary": {"type": "string", "description": "Short description, max 200 chars."},
+    },
+    "required": ["compiled", "confidence", "summary"],
+}
 
 SCAN_USER_PROMPT = """\
 Analizza il seguente documento e determina se e' stato compilato o meno.
@@ -204,6 +209,8 @@ def _scan_pdf(
                 ],
             }
         ],
+        tools=[{"name": SCAN_TOOL_NAME, "description": SCAN_TOOL_DESCRIPTION, "input_schema": SCAN_INPUT_SCHEMA}],
+        tool_choice={"type": "tool", "name": SCAN_TOOL_NAME},
     )
 
     return _parse_scan_response(message, model_id)
@@ -241,47 +248,51 @@ def _scan_text_based(
         max_tokens=512,
         system=SCAN_SYSTEM_PROMPT,
         messages=[{"role": "user", "content": user_prompt}],
+        tools=[{"name": SCAN_TOOL_NAME, "description": SCAN_TOOL_DESCRIPTION, "input_schema": SCAN_INPUT_SCHEMA}],
+        tool_choice={"type": "tool", "name": SCAN_TOOL_NAME},
     )
 
     return _parse_scan_response(message, model_id)
 
 
 def _parse_scan_response(message: anthropic.types.Message, model_id: str) -> dict[str, Any]:
-    """Parse Claude's response and return structured result."""
-    import json
-
-    raw_text = message.content[0].text  # type: ignore[union-attr]
+    """Map the tool_use payload from Claude to the FileStatus-shaped dict."""
     cost = _calculate_cost(message.usage, model_id)
+    tokens = {
+        "input": message.usage.input_tokens,
+        "output": message.usage.output_tokens,
+        "total": message.usage.input_tokens + message.usage.output_tokens,
+    }
 
-    try:
-        result = _extract_and_parse_json(raw_text)
-        compiled = result.get("compiled", False)
-        confidence = result.get("confidence", "low")
-        summary = result.get("summary", "")
+    tool_input: dict[str, Any] | None = None
+    for block in message.content:
+        if getattr(block, "type", None) != "tool_use":
+            continue
+        raw = getattr(block, "input", None)
+        if isinstance(raw, dict):
+            tool_input = dict(raw)
+        break
 
-        return {
-            "status": FileStatus.COMPILED if compiled else FileStatus.NOT_COMPILED,
-            "scan_result": summary,
-            "compiled": compiled,
-            "confidence": confidence,
-            "cost_usd": cost,
-            "tokens": {
-                "input": message.usage.input_tokens,
-                "output": message.usage.output_tokens,
-                "total": message.usage.input_tokens + message.usage.output_tokens,
-            },
-        }
-    except json.JSONDecodeError:
-        logger.warning("Failed to parse scan response: %s", raw_text[:200])
+    if tool_input is None:
+        logger.warning("No tool_use block in scan response (model=%s)", model_id)
         return {
             "status": FileStatus.SCAN_ERROR,
             "scan_result": "Errore nel parsing della risposta AI.",
             "compiled": False,
             "confidence": "low",
             "cost_usd": cost,
-            "tokens": {
-                "input": message.usage.input_tokens,
-                "output": message.usage.output_tokens,
-                "total": message.usage.input_tokens + message.usage.output_tokens,
-            },
+            "tokens": tokens,
         }
+
+    compiled = bool(tool_input.get("compiled", False))
+    confidence = str(tool_input.get("confidence", "low"))
+    summary = str(tool_input.get("summary", ""))
+
+    return {
+        "status": FileStatus.COMPILED if compiled else FileStatus.NOT_COMPILED,
+        "scan_result": summary,
+        "compiled": compiled,
+        "confidence": confidence,
+        "cost_usd": cost,
+        "tokens": tokens,
+    }
