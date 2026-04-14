@@ -68,6 +68,27 @@ class TestRecruiterInfo:
         assert result["recruiter_info"]["is_body_rental"] is False
         assert result["recruiter_info"]["body_rental_company"] == ""
 
+    def test_freelance_flag_preserved(self):
+        raw = {"recruiter_info": {"is_freelance": True, "freelance_reason": "richiesta P.IVA"}}
+        result = validate_analysis(raw)
+        assert result["recruiter_info"]["is_freelance"] is True
+        assert result["recruiter_info"]["freelance_reason"] == "richiesta P.IVA"
+        # is_recruiter and is_body_rental default to False
+        assert result["recruiter_info"]["is_recruiter"] is False
+        assert result["recruiter_info"]["is_body_rental"] is False
+
+    def test_freelance_defaults_to_false_when_missing(self):
+        raw = {"recruiter_info": {"is_recruiter": True, "agency": "Hays"}}
+        result = validate_analysis(raw)
+        assert result["recruiter_info"]["is_freelance"] is False
+        assert result["recruiter_info"]["freelance_reason"] == ""
+
+    def test_string_form_initializes_freelance_false(self):
+        raw = {"recruiter_info": "Hays"}
+        result = validate_analysis(raw)
+        assert result["recruiter_info"]["is_freelance"] is False
+        assert result["recruiter_info"]["freelance_reason"] == ""
+
 
 class TestExperienceRequired:
     def test_empty_dict_default(self):

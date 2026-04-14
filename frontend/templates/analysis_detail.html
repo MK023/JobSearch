@@ -179,6 +179,15 @@ Tipicamente: contratto con l'azienda intermediaria, lavoro presso il cliente, sc
     </div>
     {% endif %}
 
+    {# ---- 5c-bis. FREELANCE / P.IVA WARNING ---- #}
+    {% if result.recruiter_info and result.recruiter_info.is_freelance %}
+    <div class="advice-box advice-box-danger">
+      <div class="advice-title">&#x26A0;&#xFE0F; Richiesta P.IVA / libera professione</div>
+      <div class="advice-text">{% if result.recruiter_info.freelance_reason %}{{ result.recruiter_info.freelance_reason }}.{% endif %}
+Tipicamente: nessuna tutela da subordinato (ferie, malattia, TFR), gestione fiscale a tuo carico, niente continuita' contrattuale. Da escludere secondo il tuo profilo.</div>
+    </div>
+    {% endif %}
+
     {# ---- 5d. RECRUITER INFO ---- #}
     {% if result.recruiter_info and result.recruiter_info.is_recruiter %}
     <div class="advice-box">
