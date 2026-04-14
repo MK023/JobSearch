@@ -30,6 +30,7 @@ from .database import SessionLocal
 from .dependencies import AuthRequired, DbSession
 from .integrations.cache import create_cache_service
 from .pages import router as pages_router
+from .preferences.routes import router as preferences_router
 from .rate_limit import limiter
 
 logger = logging.getLogger(__name__)
@@ -234,6 +235,7 @@ def create_app() -> FastAPI:
     app.include_router(cv_router)
     app.include_router(analysis_router)
     app.include_router(cover_letter_router)
+    app.include_router(preferences_router)
 
     # --- API v1 (all JSON endpoints) ---
     from .api_v1 import api_v1_router

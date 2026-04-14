@@ -8,11 +8,12 @@ import hashlib
 import json
 import logging
 import re
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import anthropic
 
 from ..config import settings
+from ..preferences import get_preference
 from ..prompts import (
     ANALYSIS_PROMPT_VERSION,
     ANALYSIS_SYSTEM_PROMPT,
@@ -26,6 +27,9 @@ from ..prompts import (
 )
 from .cache import CacheService
 from .validation import validate_analysis, validate_cover_letter, validate_followup_email, validate_linkedin_message
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session  # noqa: F401 — used in forward-ref type hint
 
 logger = logging.getLogger(__name__)
 
@@ -373,13 +377,18 @@ def analyze_job(
     job_description: str,
     model: str = "haiku",
     cache: CacheService | None = None,
+    db: "Session | None" = None,
 ) -> dict[str, Any]:
     """Analyze CV-to-job compatibility.
 
-    When settings.ai_sonnet_fallback_on_low_confidence is True and the first
-    pass on Haiku returns confidence=="bassa", a second pass is automatically
-    run on Sonnet and replaces the result. Costs/tokens are summed across
-    both passes; result["fallback_used"]=True flags the override.
+    When the persisted preference `ai_sonnet_fallback_on_low_confidence` is
+    True and the first pass on Haiku returns confidence=="bassa", a second
+    pass is automatically run on Sonnet and replaces the result. Costs/tokens
+    are summed across both passes; result["fallback_used"]=True flags the
+    override.
+
+    `db` is optional — if omitted (e.g. from a cached/background context with
+    no session), the fallback is disabled (safe default, no crash).
     """
     model_id = MODELS.get(model, MODELS["haiku"])
     ch = content_hash(cv_text, job_description)
@@ -404,8 +413,11 @@ def analyze_job(
     fallback_used = False
 
     # Optional fallback: low confidence on a non-Sonnet model triggers a Sonnet retry.
+    fallback_enabled = False
+    if db is not None:
+        fallback_enabled = bool(get_preference(db, "ai_sonnet_fallback_on_low_confidence", default=False))
     sonnet_id = MODELS["sonnet"]
-    if settings.ai_sonnet_fallback_on_low_confidence and result.get("confidence") == "bassa" and model_id != sonnet_id:
+    if fallback_enabled and result.get("confidence") == "bassa" and model_id != sonnet_id:
         logger.info(
             "Low-confidence analysis on %s, retrying on Sonnet (reason: %s)",
             model_id,

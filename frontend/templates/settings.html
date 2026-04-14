@@ -87,6 +87,22 @@
     </div>
   </section>
 
+  {# ---- AI Preferences Section ---- #}
+  <section class="card settings-section" x-data="aiPreferences()" x-init="load()">
+    <h2 class="section-title"><svg class="icon-align" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6m11-7h-6m-6 0H1m17.66-5.66L15.42 8.58M8.58 15.42l-4.24 4.24M19.66 19.66l-4.24-4.24M8.58 8.58 4.34 4.34"/></svg> Impostazioni AI</h2>
+
+    <div class="form-group">
+      <label class="form-label">
+        <input type="checkbox" x-model="sonnetFallback" @change="save()" :disabled="loading">
+        Retry su Sonnet per analisi a confidence bassa
+      </label>
+      <p class="meta-small">
+        Se Haiku ritorna <code>confidence: bassa</code>, l'analisi viene rifatta su Sonnet (~$0.015 extra per analisi borderline). Disattivato per default.
+      </p>
+      <span x-show="message" x-cloak class="meta-small" x-text="message"></span>
+    </div>
+  </section>
+
   {# ---- DB Cleanup Section ---- #}
   <section class="card settings-section" x-data="cleanupForm()">
     <h2 class="section-title"><svg class="icon-align" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Pulizia DB</h2>
@@ -132,6 +148,7 @@
 <script src="{{ url_for('static', path='js/modules/cv.js') }}?v={{ asset_v }}"></script>
 <script src="{{ url_for('static', path='js/modules/spending.js') }}?v={{ asset_v }}"></script>
 <script src="{{ url_for('static', path='js/modules/cleanup.js') }}?v={{ asset_v }}"></script>
+<script src="{{ url_for('static', path='js/modules/preferences.js') }}?v={{ asset_v }}"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function() {
     if (typeof initCVUpload === 'function') initCVUpload();

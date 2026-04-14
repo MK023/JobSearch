@@ -36,7 +36,7 @@ def run_analysis(
     cache: CacheService | None = None,
 ) -> tuple[JobAnalysis, dict[str, Any]]:
     """Run a new analysis and persist it."""
-    result = analyze_job(cv_text, job_description, model, cache)
+    result = analyze_job(cv_text, job_description, model, cache, db=db)
     _merge_glassdoor(result, db)
 
     analysis = JobAnalysis(

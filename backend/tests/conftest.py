@@ -19,10 +19,12 @@ from src.integrations.glassdoor import GlassdoorCache
 from src.interview.file_models import InterviewFile
 from src.interview.models import Interview
 from src.notifications.models import NotificationLog
+from src.preferences.models import AppPreference
 
 # Models must be imported so Base.metadata.create_all() sees all tables.
 _ALL_MODELS = [
     AppSettings,
+    AppPreference,
     CoverLetter,
     Contact,
     GlassdoorCache,
