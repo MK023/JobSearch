@@ -75,6 +75,7 @@ class TestStatusEnumValues:
         assert AnalysisStatus.PENDING.value == "da_valutare"
         assert AnalysisStatus.APPLIED.value == "candidato"
         assert AnalysisStatus.INTERVIEW.value == "colloquio"
+        assert AnalysisStatus.OFFER.value == "offerta"
         assert AnalysisStatus.REJECTED.value == "scartato"
 
     def test_status_roundtrip(self, db_session, test_cv):

@@ -23,11 +23,18 @@ from ..database.base import Base
 
 
 class AnalysisStatus(enum.StrEnum):
-    """Application tracking status."""
+    """Application tracking status (overall funnel state).
+
+    Per-round granularity (conoscitivo/tecnico/finale, passed/rejected) is
+    captured on the Interview model. This enum stays coarse-grained so the
+    main UX (history tabs, dashboard counts) stays simple. ``OFFER`` is set
+    when the candidate receives a written offer.
+    """
 
     PENDING = "da_valutare"
     APPLIED = "candidato"
     INTERVIEW = "colloquio"
+    OFFER = "offerta"
     REJECTED = "scartato"
 
 
@@ -89,7 +96,24 @@ class JobAnalysis(Base):
     cv = relationship("CVProfile", back_populates="analyses")
     cover_letters = relationship("CoverLetter", back_populates="analysis", cascade="all, delete-orphan")
     contacts = relationship("Contact", back_populates="analysis", cascade="all, delete-orphan")
-    interview = relationship("Interview", back_populates="analysis", uselist=False, cascade="all, delete-orphan")
+    interviews = relationship(
+        "Interview",
+        back_populates="analysis",
+        cascade="all, delete-orphan",
+        order_by="Interview.round_number",
+    )
+
+    @property
+    def interview(self) -> "Interview | None":  # type: ignore[name-defined]  # noqa: F821
+        """Back-compat alias: latest round (highest round_number).
+
+        Code written before the multi-round migration accesses
+        ``analysis.interview`` as a single object. We keep the attribute
+        but resolve it to the most recent round so existing call sites
+        (templates, services) keep working unchanged.
+        """
+        rounds = self.interviews or []
+        return rounds[-1] if rounds else None
 
     __table_args__ = (
         Index("idx_analyses_score", "score"),

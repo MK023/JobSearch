@@ -1,9 +1,10 @@
-"""Interview scheduling model."""
+"""Interview scheduling model — multi-round capable."""
 
+import enum
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import Column, DateTime, ForeignKey, Index, String, Text
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -13,8 +14,27 @@ from ..database.base import Base
 from .file_models import InterviewFile  # noqa: F401
 
 
+class InterviewOutcome(enum.StrEnum):
+    """Result of a single interview round.
+
+    NULL on the column means "round is still future / outcome not yet
+    logged". PENDING is reserved for an explicit "waiting for client
+    feedback" state set by the user.
+    """
+
+    PASSED = "passed"
+    REJECTED = "rejected"
+    WITHDRAWN = "withdrawn"
+    PENDING = "pending"
+
+
 class Interview(Base):
-    """Scheduled interview linked to a job analysis, with platform-specific fields."""
+    """One round of an interview process linked to a job analysis.
+
+    A JobAnalysis can have multiple rounds (conoscitivo → tecnico → finale →
+    offer round), ordered by ``round_number``. Each round carries its own
+    outcome; the parent JobAnalysis.status reflects the global funnel state.
+    """
 
     __tablename__ = "interviews"
 
@@ -23,13 +43,14 @@ class Interview(Base):
         UUID(as_uuid=True),
         ForeignKey("job_analyses.id", ondelete="CASCADE"),
         nullable=False,
-        unique=True,
     )
+    round_number = Column(Integer, nullable=False, default=1)
 
     scheduled_at = Column(DateTime(timezone=True), nullable=False)
     ends_at = Column(DateTime(timezone=True), nullable=True)
     platform = Column(String(20), nullable=True)  # google_meet, teams, zoom, phone, in_person, other
     interview_type = Column(String(20), nullable=True)  # tecnico, hr, conoscitivo, finale, other
+    outcome = Column(String(20), nullable=True)  # passed, rejected, withdrawn, pending; NULL = not logged
     interviewer_name = Column(String(255), nullable=True)
     recruiter_name = Column(String(255), nullable=True)
     recruiter_email = Column(String(255), nullable=True)
@@ -47,7 +68,10 @@ class Interview(Base):
         onupdate=lambda: datetime.now(UTC),
     )
 
-    analysis = relationship("JobAnalysis", back_populates="interview")
+    analysis = relationship("JobAnalysis", back_populates="interviews", foreign_keys=[analysis_id])
     files = relationship("InterviewFile", back_populates="interview", cascade="all, delete-orphan")
 
-    __table_args__ = (Index("idx_interviews_scheduled", "scheduled_at"),)
+    __table_args__ = (
+        Index("idx_interviews_scheduled", "scheduled_at"),
+        Index("idx_interviews_analysis_id", "analysis_id"),
+    )

@@ -1,4 +1,11 @@
-"""Interview scheduling service."""
+"""Interview scheduling service — multi-round aware.
+
+The service preserves the original 1-interview-per-analysis API
+(``create_or_update_interview``, ``get_interview_by_analysis``,
+``delete_interview``) by always operating on the LATEST round. Multi-round
+mutations (advance to next round, log outcome) live in the new helpers
+below and will be wired to the UI in PR-2.
+"""
 
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -7,7 +14,13 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from ..analysis.models import AnalysisStatus, JobAnalysis
-from .models import Interview
+from .models import Interview, InterviewOutcome
+
+
+def _latest_round(db: Session, analysis_id: UUID | str) -> Interview | None:
+    return (
+        db.query(Interview).filter(Interview.analysis_id == analysis_id).order_by(Interview.round_number.desc()).first()
+    )
 
 
 def create_or_update_interview(
@@ -28,12 +41,16 @@ def create_or_update_interview(
     location: str | None = None,
     notes: str | None = None,
 ) -> Interview | None:
-    """Create or update an interview for the given analysis."""
+    """Create or update the LATEST interview round for the given analysis.
+
+    Back-compat: if no rounds exist, creates round 1; otherwise updates the
+    most recent round in place. To start a new round, use ``create_next_round``.
+    """
     analysis = db.query(JobAnalysis).filter(JobAnalysis.id == analysis_id).first()
     if not analysis:
         return None
 
-    interview = db.query(Interview).filter(Interview.analysis_id == analysis_id).first()
+    interview = _latest_round(db, analysis_id)
 
     if interview:
         interview.scheduled_at = scheduled_at  # type: ignore[assignment]
@@ -52,6 +69,7 @@ def create_or_update_interview(
     else:
         interview = Interview(
             analysis_id=analysis_id,
+            round_number=1,
             scheduled_at=scheduled_at,
             ends_at=ends_at,
             platform=platform,
@@ -73,18 +91,78 @@ def create_or_update_interview(
 
 
 def get_interview_by_analysis(db: Session, analysis_id: UUID | str) -> Interview | None:
-    """Get interview for an analysis."""
-    return db.query(Interview).filter(Interview.analysis_id == analysis_id).first()
+    """Return the LATEST interview round for an analysis (back-compat alias)."""
+    return _latest_round(db, analysis_id)
+
+
+def get_interview_rounds(db: Session, analysis_id: UUID | str) -> list[Interview]:
+    """Return ALL rounds for an analysis, ordered by round_number ascending."""
+    return db.query(Interview).filter(Interview.analysis_id == analysis_id).order_by(Interview.round_number.asc()).all()
 
 
 def delete_interview(db: Session, analysis_id: UUID | str) -> bool:
-    """Delete interview for an analysis. Returns True if deleted."""
-    interview = db.query(Interview).filter(Interview.analysis_id == analysis_id).first()
+    """Delete the LATEST interview round. Returns True if deleted.
+
+    NB: removes only the most recent round; earlier rounds (history) are
+    preserved. To wipe the entire interview history, delete each round or
+    cascade via JobAnalysis deletion.
+    """
+    interview = _latest_round(db, analysis_id)
     if not interview:
         return False
     db.delete(interview)
     db.flush()
     return True
+
+
+def set_outcome(db: Session, interview_id: UUID | str, outcome: InterviewOutcome | str) -> Interview | None:
+    """Persist the outcome of a specific interview round.
+
+    Idempotent: re-setting the same outcome is a no-op write. Returns the
+    updated row, or ``None`` if the round does not exist.
+    """
+    val = outcome.value if isinstance(outcome, InterviewOutcome) else outcome
+    if val not in {o.value for o in InterviewOutcome}:
+        raise ValueError(f"Invalid interview outcome: {val!r}")
+
+    interview = db.query(Interview).filter(Interview.id == interview_id).first()
+    if not interview:
+        return None
+
+    interview.outcome = val  # type: ignore[assignment]
+    db.flush()
+    return interview
+
+
+def create_next_round(
+    db: Session,
+    analysis_id: UUID | str,
+    *,
+    scheduled_at: datetime,
+    interview_type: str | None = None,
+) -> Interview | None:
+    """Append a new round AFTER the latest one (round_number += 1).
+
+    Used when the candidate advances past the previous round (e.g. conoscitivo
+    passed → schedule tecnico). The new row inherits no fields from the
+    previous round; the caller can update it via ``create_or_update_interview``.
+    """
+    analysis = db.query(JobAnalysis).filter(JobAnalysis.id == analysis_id).first()
+    if not analysis:
+        return None
+
+    latest = _latest_round(db, analysis_id)
+    next_number = (int(latest.round_number) + 1) if latest else 1
+
+    new_round = Interview(
+        analysis_id=analysis_id,
+        round_number=next_number,
+        scheduled_at=scheduled_at,
+        interview_type=interview_type,
+    )
+    db.add(new_round)
+    db.flush()
+    return new_round
 
 
 def get_upcoming_interviews(db: Session, hours: int = 48, days: int | None = None) -> list[dict[str, Any]]:

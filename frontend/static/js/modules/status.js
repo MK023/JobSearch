@@ -30,7 +30,7 @@ function setStatus(btn) {
     .then(function(r) { return r.json(); })
     .then(function(data) {
         if (data.ok) {
-            var labels = {da_valutare: 'Da valutare', candidato: 'Candidato', colloquio: 'Colloquio', scartato: 'Scartato'};
+            var labels = {da_valutare: 'Da valutare', candidato: 'Candidato', colloquio: 'Colloquio', offerta: 'Offerta', scartato: 'Scartato'};
 
             // Update status options
             group.querySelectorAll('.status-option').forEach(function(b) {
