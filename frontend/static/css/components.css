@@ -237,6 +237,13 @@
   color: var(--accent-green);
 }
 
+.status-offerta,
+.status-badge-offerta {
+  background: rgb(168 85 247 / 18%);
+  color: rgb(126 34 206);
+  font-weight: var(--weight-semibold);
+}
+
 .status-scartato,
 .status-badge-scartato {
   background: rgb(255 69 58 / 15%);
@@ -1109,6 +1116,11 @@ details[open] summary::before {
 .status-opt-colloquio.active {
   background: rgb(48 209 88 / 15%);
   color: var(--accent-green);
+}
+
+.status-opt-offerta.active {
+  background: rgb(168 85 247 / 18%);
+  color: rgb(126 34 206);
 }
 
 .status-opt-scartato.active {

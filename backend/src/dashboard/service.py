@@ -122,7 +122,11 @@ def get_dashboard(db: Session) -> dict[str, Any]:
     """Build dashboard stats."""
     analyses = db.query(JobAnalysis).order_by(JobAnalysis.created_at.desc()).limit(50).all()
     total = len(analyses)
-    applied = sum(1 for a in analyses if a.status in (AnalysisStatus.APPLIED, AnalysisStatus.INTERVIEW))
+    # "applied" counts every analysis still in the live funnel (sent CV → interview → offer).
+    # OFFER is a live state, not a terminal one — only REJECTED removes from the count.
+    applied = sum(
+        1 for a in analyses if a.status in (AnalysisStatus.APPLIED, AnalysisStatus.INTERVIEW, AnalysisStatus.OFFER)
+    )
     avg_score = round(sum(a.score or 0 for a in analyses) / total, 1) if total else 0
 
     threshold = datetime.now(UTC) - timedelta(days=app_settings.followup_reminder_days)
@@ -144,6 +148,7 @@ def get_dashboard(db: Session) -> dict[str, Any]:
         "total": total,
         "applied": applied,
         "interviews": sum(1 for a in analyses if a.status == AnalysisStatus.INTERVIEW),
+        "offers": sum(1 for a in analyses if a.status == AnalysisStatus.OFFER),
         "skipped": sum(1 for a in analyses if a.status == AnalysisStatus.REJECTED),
         "pending": sum(1 for a in analyses if a.status == AnalysisStatus.PENDING),
         "avg_score": avg_score,

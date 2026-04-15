@@ -297,6 +297,10 @@ Tipicamente: nessuna tutela da subordinato (ferie, malattia, TFR), gestione fisc
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             Colloquio
           </button>
+          <button type="button" class="status-option status-opt-offerta {{ 'active' if current.status == 'offerta' }}" data-status="offerta" onclick="setStatus(this)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 9l8 13 8-13z"/><path d="M12 22V9"/><path d="M4 9h16"/></svg>
+            Offerta
+          </button>
           <button type="button" class="status-option status-opt-scartato {{ 'active' if current.status == 'scartato' }}" data-status="scartato" onclick="setStatus(this)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
             Scartato

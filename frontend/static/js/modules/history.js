@@ -124,7 +124,7 @@ function historyTabs() {
 
                 var bucket;
                 if (st === 'da_valutare') { cVal++; bucket = 'valutazione'; }
-                else if (st === 'candidato' || st === 'colloquio') { cCand++; bucket = 'candidature'; }
+                else if (st === 'candidato' || st === 'colloquio' || st === 'offerta') { cCand++; bucket = 'candidature'; }
                 else { cScar++; bucket = 'scartati'; }
 
                 var matchTab = (tab === bucket);
