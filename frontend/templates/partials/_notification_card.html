@@ -1,0 +1,19 @@
+{# Single notification card. Dismissible ones get a close button (wired in PR-4). #}
+<article class="notification-card notification-card-{{ n.severity }}"
+         data-notification-id="{{ n.id }}"
+         data-notification-type="{{ n.type }}"
+         data-notification-dismissible="{{ '1' if n.dismissible else '0' }}">
+  <div class="notification-card-body">
+    <h3 class="notification-card-title">{{ n.title }}</h3>
+    <p class="notification-card-text">{{ n.body }}</p>
+  </div>
+  {% if n.action_url and n.action_label %}
+  <div class="notification-card-actions">
+    <a href="{{ n.action_url }}"
+       class="btn btn-primary btn-sm no-underline"
+       {% if n.action_url.startswith('http') %}target="_blank" rel="noopener"{% endif %}>
+      {{ n.action_label }}
+    </a>
+  </div>
+  {% endif %}
+</article>

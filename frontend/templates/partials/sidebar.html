@@ -30,6 +30,17 @@
         <path d="M16 2v4M8 2v4M3 10h18"/>
       </svg>
     </a>
+
+    <!-- Notifiche -->
+    <a href="/notifications" class="sidebar-item {% if active_page == 'notifications' %}active{% endif %}" data-tooltip="Notifiche" aria-label="Notifiche">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+        <path d="M13.73 21a2 2 0 01-3.46 0"/>
+      </svg>
+      {% if notification_count and notification_count > 0 %}
+      <span class="sidebar-badge" aria-label="{{ notification_count }} notifiche">{{ notification_count if notification_count < 10 else '9+' }}</span>
+      {% endif %}
+    </a>
   </div>
 
   <div class="sidebar-bottom">

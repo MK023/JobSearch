@@ -60,7 +60,13 @@ def auth_client():
     def _fake_db():
         yield mock_session
 
-    with patch("src.main.lifespan", _test_lifespan), patch("src.main.settings") as mock_settings:
+    with (
+        patch("src.main.lifespan", _test_lifespan),
+        patch("src.main.settings") as mock_settings,
+        # These page-render smoke tests don't care about notification state;
+        # patch the aggregator so the mocked DB session isn't exercised by it.
+        patch("src.pages.get_unread_count", return_value=0),
+    ):
         mock_settings.trusted_hosts_list = ["*"]
         mock_settings.cors_origins_list = ["*"]
         mock_settings.cors_allow_credentials = True
