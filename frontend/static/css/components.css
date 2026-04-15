@@ -328,6 +328,67 @@
   cursor: pointer;
 }
 
+/* ---- Search bar (history page, client-side full-text filter) ---- */
+
+.history-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--space-md);
+}
+
+.history-search-icon {
+  position: absolute;
+  left: var(--space-md);
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+.history-search-input {
+  flex: 1;
+  padding: var(--space-sm) var(--space-xl) var(--space-sm) calc(var(--space-md) + 22px);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-family: inherit;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.history-search-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.history-search-input:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  background: var(--bg-secondary);
+  box-shadow: var(--shadow-focus);
+}
+
+.history-search-clear {
+  position: absolute;
+  right: var(--space-md);
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--text-tertiary);
+  color: var(--bg-primary);
+  border: 0;
+  border-radius: 50%;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.history-search-clear:hover {
+  background: var(--text-secondary);
+}
+
 /* ---- Contract type filter (segmented: Tutti / Dipendente / P.IVA) ---- */
 
 .contract-filter {

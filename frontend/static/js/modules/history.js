@@ -22,7 +22,8 @@ function historyTabs() {
         contractType: 'tutti',
         hideBodyRental: false,
         hideRecruiter: false,
-        minScore: 0
+        minScore: 0,
+        searchQuery: ''
     };
 
     function loadFilters() {
@@ -38,7 +39,8 @@ function historyTabs() {
                 contractType: contractType,
                 hideBodyRental: !!parsed.hideBodyRental,
                 hideRecruiter: !!parsed.hideRecruiter,
-                minScore: Math.max(0, Math.min(100, parseInt(parsed.minScore, 10) || 0))
+                minScore: Math.max(0, Math.min(100, parseInt(parsed.minScore, 10) || 0)),
+                searchQuery: typeof parsed.searchQuery === 'string' ? parsed.searchQuery : ''
             };
         } catch (e) {
             return Object.assign({}, defaultFilters);
@@ -92,6 +94,12 @@ function historyTabs() {
             this.filterItems();
         },
 
+        setSearch: function(query) {
+            this.filters.searchQuery = (query || '').toString().trim().toLowerCase();
+            this.persistFilters();
+            this.filterItems();
+        },
+
         resetFilters: function() {
             this.filters = Object.assign({}, defaultFilters);
             this.persistFilters();
@@ -130,6 +138,10 @@ function historyTabs() {
                 if (f.minScore > 0) {
                     var score = parseInt(item.dataset.histScore, 10) || 0;
                     if (score < f.minScore) matchFilters = false;
+                }
+                if (f.searchQuery) {
+                    var haystack = item.dataset.histSearch || '';
+                    if (haystack.indexOf(f.searchQuery) === -1) matchFilters = false;
                 }
 
                 item.style.display = (matchTab && matchFilters) ? '' : 'none';
