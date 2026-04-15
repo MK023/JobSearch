@@ -240,7 +240,7 @@ Tipicamente: nessuna tutela da subordinato (ferie, malattia, TFR), gestione fisc
     {% endif %}
 
     {# ---- 8. Cover letter section ---- #}
-    {% if cover_letter %}
+    {% if cover_letters %}
     {% include "partials/cover_letter_result.html" %}
     {% elif current and current.status != 'scartato' %}
     <div class="card card-mb" id="cover-letter-card">
@@ -250,6 +250,7 @@ Tipicamente: nessuna tutela da subordinato (ferie, malattia, TFR), gestione fisc
         <input type="hidden" name="analysis_id" value="{{ current.id }}" id="cover-letter-analysis-id">
         <div class="button-row">
           <select name="language" class="select-inline" aria-label="Lingua lettera di presentazione">
+            <option value="ita_eng">&#x1F1EE;&#x1F1F9;+&#x1F1EC;&#x1F1E7; Italiano + English</option>
             <option value="italiano">&#x1F1EE;&#x1F1F9; Italiano</option>
             <option value="english">&#x1F1EC;&#x1F1E7; English</option>
             <option value="francais">&#x1F1EB;&#x1F1F7; Fran&ccedil;ais</option>
