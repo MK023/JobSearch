@@ -6,7 +6,12 @@ ANALYSIS_SYSTEM_PROMPT string and assert invariants that protect users
 from regressions (e.g. is_freelance not being flagged on daily-rate salaries).
 """
 
-from src.prompts import ANALYSIS_PROMPT_VERSION, ANALYSIS_SYSTEM_PROMPT
+from src.prompts import (
+    ANALYSIS_PROMPT_VERSION,
+    ANALYSIS_SYSTEM_PROMPT,
+    COVER_LETTER_PROMPT_VERSION,
+    COVER_LETTER_SYSTEM_PROMPT,
+)
 
 
 class TestPromptVersion:
@@ -60,3 +65,60 @@ class TestFreelanceDetectionRules:
         assert "eccezione" in text or "exception" in text
         # The exception section mentions RAL/CCNL as requirement
         assert "ral" in text or "ccnl" in text
+
+
+class TestCoverLetterPromptVersion:
+    def test_version_set(self):
+        assert isinstance(COVER_LETTER_PROMPT_VERSION, str)
+        assert COVER_LETTER_PROMPT_VERSION.startswith("v")
+
+    def test_version_at_least_v2(self):
+        major = int(COVER_LETTER_PROMPT_VERSION.lstrip("v").split(".")[0])
+        assert major >= 2, f"COVER_LETTER_PROMPT_VERSION regressed below v2: {COVER_LETTER_PROMPT_VERSION}"
+
+
+class TestCoverLetterPromptHardening:
+    """v2 hardening rules — anti-regression on the cover letter prompt quality."""
+
+    def test_no_cliche_phrases_in_rules(self):
+        # The prompt must explicitly forbid common cliché phrases.
+        lower = COVER_LETTER_SYSTEM_PROMPT.lower()
+        assert "missione mi ha colpito" in lower
+        assert "appassionato" in lower
+        assert "team player" in lower
+
+    def test_concrete_opening_required(self):
+        # v2 forbids generic motivational openings, requires a concrete intersection-of-skills opener.
+        lower = COVER_LETTER_SYSTEM_PROMPT.lower()
+        assert "intersezione" in lower or "intersection" in lower
+        assert "niente fluff" in lower or "no fluff" in lower
+
+    def test_cite_real_projects_required(self):
+        # The prompt must require concrete project citations from CV, not vague claims.
+        lower = COVER_LETTER_SYSTEM_PROMPT.lower()
+        assert "progetto reale" in lower or "real project" in lower or "evidenze concrete" in lower
+
+    def test_gap_management_documented(self):
+        # The prompt must address how to handle missing requirements (Bachelor's, years, stack).
+        lower = COVER_LETTER_SYSTEM_PROMPT.lower()
+        assert "gap" in lower
+        assert "bachelor" in lower
+        assert "onestamente" in lower or "honestly" in lower
+
+    def test_country_specific_tone_documented(self):
+        # The prompt must adapt tone per country (IT, US, UK, FR, DE, ES).
+        lower = COVER_LETTER_SYSTEM_PROMPT.lower()
+        assert "italia" in lower or "italian" in lower
+        assert "us" in lower or "english" in lower
+
+    def test_call_to_action_required(self):
+        lower = COVER_LETTER_SYSTEM_PROMPT.lower()
+        assert "call-to-action" in lower or "call to action" in lower
+        # CTA must be specific not generic
+        assert "specifico" in lower or "specific" in lower
+
+    def test_length_limit_documented(self):
+        # 500 words ceiling for a single A4 page.
+        lower = COVER_LETTER_SYSTEM_PROMPT.lower()
+        assert "500" in COVER_LETTER_SYSTEM_PROMPT or "350" in COVER_LETTER_SYSTEM_PROMPT
+        assert "parole" in lower or "words" in lower
