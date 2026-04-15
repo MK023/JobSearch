@@ -328,6 +328,39 @@
   cursor: pointer;
 }
 
+/* ---- Contract type filter (segmented: Tutti / Dipendente / P.IVA) ---- */
+
+.contract-filter {
+  display: inline-flex;
+  gap: 0;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  padding: 2px;
+  border: 1px solid var(--border-subtle);
+  margin-bottom: var(--space-sm);
+}
+
+.contract-option {
+  background: transparent;
+  border: 0;
+  padding: 6px var(--space-lg);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.contract-option:hover:not(.active) {
+  color: var(--text-primary);
+}
+
+.contract-option.active {
+  background: var(--accent-blue);
+  color: #fff;
+}
+
 /* ---- Toggle (segmented control) ---- */
 
 .toggle {
