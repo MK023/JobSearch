@@ -179,8 +179,6 @@ class TestAuthenticatedPages:
             remaining=5.0,
         ),
     )
-    @patch("src.pages.get_upcoming_interviews", return_value=[])
-    @patch("src.pages.get_followup_alerts", return_value=[])
     @patch("src.pages.get_recent_analyses", return_value=[])
     @patch(
         "src.pages.get_dashboard",
@@ -191,7 +189,7 @@ class TestAuthenticatedPages:
             total_scartato=0,
         ),
     )
-    def test_dashboard_page_renders(self, _d, _a, _f, _u, _s, auth_client):
+    def test_dashboard_page_renders(self, _d, _a, _s, auth_client):
         resp = auth_client.get("/")
         assert resp.status_code == 200
         assert "Dashboard" in resp.text or "dashboard" in resp.text.lower()
@@ -218,8 +216,7 @@ class TestAuthenticatedPages:
         assert resp.status_code == 200
         assert "Storico" in resp.text or "history" in resp.text.lower()
 
-    @patch("src.pages.get_upcoming_interviews", return_value=[])
-    def test_interviews_page_renders(self, _u, auth_client):
+    def test_interviews_page_renders(self, auth_client):
         resp = auth_client.get("/interviews")
         assert resp.status_code == 200
         assert "Colloqui" in resp.text or "interview" in resp.text.lower()

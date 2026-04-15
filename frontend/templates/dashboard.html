@@ -35,29 +35,9 @@
     {% with value=dashboard.avg_score|default(0), label="Score medio", icon="target", accent="orange" %}{% include "partials/metric_card.html" %}{% endwith %}
   </div>
 
-  {# Upcoming interview banners #}
-  {% if upcoming_interviews %}
-  <section class="mb-xl">
-    {% for iv in upcoming_interviews %}
-    <div class="upcoming-interview-banner">
-      <div class="upcoming-interview-info">
-        <div class="upcoming-interview-title">Colloquio in arrivo — {{ iv.company }}</div>
-        <div class="upcoming-interview-meta">
-          {{ iv.role }} &middot; {{ iv.date_display }} {{ iv.time_display }}{% if iv.platform %} &middot; {% if iv.platform == 'google_meet' %}Google Meet{% elif iv.platform == 'teams' %}Teams{% elif iv.platform == 'zoom' %}Zoom{% elif iv.platform == 'phone' %}Telefonico{% elif iv.platform == 'in_person' %}In presenza{% else %}Altro{% endif %}{% endif %}
-        </div>
-      </div>
-      <a href="/analysis/{{ iv.analysis_id }}" class="btn btn-sm btn-primary">Apri dettaglio</a>
-    </div>
-    {% endfor %}
-  </section>
-  {% endif %}
-
-  {# Follow-up alerts section #}
-  {% if followup_alerts %}
-  <section class="mb-xl">
-    {% include "partials/followup_alerts.html" %}
-  </section>
-  {% endif %}
+  {# Alerts (colloqui, followup, budget basso, DB pieno, backlog) sono centralizzati
+     nella tab Notifiche del sidebar — la dashboard resta focalizzata su metriche e
+     lista recente. #}
 
   {# Pending analyses — only "da valutare" (actionable items) #}
   <section>
