@@ -1,78 +1,118 @@
-{# Interview detail card - shown when status is colloquio and interview exists #}
-{% if current and current.interview and current.status == 'colloquio' %}
+{# Interview detail card — multi-round capable.
+   Shows each round in chronological order with its own details and outcome
+   UI. Past rounds without a logged outcome surface the "Passato / Scartato /
+   Ritirato" buttons; future rounds just show the schedule.
+#}
+{% if current and current.interviews and current.status in ('colloquio', 'offerta') %}
+{% set rounds = current.interviews %}
 <div class="interview-detail-card">
     <div class="interview-detail-header">
-        <span class="interview-detail-title">Colloquio prenotato</span>
-        <span class="status-badge status-badge-colloquio">colloquio</span>
-    </div>
-
-    {% set iv = current.interview %}
-    <div class="interview-detail-grid">
-        <span class="interview-detail-icon">&#x1F4C5;</span>
-        <span class="interview-detail-value">
-            {{ iv.scheduled_at.strftime('%A %d %B %Y, %H:%M') }}{% if iv.ends_at %} – {{ iv.ends_at.strftime('%H:%M') }}{% endif %}
+        <span class="interview-detail-title">
+            Processo di selezione
+            <span class="interview-round-count">{{ rounds|length }} round{{ 'i' if rounds|length > 1 else '' }}</span>
         </span>
-
-        {% if iv.platform %}
-        <span class="interview-detail-icon">{% if iv.platform == 'google_meet' %}&#x1F4F9;{% elif iv.platform == 'teams' %}&#x1F4BB;{% elif iv.platform == 'zoom' %}&#x1F4F9;{% elif iv.platform == 'phone' %}&#x1F4DE;{% elif iv.platform == 'in_person' %}&#x1F3E2;{% else %}&#x1F4BB;{% endif %}</span>
-        <span class="interview-detail-value">{% if iv.platform == 'google_meet' %}Google Meet{% elif iv.platform == 'teams' %}Microsoft Teams{% elif iv.platform == 'zoom' %}Zoom{% elif iv.platform == 'phone' %}Telefonico{% elif iv.platform == 'in_person' %}In presenza{% else %}Altro{% endif %}</span>
-        {% endif %}
-
-        {% if iv.interview_type %}
-        <span class="interview-detail-icon">&#x1F3AF;</span>
-        <span class="interview-detail-value">{% if iv.interview_type == 'tecnico' %}Tecnico{% elif iv.interview_type == 'hr' %}HR{% elif iv.interview_type == 'conoscitivo' %}Conoscitivo{% elif iv.interview_type == 'finale' %}Finale{% else %}Altro{% endif %}</span>
-        {% endif %}
-
-        {% if iv.interviewer_name %}
-        <span class="interview-detail-icon">&#x1F9D1;&#x200D;&#x1F4BC;</span>
-        <span class="interview-detail-value">{{ iv.interviewer_name }}</span>
-        {% endif %}
-
-        {% if iv.recruiter_name %}
-        <span class="interview-detail-icon">&#x1F464;</span>
-        <span class="interview-detail-value">{{ iv.recruiter_name }}</span>
-        {% endif %}
-
-        {% if iv.recruiter_email %}
-        <span class="interview-detail-icon">&#x2709;&#xFE0F;</span>
-        <span class="interview-detail-value"><a href="mailto:{{ iv.recruiter_email }}">{{ iv.recruiter_email }}</a></span>
-        {% endif %}
-
-        {% if iv.meeting_link %}
-        <span class="interview-detail-icon">&#x1F517;</span>
-        <span class="interview-detail-value"><a href="{{ iv.meeting_link }}" target="_blank" rel="noopener noreferrer">{{ iv.meeting_link }}</a></span>
-        {% endif %}
-
-        {% if iv.meeting_id %}
-        <span class="interview-detail-icon">&#x1F194;</span>
-        <span class="interview-detail-value">{{ iv.meeting_id }}</span>
-        {% endif %}
-
-        {% if iv.phone_number %}
-        <span class="interview-detail-icon">&#x1F4DE;</span>
-        <span class="interview-detail-value">{{ iv.phone_number }}{% if iv.access_pin %} (PIN: {{ iv.access_pin }}){% endif %}</span>
-        {% endif %}
-
-        {% if iv.location %}
-        <span class="interview-detail-icon">&#x1F4CD;</span>
-        <span class="interview-detail-value">{{ iv.location }}</span>
-        {% endif %}
-
-        {% if iv.notes %}
-        <span class="interview-detail-icon">&#x1F4DD;</span>
-        <span class="interview-detail-value">{{ iv.notes }}</span>
-        {% endif %}
+        <span class="status-badge status-badge-{{ current.status }}">{{ current.status }}</span>
     </div>
 
-    <div class="interview-detail-actions">
-        <button class="btn btn-primary btn-sm" onclick="openInterviewModal('{{ current.id }}')">Modifica</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteInterviewFromDetail('{{ current.id }}')">Rimuovi</button>
-    </div>
+    {% for iv in rounds %}
+    {% set is_past = iv.scheduled_at and iv.scheduled_at < now() %}
+    {% set outcome = iv.outcome %}
+    {% set is_last = loop.last %}
+    <div class="interview-round {% if outcome %}interview-round-{{ outcome }}{% elif is_past %}interview-round-pending{% else %}interview-round-upcoming{% endif %}">
+        <div class="interview-round-header">
+            <span class="interview-round-number">Round {{ iv.round_number }}</span>
+            {% if iv.interview_type %}
+            <span class="interview-round-type">{% if iv.interview_type == 'tecnico' %}Tecnico{% elif iv.interview_type == 'hr' %}HR{% elif iv.interview_type == 'conoscitivo' %}Conoscitivo{% elif iv.interview_type == 'finale' %}Finale{% else %}Altro{% endif %}</span>
+            {% endif %}
+            {% if outcome %}
+            <span class="interview-round-outcome interview-round-outcome-{{ outcome }}">
+                {% if outcome == 'passed' %}&#x2705; Passato{% elif outcome == 'rejected' %}&#x274C; Scartato{% elif outcome == 'withdrawn' %}&#x1F514; Ritirato{% else %}In attesa{% endif %}
+            </span>
+            {% elif is_past %}
+            <span class="interview-round-outcome interview-round-outcome-pending">In attesa di esito</span>
+            {% endif %}
+        </div>
 
-    {# File Attachments Section #}
+        <div class="interview-detail-grid">
+            <span class="interview-detail-icon">&#x1F4C5;</span>
+            <span class="interview-detail-value">
+                {{ iv.scheduled_at.strftime('%A %d %B %Y, %H:%M') }}{% if iv.ends_at %} &ndash; {{ iv.ends_at.strftime('%H:%M') }}{% endif %}
+            </span>
+
+            {% if iv.platform %}
+            <span class="interview-detail-icon">{% if iv.platform == 'google_meet' %}&#x1F4F9;{% elif iv.platform == 'teams' %}&#x1F4BB;{% elif iv.platform == 'zoom' %}&#x1F4F9;{% elif iv.platform == 'phone' %}&#x1F4DE;{% elif iv.platform == 'in_person' %}&#x1F3E2;{% else %}&#x1F4BB;{% endif %}</span>
+            <span class="interview-detail-value">{% if iv.platform == 'google_meet' %}Google Meet{% elif iv.platform == 'teams' %}Microsoft Teams{% elif iv.platform == 'zoom' %}Zoom{% elif iv.platform == 'phone' %}Telefonico{% elif iv.platform == 'in_person' %}In presenza{% else %}Altro{% endif %}</span>
+            {% endif %}
+
+            {% if iv.interviewer_name %}
+            <span class="interview-detail-icon">&#x1F9D1;&#x200D;&#x1F4BC;</span>
+            <span class="interview-detail-value">{{ iv.interviewer_name }}</span>
+            {% endif %}
+
+            {% if iv.recruiter_name %}
+            <span class="interview-detail-icon">&#x1F464;</span>
+            <span class="interview-detail-value">{{ iv.recruiter_name }}</span>
+            {% endif %}
+
+            {% if iv.recruiter_email %}
+            <span class="interview-detail-icon">&#x2709;&#xFE0F;</span>
+            <span class="interview-detail-value"><a href="mailto:{{ iv.recruiter_email }}">{{ iv.recruiter_email }}</a></span>
+            {% endif %}
+
+            {% if iv.meeting_link %}
+            <span class="interview-detail-icon">&#x1F517;</span>
+            <span class="interview-detail-value"><a href="{{ iv.meeting_link }}" target="_blank" rel="noopener noreferrer">{{ iv.meeting_link }}</a></span>
+            {% endif %}
+
+            {% if iv.meeting_id %}
+            <span class="interview-detail-icon">&#x1F194;</span>
+            <span class="interview-detail-value">{{ iv.meeting_id }}</span>
+            {% endif %}
+
+            {% if iv.phone_number %}
+            <span class="interview-detail-icon">&#x1F4DE;</span>
+            <span class="interview-detail-value">{{ iv.phone_number }}{% if iv.access_pin %} (PIN: {{ iv.access_pin }}){% endif %}</span>
+            {% endif %}
+
+            {% if iv.location %}
+            <span class="interview-detail-icon">&#x1F4CD;</span>
+            <span class="interview-detail-value">{{ iv.location }}</span>
+            {% endif %}
+
+            {% if iv.notes %}
+            <span class="interview-detail-icon">&#x1F4DD;</span>
+            <span class="interview-detail-value">{{ iv.notes }}</span>
+            {% endif %}
+        </div>
+
+        {% if is_past and not outcome %}
+        <div class="interview-round-actions">
+            <button class="btn btn-success btn-sm" onclick="logRoundOutcome('{{ iv.id }}', 'passed', '{{ current.id }}')">
+                &#x2705; Passato al prossimo step
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="logRoundOutcome('{{ iv.id }}', 'rejected', '{{ current.id }}')">
+                &#x274C; Scartato
+            </button>
+            <button class="btn btn-ghost btn-sm" onclick="logRoundOutcome('{{ iv.id }}', 'withdrawn', '{{ current.id }}')">
+                &#x1F514; Ritirato
+            </button>
+        </div>
+        {% endif %}
+
+        {% if is_last %}
+        <div class="interview-detail-actions">
+            <button class="btn btn-primary btn-sm" onclick="openInterviewModal('{{ current.id }}')">Modifica</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteInterviewFromDetail('{{ current.id }}')">Rimuovi ultimo round</button>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    {# File attachments: keep on LAST round only, preserving existing behavior #}
+    {% set last = rounds[-1] %}
     <div class="interview-attachments">
         <div class="section-header">
-            <h3 class="section-title">Documenti allegati</h3>
+            <h3 class="section-title">Documenti allegati (ultimo round)</h3>
             <button id="btn-upload-file" class="btn btn-primary btn-sm">Carica file</button>
         </div>
 
@@ -80,14 +120,12 @@
             Formati supportati: PDF, DOCX, DOC, TXT, XLSX, XLS. Massimo 10 MB per file, 10 file per colloquio.
         </p>
 
-        {# Upload progress #}
         <div id="upload-progress" class="hidden" style="margin-bottom: var(--space-md)">
             <div class="message-banner banner-success">
                 Caricamento <span class="upload-filename"></span>...
             </div>
         </div>
 
-        {# File list #}
         <div id="file-list">
             <p class="file-list-loading">Caricamento...</p>
         </div>
@@ -96,7 +134,7 @@
     <script src="{{ url_for('static', path='js/file-upload.js') }}?v={{ asset_v }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            FileUpload.init('{{ iv.id }}');
+            FileUpload.init('{{ last.id }}');
         });
     </script>
 </div>

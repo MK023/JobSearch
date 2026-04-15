@@ -248,3 +248,112 @@ function deleteInterviewFromDetail(analysisId) {
         showToast('Errore rimozione colloquio', 'error');
     });
 }
+
+
+function logRoundOutcome(interviewId, outcome, analysisId) {
+    var confirmMsg = {
+        passed: 'Confermi di aver superato questo round? Potrai poi scegliere il prossimo step.',
+        rejected: 'Confermi l\'esito "scartato"? L\'analisi passera\' a stato scartato.',
+        withdrawn: 'Confermi di aver ritirato la candidatura? L\'analisi passera\' a stato scartato.'
+    }[outcome];
+    if (!confirm(confirmMsg)) return;
+
+    fetch('/api/v1/interviews/round/' + interviewId + '/outcome', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ outcome: outcome })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (!data.ok) {
+            showToast(data.error || 'Errore', 'error');
+            return;
+        }
+        showToast('Esito salvato', 'success');
+        if (outcome === 'passed') {
+            promptNextRound(analysisId);
+        } else {
+            window.location.reload();
+        }
+    })
+    .catch(function(e) {
+        console.error('logRoundOutcome error:', e);
+        showToast('Errore salvataggio esito', 'error');
+    });
+}
+
+
+function promptNextRound(analysisId) {
+    var answer = window.prompt(
+        'Prossimo step?\n\n  tecnico\n  hr\n  conoscitivo\n  finale\n  offerta  (= arrivata offerta, chiude il processo)\n\nLascia vuoto per restare a "colloquio" senza nuovo round.',
+        'tecnico'
+    );
+    if (answer === null) { window.location.reload(); return; }
+    var choice = (answer || '').trim().toLowerCase();
+    if (choice === '') { window.location.reload(); return; }
+
+    if (choice === 'offerta') {
+        fetch('/api/v1/status/' + analysisId + '/offerta', {
+            method: 'POST',
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.ok) {
+                showToast('Offerta registrata!', 'success');
+                window.location.reload();
+            } else {
+                showToast(data.error || 'Errore', 'error');
+            }
+        });
+        return;
+    }
+
+    var validTypes = ['tecnico', 'hr', 'conoscitivo', 'finale', 'other'];
+    if (validTypes.indexOf(choice) === -1) {
+        showToast('Tipo non valido: ' + choice, 'error');
+        return;
+    }
+
+    var whenStr = window.prompt(
+        'Quando e\' previsto il prossimo round?\n\nFormato: YYYY-MM-DD HH:MM (es: 2026-04-22 14:30)\n\nSe non lo sai ancora, scrivi una data fittizia e la aggiorni dopo con "Modifica".',
+        ''
+    );
+    if (!whenStr) { showToast('Round annullato', 'info'); window.location.reload(); return; }
+
+    var scheduled = parseScheduledAt(whenStr);
+    if (!scheduled) {
+        showToast('Formato data non valido', 'error');
+        return;
+    }
+
+    fetch('/api/v1/interviews/' + analysisId + '/next-round', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ scheduled_at: scheduled, interview_type: choice })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.ok) {
+            showToast('Round ' + data.round_number + ' creato', 'success');
+            window.location.reload();
+        } else {
+            showToast(data.error || 'Errore creazione round', 'error');
+        }
+    })
+    .catch(function(e) {
+        console.error('nextRound error:', e);
+        showToast('Errore di rete', 'error');
+    });
+}
+
+
+function parseScheduledAt(s) {
+    var m = /^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{2})$/.exec(s.trim());
+    if (!m) return null;
+    var y = parseInt(m[1], 10), mo = parseInt(m[2], 10), d = parseInt(m[3], 10);
+    var h = parseInt(m[4], 10), mi = parseInt(m[5], 10);
+    if (mo < 1 || mo > 12 || d < 1 || d > 31 || h > 23 || mi > 59) return null;
+    var dt = new Date(y, mo - 1, d, h, mi, 0);
+    return dt.toISOString();
+}

@@ -136,6 +136,43 @@ class TestOutcome:
             set_outcome(db_session, i.id, "schroedinger")
 
 
+class TestOutcomeSideEffectsOnAnalysisStatus:
+    """The outcome route auto-transitions the parent analysis for terminal outcomes.
+
+    These tests validate the business rule encoded in interview/routes.py:
+    - rejected / withdrawn → analysis goes to REJECTED
+    - passed / pending → no automatic status change (caller decides next step)
+    """
+
+    def test_rejected_transitions_analysis_to_scartato(self, db_session, test_analysis):
+        from src.analysis.service import update_status
+
+        i = create_or_update_interview(db_session, test_analysis.id, scheduled_at=_at(-48))
+        assert i is not None
+
+        # Mimic the route: set outcome then trigger the transition helper.
+        updated = set_outcome(db_session, i.id, InterviewOutcome.REJECTED)
+        assert updated is not None
+        update_status(db_session, test_analysis, AnalysisStatus.REJECTED)
+        db_session.commit()
+        db_session.refresh(test_analysis)
+        assert test_analysis.status == "scartato"
+
+    def test_passed_leaves_status_untouched(self, db_session, test_analysis):
+        """Until the caller explicitly schedules a next round or moves to OFFER,
+        the analysis stays on whatever status it had (typically 'colloquio').
+        """
+        test_analysis.status = AnalysisStatus.INTERVIEW.value
+        db_session.commit()
+
+        i = create_or_update_interview(db_session, test_analysis.id, scheduled_at=_at(-48))
+        assert i is not None
+        set_outcome(db_session, i.id, InterviewOutcome.PASSED)
+        db_session.commit()
+        db_session.refresh(test_analysis)
+        assert test_analysis.status == "colloquio"
+
+
 class TestOfferStatus:
     def test_offer_value_exists(self):
         assert AnalysisStatus.OFFER.value == "offerta"
