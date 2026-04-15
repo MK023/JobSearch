@@ -7,6 +7,28 @@
     <h1 class="page-title">Storico candidature</h1>
   </div>
 
+  {# Search bar — full-text client-side filter on company / role / work_mode / salary_info #}
+  <div class="history-search">
+    <svg class="history-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="8"/>
+      <path d="m21 21-4.3-4.3"/>
+    </svg>
+    <input type="search"
+           class="history-search-input"
+           placeholder="Cerca per azienda, ruolo, modalità o salary…"
+           :value="filters.searchQuery"
+           @input.debounce.200ms="setSearch($event.target.value)"
+           @keydown.escape="setSearch('')"
+           aria-label="Cerca nelle candidature">
+    <button type="button"
+            class="history-search-clear"
+            x-show="filters.searchQuery"
+            x-cloak
+            @click="setSearch('')"
+            title="Pulisci ricerca"
+            aria-label="Pulisci ricerca">×</button>
+  </div>
+
   {# Flash messages #}
   {% if error %}
   <div class="message-banner banner-error">{{ error }}</div>
@@ -86,7 +108,8 @@
              data-hist-score="{{ analysis.score|default(0) }}"
              data-hist-bodyrental="{{ '1' if analysis.recruiter_info and analysis.recruiter_info.is_body_rental else '0' }}"
              data-hist-freelance="{{ '1' if analysis.recruiter_info and analysis.recruiter_info.is_freelance else '0' }}"
-             data-hist-recruiter="{{ '1' if analysis.recruiter_info and analysis.recruiter_info.is_recruiter else '0' }}">
+             data-hist-recruiter="{{ '1' if analysis.recruiter_info and analysis.recruiter_info.is_recruiter else '0' }}"
+             data-hist-search="{{ ((analysis.company or '') ~ ' ' ~ (analysis.role or '') ~ ' ' ~ (analysis.work_mode or '') ~ ' ' ~ (analysis.salary_info or '')) | lower }}">
           <a href="/analysis/{{ analysis.id }}" class="history-item-link">
             <div class="job-card-score">
               {% with score=analysis.score|default(0), size="sm" %}
