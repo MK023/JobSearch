@@ -9,7 +9,13 @@
     <div class="page-header-right">
       <div id="weather-widget" class="weather-widget"></div>
       {% if spending and spending.remaining is not none %}
-      <span class="pill pill-credit">${{ "%.2f"|format(spending.remaining|default(0)) }} rimanenti</span>
+      {% set _rem = spending.remaining|default(0) %}
+      {% set _pill_class = 'pill-credit-critical' if _rem < 0.5 else ('pill-credit-low' if _rem < 1.0 else 'pill-credit') %}
+      <a href="https://console.anthropic.com/settings/billing" target="_blank" rel="noopener"
+         class="pill {{ _pill_class }} no-underline"
+         title="{% if _rem < 1.0 %}Credito Anthropic basso — clicca per ricaricare{% else %}Credito Anthropic residuo{% endif %}">
+        {% if _rem < 0.5 %}&#x26A0;&#xFE0F; {% endif %}${{ "%.2f"|format(_rem) }} rimanenti{% if _rem < 1.0 %} &middot; ricarica{% endif %}
+      </a>
       {% endif %}
     </div>
   </div>
