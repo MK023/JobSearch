@@ -22,6 +22,7 @@ from ..prompts import (
     ANALYSIS_PROMPT_VERSION,
     ANALYSIS_SYSTEM_PROMPT,
     ANALYSIS_USER_PROMPT,
+    COVER_LETTER_PROMPT_VERSION,
     COVER_LETTER_SYSTEM_PROMPT,
     COVER_LETTER_USER_PROMPT,
     FOLLOWUP_EMAIL_SYSTEM_PROMPT,
@@ -300,7 +301,7 @@ def generate_cover_letter(
 
     if cache:
         ch = content_hash(cv_text, job_description)
-        cl_content = f"cl:{model}:{ch[:16]}:{language}"
+        cl_content = f"cl:{COVER_LETTER_PROMPT_VERSION}:{model}:{ch[:16]}:{language}"
         cache_key = f"coverletter:{hashlib.sha256(cl_content.encode()).hexdigest()[:16]}"
         cached = cache.get_json(cache_key)
         if cached:
