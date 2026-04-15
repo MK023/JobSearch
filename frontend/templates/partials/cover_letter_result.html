@@ -1,26 +1,27 @@
-{# Cover letter result display - compact: no inline text, just actions #}
-{% if cover_letter %}
-<div class="card card-mb" id="cover-letter-result-card">
-    <h2>Lettera di presentazione generata</h2>
+{# Cover letter result display - one card per generated letter (supports bilingual). #}
+{% set _letters = cover_letters if cover_letters is defined and cover_letters else ([cover_letter] if cover_letter else []) %}
+{% for cl in _letters %}
+<div class="card card-mb" id="cover-letter-result-card-{{ cl.id }}">
+    <h2>Lettera di presentazione &mdash; {{ cl.language|capitalize }}</h2>
 
     <div class="button-row">
-        <a href="/cover-letter/{{ cover_letter.id }}/download" class="btn btn-primary btn-sm no-underline">
+        <a href="/cover-letter/{{ cl.id }}/download" class="btn btn-primary btn-sm no-underline">
             Scarica DOCX
         </a>
-        <button class="btn btn-ghost btn-sm" id="copy-cl-btn"
-                onclick="fetch('/api/v1/cover-letter/{{ cover_letter.id }}').then(function(r){return r.json()}).then(function(d){navigator.clipboard.writeText(d.content).then(function(){showToast('Lettera copiata','success')})}).catch(function(){showToast('Impossibile copiare','error')})">
+        <button class="btn btn-ghost btn-sm"
+                onclick="fetch('/api/v1/cover-letter/{{ cl.id }}').then(function(r){return r.json()}).then(function(d){navigator.clipboard.writeText(d.content).then(function(){showToast('Lettera copiata','success')})}).catch(function(){showToast('Impossibile copiare','error')})">
             Copia testo
         </button>
     </div>
 
-    {% if cover_letter.subject_lines %}
+    {% if cl.subject_lines %}
     <div>
         <div class="advice-title advice-title-amber mt-md">Oggetti email suggeriti</div>
-        {% for sl in cover_letter.subject_lines %}
+        {% for sl in cl.subject_lines %}
         <div class="subject-line-row">
-            <span class="subject-line-text" id="subject-line-{{ loop.index }}">{{ sl }}</span>
+            <span class="subject-line-text" id="subject-line-{{ cl.id }}-{{ loop.index }}">{{ sl }}</span>
             <button class="btn btn-ghost btn-sm"
-                    onclick="navigator.clipboard.writeText(document.getElementById('subject-line-{{ loop.index }}').textContent).catch(function(){showToast('Impossibile copiare','error')})">
+                    onclick="navigator.clipboard.writeText(document.getElementById('subject-line-{{ cl.id }}-{{ loop.index }}').textContent).catch(function(){showToast('Impossibile copiare','error')})">
                 Copia
             </button>
         </div>
@@ -29,7 +30,7 @@
     {% endif %}
 
     <div class="meta-small">
-        Costo: ${{ '%.5f' % (cover_letter.cost_usd or 0) }} | {{ (cover_letter.tokens_input or 0) + (cover_letter.tokens_output or 0) }} token
+        Costo: ${{ '%.5f' % (cl.cost_usd or 0) }} | {{ (cl.tokens_input or 0) + (cl.tokens_output or 0) }} token
     </div>
 </div>
-{% endif %}
+{% endfor %}

@@ -100,7 +100,10 @@ def view_analysis(
 
     result = rebuild_result(analysis)
     interview = get_interview_by_analysis(db, cast(UUID, analysis.id))
-    cover_letter = analysis.cover_letters[0] if analysis.cover_letters else None
+    # Sort newest-first so a fresh bilingual generation (italiano + english)
+    # appears in the correct order at the top of the page.
+    cover_letters = sorted(analysis.cover_letters or [], key=lambda c: c.created_at, reverse=True)
+    cover_letter = cover_letters[0] if cover_letters else None  # back-compat alias
     contacts = get_contacts_for_analysis(db, str(analysis.id))
 
     error = request.session.pop("flash_error", None)
@@ -117,6 +120,7 @@ def view_analysis(
             "result": result,
             "interview": interview,
             "cover_letter": cover_letter,
+            "cover_letters": cover_letters,
             "contacts": contacts,
             "error": error,
             "message": message,

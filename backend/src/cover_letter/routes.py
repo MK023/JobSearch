@@ -22,6 +22,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["cover_letter"])
 
 
+# Languages must match the <option value="..."> in analysis_detail.html.
+# "ita_eng" is a special bilingual code: generates BOTH italiano + english
+# in the same request (2 sequential AI calls, 2 CoverLetter rows persisted).
+ALLOWED_LANGUAGES = {"italiano", "english", "francais", "deutsch", "espanol", "ita_eng"}
+
+
 @router.post("/cover-letter", response_class=HTMLResponse)
 @limiter.limit(settings.rate_limit_analyze)
 def generate_cover_letter_route(
@@ -33,10 +39,10 @@ def generate_cover_letter_route(
     language: str = Form("italiano"),
     model: str = Form("haiku"),
 ) -> Response:
-    ALLOWED_LANGUAGES = {"italiano", "inglese", "francese", "tedesco", "spagnolo"}
+    """Generate a cover letter via AI and redirect back to the analysis page."""
     if language not in ALLOWED_LANGUAGES:
         language = "italiano"
-    """Generate a cover letter via AI and redirect back to the analysis page."""
+
     safe_id = str(validate_uuid(analysis_id))
     analysis = get_analysis_by_id(db, safe_id)
     if not analysis:
@@ -53,16 +59,22 @@ def generate_cover_letter_route(
         request.session["flash_error"] = budget_msg
         return RedirectResponse(url=f"/analysis/{safe_id}", status_code=303)
 
+    # Bilingual mode: 2 sequential generations (italiano + english)
+    languages_to_generate = ["italiano", "english"] if language == "ita_eng" else [language]
+
+    generated = []
     try:
-        cl, result = create_cover_letter(db, analysis, cast(str, cv.raw_text), language, model, cache)
-        add_spending(
-            db,
-            result.get("cost_usd", 0.0),
-            result.get("tokens", {}).get("input", 0),
-            result.get("tokens", {}).get("output", 0),
-            is_analysis=False,
-        )
-        audit(db, request, "cover_letter", f"analysis={safe_id}, lang={language}")
+        for lang in languages_to_generate:
+            cl, result = create_cover_letter(db, analysis, cast(str, cv.raw_text), lang, model, cache)
+            add_spending(
+                db,
+                result.get("cost_usd", 0.0),
+                result.get("tokens", {}).get("input", 0),
+                result.get("tokens", {}).get("output", 0),
+                is_analysis=False,
+            )
+            generated.append(lang)
+        audit(db, request, "cover_letter", f"analysis={safe_id}, lang={language}, generated={generated}")
         db.commit()
     except Exception as exc:
         db.rollback()
@@ -72,7 +84,8 @@ def generate_cover_letter_route(
         request.session["flash_error"] = "Generazione cover letter fallita, riprova."
         return RedirectResponse(url=f"/analysis/{safe_id}", status_code=303)
 
-    request.session["flash_message"] = f"Cover letter generata! ({language})"
+    flash_lang = " + ".join(generated) if len(generated) > 1 else generated[0]
+    request.session["flash_message"] = f"Cover letter generata! ({flash_lang})"
     return RedirectResponse(url=f"/analysis/{safe_id}", status_code=303)
 
 
