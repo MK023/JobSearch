@@ -159,6 +159,15 @@
   color: var(--accent-red);
 }
 
+.btn-icon-link {
+  text-decoration: none;
+}
+
+.btn-icon-link:hover {
+  background: rgb(14 165 233 / 12%);
+  color: var(--accent-blue);
+}
+
 .button-row {
   display: flex;
   gap: var(--space-sm);
