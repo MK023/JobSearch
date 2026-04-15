@@ -242,6 +242,14 @@ def create_app() -> FastAPI:
 
     app.include_router(api_v1_router)
 
+    # --- Favicon (browsers request /favicon.ico by default; redirect to SVG) ---
+    @app.get("/favicon.ico", include_in_schema=False)
+    def favicon() -> Response:
+        """Serve the SVG favicon for browsers requesting /favicon.ico directly."""
+        from fastapi.responses import FileResponse
+
+        return FileResponse(_STATIC_DIR / "favicon.svg", media_type="image/svg+xml")
+
     # --- Health check ---
     @app.get("/health")
     def health(db: DbSession) -> dict[str, Any]:
