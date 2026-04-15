@@ -19,10 +19,10 @@ class TestPromptVersion:
         assert isinstance(ANALYSIS_PROMPT_VERSION, str)
         assert ANALYSIS_PROMPT_VERSION.startswith("v")
 
-    def test_version_is_at_least_v5(self):
-        # v5 introduced hardened is_freelance detection — never downgrade.
+    def test_version_is_at_least_v6(self):
+        # v6 introduced candidate profile section — never downgrade.
         major = int(ANALYSIS_PROMPT_VERSION.lstrip("v").split(".")[0])
-        assert major >= 5, f"ANALYSIS_PROMPT_VERSION regressed below v5: {ANALYSIS_PROMPT_VERSION}"
+        assert major >= 6, f"ANALYSIS_PROMPT_VERSION regressed below v6: {ANALYSIS_PROMPT_VERSION}"
 
 
 class TestFreelanceDetectionRules:
@@ -72,9 +72,70 @@ class TestCoverLetterPromptVersion:
         assert isinstance(COVER_LETTER_PROMPT_VERSION, str)
         assert COVER_LETTER_PROMPT_VERSION.startswith("v")
 
-    def test_version_at_least_v2(self):
+    def test_version_at_least_v3(self):
         major = int(COVER_LETTER_PROMPT_VERSION.lstrip("v").split(".")[0])
-        assert major >= 2, f"COVER_LETTER_PROMPT_VERSION regressed below v2: {COVER_LETTER_PROMPT_VERSION}"
+        assert major >= 3, f"COVER_LETTER_PROMPT_VERSION regressed below v3: {COVER_LETTER_PROMPT_VERSION}"
+
+
+class TestCandidateProfileSection:
+    """v6 added a "Profilo Candidato" block so advice/interview_scripts get
+    tailored to Marco's real target and constraints instead of generic boilerplate."""
+
+    def test_profile_section_present(self):
+        lower = ANALYSIS_SYSTEM_PROMPT.lower()
+        assert "profilo candidato" in lower or "candidate profile" in lower
+
+    def test_target_stack_documented(self):
+        # The prompt must state the actual target (Cloud/DevOps/DevSecOps), not "backend generico".
+        lower = ANALYSIS_SYSTEM_PROMPT.lower()
+        assert "devops" in lower
+        assert "devsecops" in lower or "platform engineering" in lower
+
+    def test_piva_hard_no_tone(self):
+        # P.IVA must be framed as conditional (rate + benefits), not a generic opportunity.
+        lower = ANALYSIS_SYSTEM_PROMPT.lower()
+        assert "p.iva" in lower
+        assert "contributi" in lower or "tariffario" in lower or "equivalente" in lower
+
+    def test_body_rental_case_by_case_tone(self):
+        # v6: body rental is no longer a blanket "exclude". The prompt must
+        # explicitly forbid categorical verdicts like "escludi/evita".
+        lower = ANALYSIS_SYSTEM_PROMPT.lower()
+        assert "non scrivere mai" in lower or "mai verdetto" in lower
+        assert '"da escludere"' in lower or "da escludere" in lower  # mentioned as a forbidden phrase
+        assert "caso per caso" in lower
+
+    def test_soft_skills_cap_is_tight(self):
+        # Soft skills must cap at most 3-5 points (not 5-10 like earlier versions).
+        assert "3-5 punti" in ANALYSIS_SYSTEM_PROMPT
+        # The earlier permissive cap must be gone.
+        assert "5-10 punti" not in ANALYSIS_SYSTEM_PROMPT
+
+
+class TestCoverLetterRealCerts:
+    """v3 replaced the generic 'Cisco, AWS Cloud Practitioner, ecc' with the real
+    list of Marco's certifications from Credly. Regression would be reintroducing
+    the 'ecc' ellipsis or dropping a real cert."""
+
+    def test_real_cert_names_present(self):
+        text = COVER_LETTER_SYSTEM_PROMPT
+        assert "Cisco IT Specialist" in text
+        assert "AWS Cloud Practitioner" in text
+        assert "Linux Essential" in text
+        assert "GitHub Foundations" in text
+        assert "Python PCEP" in text
+
+    def test_no_bachelor_missing_framing(self):
+        # Marco holds L-31 Informatica. The prompt must NOT treat Bachelor as missing.
+        lower = COVER_LETTER_SYSTEM_PROMPT.lower()
+        assert "bachelor's mancante" not in lower
+        assert "bachelor mancante" not in lower
+        # Must explicitly acknowledge he HAS the degree.
+        assert "l-31" in lower or "informatica" in lower
+
+    def test_no_fairfield_hardcoded_example(self):
+        # v3 removed the Fairfield-specific example — projects must be generic.
+        assert "Fairfield" not in COVER_LETTER_SYSTEM_PROMPT
 
 
 class TestCoverLetterPromptHardening:
