@@ -226,6 +226,13 @@ def create_app() -> FastAPI:
     except Exception:
         _asset_v = str(int(time.time()))
     app.state.templates.env.globals["asset_v"] = _asset_v
+
+    # Timezone-aware "now" helper for templates — used by interview_detail.html
+    # to decide whether a round is past (scheduled_at < now) or future.
+    from datetime import UTC as _UTC
+    from datetime import datetime as _datetime
+
+    app.state.templates.env.globals["now"] = lambda: _datetime.now(_UTC)
     app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
     # --- HTML routers (root level) ---
