@@ -97,6 +97,46 @@
     </button>
   </div>
 
+  {# Bulk-reject toolbar — visible only on "valutazione" tab. Transitions
+     old low-score da_valutare analyses to scartato in one transaction. #}
+  <div class="bulk-reject" x-data="bulkRejectForm()" x-show="activeTab === 'valutazione'" x-cloak>
+    <button type="button" class="bulk-reject-toggle" @click="toggle()"
+            :class="{ active: open }"
+            aria-label="Scarta in blocco le analisi vecchie da_valutare">
+      <span x-show="!open">Scarta vecchie da valutare…</span>
+      <span x-show="open" x-cloak>Chiudi</span>
+    </button>
+    <div class="bulk-reject-panel" x-show="open" x-cloak>
+      <label class="bulk-reject-field">
+        Più vecchie di
+        <input type="number" min="1" max="365" step="1"
+               :value="days"
+               @change="days = parseInt($event.target.value) || 14; preview()"
+               class="bulk-reject-input"
+               aria-label="Giorni minimi">
+        giorni
+      </label>
+      <label class="bulk-reject-field">
+        Score max
+        <input type="number" min="0" max="100" step="5"
+               :value="maxScore"
+               @change="maxScore = parseInt($event.target.value) || 0; preview()"
+               class="bulk-reject-input"
+               aria-label="Score massimo incluso">
+      </label>
+      <span class="bulk-reject-count" x-show="count !== null" x-cloak>
+        <span x-text="count"></span> analisi corrispondono
+      </span>
+      <button type="button" class="btn btn-danger btn-sm"
+              :disabled="loading || count === null || count === 0"
+              @click="confirmReject()">
+        <span x-show="!loading">Scarta</span>
+        <span x-show="loading" x-cloak>Attendere…</span>
+      </button>
+      <div class="bulk-reject-message" x-show="message" x-text="message" x-cloak></div>
+    </div>
+  </div>
+
   {# Job card list — history-section class needed for refreshHistoryCounts() in history.js #}
   <div class="history-section">
     <div class="history-list" id="history-list">
@@ -161,4 +201,5 @@
 {% block scripts_extra %}
 <script src="{{ url_for('static', path='js/modules/status.js') }}?v={{ asset_v }}"></script>
 <script src="{{ url_for('static', path='js/modules/history.js') }}?v={{ asset_v }}"></script>
+<script src="{{ url_for('static', path='js/modules/bulk_reject.js') }}?v={{ asset_v }}"></script>
 {% endblock %}

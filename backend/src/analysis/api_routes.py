@@ -317,6 +317,74 @@ def cleanup_analyses(
     return JSONResponse({"ok": True, "deleted": count, "dry_run": False})
 
 
+@router.get("/analysis/bulk-reject-preview")
+@limiter.limit(settings.rate_limit_default)
+def bulk_reject_preview(
+    request: Request,
+    db: DbSession,
+    user: CurrentUser,
+    days: Annotated[int, Query(ge=1, le=365)] = 14,
+    max_score: Annotated[int, Query(ge=0, le=100)] = 60,
+) -> JSONResponse:
+    """Read-only count of da_valutare analyses that would be bulk-rejected.
+
+    Filters: status=PENDING, created_at older than `days`, score <= `max_score`,
+    scoped to the authenticated user's CVs.
+    """
+    from ..cv.models import CVProfile
+
+    cutoff = datetime.now(UTC) - timedelta(days=days)
+    user_cv_ids = db.query(CVProfile.id).filter(CVProfile.user_id == user.id)
+    count = (
+        db.query(JobAnalysis)
+        .filter(
+            JobAnalysis.cv_id.in_(user_cv_ids),
+            JobAnalysis.score <= max_score,
+            JobAnalysis.created_at < cutoff,
+            JobAnalysis.status == AnalysisStatus.PENDING,
+        )
+        .count()
+    )
+    return JSONResponse({"count": count, "days": days, "max_score": max_score})
+
+
+@router.post("/analysis/bulk-reject")
+@limiter.limit(settings.rate_limit_analyze)
+def bulk_reject(
+    request: Request,
+    db: DbSession,
+    user: CurrentUser,
+    days: Annotated[int, Query(ge=1, le=365)] = 14,
+    max_score: Annotated[int, Query(ge=0, le=100)] = 60,
+) -> JSONResponse:
+    """Mark all matching da_valutare analyses as scartato in one transaction.
+
+    Preserves analyses already marked applied/interview/rejected. Spending is
+    NOT reversed — the analysis row is kept; only the tracking status changes.
+    """
+    from ..cv.models import CVProfile
+
+    cutoff = datetime.now(UTC) - timedelta(days=days)
+    user_cv_ids = db.query(CVProfile.id).filter(CVProfile.user_id == user.id)
+    candidates = (
+        db.query(JobAnalysis)
+        .filter(
+            JobAnalysis.cv_id.in_(user_cv_ids),
+            JobAnalysis.score <= max_score,
+            JobAnalysis.created_at < cutoff,
+            JobAnalysis.status == AnalysisStatus.PENDING,
+        )
+        .all()
+    )
+    count = len(candidates)
+    for analysis in candidates:
+        analysis.status = AnalysisStatus.REJECTED.value  # type: ignore[assignment]
+    sample_ids = [str(a.id) for a in candidates[:5]]
+    audit(db, request, "bulk_reject", f"rejected={count}, days={days}, max_score={max_score}, sample={sample_ids}")
+    db.commit()
+    return JSONResponse({"ok": True, "rejected": count})
+
+
 @router.get("/analysis/cleanup-preview")
 @limiter.limit(settings.rate_limit_default)
 def cleanup_preview(
