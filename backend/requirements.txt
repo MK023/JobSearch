@@ -14,7 +14,7 @@ bcrypt==5.0.0
 itsdangerous==2.2.0
 slowapi==0.1.9
 python-docx==1.2.0
-pypdf==6.10.0
+pypdf==6.10.1
 cryptography==46.0.7
 boto3==1.42.71
 resend==2.25.0
