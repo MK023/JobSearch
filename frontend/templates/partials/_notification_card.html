@@ -1,8 +1,20 @@
-{# Single notification card. Dismissible ones get a close button (wired in PR-4). #}
+{# Single notification card. Icon driven by notification type; dismiss button
+   (added by notifications.js) appears only when data-notification-dismissible=1. #}
+{% set _type_icon = {
+  'interview_upcoming': '\U0001F3A4',
+  'interview_no_outcome': '\u23F3',
+  'budget_low': '\U0001F4B3',
+  'db_size_high': '\U0001F4BE',
+  'followup_due': '\u2709\uFE0F',
+  'backlog_to_review': '\U0001F4CB',
+} %}
 <article class="notification-card notification-card-{{ n.severity }}"
          data-notification-id="{{ n.id }}"
          data-notification-type="{{ n.type }}"
          data-notification-dismissible="{{ '1' if n.dismissible else '0' }}">
+  <div class="notification-card-icon" aria-hidden="true">
+    {{ _type_icon.get(n.type.value if n.type.__class__.__name__ == 'NotificationType' else n.type, '\U0001F4CD') }}
+  </div>
   <div class="notification-card-body">
     <h3 class="notification-card-title">{{ n.title }}</h3>
     <p class="notification-card-text">{{ n.body }}</p>

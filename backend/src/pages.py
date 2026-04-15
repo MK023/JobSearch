@@ -9,9 +9,8 @@ from fastapi.responses import HTMLResponse, Response
 from .analysis.models import AnalysisStatus
 from .analysis.service import get_recent_analyses
 from .cv.service import get_latest_cv
-from .dashboard.service import get_dashboard, get_followup_alerts, get_spending
+from .dashboard.service import get_dashboard, get_spending
 from .dependencies import CurrentUser, DbSession
-from .interview.service import get_upcoming_interviews
 from .notification_center.service import get_notifications, get_unread_count
 
 router = APIRouter(tags=["pages"])
@@ -51,8 +50,6 @@ def dashboard_page(
     dashboard = get_dashboard(db)
     spending = get_spending(db)
     analyses = get_recent_analyses(db, limit=5)
-    followup_alerts = get_followup_alerts(db)
-    upcoming_interviews = get_upcoming_interviews(db)
 
     return templates.TemplateResponse(  # type: ignore[no-any-return]
         request,
@@ -62,8 +59,6 @@ def dashboard_page(
             "dashboard": dashboard,
             "spending": spending,
             "analyses": analyses,
-            "followup_alerts": followup_alerts,
-            "upcoming_interviews": upcoming_interviews,
             "error": flash["error"],
             "message": flash["message"],
         },

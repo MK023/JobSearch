@@ -176,37 +176,6 @@
   opacity: 1;
 }
 
-/* --- Upcoming interview banners --- */
-
-.upcoming-interview-banner {
-  background: rgb(48 209 88 / 8%);
-  border: 1px solid rgb(48 209 88 / 20%);
-  border-radius: var(--radius-lg);
-  padding: var(--space-lg) var(--space-xl);
-  margin-bottom: var(--space-md);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--space-lg);
-}
-
-.upcoming-interview-info {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-}
-
-.upcoming-interview-title {
-  font-weight: var(--weight-bold);
-  color: var(--accent-green);
-}
-
-.upcoming-interview-meta {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-}
-
-
 /* ================================================================
    ANALYZE PAGE
    ================================================================ */
@@ -590,65 +559,6 @@
   color: var(--text-primary);
   font-size: var(--text-base);
   flex: 1;
-}
-
-
-/* ================================================================
-   FOLLOW-UP ALERTS
-   ================================================================ */
-
-.followup-alerts {
-  margin-bottom: var(--space-xl);
-}
-
-.followup-alert {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  padding: var(--space-md) var(--space-lg);
-  background: rgb(255 159 10 / 8%);
-  border: 1px solid rgb(255 159 10 / 20%);
-  border-radius: var(--radius-lg);
-  margin-bottom: var(--space-sm);
-}
-
-.followup-alert-icon {
-  font-size: var(--text-xl);
-  flex-shrink: 0;
-}
-
-.followup-alert-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.followup-alert-role {
-  font-weight: var(--weight-semibold);
-  font-size: var(--text-base);
-  color: var(--accent-orange);
-}
-
-.followup-alert-days {
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-}
-
-.followup-alert-actions {
-  display: flex;
-  gap: var(--space-sm);
-  flex-shrink: 0;
-  align-items: center;
-}
-
-.followup-dismiss {
-  font-size: var(--text-xl);
-  line-height: 1;
-  padding: var(--space-xs) var(--space-sm);
-  opacity: 0.6;
-}
-
-.followup-dismiss:hover {
-  opacity: 1;
 }
 
 
@@ -1737,6 +1647,17 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
   background: var(--bg-secondary);
 }
 
+.notification-card-icon {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  line-height: 1;
+}
+
 .notification-card-body {
   flex: 1 1 60%;
   min-width: 0;
@@ -1758,6 +1679,26 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
 
 .notification-card-actions {
   flex: 0 0 auto;
+}
+
+.notification-card-dismiss {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 20px;
+  line-height: 28px;
+  cursor: pointer;
+  border-radius: var(--radius-full);
+  transition: background 0.15s, color 0.15s;
+}
+
+.notification-card-dismiss:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
 }
 
 .notification-empty {
