@@ -12,6 +12,7 @@ from .cv.service import get_latest_cv
 from .dashboard.service import get_dashboard, get_followup_alerts, get_spending
 from .dependencies import CurrentUser, DbSession
 from .interview.service import get_upcoming_interviews
+from .notification_center.service import get_notifications, get_unread_count
 
 router = APIRouter(tags=["pages"])
 
@@ -21,6 +22,19 @@ def _flash(request: Request) -> dict[str, Any]:
     return {
         "error": request.session.pop("flash_error", None),
         "message": request.session.pop("flash_message", None),
+    }
+
+
+def _base_ctx(db: DbSession, user: CurrentUser, active_page: str) -> dict[str, Any]:
+    """Context keys injected on EVERY page render.
+
+    Currently: notification badge count for the sidebar. Having this in a
+    single helper prevents any page from silently losing the badge.
+    """
+    return {
+        "user": user,
+        "active_page": active_page,
+        "notification_count": get_unread_count(db),
     }
 
 
@@ -44,8 +58,7 @@ def dashboard_page(
         request,
         "dashboard.html",
         {
-            "user": user,
-            "active_page": "dashboard",
+            **_base_ctx(db, user, "dashboard"),
             "dashboard": dashboard,
             "spending": spending,
             "analyses": analyses,
@@ -76,8 +89,7 @@ def analyze_page(
         request,
         "analyze.html",
         {
-            "user": user,
-            "active_page": "analyze",
+            **_base_ctx(db, user, "analyze"),
             "cv": cv,
             "batch": batch,
             "error": flash["error"],
@@ -105,8 +117,7 @@ def history_page(
         request,
         "history.html",
         {
-            "user": user,
-            "active_page": "history",
+            **_base_ctx(db, user, "history"),
             "analyses": analyses,
             "counts": counts,
             "error": flash["error"],
@@ -164,8 +175,7 @@ def interviews_page(
         request,
         "interviews.html",
         {
-            "user": user,
-            "active_page": "interviews",
+            **_base_ctx(db, user, "interviews"),
             "upcoming_interviews": upcoming,
             "past_interviews": past_rows,
             "error": flash["error"],
@@ -191,10 +201,33 @@ def settings_page(
         request,
         "settings.html",
         {
-            "user": user,
-            "active_page": "settings",
+            **_base_ctx(db, user, "settings"),
             "cv": cv,
             "spending": spending,
+            "error": flash["error"],
+            "message": flash["message"],
+        },
+    )
+
+
+@router.get("/notifications", response_class=HTMLResponse)
+def notifications_page(
+    request: Request,
+    db: DbSession,
+    user: CurrentUser,
+) -> Response:
+    """Render the in-app notification center."""
+    templates = request.app.state.templates
+    flash = _flash(request)
+
+    notifications = get_notifications(db)
+
+    return templates.TemplateResponse(  # type: ignore[no-any-return]
+        request,
+        "notifications.html",
+        {
+            **_base_ctx(db, user, "notifications"),
+            "notifications": notifications,
             "error": flash["error"],
             "message": flash["message"],
         },

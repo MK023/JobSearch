@@ -1692,3 +1692,95 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
     padding: var(--space-md);
   }
 }
+
+/* ================================================================
+   NOTIFICATION CENTER (/notifications)
+   ================================================================ */
+
+.notification-group {
+  margin-bottom: var(--space-xl);
+}
+
+.notification-group-title {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-md);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.notification-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  margin-bottom: var(--space-md);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+}
+
+.notification-card-critical {
+  border-color: rgb(255 69 58 / 35%);
+  background: rgb(255 69 58 / 5%);
+}
+
+.notification-card-warning {
+  border-color: rgb(255 159 10 / 35%);
+  background: rgb(255 159 10 / 5%);
+}
+
+.notification-card-info {
+  border-color: var(--border-subtle);
+  background: var(--bg-secondary);
+}
+
+.notification-card-body {
+  flex: 1 1 60%;
+  min-width: 0;
+}
+
+.notification-card-title {
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  margin: 0 0 var(--space-xs) 0;
+  color: var(--text-primary);
+}
+
+.notification-card-text {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.notification-card-actions {
+  flex: 0 0 auto;
+}
+
+.notification-empty {
+  text-align: center;
+  padding: var(--space-xl) var(--space-md);
+}
+
+.notification-empty-icon {
+  font-size: 48px;
+  margin-bottom: var(--space-md);
+}
+
+.notification-empty-title {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  margin-bottom: var(--space-sm);
+}
+
+.notification-empty-body {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  max-width: 480px;
+  margin: 0 auto;
+  line-height: 1.5;
+}

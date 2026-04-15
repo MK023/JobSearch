@@ -59,6 +59,23 @@
   border-radius: var(--radius-full);
 }
 
+.sidebar-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  background: rgb(255 69 58);
+  color: #fff;
+  font-size: 10px;
+  font-weight: var(--weight-bold);
+  line-height: 16px;
+  text-align: center;
+  border-radius: var(--radius-full);
+  pointer-events: none;
+}
+
 /* Tooltip */
 .sidebar-item[data-tooltip]:hover::after {
   content: attr(data-tooltip);

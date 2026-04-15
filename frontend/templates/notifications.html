@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Notifiche — Job Search{% endblock %}
+{% block content %}
+<div class="content-inner">
+
+  <div class="page-header">
+    <h1 class="page-title">Notifiche</h1>
+    {% if notifications %}
+    <span class="pill pill-credit">{{ notifications|length }} attive</span>
+    {% endif %}
+  </div>
+
+  {% if not notifications %}
+  <div class="card card-mb">
+    <div class="notification-empty">
+      <div class="notification-empty-icon">&#x1F389;</div>
+      <div class="notification-empty-title">Nessuna notifica attiva</div>
+      <div class="notification-empty-body">
+        Tutto sotto controllo. Quando arriva un colloquio, il credito Anthropic scende,
+        il database si riempie o hai follow-up da fare, li vedrai qui.
+      </div>
+    </div>
+  </div>
+  {% else %}
+
+  {% set critical = notifications | selectattr('severity', 'equalto', 'critical') | list %}
+  {% set warning = notifications | selectattr('severity', 'equalto', 'warning') | list %}
+  {% set info = notifications | selectattr('severity', 'equalto', 'info') | list %}
+
+  {% if critical %}
+  <section class="notification-group notification-group-critical">
+    <h2 class="notification-group-title">&#x1F534; Urgente</h2>
+    {% for n in critical %}{% include "partials/_notification_card.html" %}{% endfor %}
+  </section>
+  {% endif %}
+
+  {% if warning %}
+  <section class="notification-group notification-group-warning">
+    <h2 class="notification-group-title">&#x1F7E1; Da gestire</h2>
+    {% for n in warning %}{% include "partials/_notification_card.html" %}{% endfor %}
+  </section>
+  {% endif %}
+
+  {% if info %}
+  <section class="notification-group notification-group-info">
+    <h2 class="notification-group-title">&#x1F535; Suggerimenti</h2>
+    {% for n in info %}{% include "partials/_notification_card.html" %}{% endfor %}
+  </section>
+  {% endif %}
+
+  {% endif %}
+
+</div>
+{% endblock %}

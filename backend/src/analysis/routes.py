@@ -109,6 +109,8 @@ def view_analysis(
     error = request.session.pop("flash_error", None)
     message = request.session.pop("flash_message", None)
 
+    from ..notification_center.service import get_unread_count
+
     templates = request.app.state.templates
     return templates.TemplateResponse(  # type: ignore[no-any-return]
         request,
@@ -116,6 +118,7 @@ def view_analysis(
         {
             "user": user,
             "active_page": "history",
+            "notification_count": get_unread_count(db),
             "current": analysis,
             "result": result,
             "interview": interview,
