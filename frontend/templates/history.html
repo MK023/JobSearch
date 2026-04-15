@@ -31,15 +31,30 @@
     </button>
   </div>
 
+  {# Contract type segmented control — switch between Tutti / Dipendente / P.IVA. Persisted in sessionStorage #}
+  <div class="contract-filter" role="group" aria-label="Tipo contratto">
+    <button type="button" class="contract-option" :class="{ active: filters.contractType === 'tutti' }"
+            @click="setContractType('tutti')"
+            title="Mostra annunci dipendenti e P.IVA">
+      Tutti
+    </button>
+    <button type="button" class="contract-option" :class="{ active: filters.contractType === 'dipendente' }"
+            @click="setContractType('dipendente')"
+            title="Mostra solo ruoli da dipendente">
+      Solo dipendente
+    </button>
+    <button type="button" class="contract-option" :class="{ active: filters.contractType === 'piva' }"
+            @click="setContractType('piva')"
+            title="Mostra solo ruoli in P.IVA / libera professione">
+      Solo P.IVA
+    </button>
+  </div>
+
   {# Secondary filter bar — chips toggle + score min slider. State persisted in sessionStorage by historyTabs() #}
   <div class="filter-bar">
     <button type="button" class="filter-chip" :class="{ active: filters.hideBodyRental }"
             @click="toggleFilter('hideBodyRental')" title="Nasconde gli annunci classificati come body rental">
       Nascondi body rental
-    </button>
-    <button type="button" class="filter-chip" :class="{ active: filters.hideFreelance }"
-            @click="toggleFilter('hideFreelance')" title="Nasconde gli annunci che richiedono P.IVA">
-      Nascondi freelance
     </button>
     <button type="button" class="filter-chip" :class="{ active: filters.hideRecruiter }"
             @click="toggleFilter('hideRecruiter')" title="Nasconde gli annunci gestiti da agenzia di recruitment">
@@ -54,7 +69,7 @@
              aria-label="Score minimo">
     </label>
     <button type="button" class="filter-chip filter-chip-reset"
-            x-show="filters.hideBodyRental || filters.hideFreelance || filters.hideRecruiter || filters.minScore > 0"
+            x-show="filters.contractType !== 'tutti' || filters.hideBodyRental || filters.hideRecruiter || filters.minScore > 0"
             @click="resetFilters()">
       Reset
     </button>

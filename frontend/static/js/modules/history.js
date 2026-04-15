@@ -3,8 +3,9 @@
  *
  * Items get their status from data-hist-status attributes, which are
  * updated imperatively by status.js when a user changes status.
- * The Alpine component handles tab switching, secondary filters
- * (hide body_rental / freelance / recruiter, min score) and re-filtering.
+ * The Alpine component handles tab switching, contract type (dipendente vs
+ * P.IVA vs tutti), secondary filters (hide body_rental / recruiter, min score)
+ * and re-filtering.
  *
  * Tab counts always reflect the TOTAL per status (independent of secondary
  * filters) so the user does not see "0" when items are just filtered out.
@@ -15,10 +16,11 @@
 
 function historyTabs() {
     var validTabs = ['valutazione', 'candidature', 'scartati'];
+    var validContractTypes = ['tutti', 'dipendente', 'piva'];
     var FILTERS_KEY = 'historyFilters';
     var defaultFilters = {
+        contractType: 'tutti',
         hideBodyRental: false,
-        hideFreelance: false,
         hideRecruiter: false,
         minScore: 0
     };
@@ -28,9 +30,13 @@ function historyTabs() {
             var raw = sessionStorage.getItem(FILTERS_KEY);
             if (!raw) return Object.assign({}, defaultFilters);
             var parsed = JSON.parse(raw);
+            // Legacy migration: old `hideFreelance: true` -> `contractType: 'dipendente'`
+            var contractType = parsed.contractType;
+            if (!contractType && parsed.hideFreelance) contractType = 'dipendente';
+            if (validContractTypes.indexOf(contractType) === -1) contractType = 'tutti';
             return {
+                contractType: contractType,
                 hideBodyRental: !!parsed.hideBodyRental,
-                hideFreelance: !!parsed.hideFreelance,
                 hideRecruiter: !!parsed.hideRecruiter,
                 minScore: Math.max(0, Math.min(100, parseInt(parsed.minScore, 10) || 0))
             };
@@ -64,6 +70,13 @@ function historyTabs() {
             this.activeTab = tab;
             history.replaceState(null, '', '#' + tab);
             sessionStorage.setItem('historyTab', tab);
+            this.filterItems();
+        },
+
+        setContractType: function(type) {
+            if (validContractTypes.indexOf(type) === -1) return;
+            this.filters.contractType = type;
+            this.persistFilters();
             this.filterItems();
         },
 
@@ -108,8 +121,11 @@ function historyTabs() {
 
                 var matchTab = (tab === bucket);
                 var matchFilters = true;
+                // Contract type: dipendente -> is_freelance != '1'; piva -> is_freelance === '1'; tutti -> nessun filtro
+                var isFreelance = item.dataset.histFreelance === '1';
+                if (f.contractType === 'dipendente' && isFreelance) matchFilters = false;
+                if (f.contractType === 'piva' && !isFreelance) matchFilters = false;
                 if (f.hideBodyRental && item.dataset.histBodyrental === '1') matchFilters = false;
-                if (f.hideFreelance && item.dataset.histFreelance === '1') matchFilters = false;
                 if (f.hideRecruiter && item.dataset.histRecruiter === '1') matchFilters = false;
                 if (f.minScore > 0) {
                     var score = parseInt(item.dataset.histScore, 10) || 0;
