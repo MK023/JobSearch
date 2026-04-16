@@ -54,7 +54,7 @@ def dashboard_page(
     dashboard = get_dashboard(db)
     spending = get_spending(db)
     followup_alerts = get_followup_alerts(db)
-    top_candidates = get_top_candidates(db, limit=10)
+    top_candidates = get_top_candidates(db, limit=5)
     db_usage = get_db_usage(db)
     upcoming_interviews = get_upcoming_interviews(db, days=14)
 
