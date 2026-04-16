@@ -120,3 +120,19 @@ def fetch_company_news(
             logger.warning("Failed to cache news data", exc_info=True)
 
     return articles
+
+
+def get_cached_news(company_names: list[str], db: Session) -> list[dict[str, Any]]:
+    """Read news from DB cache only — no API calls. Fast for page rendering."""
+    results: list[dict[str, Any]] = []
+    for name in company_names:
+        name_norm = name.strip().lower()
+        try:
+            cached = db.query(NewsCache).filter(NewsCache.company_name == name_norm).first()
+            if cached and cached.news_data:
+                articles = cast(list[dict[str, Any]], json.loads(str(cached.news_data)))
+                if articles:
+                    results.append({"company": name, "articles": articles})
+        except Exception:  # noqa: S110
+            pass
+    return results
