@@ -2002,9 +2002,10 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
 /* Stats bar */
 
 .agenda-stats {
-  display: flex;
-  gap: 24px;
-  padding: 12px 16px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  padding: 16px 20px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
@@ -2013,6 +2014,7 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
 .agenda-stat {
   display: flex;
   flex-direction: column;
+  text-align: center;
 }
 
 .agenda-stat-value {
@@ -2272,8 +2274,8 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
 
 @media (width <= 768px) {
   .agenda-stats {
-    flex-wrap: wrap;
-    gap: var(--space-md);
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
   }
 
   .agenda-card {
