@@ -38,6 +38,7 @@ class NotificationType(StrEnum):
     FOLLOWUP_DUE = "followup_due"
     BACKLOG_TO_REVIEW = "backlog_to_review"
     TODO_PENDING = "todo_pending"
+    BACKUP_STALE = "backup_stale"
 
 
 class NotificationDismissal(Base):

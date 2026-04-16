@@ -7,6 +7,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from src.agenda.models import TodoItem
 from src.analysis.models import AnalysisStatus, AppSettings, JobAnalysis
 from src.audit.models import AuditLog
 from src.auth.models import User
@@ -18,6 +19,8 @@ from src.database.base import Base
 from src.integrations.glassdoor import GlassdoorCache
 from src.interview.file_models import InterviewFile
 from src.interview.models import Interview
+from src.metrics.models import RequestMetric
+from src.notification_center.models import NotificationDismissal
 from src.notifications.models import NotificationLog
 from src.preferences.models import AppPreference
 
@@ -30,9 +33,12 @@ _ALL_MODELS = [
     GlassdoorCache,
     AuditLog,
     NotificationLog,
+    NotificationDismissal,
     Interview,
     InterviewFile,
     BatchItem,
+    TodoItem,
+    RequestMetric,
 ]
 
 

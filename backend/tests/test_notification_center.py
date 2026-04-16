@@ -14,8 +14,8 @@ from src.dashboard.service import get_or_create_settings
 from src.interview.models import Interview, InterviewOutcome
 from src.notification_center.service import (
     _BACKLOG_THRESHOLD,
-    _BUDGET_WARNING,
-    _INTERVIEW_NO_OUTCOME_DAYS,
+    _BUDGET_WARNING_DEFAULT,
+    _INTERVIEW_NO_OUTCOME_DAYS_DEFAULT,
     _INTERVIEW_UPCOMING_HOURS,
     dismiss_notification,
     get_notifications,
@@ -45,8 +45,10 @@ def _make_analysis(
 
 class TestEmptyState:
     def test_no_notifications_when_nothing_matters(self, db_session):
-        assert get_notifications(db_session) == []
-        assert get_unread_count(db_session) == 0
+        notifs = get_notifications(db_session)
+        # Filter out backup_stale — it fires legitimately when no R2 backups exist
+        notifs = [n for n in notifs if n.type.value != "backup_stale"]
+        assert notifs == []
 
 
 class TestUpcomingInterview:
@@ -80,7 +82,7 @@ class TestLowBudget:
     def test_warning_when_remaining_below_one(self, db_session):
         s = get_or_create_settings(db_session)
         s.anthropic_budget = 2.0
-        s.total_cost_usd = 2.0 - (_BUDGET_WARNING - 0.1)  # remaining ≈ 0.9
+        s.total_cost_usd = 2.0 - (_BUDGET_WARNING_DEFAULT - 0.1)  # remaining ≈ 0.9
         db_session.commit()
 
         notifs = get_notifications(db_session)
@@ -110,7 +112,7 @@ class TestLowBudget:
 class TestInterviewWithoutOutcome:
     def test_past_interview_without_outcome_surfaces(self, db_session, test_cv):
         a = _make_analysis(db_session, test_cv, status=AnalysisStatus.INTERVIEW)
-        when = datetime.now(UTC) - timedelta(days=_INTERVIEW_NO_OUTCOME_DAYS + 1)
+        when = datetime.now(UTC) - timedelta(days=_INTERVIEW_NO_OUTCOME_DAYS_DEFAULT + 1)
         iv = Interview(analysis_id=a.id, round_number=1, scheduled_at=when, outcome=None)
         db_session.add(iv)
         db_session.commit()
@@ -123,7 +125,7 @@ class TestInterviewWithoutOutcome:
 
     def test_logged_outcome_clears_notification(self, db_session, test_cv):
         a = _make_analysis(db_session, test_cv, status=AnalysisStatus.INTERVIEW)
-        when = datetime.now(UTC) - timedelta(days=_INTERVIEW_NO_OUTCOME_DAYS + 1)
+        when = datetime.now(UTC) - timedelta(days=_INTERVIEW_NO_OUTCOME_DAYS_DEFAULT + 1)
         iv = Interview(analysis_id=a.id, round_number=1, scheduled_at=when, outcome=InterviewOutcome.PASSED.value)
         db_session.add(iv)
         db_session.commit()
@@ -184,7 +186,7 @@ class TestOrdering:
             Interview(
                 analysis_id=a2.id,
                 round_number=1,
-                scheduled_at=datetime.now(UTC) - timedelta(days=_INTERVIEW_NO_OUTCOME_DAYS + 1),
+                scheduled_at=datetime.now(UTC) - timedelta(days=_INTERVIEW_NO_OUTCOME_DAYS_DEFAULT + 1),
             )
         )
         # Info: followup due
