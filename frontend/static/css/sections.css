@@ -1046,11 +1046,15 @@
 .history-item-company {
   color: var(--text-secondary);
   font-size: var(--text-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .history-item-date {
   color: var(--text-tertiary);
   font-size: var(--text-sm);
+  min-width: 72px;
   flex-shrink: 0;
   text-align: right;
 }

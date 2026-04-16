@@ -231,6 +231,8 @@
   display: inline-block;
   white-space: nowrap;
   flex-shrink: 0;
+  min-width: 80px;
+  text-align: center;
 }
 
 .status-da_valutare,
