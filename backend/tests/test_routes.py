@@ -1,15 +1,25 @@
-"""Tests for HTTP routes using FastAPI TestClient."""
+"""Tests for HTTP routes using FastAPI TestClient with real SQLite DB."""
 
 import uuid
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from src.auth.models import User
+from src.database import get_db
+from src.database.base import Base
+from src.dependencies import get_current_user
+
+# Import all models so Base.metadata.create_all() sees every table.
+from tests.conftest import _ALL_MODELS  # noqa: F401
 
 
-@pytest.fixture
-def app_client():
-    """Create a TestClient with patched lifespan to skip DB migrations and external services."""
+def _create_test_app(db_session=None, user=None):
+    """Create a FastAPI app with optional real DB and user overrides."""
     from contextlib import asynccontextmanager
 
     from src.main import create_app
@@ -27,53 +37,77 @@ def app_client():
         mock_settings.cors_allow_credentials = True
         mock_settings.secret_key = "test-secret"
         app = create_app()
+        if db_session is not None:
+
+            def _real_db():
+                yield db_session
+
+            app.dependency_overrides[get_db] = _real_db
+        if user is not None:
+            app.dependency_overrides[get_current_user] = lambda: user
+        yield app
+
+
+@pytest.fixture
+def app_client():
+    """TestClient without auth — for health, 404, login tests."""
+    for app in _create_test_app():
         with TestClient(app, raise_server_exceptions=False) as client:
             yield client
 
 
+def _sqlite_date_trunc(part, value):
+    """SQLite polyfill for PostgreSQL's date_trunc()."""
+    if value is None:
+        return None
+    fmt = {"hour": "%Y-%m-%d %H:00:00", "day": "%Y-%m-%d", "month": "%Y-%m-01"}.get(part, "%Y-%m-%d")
+    from datetime import datetime as _dt
+
+    if isinstance(value, str):
+        value = _dt.fromisoformat(value)
+    return value.strftime(fmt)
+
+
 @pytest.fixture
-def auth_client():
-    """Create a TestClient with authentication and DB mocked — pages render without hitting DB."""
-    from contextlib import asynccontextmanager
+def real_db():
+    """In-memory SQLite session with PostgreSQL polyfills."""
+    from sqlalchemy import event
 
-    from src.auth.models import User
-    from src.database import get_db
-    from src.dependencies import get_current_user
-    from src.main import create_app
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
 
-    fake_user = MagicMock(spec=User)
-    fake_user.id = uuid.uuid4()
-    fake_user.email = "test@example.com"
-    fake_user.is_active = True
+    @event.listens_for(engine, "connect")
+    def _register_functions(dbapi_conn, _rec):
+        dbapi_conn.create_function("date_trunc", 2, _sqlite_date_trunc)
 
-    mock_session = MagicMock()
-    # Provide a chainable query mock for any direct db.query(...) calls
-    mock_session.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
+    Base.metadata.create_all(bind=engine)
+    session = sessionmaker(bind=engine)()
+    try:
+        yield session
+    finally:
+        session.close()
 
-    @asynccontextmanager
-    async def _test_lifespan(app):
-        from src.integrations.cache import NullCacheService
 
-        app.state.cache = NullCacheService()
-        yield
+@pytest.fixture
+def real_user(real_db):
+    """Create a real user in the test DB."""
+    user = User(
+        id=uuid.uuid4(),
+        email="test@example.com",
+        password_hash="$2b$12$fakehash",
+    )
+    real_db.add(user)
+    real_db.commit()
+    return user
 
-    def _fake_db():
-        yield mock_session
 
-    with (
-        patch("src.main.lifespan", _test_lifespan),
-        patch("src.main.settings") as mock_settings,
-        # These page-render smoke tests don't care about notification state;
-        # patch the aggregator so the mocked DB session isn't exercised by it.
-        patch("src.pages.get_unread_count", return_value=0),
-    ):
-        mock_settings.trusted_hosts_list = ["*"]
-        mock_settings.cors_origins_list = ["*"]
-        mock_settings.cors_allow_credentials = True
-        mock_settings.secret_key = "test-secret"
-        app = create_app()
-        app.dependency_overrides[get_current_user] = lambda: fake_user
-        app.dependency_overrides[get_db] = _fake_db
+@pytest.fixture
+def auth_client(real_db, real_user):
+    """TestClient with real SQLite DB and authenticated user."""
+    for app in _create_test_app(db_session=real_db, user=real_user):
         with TestClient(app, raise_server_exceptions=False) as client:
             yield client
 
@@ -154,50 +188,19 @@ class TestPageRoutesRequireAuth:
 
 
 class TestAuthenticatedPages:
-    """Verify authenticated page rendering returns 200 and expected content."""
+    """Verify authenticated page rendering returns 200 — real DB, no mocks."""
 
-    @patch(
-        "src.pages.get_spending",
-        return_value=MagicMock(
-            total_analysis=0.0,
-            total_cover_letter=0.0,
-            budget=5.0,
-            remaining=5.0,
-        ),
-    )
-    @patch("src.pages.get_recent_analyses", return_value=[])
-    @patch(
-        "src.pages.get_dashboard",
-        return_value=MagicMock(
-            total_analyses=0,
-            total_candidato=0,
-            total_colloquio=0,
-            total_scartato=0,
-        ),
-    )
-    def test_dashboard_page_renders(self, _d, _a, _s, auth_client):
+    def test_dashboard_page_renders(self, auth_client):
         resp = auth_client.get("/")
         assert resp.status_code == 200
         assert "Dashboard" in resp.text or "dashboard" in resp.text.lower()
 
-    @patch(
-        "src.pages.get_spending",
-        return_value=MagicMock(
-            total_analysis=0.0,
-            total_cover_letter=0.0,
-            budget=5.0,
-            remaining=5.0,
-        ),
-    )
-    @patch("src.pages.get_latest_cv", return_value=None)
-    @patch("src.batch.service.get_batch_status", return_value=[])
-    def test_analyze_page_renders(self, _b, _cv, _s, auth_client):
+    def test_analyze_page_renders(self, auth_client):
         resp = auth_client.get("/analyze")
         assert resp.status_code == 200
         assert "Analizza" in resp.text or "analyze" in resp.text.lower() or "Analisi" in resp.text
 
-    @patch("src.pages.get_recent_analyses", return_value=[])
-    def test_history_page_renders(self, _a, auth_client):
+    def test_history_page_renders(self, auth_client):
         resp = auth_client.get("/history")
         assert resp.status_code == 200
         assert "Storico" in resp.text or "history" in resp.text.lower()
@@ -207,17 +210,20 @@ class TestAuthenticatedPages:
         assert resp.status_code == 200
         assert "Colloqui" in resp.text or "interview" in resp.text.lower()
 
-    @patch(
-        "src.pages.get_spending",
-        return_value=MagicMock(
-            total_analysis=0.0,
-            total_cover_letter=0.0,
-            budget=5.0,
-            remaining=5.0,
-        ),
-    )
-    @patch("src.pages.get_latest_cv", return_value=None)
-    def test_settings_page_renders(self, _cv, _s, auth_client):
+    def test_settings_page_renders(self, auth_client):
         resp = auth_client.get("/settings")
         assert resp.status_code == 200
         assert "Impostazioni" in resp.text or "settings" in resp.text.lower()
+
+    def test_agenda_page_renders(self, auth_client):
+        resp = auth_client.get("/agenda")
+        assert resp.status_code == 200
+        assert "Agenda" in resp.text or "agenda" in resp.text.lower()
+
+    def test_admin_page_renders(self, auth_client):
+        resp = auth_client.get("/admin")
+        assert resp.status_code == 200
+
+    def test_stats_page_renders(self, auth_client):
+        resp = auth_client.get("/stats")
+        assert resp.status_code == 200
