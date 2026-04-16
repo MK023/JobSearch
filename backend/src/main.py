@@ -28,6 +28,7 @@ from .config import settings
 # Sentry — initialize before app creation so FastAPI integration auto-activates
 if settings.sentry_dsn:
     import sentry_sdk
+    from sentry_sdk.integrations.mcp import MCPIntegration
 
     sentry_sdk.init(
         dsn=settings.sentry_dsn,
@@ -39,6 +40,7 @@ if settings.sentry_dsn:
         environment="production" if _os.environ.get("RENDER") else "development",
         auto_session_tracking=True,
         enable_logs=True,
+        integrations=[MCPIntegration()],
     )
 from .cover_letter.routes import router as cover_letter_router
 from .cv.routes import router as cv_router
