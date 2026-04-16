@@ -15,7 +15,7 @@
  */
 
 function historyTabs() {
-    var validTabs = ['valutazione', 'candidature', 'scartati'];
+    var validTabs = ['valutazione', 'candidature', 'scartati', 'rifiutati'];
     var validContractTypes = ['tutti', 'dipendente', 'piva'];
     var FILTERS_KEY = 'historyFilters';
     var defaultFilters = {
@@ -53,7 +53,8 @@ function historyTabs() {
         counts: {
             valutazione: 0,
             candidature: 0,
-            scartati: 0
+            scartati: 0,
+            rifiutati: 0
         },
 
         filters: Object.assign({}, defaultFilters),
@@ -117,7 +118,7 @@ function historyTabs() {
         filterItems: function() {
             var tab = this.activeTab;
             var f = this.filters;
-            var cVal = 0, cCand = 0, cScar = 0;
+            var cVal = 0, cCand = 0, cScar = 0, cRif = 0;
 
             document.querySelectorAll('.history-item[data-hist-status]').forEach(function(item) {
                 var st = item.dataset.histStatus || 'da_valutare';
@@ -125,6 +126,7 @@ function historyTabs() {
                 var bucket;
                 if (st === 'da_valutare') { cVal++; bucket = 'valutazione'; }
                 else if (st === 'candidato' || st === 'colloquio' || st === 'offerta') { cCand++; bucket = 'candidature'; }
+                else if (st === 'rifiutato') { cRif++; bucket = 'rifiutati'; }
                 else { cScar++; bucket = 'scartati'; }
 
                 var matchTab = (tab === bucket);
@@ -150,6 +152,7 @@ function historyTabs() {
             this.counts.valutazione = cVal;
             this.counts.candidature = cCand;
             this.counts.scartati = cScar;
+            this.counts.rifiutati = cRif;
         }
     };
 }

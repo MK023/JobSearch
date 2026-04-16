@@ -51,6 +51,10 @@
             @click="switchTab('scartati')">
       Scartati <span class="tab-badge" x-text="counts.scartati">{{ counts.scartato|default(0) }}</span>
     </button>
+    <button class="tab" :class="{ active: activeTab === 'rifiutati' }"
+            @click="switchTab('rifiutati')">
+      Rifiutati <span class="tab-badge" x-text="counts.rifiutati">{{ counts.rifiutato|default(0) }}</span>
+    </button>
   </div>
 
   {# Contract type segmented control — switch between Tutti / Dipendente / P.IVA. Persisted in sessionStorage #}
