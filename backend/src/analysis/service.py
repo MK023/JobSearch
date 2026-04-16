@@ -241,6 +241,9 @@ def _merge_glassdoor(result: dict[str, Any], db: Session) -> None:
     rep["recommend_to_friend"] = gd.get("recommend_to_friend")
     rep["business_outlook"] = gd.get("business_outlook")
     rep["glassdoor_url"] = gd.get("glassdoor_url", "")
+    for field in ("industry", "company_size", "website", "headquarters", "founded", "revenue"):
+        if gd.get(field):
+            rep[field] = gd[field]
     rep["source"] = "glassdoor_api"
     count_fmt = f"{review_count:,}".replace(",", ".") if review_count else "n/d"
     rep["note"] = f"Fonte: Glassdoor ({count_fmt} recensioni)"
