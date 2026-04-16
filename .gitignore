@@ -68,3 +68,7 @@ docs/superpowers/
 # Node (if ever added)
 node_modules/
 terraform.tfvars
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl

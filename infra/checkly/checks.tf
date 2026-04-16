@@ -32,7 +32,7 @@ resource "checkly_check" "health" {
   activated              = true
   muted                  = false
   run_parallel           = false
-  locations              = ["eu-central-1", "eu-west-1"]
+  locations              = ["eu-central-1"]
   degraded_response_time = 1000
   max_response_time      = 2000
   use_global_alert_settings = true
