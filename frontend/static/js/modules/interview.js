@@ -6,6 +6,7 @@
 
 var fpScheduled = null;
 var fpEnds = null;
+var _isNewRoundMode = false;
 
 /**
  * Platform → visible fields mapping.
@@ -37,6 +38,7 @@ function togglePlatformFields() {
 
 
 function openInterviewModal(analysisId) {
+    _isNewRoundMode = false;
     var modal = document.getElementById('interview-modal');
     document.getElementById('iv-analysis-id').value = analysisId;
     document.getElementById('interview-modal-title').textContent = 'Prenota colloquio';
@@ -79,6 +81,33 @@ function openInterviewModal(analysisId) {
 }
 
 
+function openNewRoundModal(analysisId) {
+    _isNewRoundMode = true;
+    var modal = document.getElementById('interview-modal');
+    document.getElementById('iv-analysis-id').value = analysisId;
+    document.getElementById('interview-modal-title').textContent = 'Nuovo round';
+
+    destroyFlatpickrInstances();
+    resetInterviewForm();
+
+    var fpConfig = {
+        enableTime: true,
+        time_24hr: true,
+        dateFormat: "Y-m-dTH:i",
+        altInput: true,
+        altFormat: "l j F Y, H:i",
+        locale: "it",
+        minDate: "today"
+    };
+    fpScheduled = flatpickr('#iv-scheduled', Object.assign({}, fpConfig));
+    fpEnds = flatpickr('#iv-ends', Object.assign({}, fpConfig, { minDate: null }));
+
+    togglePlatformFields();
+    document.getElementById('iv-analysis-id').value = analysisId;
+    modal.classList.remove('hidden');
+}
+
+
 function destroyFlatpickrInstances() {
     if (fpScheduled) { fpScheduled.destroy(); fpScheduled = null; }
     if (fpEnds) { fpEnds.destroy(); fpEnds = null; }
@@ -88,6 +117,7 @@ function destroyFlatpickrInstances() {
 function closeInterviewModal() {
     var modal = document.getElementById('interview-modal');
     modal.classList.add('hidden');
+    _isNewRoundMode = false;
     destroyFlatpickrInstances();
     resetInterviewForm();
 }
@@ -96,7 +126,6 @@ function closeInterviewModal() {
 function resetInterviewForm() {
     document.getElementById('interview-form').reset();
     document.getElementById('iv-analysis-id').value = '';
-    // Reset dynamic fields visibility
     togglePlatformFields();
 }
 
@@ -120,7 +149,6 @@ function populateInterviewForm(data) {
     if (data.location) document.getElementById('iv-location').value = data.location;
     if (data.notes) document.getElementById('iv-notes').value = data.notes;
 
-    // Update dynamic fields after populating platform
     togglePlatformFields();
 }
 
@@ -139,6 +167,10 @@ function submitInterview(e) {
     var analysisId = document.getElementById('iv-analysis-id').value;
     var scheduled = document.getElementById('iv-scheduled').value;
     if (!scheduled) return false;
+
+    if (_isNewRoundMode) {
+        return submitNewRound(analysisId, scheduled);
+    }
 
     // Only send values from visible platform-dependent fields
     var platform = document.getElementById('iv-platform').value || null;
@@ -209,21 +241,42 @@ function submitInterview(e) {
             if (typeof refreshSpending === 'function') refreshSpending();
             if (typeof refreshDashboard === 'function') refreshDashboard();
             showToast('Colloquio salvato', 'success');
-            if (window.location.pathname.indexOf('/analysis/') !== -1) {
-                setTimeout(function() {
-                    var ref = document.referrer;
-                    if (ref && ref.indexOf('/interviews') !== -1) {
-                        window.location.href = '/interviews';
-                    } else {
-                        window.location.reload();
-                    }
-                }, 1200);
+            if (window.location.pathname.indexOf('/analysis/') !== -1 ||
+                window.location.pathname.indexOf('/interviews') !== -1) {
+                setTimeout(function() { window.location.reload(); }, 800);
             }
         }
     })
     .catch(function(e) {
         console.error('submitInterview error:', e);
         showToast('Errore salvataggio colloquio', 'error');
+    });
+
+    return false;
+}
+
+
+function submitNewRound(analysisId, scheduled) {
+    var interviewType = document.getElementById('iv-type').value || null;
+
+    fetch('/api/v1/interviews/' + analysisId + '/next-round', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ scheduled_at: scheduled, interview_type: interviewType })
+    })
+    .then(function(r) { return r.json().then(function(d) { return {status: r.status, data: d}; }); })
+    .then(function(res) {
+        if (res.status >= 400 || res.data.error) {
+            showToast(res.data.error || 'Errore creazione round', 'error');
+            return;
+        }
+        closeInterviewModal();
+        showToast('Round ' + res.data.round_number + ' creato', 'success');
+        setTimeout(function() { window.location.reload(); }, 800);
+    })
+    .catch(function(e) {
+        console.error('submitNewRound error:', e);
+        showToast('Errore di rete', 'error');
     });
 
     return false;
@@ -250,14 +303,7 @@ function deleteInterviewFromDetail(analysisId) {
 }
 
 
-function logRoundOutcome(interviewId, outcome, analysisId) {
-    var confirmMsg = {
-        passed: 'Confermi di aver superato questo round? Potrai poi scegliere il prossimo step.',
-        rejected: 'Confermi l\'esito "scartato"? L\'analisi passera\' a stato scartato.',
-        withdrawn: 'Confermi di aver ritirato la candidatura? L\'analisi passera\' a stato scartato.'
-    }[outcome];
-    if (!confirm(confirmMsg)) return;
-
+function logRoundOutcome(interviewId, outcome) {
     fetch('/api/v1/interviews/round/' + interviewId + '/outcome', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
@@ -270,11 +316,7 @@ function logRoundOutcome(interviewId, outcome, analysisId) {
             return;
         }
         showToast('Esito salvato', 'success');
-        if (outcome === 'passed') {
-            promptNextRound(analysisId);
-        } else {
-            window.location.reload();
-        }
+        setTimeout(function() { window.location.reload(); }, 800);
     })
     .catch(function(e) {
         console.error('logRoundOutcome error:', e);
@@ -283,77 +325,22 @@ function logRoundOutcome(interviewId, outcome, analysisId) {
 }
 
 
-function promptNextRound(analysisId) {
-    var answer = window.prompt(
-        'Prossimo step?\n\n  tecnico\n  hr\n  conoscitivo\n  finale\n  offerta  (= arrivata offerta, chiude il processo)\n\nLascia vuoto per restare a "colloquio" senza nuovo round.',
-        'tecnico'
-    );
-    if (answer === null) { window.location.reload(); return; }
-    var choice = (answer || '').trim().toLowerCase();
-    if (choice === '') { window.location.reload(); return; }
-
-    if (choice === 'offerta') {
-        fetch('/api/v1/status/' + analysisId + '/offerta', {
-            method: 'POST',
-            headers: { 'Accept': 'application/json' }
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            if (data.ok) {
-                showToast('Offerta registrata!', 'success');
-                window.location.reload();
-            } else {
-                showToast(data.error || 'Errore', 'error');
-            }
-        });
-        return;
-    }
-
-    var validTypes = ['tecnico', 'hr', 'conoscitivo', 'finale', 'other'];
-    if (validTypes.indexOf(choice) === -1) {
-        showToast('Tipo non valido: ' + choice, 'error');
-        return;
-    }
-
-    var whenStr = window.prompt(
-        'Quando e\' previsto il prossimo round?\n\nFormato: YYYY-MM-DD HH:MM (es: 2026-04-22 14:30)\n\nSe non lo sai ancora, scrivi una data fittizia e la aggiorni dopo con "Modifica".',
-        ''
-    );
-    if (!whenStr) { showToast('Round annullato', 'info'); window.location.reload(); return; }
-
-    var scheduled = parseScheduledAt(whenStr);
-    if (!scheduled) {
-        showToast('Formato data non valido', 'error');
-        return;
-    }
-
-    fetch('/api/v1/interviews/' + analysisId + '/next-round', {
+function markAsOffer(analysisId) {
+    fetch('/api/v1/status/' + analysisId + '/offerta', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ scheduled_at: scheduled, interview_type: choice })
+        headers: { 'Accept': 'application/json' }
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
         if (data.ok) {
-            showToast('Round ' + data.round_number + ' creato', 'success');
-            window.location.reload();
+            showToast('Offerta registrata!', 'success');
+            setTimeout(function() { window.location.reload(); }, 800);
         } else {
-            showToast(data.error || 'Errore creazione round', 'error');
+            showToast(data.error || 'Errore', 'error');
         }
     })
     .catch(function(e) {
-        console.error('nextRound error:', e);
+        console.error('markAsOffer error:', e);
         showToast('Errore di rete', 'error');
     });
-}
-
-
-function parseScheduledAt(s) {
-    var m = /^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{2})$/.exec(s.trim());
-    if (!m) return null;
-    var y = parseInt(m[1], 10), mo = parseInt(m[2], 10), d = parseInt(m[3], 10);
-    var h = parseInt(m[4], 10), mi = parseInt(m[5], 10);
-    if (mo < 1 || mo > 12 || d < 1 || d > 31 || h > 23 || mi > 59) return null;
-    var dt = new Date(y, mo - 1, d, h, mi, 0);
-    return dt.toISOString();
 }
