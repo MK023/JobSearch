@@ -305,6 +305,35 @@ def create_app() -> FastAPI:
             "cache": cache_stats,
         }
 
+    # --- Dedicated DB health check for Checkly ---
+    @app.get("/health/db")
+    def health_db(db: DbSession) -> dict[str, Any]:
+        """Lightweight DB-only health check for external monitoring (Checkly).
+
+        Returns 200 if DB is reachable, 503 if not. No auth required — this
+        endpoint reveals no sensitive info, just connectivity status.
+        """
+        try:
+            db.execute(select(1))
+            return {"status": "ok", "db": "connected"}
+        except Exception:
+            from fastapi.responses import JSONResponse
+
+            return JSONResponse({"status": "error", "db": "unreachable"}, status_code=503)  # type: ignore[return-value]
+
+    # --- Dedicated cache health check for Checkly ---
+    @app.get("/health/cache")
+    def health_cache() -> dict[str, Any]:
+        """Cache-only health check for external monitoring."""
+        import contextlib
+
+        cache_status = "ok"
+        with contextlib.suppress(Exception):
+            stats = app.state.cache.stats()
+            if not isinstance(stats, dict):
+                cache_status = "degraded"
+        return {"status": cache_status}
+
     return app
 
 

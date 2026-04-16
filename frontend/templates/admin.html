@@ -114,6 +114,19 @@
 
   Chart.defaults.color = textSecondary;
   Chart.defaults.borderColor = borderSubtle;
+  Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+
+  var tooltipStyle = {
+    backgroundColor: 'rgba(28, 28, 30, 0.95)',
+    titleColor: '#f5f5f7',
+    bodyColor: '#f5f5f7',
+    borderColor: borderSubtle,
+    borderWidth: 1,
+    padding: 10,
+    cornerRadius: 8,
+    displayColors: true,
+    boxPadding: 4
+  };
 
   // Hourly chart
   if (document.getElementById('hourlyChart')) {
@@ -128,15 +141,34 @@
           label: 'Richieste',
           data: hourly.map(function(h) { return h.count; }),
           backgroundColor: 'rgba(10, 132, 255, 0.6)',
+          hoverBackgroundColor: 'rgba(10, 132, 255, 0.85)',
           borderRadius: 4
+        }, {
+          label: 'Latenza media (ms)',
+          data: hourly.map(function(h) { return h.avg_ms; }),
+          type: 'line',
+          borderColor: 'rgba(48, 209, 88, 0.8)',
+          backgroundColor: 'rgba(48, 209, 88, 0.1)',
+          tension: 0.3,
+          pointRadius: 3,
+          yAxisID: 'y1',
+          fill: false
         }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { color: textSecondary, font: { size: 11, weight: 600 }, usePointStyle: true, pointStyle: 'circle', padding: 14 }
+          },
+          tooltip: tooltipStyle
+        },
         scales: {
-          y: { beginAtZero: true, ticks: { stepSize: 1 } }
+          x: { ticks: { color: textSecondary, font: { size: 11 } }, grid: { color: borderSubtle } },
+          y: { beginAtZero: true, ticks: { color: textSecondary, font: { size: 11 }, stepSize: 1 }, grid: { color: borderSubtle }, position: 'left', title: { display: true, text: 'Richieste', color: textSecondary, font: { size: 10 } } },
+          y1: { beginAtZero: true, ticks: { color: 'rgba(48, 209, 88, 0.7)', font: { size: 10 } }, grid: { display: false }, position: 'right', title: { display: true, text: 'ms', color: 'rgba(48, 209, 88, 0.7)', font: { size: 10 } } }
         }
       }
     });
@@ -146,6 +178,7 @@
   if (document.getElementById('statusChart')) {
     var labels = Object.keys(statusBreakdown);
     var data = Object.values(statusBreakdown);
+    var labelMap = { '2xx': '2xx OK', '3xx': '3xx Redirect', '4xx': '4xx Client Error', '5xx': '5xx Server Error' };
     var colors = labels.map(function(l) {
       if (l === '2xx') return 'rgba(48, 209, 88, 0.7)';
       if (l === '3xx') return 'rgba(10, 132, 255, 0.7)';
@@ -155,15 +188,19 @@
     new Chart(document.getElementById('statusChart'), {
       type: 'doughnut',
       data: {
-        labels: labels,
-        datasets: [{ data: data, backgroundColor: colors, borderWidth: 0 }]
+        labels: labels.map(function(l) { return labelMap[l] || l; }),
+        datasets: [{ data: data, backgroundColor: colors, borderWidth: 0, hoverOffset: 6 }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         cutout: '60%',
         plugins: {
-          legend: { position: 'bottom', labels: { usePointStyle: true, padding: 12 } }
+          legend: {
+            position: 'bottom',
+            labels: { color: textSecondary, font: { size: 11, weight: 600 }, usePointStyle: true, pointStyle: 'circle', padding: 14 }
+          },
+          tooltip: tooltipStyle
         }
       }
     });
