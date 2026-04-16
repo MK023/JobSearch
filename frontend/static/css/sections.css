@@ -138,6 +138,14 @@
   }
 }
 
+/* --- Dashboard metric cards auto-fit grid --- */
+
+.grid-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-lg);
+}
+
 /* --- Dashboard widgets (follow-up, today, db-usage, top candidates) --- */
 
 .dash-widget {
@@ -1001,6 +1009,21 @@
 
 .interview-card-detail a:hover {
   text-decoration: underline;
+}
+
+.interview-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+  align-items: center;
+}
+
+.interview-card-actions-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--border-subtle);
+  margin: 0 var(--space-xs);
 }
 
 .past-section {
