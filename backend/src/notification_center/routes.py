@@ -2,10 +2,12 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Form
+from fastapi import APIRouter, Form, Request
 from fastapi.responses import JSONResponse
 
+from ..config import settings
 from ..dependencies import CurrentUser, DbSession
+from ..rate_limit import limiter
 from .models import NotificationDismissal
 from .service import dismiss_notification, get_notifications, undismiss_notification
 
@@ -23,7 +25,9 @@ def notifications_api(
 
 
 @router.post("/notifications/dismiss")
+@limiter.limit(settings.rate_limit_default)
 def dismiss_api(
+    request: Request,
     db: DbSession,
     user: CurrentUser,
     notification_id: Annotated[str, Form()],
@@ -36,7 +40,9 @@ def dismiss_api(
 
 
 @router.post("/notifications/undismiss")
+@limiter.limit(settings.rate_limit_default)
 def undismiss_api(
+    request: Request,
     db: DbSession,
     user: CurrentUser,
     notification_id: Annotated[str, Form()],
@@ -49,7 +55,9 @@ def undismiss_api(
 
 
 @router.delete("/notifications/dismissals")
+@limiter.limit(settings.rate_limit_default)
 def clear_all_dismissals(
+    request: Request,
     db: DbSession,
     user: CurrentUser,
 ) -> JSONResponse:

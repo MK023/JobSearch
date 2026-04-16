@@ -2,11 +2,13 @@
 
 import re
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from ..config import settings
 from ..dependencies import CurrentUser, DbSession, validate_uuid
+from ..rate_limit import limiter
 from .service import create_contact, delete_contact_by_id, get_contacts_for_analysis
 
 router = APIRouter(tags=["contacts"])
@@ -30,7 +32,9 @@ class ContactPayload(BaseModel):
 
 
 @router.post("/contacts")
+@limiter.limit(settings.rate_limit_default)
 def add_contact(
+    request: Request,
     payload: ContactPayload,
     db: DbSession,
     user: CurrentUser,

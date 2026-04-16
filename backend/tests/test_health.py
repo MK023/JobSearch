@@ -33,17 +33,10 @@ class TestHealthEndpoint:
         r = client.get("/health")
         assert r.status_code == 200
 
-    def test_payload_shape(self, client):
+    def test_minimal_payload_when_unauthenticated(self, client):
+        """Unauthenticated health check returns only status (no system info leak)."""
         r = client.get("/health").json()
         assert r["status"] in ("ok", "degraded")
-        assert "db" in r
-        assert "version" in r
-        assert "uptime_seconds" in r
-        assert "cache" in r
-
-    def test_db_size_mb_field_present(self, client):
-        """db_size_mb is always returned. Null on SQLite (test env), float on Postgres."""
-        r = client.get("/health").json()
-        assert "db_size_mb" in r
-        # SQLite (test env) does not support pg_database_size → null
-        assert r["db_size_mb"] is None or isinstance(r["db_size_mb"], int | float)
+        assert "db" not in r
+        assert "version" not in r
+        assert "uptime_seconds" not in r
