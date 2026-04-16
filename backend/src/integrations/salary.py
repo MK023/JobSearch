@@ -8,7 +8,7 @@ import json
 import logging
 import uuid
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 import httpx
 from sqlalchemy import Column, DateTime, String, Text
@@ -102,7 +102,7 @@ def fetch_salary_data(
             if cached and cached.fetched_at:
                 age = datetime.now(UTC) - cached.fetched_at.replace(tzinfo=UTC)
                 if age < timedelta(days=CACHE_DAYS) and cached.salary_data:
-                    return json.loads(cached.salary_data)
+                    return cast(dict[str, Any], json.loads(str(cached.salary_data)))
         except Exception:  # noqa: S110 — cache miss is non-fatal
             pass
 
@@ -121,8 +121,8 @@ def fetch_salary_data(
         try:
             cached = db.query(SalaryCache).filter(SalaryCache.cache_key == key).first()
             if cached:
-                cached.salary_data = json.dumps(result)
-                cached.fetched_at = datetime.now(UTC)
+                cached.salary_data = json.dumps(result)  # type: ignore[assignment]
+                cached.fetched_at = datetime.now(UTC)  # type: ignore[assignment]
             else:
                 db.add(SalaryCache(cache_key=key, salary_data=json.dumps(result)))
             db.flush()

@@ -8,7 +8,7 @@ import json
 import logging
 import uuid
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 import httpx
 from sqlalchemy import Column, DateTime, String, Text
@@ -96,7 +96,7 @@ def fetch_company_news(
             if cached and cached.fetched_at:
                 age = datetime.now(UTC) - cached.fetched_at.replace(tzinfo=UTC)
                 if age < timedelta(days=CACHE_DAYS) and cached.news_data:
-                    return json.loads(cached.news_data)
+                    return cast(list[dict[str, Any]], json.loads(str(cached.news_data)))
         except Exception:  # noqa: S110 — cache miss is non-fatal
             pass
 
@@ -111,8 +111,8 @@ def fetch_company_news(
         try:
             cached = db.query(NewsCache).filter(NewsCache.company_name == name_norm).first()
             if cached:
-                cached.news_data = json.dumps(articles)
-                cached.fetched_at = datetime.now(UTC)
+                cached.news_data = json.dumps(articles)  # type: ignore[assignment]
+                cached.fetched_at = datetime.now(UTC)  # type: ignore[assignment]
             else:
                 db.add(NewsCache(company_name=name_norm, news_data=json.dumps(articles)))
             db.flush()
