@@ -35,7 +35,7 @@
     {% with value=dashboard.avg_score|default(0), label="Score medio candidature", icon="target", accent="orange" %}{% include "partials/metric_card.html" %}{% endwith %}
   </div>
 
-  {# Follow-up pendenti + Attività oggi — side by side #}
+  {# Follow-up pendenti + Colloqui prossimi — side by side (Cowork layout) #}
   <div class="grid-2col mb-xl">
 
     {# Follow-up pendenti #}
@@ -59,6 +59,39 @@
       {% endif %}
     </section>
 
+    {# Colloqui prossimi 14 giorni #}
+    <section class="card dash-widget">
+      <h2 class="section-title">Colloqui prossimi</h2>
+      {% if upcoming_interviews %}
+        {% for iv in upcoming_interviews %}
+        <div class="dash-interview-card">
+          <div class="dash-widget-row-main">
+            <a href="/analysis/{{ iv.analysis_id }}" class="dash-widget-row-title">{{ iv.company }} &mdash; {{ iv.role }}</a>
+            <span class="dash-widget-row-sub">
+              {% if iv.interview_type %}{{ iv.interview_type }} &middot; {% endif %}
+              {% if iv.platform == 'teams' %}Teams{% elif iv.platform == 'google_meet' %}Google Meet{% elif iv.platform == 'zoom' %}Zoom{% elif iv.platform == 'phone' %}Telefonico{% elif iv.platform == 'in_person' %}In presenza{% elif iv.platform %}{{ iv.platform }}{% endif %}
+            </span>
+            {% if iv.meeting_link %}
+            <a href="{{ iv.meeting_link }}" target="_blank" rel="noopener" class="dash-meeting-link">Apri meeting &rarr;</a>
+            {% endif %}
+          </div>
+          <div class="dash-interview-meta">
+            <span class="dash-interview-date">{{ iv.date_display }}</span>
+            <span class="dash-interview-time">{{ iv.time_display }}</span>
+          </div>
+        </div>
+        {% endfor %}
+        <div class="meta-small" style="margin-top: var(--space-sm);"><a href="/interviews" class="link-subtle">Gestisci colloqui &rarr;</a></div>
+      {% else %}
+        <div class="empty-state" style="padding: var(--space-lg);">Nessun colloquio in programma</div>
+      {% endif %}
+    </section>
+
+  </div>
+
+  {# Attività oggi + DB usage — side by side #}
+  <div class="grid-2col mb-xl">
+
     {# Attività oggi #}
     <section class="card dash-widget">
       <h2 class="section-title">Attività oggi</h2>
@@ -75,11 +108,6 @@
         <span class="meta-small">{{ spending.today_tokens_input|default(0) }} / {{ spending.today_tokens_output|default(0) }}</span>
       </div>
     </section>
-
-  </div>
-
-  {# DB usage + Top match — side by side #}
-  <div class="grid-2col mb-xl">
 
     {# DB Usage #}
     <section class="card dash-widget">
@@ -102,7 +130,10 @@
       </div>
     </section>
 
-    {# Top 10 candidature #}
+  </div>
+
+  {# Top 10 candidature — full width #}
+  <div class="mb-xl">
     <section class="card dash-widget">
       <h2 class="section-title">Top 10 candidature</h2>
       {% if top_candidates %}

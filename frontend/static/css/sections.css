@@ -236,6 +236,54 @@
   color: var(--accent-red);
 }
 
+/* --- Dashboard interview widget --- */
+
+.dash-interview-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  background: rgb(135 119 217 / 6%);
+  border: 1px solid rgb(135 119 217 / 15%);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-sm);
+}
+
+.dash-interview-card:last-of-type {
+  margin-bottom: 0;
+}
+
+.dash-meeting-link {
+  display: inline-block;
+  font-size: var(--text-xs);
+  color: var(--accent-blue);
+  text-decoration: none;
+  margin-top: var(--space-xs);
+}
+
+.dash-meeting-link:hover {
+  text-decoration: underline;
+}
+
+.dash-interview-meta {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.dash-interview-date {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+.dash-interview-time {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
 /* --- Completion banner (background analysis done) --- */
 
 .completion-banner {

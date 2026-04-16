@@ -49,11 +49,14 @@ def dashboard_page(
     templates = request.app.state.templates
     flash = _flash(request)
 
+    from .interview.service import get_upcoming_interviews
+
     dashboard = get_dashboard(db)
     spending = get_spending(db)
     followup_alerts = get_followup_alerts(db)
     top_candidates = get_top_candidates(db, limit=10)
     db_usage = get_db_usage(db)
+    upcoming_interviews = get_upcoming_interviews(db, days=14)
 
     return templates.TemplateResponse(  # type: ignore[no-any-return]
         request,
@@ -63,6 +66,7 @@ def dashboard_page(
             "dashboard": dashboard,
             "spending": spending,
             "followup_alerts": followup_alerts,
+            "upcoming_interviews": upcoming_interviews,
             "top_candidates": top_candidates,
             "db_usage": db_usage,
             "error": flash["error"],
