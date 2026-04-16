@@ -1,0 +1,4 @@
+# Copy to terraform.tfvars and fill in your values
+checkly_api_key    = "cu_..."
+checkly_account_id = "..."
+jobsearch_api_key  = "..."
