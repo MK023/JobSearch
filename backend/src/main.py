@@ -188,7 +188,7 @@ def create_app() -> FastAPI:
             "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
             "font-src 'self' https://fonts.gstatic.com; "
-            "img-src 'self' data:; "
+            "img-src 'self' data: https:; "
             "connect-src 'self' https://*.r2.cloudflarestorage.com https://api.open-meteo.com; "
             "frame-ancestors 'none'"
         )
