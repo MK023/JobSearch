@@ -360,11 +360,16 @@ def agenda_page(
 
     todos = db.query(TodoItem).order_by(TodoItem.done, TodoItem.created_at.desc()).all()
 
+    _days_it = ["Lunedi", "Martedi", "Mercoledi", "Giovedi", "Venerdi", "Sabato", "Domenica"]
+    _months_it = ["gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic"]
+    today_display = f"{_days_it[now.weekday()]} {now.day:02d}/{now.month:02d}/{now.year}"
+
     return templates.TemplateResponse(  # type: ignore[no-any-return]
         request,
         "agenda.html",
         {
             **_base_ctx(db, user, "agenda"),
+            "today_display": today_display,
             "today_interviews": today_interviews,
             "week_interviews": week_interviews,
             "followup_alerts": followup_alerts,

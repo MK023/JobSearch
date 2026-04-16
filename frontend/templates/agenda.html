@@ -39,7 +39,7 @@
   <section class="agenda-group">
     <div class="agenda-day-header agenda-day-today">
       <span class="agenda-day-dot"></span>
-      Oggi
+      Oggi &mdash; {{ today_display }}
     </div>
 
     {# Colloqui oggi #}
@@ -167,7 +167,7 @@
     <div class="agenda-section-header">&#x2705; To-do</div>
     {% for t in todos %}
     <div class="agenda-card{% if t.done %} agenda-card-done{% endif %}" id="todo-{{ t.id }}">
-      <div class="agenda-card-icon agenda-icon-todo" style="cursor:pointer" onclick="toggleTodo({{ t.id }})">{{ '&#x2705;' if t.done else '&#x2B1C;' }}</div>
+      <div class="agenda-card-icon agenda-icon-todo" style="cursor:pointer" onclick="toggleTodo({{ t.id }})">{% if t.done %}&#x2705;{% else %}&#x2B1C;{% endif %}</div>
       <div class="agenda-card-body">
         <div class="agenda-card-title" {% if t.done %}style="text-decoration:line-through;opacity:0.5"{% endif %}>{{ t.text }}</div>
       </div>
