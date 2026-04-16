@@ -29,7 +29,7 @@
   {% endif %}
 
   {# 3 metric cards #}
-  <div class="grid-3col mb-xl">
+  <div class="grid-metrics mb-xl">
     {% with value=dashboard.total|default(0), label="Analizzate in totale", icon="analyze", accent="blue" %}{% include "partials/metric_card.html" %}{% endwith %}
     {% with value=dashboard.applied|default(0), label="Candidature inviate", icon="send", accent="green" %}{% include "partials/metric_card.html" %}{% endwith %}
     {% with value=dashboard.avg_score|default(0), label="Score medio candidature", icon="target", accent="orange" %}{% include "partials/metric_card.html" %}{% endwith %}
@@ -122,22 +122,6 @@
 
   </div>
 
-  {# Pending analyses — dedicated query, not filtered from last-5 #}
-  <section>
-    <div class="section-header">
-      <h2 class="section-title">Da valutare ({{ pending|length if pending else 0 }})</h2>
-      <a href="/history" class="link-subtle">Storico &rarr;</a>
-    </div>
-    {% if pending %}
-      {% for analysis in pending %}
-        {% include "partials/job_card.html" %}
-      {% endfor %}
-    {% else %}
-      <div class="card empty-state">
-        <p>Tutto gestito. Nessuna analisi in attesa di decisione.</p>
-      </div>
-    {% endif %}
-  </section>
 
 </div>
 {% endblock %}

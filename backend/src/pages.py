@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, Response
 
-from .analysis.models import AnalysisStatus, JobAnalysis
+from .analysis.models import AnalysisStatus
 from .analysis.service import get_recent_analyses
 from .cv.service import get_latest_cv
 from .dashboard.service import get_dashboard, get_db_usage, get_followup_alerts, get_spending, get_top_candidates
@@ -51,16 +51,6 @@ def dashboard_page(
 
     dashboard = get_dashboard(db)
     spending = get_spending(db)
-    analyses = get_recent_analyses(db, limit=5)
-
-    pending = (
-        db.query(JobAnalysis)
-        .filter(JobAnalysis.status == AnalysisStatus.PENDING.value)
-        .order_by(JobAnalysis.created_at.desc())
-        .limit(20)
-        .all()
-    )
-
     followup_alerts = get_followup_alerts(db)
     top_candidates = get_top_candidates(db, limit=10)
     db_usage = get_db_usage(db)
@@ -72,8 +62,6 @@ def dashboard_page(
             **_base_ctx(db, user, "dashboard"),
             "dashboard": dashboard,
             "spending": spending,
-            "pending": pending,
-            "analyses": analyses,
             "followup_alerts": followup_alerts,
             "top_candidates": top_candidates,
             "db_usage": db_usage,
@@ -168,9 +156,11 @@ def interviews_page(
 
     upcoming = [
         {
+            "interview_id": str(i.id),
             "analysis_id": str(a.id),
             "company": a.company,
             "role": a.role,
+            "round_number": i.round_number,
             "scheduled_at": i.scheduled_at.isoformat(),
             "ends_at": i.ends_at.isoformat() if i.ends_at else None,
             "date_display": format_date(i.scheduled_at),

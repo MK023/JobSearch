@@ -47,9 +47,19 @@
         <a href="{{ iv.meeting_link }}" target="_blank" rel="noopener noreferrer">{{ iv.meeting_link }}</a>
       </div>
       {% endif %}
+      {% if iv.interview_type %}
+      <div class="interview-card-detail">
+        <span>&#x1F3AF;</span>
+        <span>{{ iv.interview_type }}{% if iv.round_number and iv.round_number > 1 %} &middot; round {{ iv.round_number }}{% endif %}</span>
+      </div>
+      {% endif %}
       <div class="interview-card-actions">
+        <button class="btn btn-success btn-sm" onclick="logRoundOutcome('{{ iv.interview_id }}', 'passed', '{{ iv.analysis_id }}')">Passato</button>
+        <button class="btn btn-danger btn-sm" onclick="logRoundOutcome('{{ iv.interview_id }}', 'rejected', '{{ iv.analysis_id }}')">Scartato</button>
+        <button class="btn btn-muted btn-sm" onclick="logRoundOutcome('{{ iv.interview_id }}', 'withdrawn', '{{ iv.analysis_id }}')">Ritirato</button>
+        <span class="interview-card-actions-sep"></span>
         <button class="btn btn-primary btn-sm" onclick="openInterviewModal('{{ iv.analysis_id }}')">Modifica</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteInterviewFromDetail('{{ iv.analysis_id }}')">Rimuovi</button>
+        <button class="btn btn-muted btn-sm" onclick="deleteInterviewFromDetail('{{ iv.analysis_id }}')">Rimuovi</button>
       </div>
     </div>
     {% endfor %}
