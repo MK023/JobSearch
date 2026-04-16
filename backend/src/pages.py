@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, Response
 
-from .analysis.models import AnalysisStatus
+from .analysis.models import AnalysisStatus, JobAnalysis
 from .analysis.service import get_recent_analyses
 from .cv.service import get_latest_cv
 from .dashboard.service import get_dashboard, get_spending
@@ -53,6 +53,14 @@ def dashboard_page(
     spending = get_spending(db)
     analyses = get_recent_analyses(db, limit=5)
 
+    pending = (
+        db.query(JobAnalysis)
+        .filter(JobAnalysis.status == AnalysisStatus.PENDING.value)
+        .order_by(JobAnalysis.created_at.desc())
+        .limit(20)
+        .all()
+    )
+
     return templates.TemplateResponse(  # type: ignore[no-any-return]
         request,
         "dashboard.html",
@@ -60,6 +68,7 @@ def dashboard_page(
             **_base_ctx(db, user, "dashboard"),
             "dashboard": dashboard,
             "spending": spending,
+            "pending": pending,
             "analyses": analyses,
             "error": flash["error"],
             "message": flash["message"],

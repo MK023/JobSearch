@@ -39,25 +39,19 @@
      nella tab Notifiche del sidebar — la dashboard resta focalizzata su metriche e
      lista recente. #}
 
-  {# Pending analyses — only "da valutare" (actionable items) #}
+  {# Pending analyses — dedicated query, not filtered from last-5 #}
   <section>
     <div class="section-header">
-      <h2 class="section-title">Da valutare</h2>
+      <h2 class="section-title">Da valutare ({{ pending|length if pending else 0 }})</h2>
       <a href="/history" class="link-subtle">Storico &rarr;</a>
     </div>
-    {% set pending = analyses|selectattr("status", "equalto", "da_valutare")|list %}
     {% if pending %}
       {% for analysis in pending %}
         {% include "partials/job_card.html" %}
       {% endfor %}
-    {% elif analyses %}
-      <div class="card empty-state">
-        <p>Tutto gestito. Nessuna analisi in attesa di decisione.</p>
-      </div>
     {% else %}
       <div class="card empty-state">
-        <p class="mb-lg">Nessuna analisi ancora</p>
-        <a href="/analyze" class="btn btn-primary">Analizza la tua prima offerta &rarr;</a>
+        <p>Tutto gestito. Nessuna analisi in attesa di decisione.</p>
       </div>
     {% endif %}
   </section>
