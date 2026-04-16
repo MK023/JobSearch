@@ -210,8 +210,12 @@ def set_round_outcome(
 
     try:
         updated = set_outcome(db, interview_id, payload.outcome)
-    except ValueError as exc:
-        return JSONResponse({"error": str(exc)}, status_code=400)
+    except ValueError:
+        # Pydantic already constrains `outcome` to the whitelist via the
+        # regex pattern; set_outcome() re-validates defensively. A request
+        # that slips past both is a bug, not user input — return a generic
+        # 400 and keep the internal message off the wire.
+        return JSONResponse({"error": "Invalid outcome value"}, status_code=400)
 
     if updated is None:
         return JSONResponse({"error": "Interview round not found"}, status_code=404)
