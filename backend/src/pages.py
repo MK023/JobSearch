@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, Response
 
-from .analysis.models import AnalysisStatus
+from .analysis.models import AnalysisStatus, JobAnalysis
 from .analysis.service import get_recent_analyses
 from .cv.service import get_latest_cv
 from .dashboard.service import get_dashboard, get_spending
@@ -27,13 +27,15 @@ def _flash(request: Request) -> dict[str, Any]:
 def _base_ctx(db: DbSession, user: CurrentUser, active_page: str) -> dict[str, Any]:
     """Context keys injected on EVERY page render.
 
-    Currently: notification badge count for the sidebar. Having this in a
-    single helper prevents any page from silently losing the badge.
+    Sidebar badges: notification count + upcoming interview count.
     """
+    from .interview.service import get_upcoming_interviews
+
     return {
         "user": user,
         "active_page": active_page,
         "notification_count": get_unread_count(db),
+        "interview_count": len(get_upcoming_interviews(db, days=30)),
     }
 
 
@@ -51,6 +53,14 @@ def dashboard_page(
     spending = get_spending(db)
     analyses = get_recent_analyses(db, limit=5)
 
+    pending = (
+        db.query(JobAnalysis)
+        .filter(JobAnalysis.status == AnalysisStatus.PENDING.value)
+        .order_by(JobAnalysis.created_at.desc())
+        .limit(20)
+        .all()
+    )
+
     return templates.TemplateResponse(  # type: ignore[no-any-return]
         request,
         "dashboard.html",
@@ -58,6 +68,7 @@ def dashboard_page(
             **_base_ctx(db, user, "dashboard"),
             "dashboard": dashboard,
             "spending": spending,
+            "pending": pending,
             "analyses": analyses,
             "error": flash["error"],
             "message": flash["message"],
