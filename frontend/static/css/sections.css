@@ -983,18 +983,25 @@
 .history-list {
   padding: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .history-item {
   display: flex;
   align-items: center;
   gap: var(--space-md);
-  padding: var(--space-md) var(--space-lg);
-  transition: background var(--transition-fast);
+  padding: var(--space-sm) var(--space-lg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-secondary);
+  transition: border-color 0.15s, transform var(--transition-fast);
 }
 
 .history-item:hover {
-  background: var(--bg-tertiary);
+  border-color: var(--accent-blue);
+  transform: translateY(-1px);
 }
 
 .history-item-link {
@@ -1044,6 +1051,11 @@
 
 .interview-card {
   padding: var(--space-lg);
+  transition: border-color 0.15s;
+}
+
+.interview-card:hover {
+  border-color: var(--accent-blue);
 }
 
 .interview-card-header {
@@ -1870,8 +1882,13 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
   padding: var(--space-lg);
   margin-bottom: var(--space-md);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   background: var(--bg-secondary);
+  transition: border-color 0.15s;
+}
+
+.notification-card:hover {
+  border-color: var(--accent-blue);
 }
 
 .notification-card-critical {
@@ -1958,11 +1975,16 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
 .stats-card {
   background: var(--bg-secondary);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   padding: var(--space-lg);
   min-height: 280px;
   display: flex;
   flex-direction: column;
+  transition: border-color 0.15s;
+}
+
+.stats-card:hover {
+  border-color: var(--accent-blue);
 }
 
 .stats-card-wide {
