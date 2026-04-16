@@ -28,19 +28,6 @@
   <div class="message-banner banner-success">{{ message }}</div>
   {% endif %}
 
-  {# Cowork banner — nuove analisi da valutare #}
-  {% set _pending = dashboard.pending|default(0)|int %}
-  {% if _pending > 0 %}
-  <a href="/history" class="cowork-banner no-underline mb-xl">
-    <span class="cowork-banner-icon">&#x1F4E5;</span>
-    <div class="cowork-banner-body">
-      <span class="cowork-banner-title">{{ _pending }} analisi da valutare</span>
-      <span class="cowork-banner-sub">Nuovi risultati da Cowork pronti per la revisione</span>
-    </div>
-    <span class="cowork-banner-action">Vai allo storico &rarr;</span>
-  </a>
-  {% endif %}
-
   {# 3 metric cards #}
   <div class="grid-metrics mb-xl">
     {% with value=dashboard.total|default(0), label="Analizzate in totale", icon="analyze", accent="blue" %}{% include "partials/metric_card.html" %}{% endwith %}
@@ -102,8 +89,29 @@
 
   </div>
 
-  {# Attività oggi + DB usage — side by side #}
+  {# Da valutare (Cowork) + Attività oggi — side by side #}
   <div class="grid-2col mb-xl">
+
+    {# Da valutare — si riempie quando Cowork manda analisi, si svuota quando le rivedi #}
+    <section class="card dash-widget">
+      <h2 class="section-title">Da valutare ({{ pending_analyses|length }})</h2>
+      {% if pending_analyses %}
+        {% for a in pending_analyses %}
+        <div class="dash-widget-row">
+          <div class="dash-widget-row-main">
+            <a href="/analysis/{{ a.id }}" class="dash-widget-row-title">{{ a.company or '—' }}</a>
+            <span class="dash-widget-row-sub">{{ a.role or '—' }}</span>
+          </div>
+          <span class="score-badge score-{{ 'high' if a.score >= 85 else ('mid' if a.score >= 70 else 'low') }}">{{ a.score or 0 }}</span>
+        </div>
+        {% endfor %}
+        {% if dashboard.pending|default(0)|int > 5 %}
+        <div class="meta-small" style="margin-top: var(--space-sm);">+ {{ dashboard.pending|default(0)|int - 5 }} altre &middot; <a href="/history" class="link-subtle">vedi tutte</a></div>
+        {% endif %}
+      {% else %}
+        <div class="empty-state" style="padding: var(--space-lg);">Tutto valutato</div>
+      {% endif %}
+    </section>
 
     {# Attività oggi #}
     <section class="card dash-widget">
@@ -122,30 +130,9 @@
       </div>
     </section>
 
-    {# DB Usage #}
-    <section class="card dash-widget">
-      <h2 class="section-title">Database usage</h2>
-      <div class="dash-widget-row">
-        <span class="dash-widget-row-main">Analisi</span>
-        <span class="dash-widget-kpi">{{ db_usage.analyses_count|default(0) }}</span>
-      </div>
-      <div class="dash-widget-row">
-        <span class="dash-widget-row-main">Batch items</span>
-        <span class="dash-widget-kpi">{{ db_usage.batch_items_count|default(0) }}</span>
-      </div>
-      <div class="dash-widget-row">
-        <span class="dash-widget-row-main">Audit log</span>
-        <span class="dash-widget-kpi">{{ db_usage.audit_logs_count|default(0) }}</span>
-      </div>
-      <div class="dash-widget-row">
-        <span class="dash-widget-row-main">Dimensione stimata</span>
-        <span class="dash-widget-kpi">{{ db_usage.estimated_size_mb|default(0) }} MB / 1 GB</span>
-      </div>
-    </section>
-
   </div>
 
-  {# Top 5 candidature — tabella con dettagli #}
+  {# Top 5 candidature — full width #}
   <section class="card dash-widget mb-xl">
     <h2 class="section-title">Top 5 candidature</h2>
     {% if top_candidates %}
@@ -180,8 +167,28 @@
     {% endif %}
   </section>
 
-
-</div>
+  {# DB Usage — compact full width #}
+  <section class="card dash-widget mb-xl">
+    <h2 class="section-title">Database usage</h2>
+    <div class="grid-metrics">
+      <div class="dash-widget-row">
+        <span class="dash-widget-row-main">Analisi</span>
+        <span class="dash-widget-kpi">{{ db_usage.analyses_count|default(0) }}</span>
+      </div>
+      <div class="dash-widget-row">
+        <span class="dash-widget-row-main">Batch items</span>
+        <span class="dash-widget-kpi">{{ db_usage.batch_items_count|default(0) }}</span>
+      </div>
+      <div class="dash-widget-row">
+        <span class="dash-widget-row-main">Audit log</span>
+        <span class="dash-widget-kpi">{{ db_usage.audit_logs_count|default(0) }}</span>
+      </div>
+      <div class="dash-widget-row">
+        <span class="dash-widget-row-main">Dimensione</span>
+        <span class="dash-widget-kpi">{{ db_usage.estimated_size_mb|default(0) }} MB / 1 GB</span>
+      </div>
+    </div>
+  </section>
 {% endblock %}
 {% block scripts_extra %}
 <script src="{{ url_for('static', path='js/modules/spending.js') }}?v={{ asset_v }}"></script>
