@@ -336,6 +336,50 @@ def _recent_errors(db: Session) -> list[Notification]:
         return []
 
 
+def _news_available(db: Session) -> list[Notification]:
+    """Notify when there are recent news for companies in active candidatures."""
+    try:
+        from ..integrations.news import NewsCache
+
+        active_statuses = [AnalysisStatus.APPLIED.value, AnalysisStatus.INTERVIEW.value]
+        companies = [
+            r[0]
+            for r in db.query(JobAnalysis.company)
+            .filter(JobAnalysis.status.in_(active_statuses), JobAnalysis.company.isnot(None), JobAnalysis.company != "")
+            .distinct()
+            .all()
+        ]
+        if not companies:
+            return []
+
+        cutoff = datetime.now(UTC) - timedelta(days=7)
+        news_count = (
+            db.query(func.count(NewsCache.id))
+            .filter(NewsCache.company_name.in_([c.lower() for c in companies]), NewsCache.fetched_at >= cutoff)
+            .scalar()
+            or 0
+        )
+        if news_count == 0:
+            return []
+
+        return [
+            Notification(
+                id=f"news:available:{news_count}",
+                type=NotificationType.NEWS_AVAILABLE,
+                severity=NotificationSeverity.INFO,
+                title=f"News disponibili per {news_count} aziend{'a' if news_count == 1 else 'e'}",
+                body="Controlla la pagina News per le ultime notizie sulle aziende delle candidature attive.",
+                action_url="/news",
+                action_label="Vedi news",
+                dismissible=True,
+                sticky=False,
+                created_at=datetime.now(UTC),
+            )
+        ]
+    except Exception:
+        return []
+
+
 _SEVERITY_ORDER = {
     NotificationSeverity.CRITICAL: 0,
     NotificationSeverity.WARNING: 1,
@@ -368,6 +412,7 @@ def get_notifications(db: Session) -> list[Notification]:
     out.extend(_todo_pending(db))
     out.extend(_backup_stale(db))
     out.extend(_recent_errors(db))
+    out.extend(_news_available(db))
 
     out = [n for n in out if n.id not in dismissed]
     out.sort(key=lambda n: (_SEVERITY_ORDER[n.severity], -n.created_at.timestamp()))

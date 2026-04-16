@@ -12,6 +12,9 @@
   {% if error %}
   <div class="message-banner banner-error">{{ error }}</div>
   {% endif %}
+  {% if message %}
+  <div class="message-banner banner-success">{{ message }}</div>
+  {% endif %}
 
   {# KPI row #}
   <div class="grid-metrics mb-xl">

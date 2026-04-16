@@ -16,12 +16,9 @@
   {# Back link #}
   <a href="/history" class="link-back">&larr; Storico</a>
 
-  {# Flash messages #}
+  {# Flash messages — error only on analysis detail #}
   {% if error %}
   <div class="message-banner banner-error">{{ error }}</div>
-  {% endif %}
-  {% if message %}
-  <div class="message-banner banner-success">{{ message }}</div>
   {% endif %}
 
   {% if result %}
