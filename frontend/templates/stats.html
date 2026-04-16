@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Statistiche — Job Search{% endblock %}
+{% block content %}
+<div class="content-inner">
+
+  <div class="page-header">
+    <h1 class="page-title">Statistiche</h1>
+    <span class="pill pill-credit">aggiornato ora</span>
+  </div>
+
+  {% if error %}<div class="message-banner banner-error">{{ error }}</div>{% endif %}
+  {% if message %}<div class="message-banner banner-success">{{ message }}</div>{% endif %}
+
+  {# Dati passati al JS come JSON — zero fetch call, il render è lato client sullo stesso payload SSR #}
+  <script id="stats-payload" type="application/json">{{ stats | tojson | safe }}</script>
+
+  <div class="stats-grid">
+    <section class="stats-card">
+      <h2 class="stats-card-title">Funnel candidature</h2>
+      <canvas id="chart-funnel" height="220"></canvas>
+    </section>
+
+    <section class="stats-card">
+      <h2 class="stats-card-title">Distribuzione score (candidature)</h2>
+      <canvas id="chart-score-distribution" height="220"></canvas>
+    </section>
+
+    <section class="stats-card stats-card-wide">
+      <h2 class="stats-card-title">Candidature per settimana</h2>
+      <canvas id="chart-applications-per-week" height="200"></canvas>
+    </section>
+
+    <section class="stats-card">
+      <h2 class="stats-card-title">Tipo contratto</h2>
+      <canvas id="chart-contract-split" height="220"></canvas>
+    </section>
+
+    <section class="stats-card">
+      <h2 class="stats-card-title">Modalità lavoro</h2>
+      <canvas id="chart-work-mode" height="220"></canvas>
+    </section>
+
+    <section class="stats-card stats-card-wide">
+      <h2 class="stats-card-title">Aziende più analizzate</h2>
+      <canvas id="chart-top-companies" height="260"></canvas>
+    </section>
+
+    <section class="stats-card">
+      <h2 class="stats-card-title">Raccomandazione AI</h2>
+      <canvas id="chart-recommendation" height="220"></canvas>
+    </section>
+
+    <section class="stats-card">
+      <h2 class="stats-card-title">Score medio per stato</h2>
+      <canvas id="chart-score-by-status" height="220"></canvas>
+    </section>
+
+    <section class="stats-card stats-card-wide">
+      <h2 class="stats-card-title">Costo API ultimi 30 giorni</h2>
+      <canvas id="chart-spending" height="200"></canvas>
+    </section>
+  </div>
+
+</div>
+{% endblock %}
+{% block scripts_extra %}
+<script src="{{ url_for('static', path='vendor/chart.umd.min.js') }}?v={{ asset_v }}"></script>
+<script src="{{ url_for('static', path='js/modules/stats.js') }}?v={{ asset_v }}"></script>
+{% endblock %}

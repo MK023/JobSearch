@@ -1701,6 +1701,56 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
   color: var(--text-primary);
 }
 
+
+/* ================================================================
+   STATS PAGE (/stats)
+   ================================================================ */
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-lg);
+  margin-bottom: var(--space-xl);
+}
+
+.stats-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+}
+
+.stats-card-wide {
+  grid-column: 1 / -1;
+}
+
+.stats-card-title {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-md) 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stats-card canvas {
+  flex: 1;
+  max-height: 260px;
+}
+
+@media (width <= 900px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-card-wide {
+    grid-column: auto;
+  }
+}
+
 .notification-empty {
   text-align: center;
   padding: var(--space-xl) var(--space-md);
