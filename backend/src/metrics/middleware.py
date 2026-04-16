@@ -28,25 +28,35 @@ class MetricsMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         start = time.perf_counter()
-        response = await call_next(request)
-        duration_ms = round((time.perf_counter() - start) * 1000, 2)
+        status_code = 500  # default if handler throws
+        try:
+            response = await call_next(request)
+            status_code = response.status_code
+        except Exception:
+            duration_ms = round((time.perf_counter() - start) * 1000, 2)
+            self._record(path, request.method, status_code, duration_ms)
+            raise
 
-        # Fire-and-forget DB write (sync, separate session)
+        duration_ms = round((time.perf_counter() - start) * 1000, 2)
+        self._record(path, request.method, status_code, duration_ms)
+        return response
+
+    @staticmethod
+    def _record(endpoint: str, method: str, status_code: int, duration_ms: float) -> None:
+        """Fire-and-forget DB write (sync, separate session)."""
         try:
             db = SessionLocal()
             try:
                 db.add(
                     RequestMetric(
-                        endpoint=path[:200],
-                        method=request.method,
-                        status_code=response.status_code,
+                        endpoint=endpoint[:200],
+                        method=method,
+                        status_code=status_code,
                         duration_ms=duration_ms,
                     )
                 )
                 db.commit()
             finally:
                 db.close()
-        except Exception:  # noqa: S110 — intentional silent catch; telemetry must never break requests
+        except Exception:  # noqa: S110 — telemetry must never break requests
             pass
-
-        return response

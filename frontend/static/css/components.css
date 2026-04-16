@@ -229,6 +229,8 @@
   font-weight: var(--weight-semibold);
   text-transform: uppercase;
   display: inline-block;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .status-da_valutare,
@@ -735,15 +737,18 @@
 }
 
 .toast-success {
-  border-left: 3px solid var(--accent-green);
+  background: rgb(48 209 88 / 10%);
+  border: 1px solid rgb(48 209 88 / 18%);
 }
 
 .toast-error {
-  border-left: 3px solid var(--accent-red);
+  background: rgb(255 69 58 / 10%);
+  border: 1px solid rgb(255 69 58 / 18%);
 }
 
 .toast-info {
-  border-left: 3px solid var(--accent-blue);
+  background: rgb(10 132 255 / 10%);
+  border: 1px solid rgb(10 132 255 / 18%);
 }
 
 .toast-exit {
