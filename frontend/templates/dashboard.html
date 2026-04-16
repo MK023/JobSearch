@@ -94,7 +94,7 @@
 
     {# Da valutare — si riempie quando Cowork manda analisi, si svuota quando le rivedi #}
     <section class="card dash-widget">
-      <h2 class="section-title">Da valutare ({{ pending_analyses|length }})</h2>
+      <h2 class="section-title">Da valutare &mdash; Cowork ({{ pending_analyses|length }})</h2>
       {% if pending_analyses %}
         {% for a in pending_analyses %}
         <div class="dash-widget-row">
