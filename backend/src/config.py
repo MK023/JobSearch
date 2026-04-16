@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     r2_endpoint_url: str = ""
     r2_bucket_name: str = "jobsearch-files"
 
+    # Sentry (error tracking)
+    sentry_dsn: str = ""
+
     # Resend (document reminder emails)
     resend_api_key: str = ""
     resend_from_email: str = "noreply@jobsearches.cc"
