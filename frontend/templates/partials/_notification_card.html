@@ -11,7 +11,7 @@
 <article class="notification-card notification-card-{{ n.severity }}"
          data-notification-id="{{ n.id }}"
          data-notification-type="{{ n.type }}"
-         data-notification-dismissible="{{ '1' if n.dismissible else '0' }}">
+         data-notification-dismissible="1">
   <div class="notification-card-icon" aria-hidden="true">
     {{ _type_icon.get(n.type.value if n.type.__class__.__name__ == 'NotificationType' else n.type, '\U0001F4CD') }}
   </div>

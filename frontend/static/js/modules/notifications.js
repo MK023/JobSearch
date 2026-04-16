@@ -1,44 +1,36 @@
 /**
- * Notification center: client-side dismiss for dismissible cards.
+ * Notification center: server-side dismiss via /api/v1/notifications/dismiss.
  *
- * Dismissed ids live in sessionStorage under NC_DISMISSED_KEY so they
- * reset on new tabs / sessions — sticky cards (critical/warning that
- * track actual app state) ignore the list by design.
+ * All notifications are dismissible. Dismiss is persisted in the DB so
+ * the sidebar badge stays in sync across tabs and page reloads.
  */
 
 (function () {
-    var NC_DISMISSED_KEY = 'nc:dismissed';
-
-    function loadDismissed() {
-        try {
-            var raw = sessionStorage.getItem(NC_DISMISSED_KEY);
-            if (!raw) return {};
-            var parsed = JSON.parse(raw);
-            return (parsed && typeof parsed === 'object') ? parsed : {};
-        } catch (_) {
-            return {};
-        }
-    }
-
-    function persistDismissed(map) {
-        try {
-            sessionStorage.setItem(NC_DISMISSED_KEY, JSON.stringify(map));
-        } catch (_) {
-            // Private mode: fail silently. Acceptable degradation.
-        }
-    }
-
-    function applyDismissed() {
-        var dismissed = loadDismissed();
-        var cards = document.querySelectorAll('.notification-card[data-notification-dismissible="1"]');
-        cards.forEach(function (card) {
-            var id = card.getAttribute('data-notification-id');
-            if (id && dismissed[id]) {
-                card.style.display = 'none';
+    function updateBadgeCount(count) {
+        var badge = document.querySelector('.sidebar-item[href="/notifications"] .sidebar-badge');
+        if (count > 0) {
+            if (!badge) {
+                var link = document.querySelector('.sidebar-item[href="/notifications"]');
+                if (link) {
+                    badge = document.createElement('span');
+                    badge.className = 'sidebar-badge';
+                    link.appendChild(badge);
+                }
             }
-        });
-        updateGroupVisibility();
-        updateEmptyState();
+            if (badge) {
+                badge.textContent = count < 10 ? count : '9+';
+                badge.setAttribute('aria-label', count + ' notifiche');
+            }
+        } else if (badge) {
+            badge.remove();
+        }
+    }
+
+    function updatePillCount(count) {
+        var pill = document.querySelector('.page-header .pill-credit');
+        if (pill) {
+            pill.textContent = count > 0 ? count + ' attive' : 'Nessuna';
+        }
     }
 
     function updateGroupVisibility() {
@@ -48,7 +40,21 @@
         });
     }
 
-    function _buildDismissedEmptyBlock() {
+    function updateEmptyState() {
+        var anyVisible = document.querySelectorAll(
+            '.notification-card:not([style*="display: none"])'
+        ).length > 0;
+        var emptyBlock = document.getElementById('notification-center-empty-after-dismiss');
+        if (!anyVisible && !emptyBlock) {
+            var container = document.querySelector('.content-inner');
+            if (!container) return;
+            container.appendChild(_buildEmptyBlock());
+        } else if (anyVisible && emptyBlock) {
+            emptyBlock.remove();
+        }
+    }
+
+    function _buildEmptyBlock() {
         var wrap = document.createElement('div');
         wrap.id = 'notification-center-empty-after-dismiss';
         wrap.className = 'card card-mb';
@@ -62,11 +68,11 @@
 
         var title = document.createElement('div');
         title.className = 'notification-empty-title';
-        title.textContent = 'Tutto archiviato per questa sessione';
+        title.textContent = 'Tutto gestito';
 
         var body = document.createElement('div');
         body.className = 'notification-empty-body';
-        body.textContent = 'Le card ignorate tornano alla prossima sessione, se ancora pertinenti.';
+        body.textContent = 'Le notifiche tornano quando cambia lo stato sottostante (nuovo colloquio, budget basso, ecc.).';
 
         inner.appendChild(icon);
         inner.appendChild(title);
@@ -75,41 +81,40 @@
         return wrap;
     }
 
-    function updateEmptyState() {
-        var anyVisible = document.querySelectorAll(
-            '.notification-card:not([style*="display: none"])'
-        ).length > 0;
-        var emptyBlock = document.getElementById('notification-center-empty-after-dismiss');
-        if (!anyVisible && !emptyBlock) {
-            var groupsContainer = document.querySelector('.content-inner');
-            if (!groupsContainer) return;
-            groupsContainer.appendChild(_buildDismissedEmptyBlock());
-        }
-    }
+    function dismissCard(notificationId, cardEl) {
+        if (!notificationId) return;
 
-    function dismissCard(id, cardEl) {
-        if (!id) return;
-        var dismissed = loadDismissed();
-        dismissed[id] = Date.now();
-        persistDismissed(dismissed);
-        cardEl.style.transition = 'opacity 0.15s';
-        cardEl.style.opacity = '0';
-        setTimeout(function () {
-            cardEl.style.display = 'none';
-            updateGroupVisibility();
-            updateEmptyState();
-        }, 150);
+        var fd = new FormData();
+        fd.append('notification_id', notificationId);
+
+        fetch('/api/v1/notifications/dismiss', { method: 'POST', body: fd })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.ok) {
+                    cardEl.style.transition = 'opacity 0.15s';
+                    cardEl.style.opacity = '0';
+                    setTimeout(function () {
+                        cardEl.style.display = 'none';
+                        updateGroupVisibility();
+                        updateEmptyState();
+                    }, 150);
+                    updateBadgeCount(data.remaining_count);
+                    updatePillCount(data.remaining_count);
+                }
+            })
+            .catch(function (e) {
+                console.error('dismiss error:', e);
+            });
     }
 
     function wireDismissButtons() {
-        var cards = document.querySelectorAll('.notification-card[data-notification-dismissible="1"]');
-        cards.forEach(function (card) {
+        document.querySelectorAll('.notification-card').forEach(function (card) {
             if (card.querySelector('.notification-card-dismiss')) return;
             var btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'notification-card-dismiss';
-            btn.setAttribute('aria-label', 'Ignora per questa sessione');
-            btn.title = 'Ignora per questa sessione';
+            btn.setAttribute('aria-label', 'Ignora notifica');
+            btn.title = 'Ignora notifica';
             btn.textContent = '\u00d7';
             btn.onclick = function () {
                 dismissCard(card.getAttribute('data-notification-id'), card);
@@ -120,6 +125,5 @@
 
     document.addEventListener('DOMContentLoaded', function () {
         wireDismissButtons();
-        applyDismissed();
     });
 })();

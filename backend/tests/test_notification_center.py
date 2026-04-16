@@ -17,8 +17,10 @@ from src.notification_center.service import (
     _BUDGET_WARNING,
     _INTERVIEW_NO_OUTCOME_DAYS,
     _INTERVIEW_UPCOMING_HOURS,
+    dismiss_notification,
     get_notifications,
     get_unread_count,
+    undismiss_notification,
 )
 
 
@@ -58,7 +60,7 @@ class TestUpcomingInterview:
         assert len(notifs) == 1
         assert notifs[0].id == f"interview:{a.id}"
         assert notifs[0].severity.value == "critical"
-        assert notifs[0].dismissible is False
+        assert notifs[0].dismissible is True
         assert notifs[0].sticky is True
 
     def test_interview_farther_than_24h_does_not_trigger(self, db_session, test_cv):
@@ -200,3 +202,60 @@ class TestUnreadCount:
         for _ in range(_BACKLOG_THRESHOLD + 5):
             _make_analysis(db_session, test_cv, status=AnalysisStatus.PENDING)
         assert get_unread_count(db_session) == len(get_notifications(db_session))
+
+
+class TestDismissServerSide:
+    def test_dismiss_removes_from_list_and_count(self, db_session, test_cv):
+        _make_analysis(db_session, test_cv, status=AnalysisStatus.APPLIED, applied_days_ago=10)
+        db_session.commit()
+
+        before = get_notifications(db_session)
+        assert len(before) == 1
+        nid = before[0].id
+
+        created = dismiss_notification(db_session, nid)
+        db_session.commit()
+        assert created is True
+
+        after = get_notifications(db_session)
+        assert len(after) == 0
+        assert get_unread_count(db_session) == 0
+
+    def test_dismiss_idempotent(self, db_session, test_cv):
+        _make_analysis(db_session, test_cv, status=AnalysisStatus.APPLIED, applied_days_ago=10)
+        db_session.commit()
+
+        nid = get_notifications(db_session)[0].id
+        assert dismiss_notification(db_session, nid) is True
+        assert dismiss_notification(db_session, nid) is False
+        db_session.commit()
+
+    def test_undismiss_restores_notification(self, db_session, test_cv):
+        _make_analysis(db_session, test_cv, status=AnalysisStatus.APPLIED, applied_days_ago=10)
+        db_session.commit()
+
+        nid = get_notifications(db_session)[0].id
+        dismiss_notification(db_session, nid)
+        db_session.commit()
+        assert get_unread_count(db_session) == 0
+
+        removed = undismiss_notification(db_session, nid)
+        db_session.commit()
+        assert removed is True
+        assert get_unread_count(db_session) == 1
+
+    def test_dismiss_interview_notification(self, db_session, test_cv):
+        """Interview notifications can now be dismissed server-side."""
+        a = _make_analysis(db_session, test_cv, status=AnalysisStatus.INTERVIEW)
+        when = datetime.now(UTC) + timedelta(hours=_INTERVIEW_UPCOMING_HOURS - 1)
+        db_session.add(Interview(analysis_id=a.id, round_number=1, scheduled_at=when))
+        db_session.commit()
+
+        notifs = get_notifications(db_session)
+        assert len(notifs) == 1
+        nid = notifs[0].id
+
+        dismiss_notification(db_session, nid)
+        db_session.commit()
+        assert get_notifications(db_session) == []
+        assert get_unread_count(db_session) == 0

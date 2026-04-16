@@ -29,7 +29,7 @@ from ..analysis.models import AnalysisStatus, JobAnalysis
 from ..dashboard.service import get_followup_alerts, get_spending
 from ..interview.models import Interview
 from ..interview.service import get_upcoming_interviews
-from .models import Notification, NotificationSeverity, NotificationType
+from .models import Notification, NotificationDismissal, NotificationSeverity, NotificationType
 
 # Thresholds — tuned to Marco's setup (Neon free 1GB, Anthropic pay-as-you-go).
 _INTERVIEW_UPCOMING_HOURS = 24
@@ -51,7 +51,7 @@ def _upcoming_interviews(db: Session) -> list[Notification]:
             body=f"{row['role']} · {row['date_display']} {row['time_display']}",
             action_url=f"/analysis/{row['analysis_id']}",
             action_label="Apri dettaglio",
-            dismissible=False,
+            dismissible=True,
             sticky=True,
             created_at=datetime.fromisoformat(row["scheduled_at"]),
         )
@@ -74,7 +74,7 @@ def _low_budget(db: Session) -> list[Notification]:
             body=("Ricarica prima che si esaurisca: analisi e cover letter fallirebbero in mezzo a un invio."),
             action_url="https://console.anthropic.com/settings/billing",
             action_label="Ricarica",
-            dismissible=False,
+            dismissible=True,
             sticky=True,
             created_at=datetime.now(UTC),
         )
@@ -110,7 +110,7 @@ def _interviews_without_outcome(db: Session) -> list[Notification]:
                 ),
                 action_url=f"/analysis/{analysis.id}",
                 action_label="Logga esito",
-                dismissible=False,
+                dismissible=True,
                 sticky=True,
                 created_at=scheduled,
             )
@@ -131,7 +131,7 @@ def _db_size_high(db: Session) -> list[Notification]:
             body=("Neon free tier ha un limite di 1 GB. Esegui cleanup delle analisi vecchie dalla sezione Settings."),
             action_url="/settings",
             action_label="Apri Settings",
-            dismissible=False,
+            dismissible=True,
             sticky=True,
             created_at=datetime.now(UTC),
         )
@@ -207,8 +207,20 @@ _SEVERITY_ORDER = {
 }
 
 
+def _get_dismissed_ids(db: Session) -> set[str]:
+    """Return the set of notification IDs the user has dismissed."""
+    rows = db.query(NotificationDismissal.notification_id).all()
+    return {r[0] for r in rows}
+
+
 def get_notifications(db: Session) -> list[Notification]:
-    """Return the full notification list sorted by severity, then recency."""
+    """Return the notification list sorted by severity, then recency.
+
+    Dismissed notifications are excluded — the sidebar badge and the
+    page count both see the same filtered list.
+    """
+    dismissed = _get_dismissed_ids(db)
+
     out: list[Notification] = []
     out.extend(_upcoming_interviews(db))
     out.extend(_low_budget(db))
@@ -216,20 +228,43 @@ def get_notifications(db: Session) -> list[Notification]:
     out.extend(_db_size_high(db))
     out.extend(_followup_due(db))
     out.extend(_backlog_to_review(db))
+
+    out = [n for n in out if n.id not in dismissed]
     out.sort(key=lambda n: (_SEVERITY_ORDER[n.severity], -n.created_at.timestamp()))
     return out
 
 
 def get_unread_count(db: Session) -> int:
-    """Badge count for the sidebar. Counts every surfaced notification.
-
-    Client-side dismiss is not reflected here (session-scoped). For the
-    sidebar badge we want to surface the objective state: if the user
-    dismissed a followup in tab A, tab B still shows the count.
-    """
+    """Badge count for the sidebar — matches the visible notification list."""
     return len(get_notifications(db))
+
+
+def dismiss_notification(db: Session, notification_id: str) -> bool:
+    """Dismiss a notification. Returns True if newly dismissed, False if already was."""
+    existing = db.query(NotificationDismissal).filter(NotificationDismissal.notification_id == notification_id).first()
+    if existing:
+        return False
+    db.add(NotificationDismissal(notification_id=notification_id))
+    db.flush()
+    return True
+
+
+def undismiss_notification(db: Session, notification_id: str) -> bool:
+    """Restore a dismissed notification. Returns True if found and removed."""
+    row = db.query(NotificationDismissal).filter(NotificationDismissal.notification_id == notification_id).first()
+    if not row:
+        return False
+    db.delete(row)
+    db.flush()
+    return True
 
 
 # Re-export the reusable DB size helper so /health can share the code.
 db_size_mb = _db_size_mb
-__all__ = ["get_notifications", "get_unread_count", "db_size_mb"]
+__all__ = [
+    "get_notifications",
+    "get_unread_count",
+    "dismiss_notification",
+    "undismiss_notification",
+    "db_size_mb",
+]
