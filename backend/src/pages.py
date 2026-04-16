@@ -275,3 +275,99 @@ def stats_page(
             "message": flash["message"],
         },
     )
+
+
+@router.get("/agenda", response_class=HTMLResponse)
+def agenda_page(
+    request: Request,
+    db: DbSession,
+    user: CurrentUser,
+) -> Response:
+    """Render the agenda page — action-oriented daily/weekly view."""
+    from datetime import UTC, datetime, timedelta
+
+    from .analysis.models import JobAnalysis
+    from .interview.models import Interview
+    from .interview.service import format_date, get_upcoming_interviews
+
+    templates = request.app.state.templates
+    flash = _flash(request)
+    now = datetime.now(UTC)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # Upcoming interviews (next 14 days)
+    upcoming_interviews = get_upcoming_interviews(db, days=14)
+
+    # Today's interviews (subset)
+    tomorrow_start = today_start + timedelta(days=1)
+    today_interviews = [iv for iv in upcoming_interviews if datetime.fromisoformat(iv["scheduled_at"]) < tomorrow_start]
+    week_interviews = [iv for iv in upcoming_interviews if iv not in today_interviews]
+
+    # Follow-up alerts
+    followup_alerts = get_followup_alerts(db)
+
+    # Pending analyses (Cowork)
+    pending_analyses = (
+        db.query(JobAnalysis)
+        .filter(JobAnalysis.status == AnalysisStatus.PENDING.value)
+        .order_by(JobAnalysis.created_at.desc())
+        .limit(10)
+        .all()
+    )
+
+    # Candidature inviate oggi
+    applied_today = (
+        db.query(JobAnalysis)
+        .filter(
+            JobAnalysis.status == AnalysisStatus.APPLIED.value,
+            JobAnalysis.applied_at >= today_start,
+        )
+        .order_by(JobAnalysis.applied_at.desc())
+        .all()
+    )
+
+    # In attesa — colloqui passati con esito "passed", analisi ancora in INTERVIEW,
+    # e nessun round futuro schedulato per quell'analisi
+    waiting_rows = (
+        db.query(Interview, JobAnalysis)
+        .join(JobAnalysis, Interview.analysis_id == JobAnalysis.id)
+        .filter(
+            Interview.scheduled_at < now,
+            Interview.outcome == "passed",
+            JobAnalysis.status == AnalysisStatus.INTERVIEW.value,
+        )
+        .order_by(Interview.scheduled_at.desc())
+        .all()
+    )
+    # Exclude analyses that already have a future round scheduled
+    analyses_with_future = {
+        str(r[0].analysis_id) for r in db.query(Interview.analysis_id).filter(Interview.scheduled_at > now).all()
+    }
+    waiting = [
+        {
+            "analysis_id": str(a.id),
+            "company": a.company,
+            "role": a.role,
+            "interview_type": i.interview_type,
+            "date_display": format_date(i.scheduled_at),
+            "round_number": i.round_number,
+        }
+        for i, a in waiting_rows
+        if str(a.id) not in analyses_with_future
+    ]
+
+    return templates.TemplateResponse(  # type: ignore[no-any-return]
+        request,
+        "agenda.html",
+        {
+            **_base_ctx(db, user, "agenda"),
+            "today_interviews": today_interviews,
+            "week_interviews": week_interviews,
+            "followup_alerts": followup_alerts,
+            "pending_analyses": pending_analyses,
+            "applied_today": applied_today,
+            "waiting": waiting,
+            "error": flash["error"],
+            "message": flash["message"],
+        },
+    )
