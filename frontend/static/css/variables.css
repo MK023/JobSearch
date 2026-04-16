@@ -12,11 +12,13 @@
   --accent-green: #30D158;
   --accent-orange: #FF9F0A;
   --accent-red: #FF453A;
+  --accent-purple: #8777d9;
 
   /* Text — Dark */
   --text-primary: #F5F5F7;
   --text-secondary: #8E8E93;
   --text-tertiary: #48484A;
+  --text-muted: #6b7280;
 
   /* Borders — Dark */
   --border-subtle: rgb(255 255 255 / 6%);
@@ -109,9 +111,11 @@ html[data-theme="light"] {
   --accent-green: #34c759;
   --accent-orange: #ff9500;
   --accent-red: #ff3b30;
+  --accent-purple: #6c5ce7;
   --text-primary: #1c1c1e;
   --text-secondary: #636366;
   --text-tertiary: #aeaeb2;
+  --text-muted: #9ca3af;
   --border-subtle: rgb(0 0 0 / 6%);
   --border-medium: rgb(0 0 0 / 12%);
   --shadow-card: 0 2px 12px rgb(0 0 0 / 8%);

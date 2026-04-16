@@ -381,7 +381,7 @@ def agenda_page(
     )
     # Exclude analyses that already have a future round scheduled
     analyses_with_future = {
-        str(r[0].analysis_id) for r in db.query(Interview.analysis_id).filter(Interview.scheduled_at > now).all()
+        str(r[0]) for r in db.query(Interview.analysis_id).filter(Interview.scheduled_at > now).all()
     }
     waiting = [
         {
