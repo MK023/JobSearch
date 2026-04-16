@@ -26,28 +26,42 @@
         '#6366f1', '#84cc16'
     ];
 
-    function baseOptions() {
+    function baseOptions(opts) {
         var fg = themeColor('--text-primary', '#c9d1d9');
         var muted = themeColor('--text-secondary', '#8b949e');
         var grid = themeColor('--border-subtle', 'rgba(255,255,255,0.1)');
+        var isDoughnut = opts && opts.noScales;
         return {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: {
-                    labels: { color: fg, font: { size: 11 } }
+                legend: isDoughnut ? {
+                    position: 'bottom',
+                    labels: {
+                        color: fg,
+                        font: { size: 11, weight: 600 },
+                        usePointStyle: true,
+                        pointStyle: 'circle',
+                        padding: 14
+                    }
+                } : {
+                    display: false
                 },
                 tooltip: {
                     backgroundColor: themeColor('--bg-tertiary', '#161b22'),
                     titleColor: fg,
                     bodyColor: fg,
                     borderColor: grid,
-                    borderWidth: 1
+                    borderWidth: 1,
+                    padding: 10,
+                    cornerRadius: 8,
+                    displayColors: true,
+                    boxPadding: 4
                 }
             },
-            scales: {
-                x: { ticks: { color: muted }, grid: { color: grid } },
-                y: { ticks: { color: muted }, grid: { color: grid }, beginAtZero: true }
+            scales: isDoughnut ? {} : {
+                x: { ticks: { color: muted, font: { size: 11 } }, grid: { color: grid } },
+                y: { ticks: { color: muted, font: { size: 11 } }, grid: { color: grid }, beginAtZero: true }
             }
         };
     }
@@ -142,7 +156,7 @@
                     borderWidth: 0
                 }]
             },
-            options: Object.assign({}, baseOptions(), { scales: {} })
+            options: baseOptions({ noScales: true })
         });
     }
 
@@ -160,7 +174,7 @@
                     borderWidth: 0
                 }]
             },
-            options: Object.assign({}, baseOptions(), { scales: {} })
+            options: baseOptions({ noScales: true })
         });
     }
 
@@ -177,7 +191,7 @@
                     borderWidth: 0
                 }]
             },
-            options: Object.assign({}, baseOptions(), { scales: {} })
+            options: baseOptions({ noScales: true })
         });
     }
 
