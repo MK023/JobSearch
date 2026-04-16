@@ -37,7 +37,6 @@ if settings.sentry_dsn:
         release="jobsearch@1.0.0",
         environment="production" if _os.environ.get("RENDER") else "development",
         auto_session_tracking=True,
-        enable_logs=True,
     )
 from .cover_letter.routes import router as cover_letter_router
 from .cv.routes import router as cv_router
