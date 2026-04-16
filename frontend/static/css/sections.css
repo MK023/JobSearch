@@ -1995,12 +1995,16 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
 
 /* ================================================================
    AGENDA PAGE (/agenda)
+   Styled to match the Cowork mockup exactly — standalone cards,
+   tight 6px gaps, ghost action buttons.
    ================================================================ */
+
+/* Stats bar */
 
 .agenda-stats {
   display: flex;
-  gap: var(--space-lg);
-  padding: var(--space-md) var(--space-lg);
+  gap: 24px;
+  padding: 12px 16px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
@@ -2012,13 +2016,13 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
 }
 
 .agenda-stat-value {
-  font-size: var(--text-xl);
+  font-size: 20px;
   font-weight: var(--weight-bold);
   color: var(--text-primary);
 }
 
 .agenda-stat-label {
-  font-size: var(--text-xs);
+  font-size: 11px;
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -2029,52 +2033,76 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
 .agenda-stat-green .agenda-stat-value { color: var(--accent-green); }
 .agenda-stat-orange .agenda-stat-value { color: var(--accent-orange); }
 
+/* Day groups and headers */
+
 .agenda-group {
-  margin-bottom: var(--space-xl);
+  margin-bottom: 24px;
 }
 
 .agenda-day-header {
-  font-size: var(--text-xs);
-  font-weight: var(--weight-bold);
+  font-size: 11px;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.8px;
   color: var(--text-secondary);
-  padding: var(--space-sm) 0;
+  padding: 8px 0;
   border-bottom: 1px solid var(--border-subtle);
-  margin-bottom: var(--space-md);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .agenda-day-today {
   color: var(--accent-blue);
 }
 
+.agenda-day-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-blue);
+}
+
 .agenda-section-header {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-bold);
+  font-size: 13px;
+  font-weight: 700;
   color: var(--accent-orange);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: var(--space-md);
-  padding-top: var(--space-md);
+  margin: 32px 0 16px;
+  padding: 8px 0;
   border-top: 2px solid var(--border-subtle);
 }
+
+/* Task cards — standalone, NOT using .card base class */
 
 .agenda-card {
   display: flex;
   align-items: center;
-  gap: var(--space-md);
-  padding: var(--space-md) var(--space-lg);
-  margin-bottom: var(--space-sm);
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  margin-bottom: 6px;
+  transition: border-color 0.15s;
+}
+
+.agenda-card:hover {
+  border-color: var(--accent-blue);
 }
 
 .agenda-card-interview {
   border-left: 3px solid #8777d9;
 }
 
+/* Icon boxes */
+
 .agenda-card-icon {
   width: 32px;
   height: 32px;
-  border-radius: var(--radius-sm);
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2082,11 +2110,14 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
   flex-shrink: 0;
 }
 
-.agenda-icon-interview { background: rgb(135 119 217 / 12%); }
-.agenda-icon-followup { background: rgb(10 132 255 / 12%); }
-.agenda-icon-review { background: rgb(48 209 88 / 12%); }
+.agenda-icon-interview { background: rgb(135 119 217 / 15%); }
+.agenda-icon-followup { background: rgb(10 132 255 / 15%); }
+.agenda-icon-review { background: rgb(48 209 88 / 15%); }
 .agenda-icon-waiting { background: rgb(255 159 10 / 12%); }
-.agenda-icon-applied { background: rgb(48 209 88 / 12%); }
+.agenda-icon-applied { background: rgb(48 209 88 / 15%); }
+.agenda-icon-todo { background: rgb(76 154 255 / 12%); }
+
+/* Card body */
 
 .agenda-card-body {
   flex: 1;
@@ -2094,8 +2125,8 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
 }
 
 .agenda-card-title {
-  font-weight: var(--weight-semibold);
-  font-size: var(--text-sm);
+  font-weight: 600;
+  font-size: 14px;
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
@@ -2103,7 +2134,7 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
 }
 
 .agenda-card-sub {
-  font-size: var(--text-xs);
+  font-size: 12px;
   color: var(--text-secondary);
   margin-top: 1px;
 }
@@ -2117,33 +2148,71 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
   text-decoration: underline;
 }
 
+/* Card meta (right side) */
+
 .agenda-card-meta {
   text-align: right;
   flex-shrink: 0;
 }
 
 .agenda-card-time {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+  font-size: 13px;
+  font-weight: 600;
   color: var(--text-primary);
 }
 
 .agenda-card-date {
   display: block;
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
+  font-size: 11px;
+  color: var(--text-muted);
 }
 
+/* Card actions — ghost buttons matching mockup */
+
 .agenda-card-actions {
+  display: flex;
+  gap: 4px;
   flex-shrink: 0;
 }
 
+.agenda-btn {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+
+.agenda-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.agenda-btn-green:hover {
+  background: rgb(48 209 88 / 15%);
+  color: var(--accent-green);
+  border-color: rgb(48 209 88 / 30%);
+}
+
+.agenda-btn-blue:hover {
+  background: rgb(10 132 255 / 15%);
+  color: var(--accent-blue);
+  border-color: rgb(10 132 255 / 30%);
+}
+
+/* Badges */
+
 .agenda-badge {
   display: inline-block;
-  padding: 2px var(--space-sm);
-  border-radius: var(--radius-full);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-bold);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
@@ -2153,6 +2222,54 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
   color: var(--accent-green);
 }
 
+.agenda-badge-blue {
+  background: rgb(10 132 255 / 15%);
+  color: var(--accent-blue);
+}
+
+/* Empty state */
+
+.agenda-empty {
+  padding: 12px 16px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-style: italic;
+}
+
+/* To-do input */
+
+.agenda-todo-input-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.agenda-todo-input {
+  flex: 1;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.agenda-todo-input:focus {
+  border-color: var(--accent-blue);
+}
+
+.agenda-todo-input::placeholder {
+  color: var(--text-muted);
+}
+
+.agenda-card-done {
+  opacity: 0.6;
+}
+
+/* Responsive */
+
 @media (width <= 768px) {
   .agenda-stats {
     flex-wrap: wrap;
@@ -2161,8 +2278,8 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
 
   .agenda-card {
     flex-wrap: wrap;
-    gap: var(--space-sm);
-    padding: var(--space-md);
+    gap: 8px;
+    padding: 12px;
   }
 
   .agenda-card-meta,

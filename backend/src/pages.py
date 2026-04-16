@@ -356,6 +356,10 @@ def agenda_page(
         if str(a.id) not in analyses_with_future
     ]
 
+    from .agenda.models import TodoItem
+
+    todos = db.query(TodoItem).order_by(TodoItem.done, TodoItem.created_at.desc()).all()
+
     return templates.TemplateResponse(  # type: ignore[no-any-return]
         request,
         "agenda.html",
@@ -367,6 +371,7 @@ def agenda_page(
             "pending_analyses": pending_analyses,
             "applied_today": applied_today,
             "waiting": waiting,
+            "todos": todos,
             "error": flash["error"],
             "message": flash["message"],
         },

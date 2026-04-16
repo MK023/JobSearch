@@ -36,19 +36,22 @@
   </div>
 
   {# ===== OGGI ===== #}
-  <section class="agenda-group mb-xl">
-    <h2 class="agenda-day-header agenda-day-today">Oggi</h2>
+  <section class="agenda-group">
+    <div class="agenda-day-header agenda-day-today">
+      <span class="agenda-day-dot"></span>
+      Oggi
+    </div>
 
     {# Colloqui oggi #}
     {% for iv in today_interviews %}
-    <div class="card agenda-card agenda-card-interview">
+    <div class="agenda-card agenda-card-interview">
       <div class="agenda-card-icon agenda-icon-interview">&#x1F3A4;</div>
       <div class="agenda-card-body">
         <div class="agenda-card-title">{{ iv.company }} &mdash; {{ iv.role }}</div>
         <div class="agenda-card-sub">
           {% if iv.interview_type %}{{ iv.interview_type }} &middot; {% endif %}
           {% if iv.platform == 'teams' %}Teams{% elif iv.platform == 'google_meet' %}Google Meet{% elif iv.platform == 'zoom' %}Zoom{% elif iv.platform == 'phone' %}Telefonico{% elif iv.platform == 'in_person' %}In presenza{% elif iv.platform %}{{ iv.platform }}{% endif %}
-          {% if iv.meeting_link %}&middot; <a href="{{ iv.meeting_link }}" target="_blank" rel="noopener">Apri meeting</a>{% endif %}
+          {% if iv.meeting_link %}&middot; <a href="{{ iv.meeting_link }}" target="_blank" rel="noopener">Apri meeting &rarr;</a>{% endif %}
         </div>
       </div>
       <div class="agenda-card-meta">
@@ -59,38 +62,39 @@
 
     {# Analisi da valutare (Cowork) #}
     {% if pending_analyses %}
-    <div class="card agenda-card">
+    <div class="agenda-card">
       <div class="agenda-card-icon agenda-icon-review">&#x1F4E5;</div>
       <div class="agenda-card-body">
         <div class="agenda-card-title">{{ pending_analyses|length }} analisi da valutare</div>
         <div class="agenda-card-sub">{{ pending_analyses[:5]|map(attribute='company')|join(', ') }}</div>
       </div>
       <div class="agenda-card-actions">
-        <a href="/history" class="btn btn-primary btn-sm no-underline">Vai allo storico</a>
+        <a href="/history" class="agenda-btn agenda-btn-green">Vai allo storico</a>
       </div>
     </div>
     {% endif %}
 
     {# Follow-up scaduti #}
     {% for a in followup_alerts[:5] %}
-    <div class="card agenda-card">
+    <div class="agenda-card">
       <div class="agenda-card-icon agenda-icon-followup">&#x2709;&#xFE0F;</div>
       <div class="agenda-card-body">
         <div class="agenda-card-title">Follow-up {{ a.company or '—' }}</div>
         <div class="agenda-card-sub">{{ a.role or '—' }} &middot; candidatura {{ a.applied_at.strftime('%d/%m') if a.applied_at else 'N/D' }}</div>
       </div>
       <div class="agenda-card-actions">
-        <a href="/analysis/{{ a.id }}" class="btn btn-ghost btn-sm no-underline">Apri</a>
+        <a href="/analysis/{{ a.id }}" class="agenda-btn agenda-btn-blue">Genera email</a>
+        <a href="/analysis/{{ a.id }}" class="agenda-btn agenda-btn-green">Fatto</a>
       </div>
     </div>
     {% endfor %}
     {% if followup_alerts|length > 5 %}
-    <div class="meta-small" style="padding: 0 var(--space-lg);">+ {{ followup_alerts|length - 5 }} altri follow-up</div>
+    <div class="agenda-empty">+ {{ followup_alerts|length - 5 }} altri follow-up</div>
     {% endif %}
 
     {# Candidature inviate oggi #}
     {% if applied_today %}
-    <div class="card agenda-card">
+    <div class="agenda-card">
       <div class="agenda-card-icon agenda-icon-applied">&#x1F4E8;</div>
       <div class="agenda-card-body">
         <div class="agenda-card-title">{{ applied_today|length }} candidature inviate oggi</div>
@@ -104,19 +108,17 @@
 
     {# Empty today #}
     {% if not today_interviews and not pending_analyses and not followup_alerts and not applied_today %}
-    <div class="card empty-state" style="padding: var(--space-xl);">
-      Giornata libera. Buon momento per mandare nuove candidature.
-    </div>
+    <div class="agenda-empty">Giornata libera. Buon momento per mandare nuove candidature.</div>
     {% endif %}
 
   </section>
 
   {# ===== IN ATTESA ===== #}
   {% if waiting %}
-  <section class="agenda-group mb-xl">
-    <h2 class="agenda-section-header">In attesa di risposta</h2>
+  <section class="agenda-group">
+    <div class="agenda-section-header">&#x23F3; In attesa di risposta</div>
     {% for w in waiting %}
-    <div class="card agenda-card">
+    <div class="agenda-card">
       <div class="agenda-card-icon agenda-icon-waiting">&#x1F4AC;</div>
       <div class="agenda-card-body">
         <div class="agenda-card-title">{{ w.company }} &mdash; {{ w.role }}</div>
@@ -126,27 +128,27 @@
           passato il {{ w.date_display }} &middot; In attesa prossimo round
         </div>
       </div>
-      <div class="agenda-card-actions">
-        <a href="/interviews" class="btn btn-primary btn-sm no-underline">Gestisci</a>
+      <div class="agenda-card-meta">
+        <span class="agenda-badge agenda-badge-blue">In attesa</span>
       </div>
     </div>
     {% endfor %}
   </section>
   {% endif %}
 
-  {# ===== PROSSIMI 7 GIORNI ===== #}
-  <section class="agenda-group mb-xl">
-    <h2 class="agenda-day-header">Prossimi 14 giorni</h2>
+  {# ===== PROSSIMI 14 GIORNI ===== #}
+  <section class="agenda-group">
+    <div class="agenda-day-header">Prossimi 14 giorni</div>
     {% if week_interviews %}
       {% for iv in week_interviews %}
-      <div class="card agenda-card agenda-card-interview">
+      <div class="agenda-card agenda-card-interview">
         <div class="agenda-card-icon agenda-icon-interview">&#x1F3A4;</div>
         <div class="agenda-card-body">
           <div class="agenda-card-title">{{ iv.company }} &mdash; {{ iv.role }}</div>
           <div class="agenda-card-sub">
             {% if iv.interview_type %}{{ iv.interview_type }} &middot; {% endif %}
             {% if iv.platform == 'teams' %}Teams{% elif iv.platform == 'google_meet' %}Google Meet{% elif iv.platform == 'zoom' %}Zoom{% elif iv.platform == 'phone' %}Telefonico{% elif iv.platform == 'in_person' %}In presenza{% elif iv.platform %}{{ iv.platform }}{% endif %}
-            {% if iv.meeting_link %}&middot; <a href="{{ iv.meeting_link }}" target="_blank" rel="noopener">Apri meeting</a>{% endif %}
+            {% if iv.meeting_link %}&middot; <a href="{{ iv.meeting_link }}" target="_blank" rel="noopener">Apri meeting &rarr;</a>{% endif %}
           </div>
         </div>
         <div class="agenda-card-meta">
@@ -156,11 +158,32 @@
       </div>
       {% endfor %}
     {% else %}
-      <div class="card empty-state" style="padding: var(--space-xl);">
-        Nessun colloquio o scadenza in programma.
-      </div>
+      <div class="agenda-empty">Nessun colloquio in programma.</div>
     {% endif %}
   </section>
 
+  {# ===== TO-DO ===== #}
+  <section class="agenda-group">
+    <div class="agenda-section-header">&#x2705; To-do</div>
+    {% for t in todos %}
+    <div class="agenda-card{% if t.done %} agenda-card-done{% endif %}" id="todo-{{ t.id }}">
+      <div class="agenda-card-icon agenda-icon-todo" style="cursor:pointer" onclick="toggleTodo({{ t.id }})">{{ '&#x2705;' if t.done else '&#x2B1C;' }}</div>
+      <div class="agenda-card-body">
+        <div class="agenda-card-title" {% if t.done %}style="text-decoration:line-through;opacity:0.5"{% endif %}>{{ t.text }}</div>
+      </div>
+      <div class="agenda-card-actions">
+        <button class="agenda-btn" onclick="removeTodo({{ t.id }})">&times;</button>
+      </div>
+    </div>
+    {% endfor %}
+    <div class="agenda-todo-input-row">
+      <input type="text" id="agenda-todo-input" class="agenda-todo-input" placeholder="Aggiungi un task..." onkeydown="if(event.key==='Enter')addTodoServer()">
+      <button class="agenda-btn agenda-btn-green" onclick="addTodoServer()">Aggiungi</button>
+    </div>
+  </section>
+
 </div>
+{% endblock %}
+{% block scripts_extra %}
+<script src="{{ url_for('static', path='js/modules/agenda-todo.js') }}?v={{ asset_v }}"></script>
 {% endblock %}
