@@ -2,10 +2,11 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Form
+from fastapi import APIRouter, Form, Request
 from fastapi.responses import JSONResponse
 
 from ..dependencies import CurrentUser, DbSession
+from ..rate_limit import limiter
 from .service import get_dashboard, get_db_usage, get_spending, update_budget
 
 router = APIRouter(tags=["dashboard"])
@@ -50,3 +51,32 @@ def db_usage(
 ) -> JSONResponse:
     """Return DB row counts and estimated size to monitor the 1GB free-tier limit."""
     return JSONResponse(get_db_usage(db))
+
+
+@router.post("/backup")
+@limiter.limit("2/hour")
+def create_backup_endpoint(
+    request: Request,
+    db: DbSession,
+    user: CurrentUser,
+) -> JSONResponse:
+    """Create a DB backup on R2. Rate-limited to 2/hour."""
+    from ..integrations.backup import create_backup
+
+    try:
+        result = create_backup(db)
+        return JSONResponse({"ok": True, **result})
+    except RuntimeError as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+    except Exception:
+        return JSONResponse({"error": "Backup failed"}, status_code=500)
+
+
+@router.get("/backups")
+def list_backups_endpoint(
+    user: CurrentUser,
+) -> JSONResponse:
+    """List available backups on R2."""
+    from ..integrations.backup import list_backups
+
+    return JSONResponse(list_backups())
