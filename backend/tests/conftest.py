@@ -17,6 +17,8 @@ from src.cover_letter.models import CoverLetter
 from src.cv.models import CVProfile
 from src.database.base import Base
 from src.integrations.glassdoor import GlassdoorCache
+from src.integrations.news import NewsCache
+from src.integrations.salary import SalaryCache
 from src.interview.file_models import InterviewFile
 from src.interview.models import Interview
 from src.metrics.models import RequestMetric
@@ -39,6 +41,8 @@ _ALL_MODELS = [
     BatchItem,
     TodoItem,
     RequestMetric,
+    SalaryCache,
+    NewsCache,
 ]
 
 

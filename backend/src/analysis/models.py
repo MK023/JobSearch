@@ -74,6 +74,8 @@ class JobAnalysis(Base):
     interview_scripts = Column(JSON, default=list)
     advice = Column(Text, default="")
     company_reputation = Column(JSON, default=dict)
+    salary_data = Column(JSON, nullable=True)
+    company_news = Column(JSON, nullable=True)
     benefits = Column(JSON, nullable=True)
     recruiter_info = Column(JSON, nullable=True)
     experience_required = Column(JSON, nullable=True)

@@ -82,6 +82,9 @@
     {# ---- Company reputation details ---- #}
     {% include "partials/result_reputation.html" %}
 
+    {# ---- Salary estimate ---- #}
+    {% include "partials/result_salary.html" %}
+
     {# ---- 2. AI VERDICT ---- #}
     {% if result.summary %}
     <div class="result-verdict">&#x1F9E0; {{ result.summary }}</div>

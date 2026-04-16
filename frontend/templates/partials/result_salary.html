@@ -1,0 +1,38 @@
+{# Salary data block (inside result card) #}
+{% if result.salary_data and result.salary_data.median_salary %}
+{% set sal = result.salary_data %}
+<details>
+    <summary>Stima stipendio
+        <span class="reputation-rating reputation-rating-mid">
+            {{ '{:,.0f}'.format(sal.median_salary).replace(',', '.') }} {{ sal.salary_currency|default('USD') }}/anno
+        </span>
+        {% if sal.salary_count %}
+        <span class="reputation-reviews">{{ '{:,}'.format(sal.salary_count).replace(',', '.') }} dati</span>
+        {% endif %}
+    </summary>
+
+    <div class="salary-details">
+        <div class="salary-range">
+            <div class="salary-range-bar">
+                <span class="salary-range-label salary-range-min">{{ '{:,.0f}'.format(sal.min_salary).replace(',', '.') }}</span>
+                <span class="salary-range-label salary-range-median">{{ '{:,.0f}'.format(sal.median_salary).replace(',', '.') }}</span>
+                <span class="salary-range-label salary-range-max">{{ '{:,.0f}'.format(sal.max_salary).replace(',', '.') }}</span>
+            </div>
+            <div class="salary-range-track">
+                <div class="salary-range-fill"></div>
+            </div>
+            <div class="salary-range-labels">
+                <span>Min</span>
+                <span>Mediana</span>
+                <span>Max</span>
+            </div>
+        </div>
+        {% if sal.location %}
+        <div class="salary-meta">{{ sal.location }} &middot; {{ sal.confidence|default('') }}</div>
+        {% endif %}
+        {% if sal.publisher %}
+        <div class="salary-meta">Fonte: {{ sal.publisher }}</div>
+        {% endif %}
+    </div>
+</details>
+{% endif %}

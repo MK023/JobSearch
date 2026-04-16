@@ -38,6 +38,8 @@ def run_analysis(
     """Run a new analysis and persist it."""
     result = analyze_job(cv_text, job_description, model, cache, db=db)
     _merge_glassdoor(result, db)
+    _merge_salary(result, db)
+    _merge_news(result, db)
 
     analysis = JobAnalysis(
         cv_id=cv_id,
@@ -57,6 +59,8 @@ def run_analysis(
         interview_scripts=result.get("interview_scripts", []),
         advice=result.get("advice", ""),
         company_reputation=result.get("company_reputation", {}),
+        salary_data=result.get("salary_data") or None,
+        company_news=result.get("company_news") or None,
         benefits=result.get("benefits") or None,
         recruiter_info=result.get("recruiter_info") or None,
         experience_required=result.get("experience_required") or None,
@@ -87,6 +91,8 @@ def rebuild_result(analysis: JobAnalysis, from_cache: bool = False) -> dict[str,
         "interview_scripts": analysis.interview_scripts or [],
         "advice": analysis.advice or "",
         "company_reputation": analysis.company_reputation or {},
+        "salary_data": analysis.salary_data or {},
+        "company_news": analysis.company_news or [],
         "benefits": analysis.benefits or [],
         "recruiter_info": analysis.recruiter_info or {},
         "experience_required": analysis.experience_required or {},
@@ -248,6 +254,30 @@ def _merge_glassdoor(result: dict[str, Any], db: Session) -> None:
     count_fmt = f"{review_count:,}".replace(",", ".") if review_count else "n/d"
     rep["note"] = f"Fonte: Glassdoor ({count_fmt} recensioni)"
     result["company_reputation"] = rep
+
+
+def _merge_salary(result: dict[str, Any], db: Session) -> None:
+    """Merge salary API data into result."""
+    role = result.get("role", "")
+    if not role:
+        return
+    from ..integrations.salary import fetch_salary_data
+
+    salary = fetch_salary_data(role, result.get("location"), db)
+    if salary:
+        result["salary_data"] = salary
+
+
+def _merge_news(result: dict[str, Any], db: Session) -> None:
+    """Merge company news into result."""
+    company = result.get("company", "")
+    if not company:
+        return
+    from ..integrations.news import fetch_company_news
+
+    news = fetch_company_news(company, db)
+    if news:
+        result["company_news"] = news
 
 
 def _parse_full_response(raw: str) -> dict[str, Any]:
