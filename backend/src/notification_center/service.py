@@ -29,15 +29,27 @@ from ..analysis.models import AnalysisStatus, JobAnalysis
 from ..dashboard.service import get_followup_alerts, get_spending
 from ..interview.models import Interview
 from ..interview.service import get_upcoming_interviews
+from ..preferences.service import get_preference
 from .models import Notification, NotificationDismissal, NotificationSeverity, NotificationType
 
-# Thresholds — tuned to Marco's setup (Neon free 1GB, Anthropic pay-as-you-go).
+# Default thresholds — overridable via Settings > Parametri operativi.
 _INTERVIEW_UPCOMING_HOURS = 24
-_INTERVIEW_NO_OUTCOME_DAYS = 3
-_BUDGET_WARNING = 1.00
-_BUDGET_CRITICAL = 0.50
+_INTERVIEW_NO_OUTCOME_DAYS_DEFAULT = 3
+_BUDGET_WARNING_DEFAULT = 1.00
+_BUDGET_CRITICAL_DEFAULT = 0.50
 _DB_SIZE_WARNING_MB = 800  # 80% of 1GB Neon free tier
 _BACKLOG_THRESHOLD = 1
+
+
+def _thresholds(db: Session) -> dict[str, float]:
+    """Load notification thresholds from preferences (with hardcoded defaults)."""
+    return {
+        "interview_no_outcome_days": int(
+            get_preference(db, "interview_no_outcome_days", _INTERVIEW_NO_OUTCOME_DAYS_DEFAULT)
+        ),
+        "budget_warning": float(get_preference(db, "budget_warning_threshold", _BUDGET_WARNING_DEFAULT)),
+        "budget_critical": float(get_preference(db, "budget_critical_threshold", _BUDGET_CRITICAL_DEFAULT)),
+    }
 
 
 def _upcoming_interviews(db: Session) -> list[Notification]:
@@ -59,12 +71,14 @@ def _upcoming_interviews(db: Session) -> list[Notification]:
     ]
 
 
-def _low_budget(db: Session) -> list[Notification]:
+def _low_budget(db: Session, t: dict[str, float] | None = None) -> list[Notification]:
+    if t is None:
+        t = _thresholds(db)
     spending = get_spending(db)
     remaining = spending.get("remaining")
-    if remaining is None or remaining >= _BUDGET_WARNING:
+    if remaining is None or remaining >= t["budget_warning"]:
         return []
-    severity = NotificationSeverity.CRITICAL if remaining < _BUDGET_CRITICAL else NotificationSeverity.WARNING
+    severity = NotificationSeverity.CRITICAL if remaining < t["budget_critical"] else NotificationSeverity.WARNING
     return [
         Notification(
             id="budget:anthropic",
@@ -81,8 +95,10 @@ def _low_budget(db: Session) -> list[Notification]:
     ]
 
 
-def _interviews_without_outcome(db: Session) -> list[Notification]:
-    cutoff = datetime.now(UTC) - timedelta(days=_INTERVIEW_NO_OUTCOME_DAYS)
+def _interviews_without_outcome(db: Session, t: dict[str, float] | None = None) -> list[Notification]:
+    if t is None:
+        t = _thresholds(db)
+    cutoff = datetime.now(UTC) - timedelta(days=int(t["interview_no_outcome_days"]))
     rows = (
         db.query(Interview, JobAnalysis)
         .join(JobAnalysis, Interview.analysis_id == JobAnalysis.id)
@@ -220,6 +236,73 @@ def _todo_pending(db: Session) -> list[Notification]:
     ]
 
 
+_BACKUP_MAX_AGE_DAYS = 7
+
+
+def _backup_stale(db: Session) -> list[Notification]:
+    """Warn if no backup exists or last backup is older than 7 days."""
+    import os
+
+    from ..config import settings as app_cfg
+
+    # Skip in dev/test — only fire in production (Render sets RENDER=true)
+    if not os.environ.get("RENDER"):
+        return []
+
+    # Skip if R2 is not configured
+    if not app_cfg.r2_endpoint_url or not app_cfg.r2_access_key_id:
+        return []
+
+    try:
+        from ..integrations.backup import list_backups
+
+        backups = list_backups()
+    except Exception:
+        return []
+
+    if not backups:
+        return [
+            Notification(
+                id="backup:missing",
+                type=NotificationType.BACKUP_STALE,
+                severity=NotificationSeverity.WARNING,
+                title="Nessun backup presente",
+                body="Crea un backup del database da Impostazioni per proteggere i dati.",
+                action_url="/settings",
+                action_label="Vai a Impostazioni",
+                dismissible=True,
+                sticky=True,
+                created_at=datetime.now(UTC),
+            )
+        ]
+
+    latest_str = backups[0].get("last_modified", "")
+    if not latest_str:
+        return []
+
+    latest = datetime.fromisoformat(latest_str.replace("Z", "+00:00"))
+    if latest.tzinfo is None:
+        latest = latest.replace(tzinfo=UTC)
+    age = datetime.now(UTC) - latest
+    if age.days < _BACKUP_MAX_AGE_DAYS:
+        return []
+
+    return [
+        Notification(
+            id=f"backup:stale:{age.days}",
+            type=NotificationType.BACKUP_STALE,
+            severity=NotificationSeverity.WARNING,
+            title=f"Backup vecchio ({age.days} giorni)",
+            body="L'ultimo backup ha piu' di 7 giorni. Creane uno nuovo da Impostazioni.",
+            action_url="/settings",
+            action_label="Crea backup",
+            dismissible=True,
+            sticky=True,
+            created_at=datetime.now(UTC),
+        )
+    ]
+
+
 _SEVERITY_ORDER = {
     NotificationSeverity.CRITICAL: 0,
     NotificationSeverity.WARNING: 1,
@@ -240,15 +323,17 @@ def get_notifications(db: Session) -> list[Notification]:
     page count both see the same filtered list.
     """
     dismissed = _get_dismissed_ids(db)
+    t = _thresholds(db)
 
     out: list[Notification] = []
     out.extend(_upcoming_interviews(db))
-    out.extend(_low_budget(db))
-    out.extend(_interviews_without_outcome(db))
+    out.extend(_low_budget(db, t))
+    out.extend(_interviews_without_outcome(db, t))
     out.extend(_db_size_high(db))
     out.extend(_followup_due(db))
     out.extend(_backlog_to_review(db))
     out.extend(_todo_pending(db))
+    out.extend(_backup_stale(db))
 
     out = [n for n in out if n.id not in dismissed]
     out.sort(key=lambda n: (_SEVERITY_ORDER[n.severity], -n.created_at.timestamp()))
