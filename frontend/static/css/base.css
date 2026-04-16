@@ -30,7 +30,7 @@ body {
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  animation: fade-in 150ms ease;
+  animation: fade-in 120ms var(--ease-out-quart);
   overflow-wrap: break-word;
   word-break: break-word;
 }

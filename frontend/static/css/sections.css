@@ -333,7 +333,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-md);
-  animation: fade-in 300ms ease;
+  animation: fade-in 250ms var(--ease-out-quart);
 }
 
 .completion-banner-error {
@@ -1007,7 +1007,7 @@
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   background: var(--bg-secondary);
-  transition: border-color 0.15s, transform var(--transition-fast);
+  transition: border-color var(--transition-fast), transform var(--transition-fast);
 }
 
 .history-item:hover {
@@ -1062,7 +1062,7 @@
 
 .interview-card {
   padding: var(--space-lg);
-  transition: border-color 0.15s;
+  transition: border-color var(--transition-fast);
 }
 
 .interview-card:hover {
@@ -1482,7 +1482,7 @@
   background: rgb(10 132 255 / 8%);
   border-radius: var(--radius-md);
   border: 1px solid rgb(10 132 255 / 15%);
-  transition: all var(--transition-fast);
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .glassdoor-link:hover {
@@ -2078,7 +2078,7 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   background: var(--bg-secondary);
-  transition: border-color 0.15s;
+  transition: border-color var(--transition-fast);
 }
 
 .notification-card:hover {
@@ -2146,7 +2146,7 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
   line-height: 28px;
   cursor: pointer;
   border-radius: var(--radius-full);
-  transition: background 0.15s, color 0.15s;
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
 
 .notification-card-dismiss:hover {
@@ -2180,7 +2180,7 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
   min-height: 280px;
   display: flex;
   flex-direction: column;
-  transition: border-color 0.15s;
+  transition: border-color var(--transition-fast);
 }
 
 .stats-card:hover {
@@ -2410,7 +2410,7 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
   font-weight: var(--weight-semibold);
   cursor: pointer;
   text-decoration: none;
-  transition: all var(--transition-fast);
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .agenda-btn:hover {
@@ -2483,7 +2483,7 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
   color: var(--text-primary);
   font-size: 13px;
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color var(--transition-fast);
 }
 
 .agenda-todo-input:focus {

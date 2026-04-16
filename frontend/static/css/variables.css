@@ -60,10 +60,12 @@
   --shadow-hover: 0 8px 24px rgb(0 0 0 / 40%);
   --shadow-focus: 0 0 0 3px rgb(10 132 255 / 15%);
 
-  /* Transitions */
-  --transition-fast: 0.15s ease;
-  --transition-normal: 0.2s ease;
-  --transition-slow: 0.3s ease;
+  /* Transitions — ease-out-quart for buttery smooth deceleration */
+  --ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-out-quart: cubic-bezier(0.165, 0.84, 0.44, 1);
+  --transition-fast: 0.12s var(--ease-out);
+  --transition-normal: 0.2s var(--ease-out-quart);
+  --transition-slow: 0.32s var(--ease-out-quart);
 
   /* Sidebar */
   --sidebar-width: 60px;
