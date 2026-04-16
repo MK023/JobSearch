@@ -67,3 +67,4 @@ docs/superpowers/
 
 # Node (if ever added)
 node_modules/
+terraform.tfvars
