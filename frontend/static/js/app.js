@@ -7,7 +7,6 @@
  *
  * Available modules (only present if their <script> tag is on this page):
  *   - spending.js   -> initBudgetEditing(), refreshSpending()
- *   - dashboard.js  -> refreshDashboard()
  *   - history.js    -> historyTabs(), refreshHistoryCounts()
  *   - status.js     -> setStatus(), deleteAnalysis()
  *   - batch.js      -> batchManager()
@@ -27,13 +26,9 @@ function app() {
             if (typeof initBudgetEditing === 'function') initBudgetEditing();
             if (typeof initCVUpload === 'function') initCVUpload();
 
-            // Periodic refresh only on dashboard (metrics-row is a grid-3col on dashboard)
-            if (document.querySelector('.grid-3col')) {
-                setInterval(function() {
-                    if (typeof refreshDashboard === 'function') refreshDashboard();
-                    if (typeof refreshSpending === 'function') refreshSpending();
-                }, 60000);
-            }
+            // No periodic polling: the dashboard is fully SSR, event-driven refresh only.
+            // Upcoming interviews live in the notification center; spending updates on
+            // successful analyze / cover-letter calls via refreshSpending() call sites.
 
             // Check for background analysis completion
             _checkPendingAnalysis();
