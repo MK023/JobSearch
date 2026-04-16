@@ -6,6 +6,7 @@ from fastapi import APIRouter, Form
 from fastapi.responses import JSONResponse
 
 from ..dependencies import CurrentUser, DbSession
+from .models import NotificationDismissal
 from .service import dismiss_notification, get_notifications, undismiss_notification
 
 router = APIRouter(tags=["notifications"])
@@ -45,3 +46,14 @@ def undismiss_api(
     db.commit()
     count = len(get_notifications(db))
     return JSONResponse({"ok": True, "removed": removed, "remaining_count": count})
+
+
+@router.delete("/notifications/dismissals")
+def clear_all_dismissals(
+    db: DbSession,
+    user: CurrentUser,
+) -> JSONResponse:
+    """Clear all notification dismissals — all notifications resurface."""
+    count = db.query(NotificationDismissal).delete()
+    db.commit()
+    return JSONResponse({"ok": True, "cleared": count})

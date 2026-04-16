@@ -77,3 +77,14 @@ def delete_todo(
     db.delete(item)
     db.commit()
     return JSONResponse({"ok": True})
+
+
+@router.delete("/todos-completed")
+def clear_completed_todos(
+    db: DbSession,
+    user: CurrentUser,
+) -> JSONResponse:
+    """Delete all completed to-do items."""
+    count = db.query(TodoItem).filter(TodoItem.done == True).delete()  # noqa: E712
+    db.commit()
+    return JSONResponse({"ok": True, "deleted": count})

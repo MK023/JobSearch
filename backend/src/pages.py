@@ -206,12 +206,45 @@ def settings_page(
     db: DbSession,
     user: CurrentUser,
 ) -> Response:
-    """Render the settings page with CV and spending info."""
+    """Render the settings page with CV, spending, preferences, and diagnostics."""
+    import time
+
+    from .agenda.models import TodoItem
+    from .audit.models import AuditLog
+    from .notification_center.models import NotificationDismissal
+    from .preferences.service import get_preference
+
     templates = request.app.state.templates
     flash = _flash(request)
 
     cv = get_latest_cv(db, cast(UUID, user.id))
     spending = get_spending(db)
+    db_usage = get_db_usage(db)
+
+    # Operational parameters (from preferences, with defaults from config)
+    from .config import settings as app_cfg
+
+    prefs = {
+        "followup_reminder_days": get_preference(db, "followup_reminder_days", app_cfg.followup_reminder_days),
+        "budget_warning_threshold": get_preference(db, "budget_warning_threshold", 1.00),
+        "budget_critical_threshold": get_preference(db, "budget_critical_threshold", 0.50),
+        "interview_no_outcome_days": get_preference(db, "interview_no_outcome_days", 3),
+    }
+
+    # Maintenance counts
+    completed_todos = db.query(TodoItem).filter(TodoItem.done == True).count()  # noqa: E712
+    dismissed_count = db.query(NotificationDismissal).count()
+
+    # Diagnostics
+    recent_audit = db.query(AuditLog).order_by(AuditLog.created_at.desc()).limit(10).all()
+
+    startup_time = getattr(request.app.state, "_startup_time", None)
+    uptime_str = ""
+    if startup_time:
+        up = int(time.time() - startup_time)
+        hours, remainder = divmod(up, 3600)
+        minutes, secs = divmod(remainder, 60)
+        uptime_str = f"{hours}h {minutes}m {secs}s"
 
     return templates.TemplateResponse(  # type: ignore[no-any-return]
         request,
@@ -220,6 +253,12 @@ def settings_page(
             **_base_ctx(db, user, "settings"),
             "cv": cv,
             "spending": spending,
+            "db_usage": db_usage,
+            "prefs": prefs,
+            "completed_todos": completed_todos,
+            "dismissed_count": dismissed_count,
+            "recent_audit": recent_audit,
+            "uptime": uptime_str,
             "error": flash["error"],
             "message": flash["message"],
         },
