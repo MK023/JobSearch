@@ -158,6 +158,25 @@
     </div>
   </section>
 
+  {# ---- Backup Section ---- #}
+  <section class="card settings-section">
+    <h2 class="section-title"><svg class="icon-align" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg> Backup su R2</h2>
+
+    <p class="meta-small mb-md">
+      Esporta tutte le tabelle critiche (analisi, colloqui, CV, contatti, to-do) come JSON compresso su Cloudflare R2.
+      Tiene gli ultimi 7 backup. Disaster recovery senza dipendenze esterne.
+    </p>
+
+    <div class="settings-maint-grid" id="backup-list">
+      <div class="meta-small">Caricamento...</div>
+    </div>
+
+    <div class="form-actions mt-md">
+      <button class="btn btn-primary btn-sm" id="backup-btn" onclick="createBackup()">Crea backup ora</button>
+      <span id="backup-status" class="meta-small"></span>
+    </div>
+  </section>
+
   {# ---- DB Cleanup Section ---- #}
   <section class="card settings-section" x-data="cleanupForm()">
     <h2 class="section-title"><svg class="icon-align" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Pulizia DB</h2>
@@ -275,6 +294,64 @@
         }
       });
   }
+
+  function createBackup() {
+    var btn = document.getElementById('backup-btn');
+    var status = document.getElementById('backup-status');
+    btn.disabled = true;
+    status.textContent = 'Backup in corso...';
+    fetch('/api/v1/backup', { method: 'POST' })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        btn.disabled = false;
+        if (data.ok) {
+          status.textContent = 'Backup completato: ' + data.size_kb + ' KB';
+          showToast('Backup salvato su R2', 'success');
+          loadBackupList();
+        } else {
+          status.textContent = data.error || 'Errore';
+          showToast('Errore backup', 'error');
+        }
+      })
+      .catch(function() {
+        btn.disabled = false;
+        status.textContent = 'Errore di rete';
+      });
+  }
+
+  function loadBackupList() {
+    fetch('/api/v1/backups')
+      .then(function(r) { return r.json(); })
+      .then(function(backups) {
+        var list = document.getElementById('backup-list');
+        while (list.firstChild) list.removeChild(list.firstChild);
+        if (!backups.length) {
+          var empty = document.createElement('div');
+          empty.className = 'meta-small';
+          empty.textContent = 'Nessun backup presente';
+          list.appendChild(empty);
+          return;
+        }
+        backups.forEach(function(b) {
+          var item = document.createElement('div');
+          item.className = 'settings-maint-item';
+          var info = document.createElement('div');
+          info.className = 'settings-maint-info';
+          var label = document.createElement('span');
+          label.className = 'settings-maint-label';
+          label.textContent = b.key.replace('backups/', '');
+          var meta = document.createElement('span');
+          meta.className = 'meta-small';
+          meta.textContent = b.size_kb + ' KB';
+          info.appendChild(label);
+          info.appendChild(meta);
+          item.appendChild(info);
+          list.appendChild(item);
+        });
+      });
+  }
+
+  document.addEventListener('DOMContentLoaded', loadBackupList);
 
   function clearDismissals() {
     fetch('/api/v1/notifications/dismissals', { method: 'DELETE' })
