@@ -28,6 +28,19 @@
   <div class="message-banner banner-success">{{ message }}</div>
   {% endif %}
 
+  {# Cowork banner — nuove analisi da valutare #}
+  {% set _pending = dashboard.pending|default(0)|int %}
+  {% if _pending > 0 %}
+  <a href="/history" class="cowork-banner no-underline mb-xl">
+    <span class="cowork-banner-icon">&#x1F4E5;</span>
+    <div class="cowork-banner-body">
+      <span class="cowork-banner-title">{{ _pending }} analisi da valutare</span>
+      <span class="cowork-banner-sub">Nuovi risultati da Cowork pronti per la revisione</span>
+    </div>
+    <span class="cowork-banner-action">Vai allo storico &rarr;</span>
+  </a>
+  {% endif %}
+
   {# 3 metric cards #}
   <div class="grid-metrics mb-xl">
     {% with value=dashboard.total|default(0), label="Analizzate in totale", icon="analyze", accent="blue" %}{% include "partials/metric_card.html" %}{% endwith %}

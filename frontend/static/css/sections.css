@@ -138,6 +138,67 @@
   }
 }
 
+/* --- Cowork banner (new analyses to review) --- */
+
+.cowork-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  padding: var(--space-lg) var(--space-xl);
+  background: linear-gradient(135deg, rgb(10 132 255 / 8%), rgb(48 209 88 / 8%));
+  border: 1px solid rgb(10 132 255 / 25%);
+  border-left: 4px solid var(--accent-blue);
+  border-radius: var(--radius-lg);
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+  cursor: pointer;
+}
+
+.cowork-banner:hover {
+  border-color: var(--accent-blue);
+  background: linear-gradient(135deg, rgb(10 132 255 / 12%), rgb(48 209 88 / 12%));
+}
+
+.cowork-banner-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.cowork-banner-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cowork-banner-title {
+  font-weight: var(--weight-bold);
+  font-size: var(--text-base);
+  color: var(--text-primary);
+}
+
+.cowork-banner-sub {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.cowork-banner-action {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--accent-blue);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+@media (width <= 768px) {
+  .cowork-banner {
+    flex-wrap: wrap;
+  }
+
+  .cowork-banner-action {
+    width: 100%;
+  }
+}
+
 /* --- Dashboard metric cards auto-fit grid --- */
 
 .grid-metrics {
