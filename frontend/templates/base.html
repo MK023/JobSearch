@@ -7,6 +7,16 @@
   <script>
     (function(){var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t)})();
   </script>
+  <script src="https://js-de.sentry-cdn.com/9cd024a73263ff9c8f0232c08918d9c8.min.js" crossorigin="anonymous"></script>
+  <script>
+    Sentry.onLoad(function(){
+      Sentry.init({
+        integrations:[Sentry.replayIntegration()],
+        replaysSessionSampleRate:1.0,
+        replaysOnErrorSampleRate:1.0
+      });
+    });
+  </script>
 
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', path='favicon.svg') }}">
   <link rel="alternate icon" href="{{ url_for('static', path='favicon.svg') }}">

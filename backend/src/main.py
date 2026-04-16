@@ -202,11 +202,11 @@ def create_app() -> FastAPI:
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://js-de.sentry-cdn.com; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data: https:; "
-            "connect-src 'self' https://*.r2.cloudflarestorage.com https://api.open-meteo.com; "
+            "connect-src 'self' https://*.r2.cloudflarestorage.com https://api.open-meteo.com https://*.sentry.io; "
             "frame-ancestors 'none'"
         )
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
