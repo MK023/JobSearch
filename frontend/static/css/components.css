@@ -231,7 +231,7 @@
   display: inline-block;
   white-space: nowrap;
   flex-shrink: 0;
-  min-width: 80px;
+  min-width: 96px;
   text-align: center;
 }
 
