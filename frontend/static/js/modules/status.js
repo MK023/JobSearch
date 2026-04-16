@@ -32,26 +32,11 @@ function setStatus(btn) {
         if (data.ok) {
             var labels = {da_valutare: 'Da valutare', candidato: 'Candidato', colloquio: 'Colloquio', offerta: 'Offerta', scartato: 'Scartato'};
 
-            // Update status options
+            // Update status options visually
             group.querySelectorAll('.status-option').forEach(function(b) {
                 b.classList.remove('active');
             });
             btn.classList.add('active');
-
-            // Update history item if on history page
-            var histItem = document.querySelector('[data-hist-id="' + id + '"]');
-            if (histItem) {
-                histItem.dataset.histStatus = status;
-                var stEl = histItem.querySelector('.status-badge');
-                if (stEl) {
-                    stEl.className = 'status-badge status-' + status;
-                    stEl.textContent = labels[status] || status;
-                }
-            }
-
-            if (typeof refreshHistoryCounts === 'function') refreshHistoryCounts();
-            if (typeof refreshSpending === 'function') refreshSpending();
-            window.location.reload();
 
             // Hide cover letter if rejected
             if (status === 'scartato') {
@@ -63,12 +48,26 @@ function setStatus(btn) {
 
             showToast('Stato aggiornato: ' + (labels[status] || status), 'success');
 
-            // On detail page, redirect back to context after brief delay
+            // On detail page, redirect back to context (analyze page)
             if (window.location.pathname.indexOf('/analysis/') !== -1) {
                 setTimeout(function() {
                     window.location.href = _getReturnUrl();
-                }, 1200);
+                }, 800);
+                return;
             }
+
+            // On other pages (history), update in place
+            var histItem = document.querySelector('[data-hist-id="' + id + '"]');
+            if (histItem) {
+                histItem.dataset.histStatus = status;
+                var stEl = histItem.querySelector('.status-badge');
+                if (stEl) {
+                    stEl.className = 'status-badge status-' + status;
+                    stEl.textContent = labels[status] || status;
+                }
+            }
+            if (typeof refreshHistoryCounts === 'function') refreshHistoryCounts();
+            if (typeof refreshSpending === 'function') refreshSpending();
         }
     })
     .catch(function(e) {
@@ -88,22 +87,21 @@ function deleteAnalysis(id) {
     .then(function(r) { return r.json(); })
     .then(function(data) {
         if (data.ok) {
-            // If on history page, remove the item from DOM
+            showToast('Analisi eliminata', 'success');
+
+            // On detail page, redirect back immediately
+            if (window.location.pathname.indexOf('/analysis/') !== -1) {
+                window.location.href = _getReturnUrl();
+                return;
+            }
+
+            // On history page, remove from DOM
             var histItem = document.querySelector('[data-hist-id="' + id + '"]');
             if (histItem) {
                 histItem.remove();
                 if (typeof refreshHistoryCounts === 'function') refreshHistoryCounts();
             }
-
             if (typeof refreshSpending === 'function') refreshSpending();
-            window.location.reload();
-
-            showToast('Analisi eliminata', 'success');
-
-            // If on detail page, redirect back to context
-            if (window.location.pathname.indexOf('/analysis/') !== -1) {
-                window.location.href = _getReturnUrl();
-            }
         }
     })
     .catch(function(e) {
