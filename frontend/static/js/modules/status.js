@@ -51,7 +51,7 @@ function setStatus(btn) {
 
             if (typeof refreshHistoryCounts === 'function') refreshHistoryCounts();
             if (typeof refreshSpending === 'function') refreshSpending();
-            if (typeof refreshDashboard === 'function') refreshDashboard();
+            window.location.reload();
 
             // Hide cover letter if rejected
             if (status === 'scartato') {
@@ -96,7 +96,7 @@ function deleteAnalysis(id) {
             }
 
             if (typeof refreshSpending === 'function') refreshSpending();
-            if (typeof refreshDashboard === 'function') refreshDashboard();
+            window.location.reload();
 
             showToast('Analisi eliminata', 'success');
 

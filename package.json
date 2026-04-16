@@ -1,0 +1,12 @@
+{
+  "private": true,
+  "type": "module",
+  "description": "Dev tooling only — JobSearch is a Python/FastAPI project",
+  "devDependencies": {
+    "eslint": "^9.27.0",
+    "globals": "^16.1.0"
+  },
+  "scripts": {
+    "lint:js": "eslint frontend/static/js/"
+  }
+}

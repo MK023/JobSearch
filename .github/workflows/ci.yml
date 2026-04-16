@@ -68,12 +68,11 @@ jobs:
           done
           echo "HTML template check complete."
 
-      - name: Check JS syntax
-        run: |
-          for f in $(find frontend/static/js -name '*.js'); do
-            node --check "$f" || exit 1
-          done
-          echo "All JS files have valid syntax."
+      - name: Install ESLint
+        run: npm ci
+
+      - name: Lint JS (ESLint)
+        run: npx eslint frontend/static/js/
 
   # ── Security Audit ──────────────────────────────────────────────────
   security:
