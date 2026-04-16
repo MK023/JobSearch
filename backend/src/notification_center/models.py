@@ -40,6 +40,7 @@ class NotificationType(StrEnum):
     TODO_PENDING = "todo_pending"
     BACKUP_STALE = "backup_stale"
     APP_ERROR = "app_error"
+    NEWS_AVAILABLE = "news_available"
 
 
 class NotificationDismissal(Base):

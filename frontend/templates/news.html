@@ -10,6 +10,9 @@
   {% if error %}
   <div class="message-banner banner-error">{{ error }}</div>
   {% endif %}
+  {% if message %}
+  <div class="message-banner banner-success">{{ message }}</div>
+  {% endif %}
 
   {% if not news_groups %}
   <div class="card empty-state">

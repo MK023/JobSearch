@@ -10,6 +10,13 @@
     {% endif %}
   </div>
 
+  {% if error %}
+  <div class="message-banner banner-error">{{ error }}</div>
+  {% endif %}
+  {% if message %}
+  <div class="message-banner banner-success">{{ message }}</div>
+  {% endif %}
+
   {% if not notifications %}
   <div class="card card-mb">
     <div class="notification-empty">
