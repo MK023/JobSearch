@@ -36,6 +36,7 @@ class AnalysisStatus(enum.StrEnum):
     INTERVIEW = "colloquio"
     OFFER = "offerta"
     REJECTED = "scartato"
+    REJECTED_BY_COMPANY = "rifiutato"
 
 
 class JobAnalysis(Base):

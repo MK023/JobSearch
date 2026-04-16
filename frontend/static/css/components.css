@@ -262,6 +262,12 @@
   color: var(--accent-red);
 }
 
+.status-rifiutato,
+.status-badge-rifiutato {
+  background: rgb(107 114 128 / 15%);
+  color: var(--text-muted);
+}
+
 /* ---- Tabs ---- */
 
 .tabs {
@@ -1090,6 +1096,12 @@ details[open] summary::before {
   color: var(--accent-red);
 }
 
+.pill-rifiutato.active {
+  background: rgb(107 114 128 / 15%);
+  border-color: #6b7280;
+  color: #6b7280;
+}
+
 /* ---- Status toggle (segmented control) ---- */
 
 .status-toggle {
@@ -1147,6 +1159,11 @@ details[open] summary::before {
 .status-opt-scartato.active {
   background: rgb(255 69 58 / 15%);
   color: var(--accent-red);
+}
+
+.status-opt-rifiutato.active {
+  background: rgb(107 114 128 / 15%);
+  color: #6b7280;
 }
 
 /* ---- Action card grid ---- */

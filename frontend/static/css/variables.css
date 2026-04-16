@@ -81,6 +81,7 @@
   --status-candidato: var(--accent-blue);
   --status-colloquio: var(--accent-green);
   --status-scartato: var(--accent-red);
+  --status-rifiutato: #6b7280;
 
   /* Color scheme hint for browser controls */
   color-scheme: dark;

@@ -305,6 +305,10 @@ Tipicamente: nessuna tutela da subordinato (ferie, malattia, TFR), gestione fisc
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
             Scartato
           </button>
+          <button type="button" class="status-option status-opt-rifiutato {{ 'active' if current.status == 'rifiutato' }}" data-status="rifiutato" onclick="setStatus(this)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            Rifiutato
+          </button>
         </div>
       </div>
 
