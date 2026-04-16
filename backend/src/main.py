@@ -1,6 +1,7 @@
 """FastAPI application factory with middleware, routers, and lifespan."""
 
 import logging
+import os as _os
 import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -33,6 +34,9 @@ if settings.sentry_dsn:
         send_default_pii=True,
         traces_sample_rate=0.2,  # 20% of requests — free tier friendly
         profile_session_sample_rate=0.1,
+        release="jobsearch@1.0.0",
+        environment="production" if _os.environ.get("RENDER") else "development",
+        auto_session_tracking=True,
     )
 from .cover_letter.routes import router as cover_letter_router
 from .cv.routes import router as cv_router
