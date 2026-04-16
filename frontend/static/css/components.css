@@ -350,6 +350,11 @@
   color: var(--text-primary);
 }
 
+.filter-chip:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+}
+
 .filter-chip.active {
   background: var(--accent-red);
   border-color: var(--accent-red);
