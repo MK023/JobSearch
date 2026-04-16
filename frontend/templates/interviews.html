@@ -54,9 +54,9 @@
       </div>
       {% endif %}
       <div class="interview-card-actions">
-        <button class="btn btn-success btn-sm" onclick="logRoundOutcome('{{ iv.interview_id }}', 'passed', '{{ iv.analysis_id }}')">Passato</button>
-        <button class="btn btn-danger btn-sm" onclick="logRoundOutcome('{{ iv.interview_id }}', 'rejected', '{{ iv.analysis_id }}')">Scartato</button>
-        <button class="btn btn-muted btn-sm" onclick="logRoundOutcome('{{ iv.interview_id }}', 'withdrawn', '{{ iv.analysis_id }}')">Ritirato</button>
+        <button class="btn btn-success btn-sm" onclick="logRoundOutcome('{{ iv.interview_id }}', 'passed')">Passato</button>
+        <button class="btn btn-danger btn-sm" onclick="logRoundOutcome('{{ iv.interview_id }}', 'rejected')">Scartato</button>
+        <button class="btn btn-muted btn-sm" onclick="logRoundOutcome('{{ iv.interview_id }}', 'withdrawn')">Ritirato</button>
         <span class="interview-card-actions-sep"></span>
         <button class="btn btn-primary btn-sm" onclick="openInterviewModal('{{ iv.analysis_id }}')">Modifica</button>
         <button class="btn btn-muted btn-sm" onclick="deleteInterviewFromDetail('{{ iv.analysis_id }}')">Rimuovi</button>
@@ -72,16 +72,29 @@
 
   {# ---- Past interviews ---- #}
   {% if past_interviews %}
-  <details class="past-section mt-xl">
-    <summary class="section-title">Colloqui passati ({{ past_interviews|length }})</summary>
+  <section class="mt-xl">
+    <h2 class="section-title">Colloqui passati ({{ past_interviews|length }})</h2>
     {% for iv in past_interviews %}
-    <div class="card interview-card mt-md opacity-75">
+    <div class="card interview-card mb-md">
       <div class="interview-card-header">
         <div>
           <span class="interview-date">{{ iv.scheduled_at.strftime('%d/%m/%Y') }}</span>
           <span class="interview-time">{{ iv.scheduled_at.strftime('%H:%M') }}{% if iv.ends_at %} &ndash; {{ iv.ends_at.strftime('%H:%M') }}{% endif %}</span>
         </div>
-        <span class="tag">{% if iv.platform == 'google_meet' %}&#x1F4F9; Google Meet{% elif iv.platform == 'teams' %}&#x1F4BB; Teams{% elif iv.platform == 'zoom' %}&#x1F4F9; Zoom{% elif iv.platform == 'phone' %}&#x1F4DE; Telefonico{% elif iv.platform == 'in_person' %}&#x1F3E2; In presenza{% elif iv.platform == 'other' %}Altro{% elif iv.platform %}{{ iv.platform }}{% else %}N/D{% endif %}</span>
+        <div class="interview-card-header-right">
+          {% if iv.outcome == 'passed' %}
+          <span class="interview-outcome-badge outcome-passed">Passato</span>
+          {% elif iv.outcome == 'rejected' %}
+          <span class="interview-outcome-badge outcome-rejected">Scartato</span>
+          {% elif iv.outcome == 'withdrawn' %}
+          <span class="interview-outcome-badge outcome-withdrawn">Ritirato</span>
+          {% elif iv.outcome == 'pending' %}
+          <span class="interview-outcome-badge outcome-pending">In attesa</span>
+          {% else %}
+          <span class="interview-outcome-badge outcome-none">Esito non registrato</span>
+          {% endif %}
+          <span class="tag">{% if iv.platform == 'google_meet' %}&#x1F4F9; Google Meet{% elif iv.platform == 'teams' %}&#x1F4BB; Teams{% elif iv.platform == 'zoom' %}&#x1F4F9; Zoom{% elif iv.platform == 'phone' %}&#x1F4DE; Telefonico{% elif iv.platform == 'in_person' %}&#x1F3E2; In presenza{% elif iv.platform == 'other' %}Altro{% elif iv.platform %}{{ iv.platform }}{% else %}N/D{% endif %}</span>
+        </div>
       </div>
       {% if iv.analysis %}
       <a href="/analysis/{{ iv.analysis_id }}" class="interview-card-role">
@@ -92,28 +105,16 @@
         Analisi {{ iv.analysis_id }}
       </a>
       {% endif %}
+      {% if iv.interview_type %}
+      <div class="interview-card-detail">
+        <span>&#x1F3AF;</span>
+        <span>{{ iv.interview_type }}{% if iv.round_number and iv.round_number > 1 %} &middot; round {{ iv.round_number }}{% endif %}</span>
+      </div>
+      {% endif %}
       {% if iv.recruiter_name %}
       <div class="interview-card-detail">
         <span>&#x1F464;</span>
         <span>{{ iv.recruiter_name }}{% if iv.recruiter_email %} &middot; <a href="mailto:{{ iv.recruiter_email }}">{{ iv.recruiter_email }}</a>{% endif %}</span>
-      </div>
-      {% endif %}
-      {% if iv.meeting_link %}
-      <div class="interview-card-detail">
-        <span>&#x1F517;</span>
-        <a href="{{ iv.meeting_link }}" target="_blank" rel="noopener noreferrer">{{ iv.meeting_link }}</a>
-      </div>
-      {% endif %}
-      {% if iv.phone_number %}
-      <div class="interview-card-detail">
-        <span>&#x1F4DE;</span>
-        <span>{{ iv.phone_number }}{% if iv.access_pin %} (PIN: {{ iv.access_pin }}){% endif %}</span>
-      </div>
-      {% endif %}
-      {% if iv.location %}
-      <div class="interview-card-detail">
-        <span>&#x1F4CD;</span>
-        <span>{{ iv.location }}</span>
       </div>
       {% endif %}
       {% if iv.notes %}
@@ -122,9 +123,21 @@
         <span>{{ iv.notes }}</span>
       </div>
       {% endif %}
+      {# Actions for past interviews #}
+      <div class="interview-card-actions">
+        {% if not iv.outcome %}
+        <button class="btn btn-success btn-sm" onclick="logRoundOutcome('{{ iv.id }}', 'passed')">Passato</button>
+        <button class="btn btn-danger btn-sm" onclick="logRoundOutcome('{{ iv.id }}', 'rejected')">Scartato</button>
+        <button class="btn btn-muted btn-sm" onclick="logRoundOutcome('{{ iv.id }}', 'withdrawn')">Ritirato</button>
+        {% elif iv.outcome == 'passed' and iv.analysis and iv.analysis.status == 'colloquio' %}
+        <button class="btn btn-primary btn-sm" onclick="openNewRoundModal('{{ iv.analysis_id }}')">Nuovo round</button>
+        <button class="btn btn-success btn-sm" onclick="markAsOffer('{{ iv.analysis_id }}')">Ricevuta offerta</button>
+        {% endif %}
+        <a href="/analysis/{{ iv.analysis_id }}" class="btn btn-ghost btn-sm no-underline">Dettaglio</a>
+      </div>
     </div>
     {% endfor %}
-  </details>
+  </section>
   {% endif %}
 
   {% include "partials/interview_modal.html" %}

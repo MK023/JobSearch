@@ -1112,6 +1112,49 @@
   margin: 0 var(--space-xs);
 }
 
+/* --- Interview outcome badges --- */
+
+.interview-card-header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.interview-outcome-badge {
+  display: inline-block;
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.outcome-passed {
+  background: rgb(48 209 88 / 15%);
+  color: var(--accent-green);
+}
+
+.outcome-rejected {
+  background: rgb(255 69 58 / 15%);
+  color: var(--accent-red);
+}
+
+.outcome-withdrawn {
+  background: rgb(107 114 128 / 15%);
+  color: var(--text-muted);
+}
+
+.outcome-pending {
+  background: rgb(255 159 10 / 15%);
+  color: var(--accent-orange);
+}
+
+.outcome-none {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
 .past-section {
   margin-top: var(--space-xl);
 }
