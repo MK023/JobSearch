@@ -1,0 +1,53 @@
+name: Daily DB backup
+
+# Calls the production backup endpoint to create a DB snapshot on R2.
+# Render free tier may be sleeping, so we hit /health first to wake it up.
+#
+# Auth: X-API-Key header against settings.api_key (same path used by the
+# MCP server). Set the GitHub Actions secret JOBSEARCH_API_KEY.
+#
+# Schedule: every day at 03:30 UTC (30 min after weekly cleanup).
+# Manual trigger via "Run workflow".
+
+on:
+  schedule:
+    - cron: "30 3 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    name: Run backup
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      API_BASE: https://www.jobsearches.cc
+      API_KEY: ${{ secrets.JOBSEARCH_API_KEY }}
+    steps:
+      - name: Wake up app (GET /health)
+        run: |
+          set -uo pipefail
+          echo "Hitting /health to wake up Render free-tier instance..."
+          curl --silent --show-error --max-time 30 "${API_BASE}/health" || echo "::warning::health check failed (app may still be waking up)"
+
+      - name: Wait for app to start
+        run: sleep 30
+
+      - name: Call POST /api/v1/backup
+        run: |
+          set -euo pipefail
+          if [ -z "$API_KEY" ]; then
+            echo "::error::JOBSEARCH_API_KEY secret not configured"
+            exit 1
+          fi
+          response=$(curl --silent --show-error --fail-with-body \
+            --request POST \
+            --header "X-API-Key: $API_KEY" \
+            --header "Accept: application/json" \
+            --max-time 120 \
+            "${API_BASE}/api/v1/backup")
+          echo "Response: $response"
+          # Defensive: endpoint returns ok=true on success; bail otherwise
+          echo "$response" | grep -q '"ok": *true' || (echo "::error::backup did not return ok=true" && exit 1)
