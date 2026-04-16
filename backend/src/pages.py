@@ -11,6 +11,7 @@ from .analysis.service import get_recent_analyses
 from .cv.service import get_latest_cv
 from .dashboard.service import get_dashboard, get_db_usage, get_followup_alerts, get_spending, get_top_candidates
 from .dependencies import CurrentUser, DbSession
+from .metrics.service import cleanup_old_metrics, get_metrics_summary
 from .notification_center.service import get_notifications, get_unread_count
 
 router = APIRouter(tags=["pages"])
@@ -416,6 +417,33 @@ def agenda_page(
             "applied_today": applied_today,
             "waiting": waiting,
             "todos": todos,
+            "error": flash["error"],
+            "message": flash["message"],
+        },
+    )
+
+
+@router.get("/admin", response_class=HTMLResponse)
+def admin_page(
+    request: Request,
+    db: DbSession,
+    user: CurrentUser,
+) -> Response:
+    """Render the admin metrics dashboard."""
+    templates = request.app.state.templates
+    flash = _flash(request)
+
+    # Cleanup old metrics on page load (cheap, idempotent)
+    cleanup_old_metrics(db)
+
+    metrics = get_metrics_summary(db)
+
+    return templates.TemplateResponse(  # type: ignore[no-any-return]
+        request,
+        "admin.html",
+        {
+            **_base_ctx(db, user, "admin"),
+            "metrics": metrics,
             "error": flash["error"],
             "message": flash["message"],
         },
