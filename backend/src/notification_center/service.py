@@ -37,7 +37,7 @@ _INTERVIEW_NO_OUTCOME_DAYS = 3
 _BUDGET_WARNING = 1.00
 _BUDGET_CRITICAL = 0.50
 _DB_SIZE_WARNING_MB = 800  # 80% of 1GB Neon free tier
-_BACKLOG_THRESHOLD = 10
+_BACKLOG_THRESHOLD = 1
 
 
 def _upcoming_interviews(db: Session) -> list[Notification]:
@@ -187,10 +187,8 @@ def _backlog_to_review(db: Session) -> list[Notification]:
             id="backlog:da_valutare",
             type=NotificationType.BACKLOG_TO_REVIEW,
             severity=NotificationSeverity.INFO,
-            title=f"{count} analisi da valutare",
-            body=(
-                "Hai molte analisi ancora da valutare. Usa 'Scarta vecchie' nello Storico per ripulire quelle superate."
-            ),
+            title=f"{count} {'analisi' if count > 1 else 'analisi'} da valutare",
+            body=("Nuovi risultati da Cowork pronti per la revisione."),
             action_url="/history",
             action_label="Apri Storico",
             dismissible=True,

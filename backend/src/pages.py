@@ -49,6 +49,7 @@ def dashboard_page(
     templates = request.app.state.templates
     flash = _flash(request)
 
+    from .analysis.models import JobAnalysis
     from .interview.service import get_upcoming_interviews
 
     dashboard = get_dashboard(db)
@@ -57,6 +58,13 @@ def dashboard_page(
     top_candidates = get_top_candidates(db, limit=5)
     db_usage = get_db_usage(db)
     upcoming_interviews = get_upcoming_interviews(db, days=14)
+    pending_analyses = (
+        db.query(JobAnalysis)
+        .filter(JobAnalysis.status == AnalysisStatus.PENDING.value)
+        .order_by(JobAnalysis.created_at.desc())
+        .limit(5)
+        .all()
+    )
 
     return templates.TemplateResponse(  # type: ignore[no-any-return]
         request,
@@ -67,6 +75,7 @@ def dashboard_page(
             "spending": spending,
             "followup_alerts": followup_alerts,
             "upcoming_interviews": upcoming_interviews,
+            "pending_analyses": pending_analyses,
             "top_candidates": top_candidates,
             "db_usage": db_usage,
             "error": flash["error"],
