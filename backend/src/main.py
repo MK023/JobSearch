@@ -32,8 +32,9 @@ if settings.sentry_dsn:
     sentry_sdk.init(
         dsn=settings.sentry_dsn,
         send_default_pii=True,
-        traces_sample_rate=0.2,  # 20% of requests — free tier friendly
-        profile_session_sample_rate=0.1,
+        traces_sample_rate=1.0,  # 14-day trial: capture everything
+        profile_session_sample_rate=1.0,
+        profile_lifecycle="trace",
         release="jobsearch@1.0.0",
         environment="production" if _os.environ.get("RENDER") else "development",
         auto_session_tracking=True,
