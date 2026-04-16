@@ -12,6 +12,10 @@ from .models import AppPreference
 ALLOWED_KEYS: frozenset[str] = frozenset(
     {
         "ai_sonnet_fallback_on_low_confidence",
+        "followup_reminder_days",
+        "budget_warning_threshold",
+        "budget_critical_threshold",
+        "interview_no_outcome_days",
     }
 )
 

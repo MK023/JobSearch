@@ -1243,6 +1243,60 @@
 .credit-remaining-warn { color: var(--accent-orange); }
 .credit-remaining-low { color: var(--accent-red); }
 
+/* Maintenance grid */
+
+.settings-maint-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-maint-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.settings-maint-item:last-child {
+  border-bottom: none;
+}
+
+.settings-maint-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-maint-label {
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+/* Audit log */
+
+.settings-audit-row {
+  display: flex;
+  gap: var(--space-md);
+  padding: var(--space-xs) 0;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--text-xs);
+  align-items: center;
+}
+
+.settings-audit-row:last-child {
+  border-bottom: none;
+}
+
+.settings-audit-action {
+  font-weight: var(--weight-semibold);
+  color: var(--accent-blue);
+  white-space: nowrap;
+}
+
 
 /* ================================================================
    REPUTATION (company reputation in analysis detail)
