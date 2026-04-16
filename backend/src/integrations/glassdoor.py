@@ -189,6 +189,10 @@ def _parse_company(c: dict[str, Any]) -> dict[str, Any]:
         ),
         "industry": c.get("industry") or "",
         "company_size": c.get("company_size") or "",
+        "website": c.get("website") or "",
+        "headquarters": c.get("headquarters") or "",
+        "founded": c.get("founded") or "",
+        "revenue": c.get("revenue") or "",
         "source": "glassdoor_api",
         "cached": False,
     }

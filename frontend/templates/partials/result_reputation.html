@@ -37,6 +37,18 @@
     </div>
     {% endif %}
 
+    {# Company info (enrichment data from same API) #}
+    {% if is_api and (rep.industry or rep.company_size or rep.headquarters or rep.founded) %}
+    <div class="ceo-info">
+        {% if rep.industry %}<span class="ceo-detail">Settore: {{ rep.industry }}</span>{% endif %}
+        {% if rep.company_size %}<span class="ceo-detail">Dimensione: {{ rep.company_size }}</span>{% endif %}
+        {% if rep.headquarters %}<span class="ceo-detail">Sede: {{ rep.headquarters }}</span>{% endif %}
+        {% if rep.founded %}<span class="ceo-detail">Fondata: {{ rep.founded }}</span>{% endif %}
+        {% if rep.revenue %}<span class="ceo-detail">Fatturato: {{ rep.revenue }}</span>{% endif %}
+        {% if rep.website %}<span><a href="{{ rep.website }}" target="_blank" rel="noopener" class="ceo-detail" style="color: var(--accent-blue);">{{ rep.website }}</a></span>{% endif %}
+    </div>
+    {% endif %}
+
     {# CEO info #}
     {% if is_api and (rep.ceo_name or rep.ceo_approval or rep.recommend_to_friend or rep.business_outlook) %}
     <div class="ceo-info">
