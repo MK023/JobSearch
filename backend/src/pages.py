@@ -27,13 +27,15 @@ def _flash(request: Request) -> dict[str, Any]:
 def _base_ctx(db: DbSession, user: CurrentUser, active_page: str) -> dict[str, Any]:
     """Context keys injected on EVERY page render.
 
-    Currently: notification badge count for the sidebar. Having this in a
-    single helper prevents any page from silently losing the badge.
+    Sidebar badges: notification count + upcoming interview count.
     """
+    from .interview.service import get_upcoming_interviews
+
     return {
         "user": user,
         "active_page": active_page,
         "notification_count": get_unread_count(db),
+        "interview_count": len(get_upcoming_interviews(db, days=30)),
     }
 
 
