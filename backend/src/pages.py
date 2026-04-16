@@ -227,3 +227,30 @@ def notifications_page(
             "message": flash["message"],
         },
     )
+
+
+@router.get("/stats", response_class=HTMLResponse)
+def stats_page(
+    request: Request,
+    db: DbSession,
+    user: CurrentUser,
+) -> Response:
+    """Render the stats / analytics page."""
+    from .stats.service import get_stats
+
+    templates = request.app.state.templates
+    flash = _flash(request)
+
+    cache = getattr(request.app.state, "cache", None)
+    stats = get_stats(db, cache=cache)
+
+    return templates.TemplateResponse(  # type: ignore[no-any-return]
+        request,
+        "stats.html",
+        {
+            **_base_ctx(db, user, "stats"),
+            "stats": stats,
+            "error": flash["error"],
+            "message": flash["message"],
+        },
+    )
