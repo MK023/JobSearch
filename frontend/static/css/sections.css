@@ -1018,7 +1018,8 @@
 .history-item-link {
   text-decoration: none;
   color: inherit;
-  display: flex;
+  display: grid;
+  grid-template-columns: 48px 1fr auto 72px;
   align-items: center;
   gap: var(--space-md);
   flex: 1;
