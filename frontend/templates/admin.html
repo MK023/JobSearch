@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}Admin — Job Search{% endblock %}
+{% block content %}
+<div class="content-inner">
+
+  <div class="page-header">
+    <h1 class="page-title">Admin</h1>
+    <span class="meta-small">Metriche interne &middot; ultimi 24h &middot; retention 7 giorni</span>
+  </div>
+
+  {# Flash messages #}
+  {% if error %}
+  <div class="message-banner banner-error">{{ error }}</div>
+  {% endif %}
+
+  {# KPI row #}
+  <div class="grid-metrics mb-xl">
+    <div class="metric-card metric-blue">
+      <div class="metric-row">
+        <div class="metric-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        </div>
+        <span class="metric-value">{{ metrics.total_24h }}</span>
+      </div>
+      <span class="metric-label">Richieste 24h</span>
+    </div>
+    <div class="metric-card metric-green">
+      <div class="metric-row">
+        <div class="metric-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        </div>
+        <span class="metric-value">{{ metrics.avg_latency_ms }}ms</span>
+      </div>
+      <span class="metric-label">Latenza media</span>
+    </div>
+    <div class="metric-card metric-orange">
+      <div class="metric-row">
+        <div class="metric-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v10l4.24 4.24"/><circle cx="12" cy="12" r="10"/></svg>
+        </div>
+        <span class="metric-value">{{ metrics.p95_latency_ms }}ms</span>
+      </div>
+      <span class="metric-label">P95 latenza</span>
+    </div>
+    <div class="metric-card {% if metrics.error_rate > 5 %}metric-orange{% else %}metric-green{% endif %}">
+      <div class="metric-row">
+        <div class="metric-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" x2="9" y1="9" y2="15"/><line x1="9" x2="15" y1="9" y2="15"/></svg>
+        </div>
+        <span class="metric-value">{{ metrics.error_rate }}%</span>
+      </div>
+      <span class="metric-label">Error rate ({{ metrics.errors_24h }} errori)</span>
+    </div>
+  </div>
+
+  {# Charts row #}
+  <div class="grid-2col mb-xl">
+
+    {# Requests per hour #}
+    <div class="stats-card">
+      <h3 class="stats-card-title">Richieste per ora</h3>
+      <canvas id="hourlyChart"></canvas>
+    </div>
+
+    {# Status code breakdown #}
+    <div class="stats-card">
+      <h3 class="stats-card-title">Status code</h3>
+      <canvas id="statusChart"></canvas>
+    </div>
+
+  </div>
+
+  {# Top endpoints table #}
+  <section class="card dash-widget mb-xl">
+    <h2 class="section-title">Top 10 endpoint (24h)</h2>
+    {% if metrics.top_endpoints %}
+    <div class="dash-table-wrap">
+      <table class="dash-table">
+        <thead>
+          <tr>
+            <th>Endpoint</th>
+            <th>Richieste</th>
+            <th>Latenza media</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for ep in metrics.top_endpoints %}
+          <tr>
+            <td><code style="font-size: var(--text-xs);">{{ ep.endpoint }}</code></td>
+            <td>{{ ep.count }}</td>
+            <td>{{ ep.avg_ms }}ms</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state" style="padding: var(--space-lg);">Nessuna metrica disponibile. Le metriche si raccolgono automaticamente ad ogni richiesta.</div>
+    {% endif %}
+  </section>
+
+</div>
+{% endblock %}
+{% block scripts_extra %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1" integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous"></script>
+<script>
+(function() {
+  var hourly = {{ metrics.hourly | tojson }};
+  var statusBreakdown = {{ metrics.status_breakdown | tojson }};
+
+  var rootStyle = getComputedStyle(document.documentElement);
+  var textSecondary = rootStyle.getPropertyValue('--text-secondary').trim() || '#9aa0a6';
+  var borderSubtle = rootStyle.getPropertyValue('--border-subtle').trim() || 'rgba(255,255,255,0.06)';
+
+  Chart.defaults.color = textSecondary;
+  Chart.defaults.borderColor = borderSubtle;
+
+  // Hourly chart
+  if (document.getElementById('hourlyChart')) {
+    new Chart(document.getElementById('hourlyChart'), {
+      type: 'bar',
+      data: {
+        labels: hourly.map(function(h) {
+          var d = new Date(h.hour);
+          return d.getHours() + ':00';
+        }),
+        datasets: [{
+          label: 'Richieste',
+          data: hourly.map(function(h) { return h.count; }),
+          backgroundColor: 'rgba(10, 132, 255, 0.6)',
+          borderRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, ticks: { stepSize: 1 } }
+        }
+      }
+    });
+  }
+
+  // Status chart
+  if (document.getElementById('statusChart')) {
+    var labels = Object.keys(statusBreakdown);
+    var data = Object.values(statusBreakdown);
+    var colors = labels.map(function(l) {
+      if (l === '2xx') return 'rgba(48, 209, 88, 0.7)';
+      if (l === '3xx') return 'rgba(10, 132, 255, 0.7)';
+      if (l === '4xx') return 'rgba(255, 159, 10, 0.7)';
+      return 'rgba(255, 69, 58, 0.7)';
+    });
+    new Chart(document.getElementById('statusChart'), {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{ data: data, backgroundColor: colors, borderWidth: 0 }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '60%',
+        plugins: {
+          legend: { position: 'bottom', labels: { usePointStyle: true, padding: 12 } }
+        }
+      }
+    });
+  }
+})();
+</script>
+{% endblock %}

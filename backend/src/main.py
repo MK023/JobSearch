@@ -212,6 +212,10 @@ def create_app() -> FastAPI:
         allow_headers=["Content-Type", "Authorization", "X-Requested-With", "X-API-Key"],
     )
 
+    from .metrics.middleware import MetricsMiddleware
+
+    app.add_middleware(MetricsMiddleware)
+
     # --- Templates & static files ---
     app.state.templates = Jinja2Templates(directory=str(_TEMPLATE_DIR))
     # Auto cache-bust: short git commit hash, fallback to timestamp
