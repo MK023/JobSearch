@@ -1,0 +1,132 @@
+"""Job Salary Data integration via RapidAPI.
+
+Provides salary estimates for job titles with DB-level caching (30 days).
+Graceful degradation: returns None on missing API key, errors, or no data.
+"""
+
+import json
+import logging
+import uuid
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
+import httpx
+from sqlalchemy import Column, DateTime, String, Text
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Session
+
+from ..config import settings
+from ..database.base import Base
+
+logger = logging.getLogger(__name__)
+
+CACHE_DAYS = 30
+RAPIDAPI_HOST = "job-salary-data.p.rapidapi.com"
+SALARY_URL = f"https://{RAPIDAPI_HOST}/job-salary"
+
+
+class SalaryCache(Base):
+    """DB-level cache for salary data (30-day TTL)."""
+
+    __tablename__ = "salary_cache"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    cache_key = Column(String(255), unique=True, index=True, nullable=False)
+    salary_data = Column(Text, default="")
+    fetched_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+
+
+def _call_api(job_title: str, location: str | None = None) -> list[dict[str, Any]] | None:
+    """Call the Job Salary Data API. Returns parsed data list or None."""
+    if not settings.rapidapi_key:
+        return None
+
+    params: dict[str, str] = {"job_title": job_title}
+    if location:
+        params["location"] = location
+        params["radius"] = "200"
+
+    try:
+        resp = httpx.get(
+            SALARY_URL,
+            headers={
+                "X-RapidAPI-Key": settings.rapidapi_key,
+                "X-RapidAPI-Host": RAPIDAPI_HOST,
+            },
+            params=params,
+            timeout=10.0,
+        )
+        resp.raise_for_status()
+        body = resp.json()
+        data = body.get("data", [])
+        return data if isinstance(data, list) else None
+    except Exception:
+        logger.warning("Salary API call failed for %r", job_title, exc_info=True)
+        return None
+
+
+def _parse_salary(item: dict[str, Any]) -> dict[str, Any]:
+    """Normalize a salary API result into a clean dict."""
+    return {
+        "location": item.get("location", ""),
+        "job_title": item.get("job_title", ""),
+        "min_salary": item.get("min_salary"),
+        "max_salary": item.get("max_salary"),
+        "median_salary": item.get("median_salary"),
+        "salary_period": item.get("salary_period", "YEAR"),
+        "salary_currency": item.get("salary_currency", "USD"),
+        "salary_count": item.get("salary_count", 0),
+        "confidence": item.get("confidence", ""),
+        "publisher": item.get("publisher_name", ""),
+        "source": "job_salary_data_api",
+    }
+
+
+def fetch_salary_data(
+    job_title: str,
+    location: str | None = None,
+    db: Session | None = None,
+) -> dict[str, Any] | None:
+    """Fetch salary estimate for a job title. Uses DB cache with 30-day TTL."""
+    if not job_title or not settings.rapidapi_key:
+        return None
+
+    title_norm = job_title.strip().lower()
+    loc_norm = (location or "").strip().lower()
+    key = f"{title_norm}:{loc_norm}"
+
+    # Check cache
+    if db is not None:
+        try:
+            cached = db.query(SalaryCache).filter(SalaryCache.cache_key == key).first()
+            if cached and cached.fetched_at:
+                age = datetime.now(UTC) - cached.fetched_at.replace(tzinfo=UTC)
+                if age < timedelta(days=CACHE_DAYS) and cached.salary_data:
+                    return json.loads(cached.salary_data)
+        except Exception:  # noqa: S110 — cache miss is non-fatal
+            pass
+
+    # Try with location first, fallback to without
+    data = _call_api(job_title, location) if location else None
+    if not data:
+        data = _call_api(job_title)
+    if not data:
+        return None
+
+    # Pick first result (most relevant)
+    result = _parse_salary(data[0])
+
+    # Update cache
+    if db is not None:
+        try:
+            cached = db.query(SalaryCache).filter(SalaryCache.cache_key == key).first()
+            if cached:
+                cached.salary_data = json.dumps(result)
+                cached.fetched_at = datetime.now(UTC)
+            else:
+                db.add(SalaryCache(cache_key=key, salary_data=json.dumps(result)))
+            db.flush()
+        except Exception:
+            logger.warning("Failed to cache salary data", exc_info=True)
+
+    return result

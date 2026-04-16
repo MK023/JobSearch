@@ -423,6 +423,47 @@ def agenda_page(
     )
 
 
+@router.get("/news", response_class=HTMLResponse)
+def news_page(
+    request: Request,
+    db: DbSession,
+    user: CurrentUser,
+) -> Response:
+    """Render the company news page — aggregated news for active candidatures."""
+    from .analysis.models import JobAnalysis
+    from .integrations.news import fetch_company_news
+
+    templates = request.app.state.templates
+    flash = _flash(request)
+
+    # Get distinct companies from active candidatures (candidato + colloquio)
+    active_statuses = [AnalysisStatus.APPLIED.value, AnalysisStatus.INTERVIEW.value]
+    companies: list[str] = [
+        r[0]
+        for r in db.query(JobAnalysis.company)
+        .filter(JobAnalysis.status.in_(active_statuses), JobAnalysis.company.isnot(None), JobAnalysis.company != "")
+        .distinct()
+        .all()
+    ]
+
+    news_groups = []
+    for company in sorted(set(companies)):
+        articles = fetch_company_news(company, db)
+        if articles:
+            news_groups.append({"company": company, "articles": articles})
+
+    return templates.TemplateResponse(  # type: ignore[no-any-return]
+        request,
+        "news.html",
+        {
+            **_base_ctx(db, user, "news"),
+            "news_groups": news_groups,
+            "error": flash["error"],
+            "message": flash["message"],
+        },
+    )
+
+
 @router.get("/admin", response_class=HTMLResponse)
 def admin_page(
     request: Request,

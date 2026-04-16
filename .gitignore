@@ -38,6 +38,8 @@ Thumbs.db
 # Project-specific
 .claude/
 .agents/
+.impeccable.md
+skills-lock.json
 firebase-debug.log
 JOB_SEARCH_COMMAND_CENTER_SPEC.md
 *.db

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}News — Job Search{% endblock %}
+{% block content %}
+<div class="content-inner">
+
+  <div class="page-header">
+    <h1 class="page-title">News aziende</h1>
+  </div>
+
+  {% if error %}
+  <div class="message-banner banner-error">{{ error }}</div>
+  {% endif %}
+
+  {% if not news_groups %}
+  <div class="card empty-state">
+    <p class="mb-lg">Nessuna news disponibile per le aziende nelle candidature attive</p>
+    <a href="/analyze" class="btn btn-primary">Analizza un'offerta &rarr;</a>
+  </div>
+  {% else %}
+    {% for group in news_groups %}
+    <div class="news-company-group">
+      <div class="news-company-header">
+        {{ group.company }}
+        <span class="reputation-reviews">{{ group.articles|length }} articoli</span>
+      </div>
+      {% for article in group.articles %}
+      <div class="news-article">
+        <div class="news-article-body">
+          <div class="news-article-title">
+            <a href="{{ article.link }}" target="_blank" rel="noopener noreferrer">{{ article.title }}</a>
+          </div>
+          {% if article.snippet %}
+          <div class="news-article-snippet">{{ article.snippet }}</div>
+          {% endif %}
+          <div class="news-article-meta">
+            {{ article.source_name }}
+            {% if article.published_at %} &middot; {{ article.published_at[:10] }}{% endif %}
+          </div>
+        </div>
+        {% if article.photo_url %}
+        <img class="news-article-thumb" src="{{ article.photo_url }}" alt="" loading="lazy">
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  {% endif %}
+
+</div>
+{% endblock %}
