@@ -13,7 +13,7 @@
 9. [Frontend and SSR](#9-frontend-and-ssr)
 10. [Docker Infrastructure](#10-docker-infrastructure)
 11. [CI/CD](#11-cicd)
-12. [Fly.io Deployment](#12-flyio-deployment)
+12. [Render.com Deployment](#12-flyio-deployment)
 13. [Architectural Patterns and Decisions](#13-architectural-patterns-and-decisions)
 14. [MCP Server (Claude Desktop Integration)](#14-mcp-server-claude-desktop-integration)
 
@@ -23,7 +23,7 @@
 
 The system has two runtime components:
 
-1. **Backend (Fly.io, CDG region)** — does everything: AI analysis via Anthropic API, PostgreSQL persistence, deduplication via content_hash, cost tracking, and serves the web UI (Jinja2 SSR). Single container, 512MB shared CPU, auto-stop after ~5 min inactivity.
+1. **Backend (Render.com, CDG region)** — does everything: AI analysis via Anthropic API, PostgreSQL persistence, deduplication via content_hash, cost tracking, and serves the web UI (Jinja2 SSR). Single container, 512MB shared CPU, auto-stop after ~5 min inactivity.
 2. **MCP server (local, macOS)** — thin HTTP proxy (~120 lines) that runs on the developer's machine via Claude Desktop (stdio transport). All 25 tools are HTTP calls to the backend, authenticated with an API key (X-API-Key header).
 
 ```
@@ -34,12 +34,12 @@ Claude Desktop (stdio)     Browser
   25 tools, thin proxy        |
        | HTTP (X-API-Key)     |
        v                      v
-  FastAPI + Jinja2 (Fly.io) ---- Anthropic Claude API (Haiku/Sonnet)
+  FastAPI + Jinja2 (Render.com) ---- Anthropic Claude API (Haiku/Sonnet)
        |                     ---- Cloudflare R2 (file storage)
        |                     ---- Resend (email reminders)
        |                     ---- RapidAPI (Glassdoor ratings)
        v
-  PostgreSQL (Fly.io, 1GB free tier)
+  PostgreSQL (Render.com, 1GB free tier)
 ```
 
 ### Design Principles
@@ -48,7 +48,7 @@ Claude Desktop (stdio)     Browser
 - **Graceful degradation**: Redis and Glassdoor are optional, the app works without them
 - **Fail-fast**: missing environment variables block startup (not runtime)
 - **Defense in depth**: rate limiting + CORS + security headers + trusted hosts + audit trail
-- **Crash-resistant batch**: PostgreSQL-backed batch queue survives server restarts and Fly.io autostop
+- **Crash-resistant batch**: PostgreSQL-backed batch queue survives server restarts and Render.com autostop
 
 ---
 
@@ -281,7 +281,7 @@ engine = create_engine(
 )
 ```
 
-`pool_pre_ping=True` e' fondamentale: evita errori "connection closed" dopo periodi di inattivita' (es. Fly.io che dorme la VM).
+`pool_pre_ping=True` e' fondamentale: evita errori "connection closed" dopo periodi di inattivita' (es. Render.com che dorme la VM).
 
 ### DeclarativeBase
 
@@ -773,7 +773,7 @@ location /static/ {
 }
 ```
 
-In single-container (Fly.io), FastAPI serve i file statici con `StaticFiles`:
+In single-container (Render.com), FastAPI serve i file statici con `StaticFiles`:
 ```python
 app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 ```
@@ -844,7 +844,7 @@ Nginx aggiunge header di sicurezza su tutte le risposte:
 
 ### Gzip compression
 
-Nginx comprime risposte > 1KB per i tipi: text/plain, text/css, text/javascript, application/javascript, application/json, image/svg+xml. Il backend in Fly.io (senza nginx) non ha gzip nativo, ma Fly.io edge proxy fornisce compressione.
+Nginx comprime risposte > 1KB per i tipi: text/plain, text/css, text/javascript, application/javascript, application/json, image/svg+xml. Il backend in Render.com (senza nginx) non ha gzip nativo, ma Render.com edge proxy fornisce compressione.
 
 ### Subresource Integrity (SRI)
 
@@ -1000,7 +1000,7 @@ with patch("src.main.lifespan", _test_lifespan):
 
 ---
 
-## 12. Deploy su Fly.io
+## 12. Deploy su Render.com
 
 ### Configurazione (`fly.toml`)
 
@@ -1024,7 +1024,7 @@ primary_region = "cdg"              # Parigi
 
 ### Differenze con Docker Compose
 
-| Aspetto | Docker Compose | Fly.io |
+| Aspetto | Docker Compose | Render.com |
 |---------|---------------|--------|
 | Container | 4 (nginx + backend + db + redis) | 1 (solo backend) |
 | Static files | Nginx serve /static/ | FastAPI StaticFiles |
@@ -1035,7 +1035,7 @@ primary_region = "cdg"              # Parigi
 
 ### Database URL
 
-Fly.io usa `postgres://` come schema, ma SQLAlchemy 2.0 richiede `postgresql://`:
+Render.com usa `postgres://` come schema, ma SQLAlchemy 2.0 richiede `postgresql://`:
 
 ```python
 @property
@@ -1104,12 +1104,12 @@ Questo permette di testare i service senza HTTP e di cambiare il transport layer
 
 ### Batch Processing
 
-The batch queue is **persistent in PostgreSQL** via the `batch_items` table. Each item stores the full job description, content hash, model choice, and processing status (`pending`, `running`, `done`, `skipped`, `error`). This design survives Fly.io autostop, server crashes, and restarts — pending items are picked up on the next `batch_run` call.
+The batch queue is **persistent in PostgreSQL** via the `batch_items` table. Each item stores the full job description, content hash, model choice, and processing status (`pending`, `running`, `done`, `skipped`, `error`). This design survives Render.com autostop, server crashes, and restarts — pending items are picked up on the next `batch_run` call.
 
 Key endpoints:
 - `POST /api/v1/batch/add` — enqueue a job description
 - `POST /api/v1/batch/run` — start processing pending items
-- `GET /api/v1/batch/status` — poll progress (batch_status polling every ~7s from the Cowork agent keeps Fly.io awake during batch processing)
+- `GET /api/v1/batch/status` — poll progress (batch_status polling every ~7s from the Cowork agent keeps Render.com awake during batch processing)
 - `GET /api/v1/batch/results` — retrieve completed analyses
 - `DELETE /api/v1/batch/clear` — clear the current batch queue
 - `GET /api/v1/batch/pending-items` — return pending items + CV (for external processing)
@@ -1189,7 +1189,7 @@ def encrypt_credential(value: str) -> str:
 Il MCP server è un thin proxy locale (~120 righe) che espone 25 tool via Model Context Protocol (MCP), permettendo di interrogare e gestire il database delle candidature direttamente da Claude Desktop.
 
 ```
-Claude Desktop (stdio) → MCP Server (local) → HTTPS + X-API-Key → FastAPI backend (Fly.io) → PostgreSQL
+Claude Desktop (stdio) → MCP Server (local) → HTTPS + X-API-Key → FastAPI backend (Render.com) → PostgreSQL
 ```
 
 ### Stack tecnico
@@ -1222,7 +1222,7 @@ Vantaggi:
 
 ### Auto-wake e networking
 
-Il MCP server usa l'URL pubblico del backend (`https://jobsearch.fly.dev`) invece della rete interna Fly.io (`*.internal`). Questo perché i nomi `.internal` non triggerano l'auto-start delle VM in sleep — solo il proxy pubblico di Fly.io sveglia le macchine automaticamente.
+Il MCP server usa l'URL pubblico del backend (`https://jobsearch.fly.dev`) invece della rete interna Render.com (`*.internal`). Questo perché i nomi `.internal` non triggerano l'auto-start delle VM in sleep — solo il proxy pubblico di Render.com sveglia le macchine automaticamente.
 
 ### Tool disponibili (25)
 
