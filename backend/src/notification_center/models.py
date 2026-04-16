@@ -37,6 +37,7 @@ class NotificationType(StrEnum):
     DB_SIZE_HIGH = "db_size_high"
     FOLLOWUP_DUE = "followup_due"
     BACKLOG_TO_REVIEW = "backlog_to_review"
+    TODO_PENDING = "todo_pending"
 
 
 class NotificationDismissal(Base):

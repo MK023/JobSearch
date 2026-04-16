@@ -198,6 +198,28 @@ def _backlog_to_review(db: Session) -> list[Notification]:
     ]
 
 
+def _todo_pending(db: Session) -> list[Notification]:
+    from ..agenda.models import TodoItem
+
+    count = db.query(func.count(TodoItem.id)).filter(TodoItem.done == False).scalar() or 0  # noqa: E712
+    if count == 0:
+        return []
+    return [
+        Notification(
+            id=f"todo:pending:{count}",
+            type=NotificationType.TODO_PENDING,
+            severity=NotificationSeverity.INFO,
+            title=f"{count} task da completare",
+            body="Hai task aperti nella tua agenda.",
+            action_url="/agenda",
+            action_label="Apri Agenda",
+            dismissible=True,
+            sticky=False,
+            created_at=datetime.now(UTC),
+        )
+    ]
+
+
 _SEVERITY_ORDER = {
     NotificationSeverity.CRITICAL: 0,
     NotificationSeverity.WARNING: 1,
@@ -226,6 +248,7 @@ def get_notifications(db: Session) -> list[Notification]:
     out.extend(_db_size_high(db))
     out.extend(_followup_due(db))
     out.extend(_backlog_to_review(db))
+    out.extend(_todo_pending(db))
 
     out = [n for n in out if n.id not in dismissed]
     out.sort(key=lambda n: (_SEVERITY_ORDER[n.severity], -n.created_at.timestamp()))
