@@ -184,11 +184,11 @@ def _backlog_to_review(db: Session) -> list[Notification]:
         return []
     return [
         Notification(
-            id="backlog:da_valutare",
+            id=f"backlog:da_valutare:{count}",
             type=NotificationType.BACKLOG_TO_REVIEW,
-            severity=NotificationSeverity.INFO,
-            title=f"{count} {'analisi' if count > 1 else 'analisi'} da valutare",
-            body=("Nuovi risultati da Cowork pronti per la revisione."),
+            severity=NotificationSeverity.WARNING,
+            title=f"{count} analisi da valutare (Cowork)",
+            body="Nuovi risultati da Cowork pronti per la revisione.",
             action_url="/history",
             action_label="Apri Storico",
             dismissible=True,
