@@ -119,15 +119,41 @@ def update_budget(db: Session, budget: float) -> float:
 
 
 def get_dashboard(db: Session) -> dict[str, Any]:
-    """Build dashboard stats."""
-    analyses = db.query(JobAnalysis).order_by(JobAnalysis.created_at.desc()).limit(50).all()
-    total = len(analyses)
-    # "applied" counts every analysis still in the live funnel (sent CV → interview → offer).
-    # OFFER is a live state, not a terminal one — only REJECTED removes from the count.
-    applied = sum(
-        1 for a in analyses if a.status in (AnalysisStatus.APPLIED, AnalysisStatus.INTERVIEW, AnalysisStatus.OFFER)
+    """Build dashboard stats from the FULL database — no rolling window.
+
+    Counts map directly onto AnalysisStatus values so the UI shows the
+    cumulative state of the job hunt, not an arbitrary last-N slice.
+    """
+
+    def _count(*statuses: AnalysisStatus) -> int:
+        q = db.query(func.count(JobAnalysis.id))
+        if statuses:
+            q = q.filter(JobAnalysis.status.in_([s.value for s in statuses]))
+        return int(q.scalar() or 0)
+
+    total = _count()
+    applied = _count(AnalysisStatus.APPLIED)
+    interviews = _count(AnalysisStatus.INTERVIEW)
+    offers = _count(AnalysisStatus.OFFER)
+    skipped = _count(AnalysisStatus.REJECTED)
+    pending = _count(AnalysisStatus.PENDING)
+
+    # Average score across analyses the user actually sent — single source of truth
+    # for "quality of my outgoing pipeline".
+    avg_score_raw = (
+        db.query(func.avg(JobAnalysis.score))
+        .filter(
+            JobAnalysis.status.in_(
+                [
+                    AnalysisStatus.APPLIED.value,
+                    AnalysisStatus.INTERVIEW.value,
+                    AnalysisStatus.OFFER.value,
+                ]
+            )
+        )
+        .scalar()
     )
-    avg_score = round(sum(a.score or 0 for a in analyses) / total, 1) if total else 0
+    avg_score = round(float(avg_score_raw), 1) if avg_score_raw is not None else 0.0
 
     threshold = datetime.now(UTC) - timedelta(days=app_settings.followup_reminder_days)
     followup_count = (
@@ -141,19 +167,23 @@ def get_dashboard(db: Session) -> dict[str, Any]:
         .count()
     )
 
-    non_rejected = [a for a in analyses if a.status != AnalysisStatus.REJECTED]
-    top = max(non_rejected, key=lambda a: a.score or 0, default=None)
+    top_row = (
+        db.query(JobAnalysis)
+        .filter(JobAnalysis.status != AnalysisStatus.REJECTED.value)
+        .order_by(JobAnalysis.score.desc())
+        .first()
+    )
 
     return {
         "total": total,
         "applied": applied,
-        "interviews": sum(1 for a in analyses if a.status == AnalysisStatus.INTERVIEW),
-        "offers": sum(1 for a in analyses if a.status == AnalysisStatus.OFFER),
-        "skipped": sum(1 for a in analyses if a.status == AnalysisStatus.REJECTED),
-        "pending": sum(1 for a in analyses if a.status == AnalysisStatus.PENDING),
+        "interviews": interviews,
+        "offers": offers,
+        "skipped": skipped,
+        "pending": pending,
         "avg_score": avg_score,
         "followup_count": followup_count,
-        "top_match": ({"role": top.role, "company": top.company, "score": top.score} if top else None),
+        "top_match": ({"role": top_row.role, "company": top_row.company, "score": top_row.score} if top_row else None),
     }
 
 
