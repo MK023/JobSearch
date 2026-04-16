@@ -35,7 +35,7 @@ def _base_ctx(db: DbSession, user: CurrentUser, active_page: str) -> dict[str, A
         "user": user,
         "active_page": active_page,
         "notification_count": get_unread_count(db),
-        "interview_count": len(get_upcoming_interviews(db, days=30)),
+        "interview_count": len(get_upcoming_interviews(db, days=14)),
     }
 
 
