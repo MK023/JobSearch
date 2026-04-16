@@ -239,7 +239,7 @@ function submitInterview(e) {
             }
             if (typeof refreshHistoryCounts === 'function') refreshHistoryCounts();
             if (typeof refreshSpending === 'function') refreshSpending();
-            if (typeof refreshDashboard === 'function') refreshDashboard();
+            window.location.reload();
             showToast('Colloquio salvato', 'success');
             if (window.location.pathname.indexOf('/analysis/') !== -1 ||
                 window.location.pathname.indexOf('/interviews') !== -1) {

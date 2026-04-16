@@ -183,7 +183,7 @@ function markFollowupDone(id) {
                 // Also remove associated generated area
                 var genArea = document.getElementById('generated-area-' + id);
                 if (genArea) genArea.remove();
-                if (typeof refreshDashboard === 'function') refreshDashboard();
+                window.location.reload();
                 showToast('Follow-up completato', 'success');
             }
         })

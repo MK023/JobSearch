@@ -95,7 +95,7 @@ function batchManager() {
                         self.running = false;
                         self.statusText = 'Completato! Ricarica la pagina per vedere i risultati.';
                         if (typeof refreshSpending === 'function') refreshSpending();
-                        if (typeof refreshDashboard === 'function') refreshDashboard();
+                        window.location.reload();
                         showToast('Analisi batch completata', 'success');
                     }
                 })
