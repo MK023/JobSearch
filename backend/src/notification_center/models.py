@@ -39,6 +39,7 @@ class NotificationType(StrEnum):
     BACKLOG_TO_REVIEW = "backlog_to_review"
     TODO_PENDING = "todo_pending"
     BACKUP_STALE = "backup_stale"
+    APP_ERROR = "app_error"
 
 
 class NotificationDismissal(Base):

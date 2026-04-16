@@ -303,6 +303,39 @@ def _backup_stale(db: Session) -> list[Notification]:
     ]
 
 
+def _recent_errors(db: Session) -> list[Notification]:
+    """Surface recent 5xx errors from the metrics table."""
+    try:
+        from ..metrics.models import RequestMetric
+
+        cutoff = datetime.now(UTC) - timedelta(hours=24)
+        error_count = (
+            db.query(func.count(RequestMetric.id))
+            .filter(RequestMetric.created_at >= cutoff, RequestMetric.status_code >= 500)
+            .scalar()
+            or 0
+        )
+        if error_count == 0:
+            return []
+
+        return [
+            Notification(
+                id=f"errors:5xx:{error_count}",
+                type=NotificationType.APP_ERROR,
+                severity=NotificationSeverity.CRITICAL if error_count >= 5 else NotificationSeverity.WARNING,
+                title=f"{error_count} errori server (5xx) nelle ultime 24h",
+                body="Controlla la pagina Admin per i dettagli sugli endpoint coinvolti.",
+                action_url="/admin",
+                action_label="Apri Admin",
+                dismissible=True,
+                sticky=True,
+                created_at=datetime.now(UTC),
+            )
+        ]
+    except Exception:
+        return []
+
+
 _SEVERITY_ORDER = {
     NotificationSeverity.CRITICAL: 0,
     NotificationSeverity.WARNING: 1,
@@ -334,6 +367,7 @@ def get_notifications(db: Session) -> list[Notification]:
     out.extend(_backlog_to_review(db))
     out.extend(_todo_pending(db))
     out.extend(_backup_stale(db))
+    out.extend(_recent_errors(db))
 
     out = [n for n in out if n.id not in dismissed]
     out.sort(key=lambda n: (_SEVERITY_ORDER[n.severity], -n.created_at.timestamp()))
