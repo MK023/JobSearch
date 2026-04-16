@@ -9,7 +9,7 @@ from fastapi.responses import HTMLResponse, Response
 from .analysis.models import AnalysisStatus, JobAnalysis
 from .analysis.service import get_recent_analyses
 from .cv.service import get_latest_cv
-from .dashboard.service import get_dashboard, get_spending
+from .dashboard.service import get_dashboard, get_db_usage, get_followup_alerts, get_spending, get_top_candidates
 from .dependencies import CurrentUser, DbSession
 from .notification_center.service import get_notifications, get_unread_count
 
@@ -61,6 +61,10 @@ def dashboard_page(
         .all()
     )
 
+    followup_alerts = get_followup_alerts(db)
+    top_candidates = get_top_candidates(db, limit=10)
+    db_usage = get_db_usage(db)
+
     return templates.TemplateResponse(  # type: ignore[no-any-return]
         request,
         "dashboard.html",
@@ -70,6 +74,9 @@ def dashboard_page(
             "spending": spending,
             "pending": pending,
             "analyses": analyses,
+            "followup_alerts": followup_alerts,
+            "top_candidates": top_candidates,
+            "db_usage": db_usage,
             "error": flash["error"],
             "message": flash["message"],
         },

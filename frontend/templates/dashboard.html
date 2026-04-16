@@ -35,9 +35,92 @@
     {% with value=dashboard.avg_score|default(0), label="Score medio candidature", icon="target", accent="orange" %}{% include "partials/metric_card.html" %}{% endwith %}
   </div>
 
-  {# Alerts (colloqui, followup, budget basso, DB pieno, backlog) sono centralizzati
-     nella tab Notifiche del sidebar — la dashboard resta focalizzata su metriche e
-     lista recente. #}
+  {# Follow-up pendenti + Attività oggi — side by side #}
+  <div class="grid-2col mb-xl">
+
+    {# Follow-up pendenti #}
+    <section class="card dash-widget">
+      <h2 class="section-title">Follow-up pendenti ({{ followup_alerts|length }})</h2>
+      {% if followup_alerts %}
+        {% for a in followup_alerts[:5] %}
+        <div class="dash-widget-row">
+          <div class="dash-widget-row-main">
+            <a href="/analysis/{{ a.id }}" class="dash-widget-row-title">{{ a.company or '—' }}</a>
+            <span class="dash-widget-row-sub">{{ a.role or '—' }}</span>
+          </div>
+          <span class="meta-small">{{ a.applied_at.strftime('%d/%m') if a.applied_at else '' }}</span>
+        </div>
+        {% endfor %}
+        {% if followup_alerts|length > 5 %}
+        <div class="meta-small" style="margin-top: var(--space-sm);">+ {{ followup_alerts|length - 5 }} altri &middot; <a href="/notifications" class="link-subtle">vedi tutti</a></div>
+        {% endif %}
+      {% else %}
+        <div class="empty-state" style="padding: var(--space-lg);">Nessun follow-up pendente</div>
+      {% endif %}
+    </section>
+
+    {# Attività oggi #}
+    <section class="card dash-widget">
+      <h2 class="section-title">Attività oggi</h2>
+      <div class="dash-widget-row">
+        <span class="dash-widget-row-main">Nuove analisi</span>
+        <span class="dash-widget-kpi">{{ spending.today_analyses|default(0) }}</span>
+      </div>
+      <div class="dash-widget-row">
+        <span class="dash-widget-row-main">Speso oggi</span>
+        <span class="dash-widget-kpi">${{ "%.3f"|format(spending.today_cost_usd|default(0)) }}</span>
+      </div>
+      <div class="dash-widget-row">
+        <span class="dash-widget-row-main">Token input / output</span>
+        <span class="meta-small">{{ spending.today_tokens_input|default(0) }} / {{ spending.today_tokens_output|default(0) }}</span>
+      </div>
+    </section>
+
+  </div>
+
+  {# DB usage + Top match — side by side #}
+  <div class="grid-2col mb-xl">
+
+    {# DB Usage #}
+    <section class="card dash-widget">
+      <h2 class="section-title">Database usage</h2>
+      <div class="dash-widget-row">
+        <span class="dash-widget-row-main">Analisi</span>
+        <span class="dash-widget-kpi">{{ db_usage.analyses_count|default(0) }}</span>
+      </div>
+      <div class="dash-widget-row">
+        <span class="dash-widget-row-main">Batch items</span>
+        <span class="dash-widget-kpi">{{ db_usage.batch_items_count|default(0) }}</span>
+      </div>
+      <div class="dash-widget-row">
+        <span class="dash-widget-row-main">Audit log</span>
+        <span class="dash-widget-kpi">{{ db_usage.audit_logs_count|default(0) }}</span>
+      </div>
+      <div class="dash-widget-row">
+        <span class="dash-widget-row-main">Dimensione stimata</span>
+        <span class="dash-widget-kpi">{{ db_usage.estimated_size_mb|default(0) }} MB / 1 GB</span>
+      </div>
+    </section>
+
+    {# Top 10 candidature #}
+    <section class="card dash-widget">
+      <h2 class="section-title">Top 10 candidature</h2>
+      {% if top_candidates %}
+        {% for c in top_candidates %}
+        <div class="dash-widget-row">
+          <div class="dash-widget-row-main">
+            <a href="/analysis/{{ c.id }}" class="dash-widget-row-title">{{ c.company }}</a>
+            <span class="dash-widget-row-sub">{{ c.role }}</span>
+          </div>
+          <span class="score-badge score-{{ 'high' if c.score >= 85 else ('mid' if c.score >= 70 else 'low') }}">{{ c.score }}</span>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state" style="padding: var(--space-lg);">Nessuna candidatura attiva</div>
+      {% endif %}
+    </section>
+
+  </div>
 
   {# Pending analyses — dedicated query, not filtered from last-5 #}
   <section>

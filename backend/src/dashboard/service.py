@@ -7,6 +7,8 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..analysis.models import AnalysisStatus, AppSettings, JobAnalysis
+from ..audit.models import AuditLog
+from ..batch.models import BatchItem
 from ..config import settings as app_settings
 from ..cover_letter.models import CoverLetter
 
@@ -201,6 +203,46 @@ def get_followup_alerts(db: Session) -> list[JobAnalysis]:
         .order_by(JobAnalysis.applied_at.asc())
         .all()
     )
+
+
+def get_top_candidates(db: Session, limit: int = 10) -> list[dict[str, Any]]:
+    """Return the top-N analyses by score, excluding rejected ones."""
+    rows = (
+        db.query(JobAnalysis)
+        .filter(JobAnalysis.status != AnalysisStatus.REJECTED.value)
+        .order_by(JobAnalysis.score.desc())
+        .limit(limit)
+        .all()
+    )
+    return [
+        {
+            "id": str(r.id),
+            "company": r.company or "—",
+            "role": r.role or "—",
+            "score": r.score or 0,
+            "status": r.status,
+            "work_mode": r.work_mode or "—",
+            "location": r.location or "—",
+        }
+        for r in rows
+    ]
+
+
+def get_db_usage(db: Session) -> dict[str, Any]:
+    """Return DB row counts and estimated size (mirrors /api/v1/db-usage)."""
+    analyses_count = db.query(func.count(JobAnalysis.id)).scalar() or 0
+    batch_items_count = db.query(func.count(BatchItem.id)).scalar() or 0
+    audit_logs_count = db.query(func.count(AuditLog.id)).scalar() or 0
+    estimated_size_mb = round(
+        (analyses_count * 50 + batch_items_count * 5 + audit_logs_count * 1) / 1024,
+        1,
+    )
+    return {
+        "analyses_count": analyses_count,
+        "batch_items_count": batch_items_count,
+        "audit_logs_count": audit_logs_count,
+        "estimated_size_mb": estimated_size_mb,
+    }
 
 
 def seed_spending_totals(db: Session) -> None:
