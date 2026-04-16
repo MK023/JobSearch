@@ -132,26 +132,40 @@
 
   </div>
 
-  {# Top 10 candidature — full width #}
-  <div class="mb-xl">
-    <section class="card dash-widget">
-      <h2 class="section-title">Top 10 candidature</h2>
-      {% if top_candidates %}
-        {% for c in top_candidates %}
-        <div class="dash-widget-row">
-          <div class="dash-widget-row-main">
-            <a href="/analysis/{{ c.id }}" class="dash-widget-row-title">{{ c.company }}</a>
-            <span class="dash-widget-row-sub">{{ c.role }}</span>
-          </div>
-          <span class="score-badge score-{{ 'high' if c.score >= 85 else ('mid' if c.score >= 70 else 'low') }}">{{ c.score }}</span>
-        </div>
-        {% endfor %}
-      {% else %}
-        <div class="empty-state" style="padding: var(--space-lg);">Nessuna candidatura attiva</div>
-      {% endif %}
-    </section>
-
-  </div>
+  {# Top 5 candidature — tabella con dettagli #}
+  <section class="card dash-widget mb-xl">
+    <h2 class="section-title">Top 5 candidature</h2>
+    {% if top_candidates %}
+    <div class="dash-table-wrap">
+      <table class="dash-table">
+        <thead>
+          <tr>
+            <th>Score</th>
+            <th>Azienda</th>
+            <th>Ruolo</th>
+            <th>Location</th>
+            <th>Modalità</th>
+            <th>Stato</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in top_candidates %}
+          <tr>
+            <td><span class="score-badge score-{{ 'high' if c.score >= 85 else ('mid' if c.score >= 70 else 'low') }}">{{ c.score }}</span></td>
+            <td><a href="/analysis/{{ c.id }}" class="dash-widget-row-title">{{ c.company }}</a></td>
+            <td>{{ c.role }}</td>
+            <td class="meta-small">{{ c.location }}</td>
+            <td class="meta-small">{{ c.work_mode }}</td>
+            <td><span class="status-badge status-badge-{{ c.status }}">{{ c.status }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="empty-state" style="padding: var(--space-lg);">Nessuna candidatura attiva</div>
+    {% endif %}
+  </section>
 
 
 </div>
