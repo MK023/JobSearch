@@ -13,9 +13,10 @@
 9. [Frontend and SSR](#9-frontend-and-ssr)
 10. [Docker Infrastructure](#10-docker-infrastructure)
 11. [CI/CD](#11-cicd)
-12. [Render.com Deployment](#12-flyio-deployment)
-13. [Architectural Patterns and Decisions](#13-architectural-patterns-and-decisions)
-14. [MCP Server (Claude Desktop Integration)](#14-mcp-server-claude-desktop-integration)
+12. [Render.com Deployment](#12-rendercom-deployment)
+13. [Monitoring and Observability](#13-monitoring-and-observability)
+14. [Architectural Patterns and Decisions](#14-architectural-patterns-and-decisions)
+15. [MCP Server (Claude Desktop Integration)](#15-mcp-server-claude-desktop-integration)
 
 ---
 
@@ -23,23 +24,27 @@
 
 The system has two runtime components:
 
-1. **Backend (Render.com, CDG region)** — does everything: AI analysis via Anthropic API, PostgreSQL persistence, deduplication via content_hash, cost tracking, and serves the web UI (Jinja2 SSR). Single container, 512MB shared CPU, auto-stop after ~5 min inactivity.
-2. **MCP server (local, macOS)** — thin HTTP proxy (~120 lines) that runs on the developer's machine via Claude Desktop (stdio transport). All 25 tools are HTTP calls to the backend, authenticated with an API key (X-API-Key header).
+1. **Backend (Render.com, Frankfurt)** — does everything: AI analysis via Anthropic API, PostgreSQL persistence, deduplication via content_hash, cost tracking, and serves the web UI (Jinja2 SSR). Single Docker container, free tier, auto-stop after ~5 min inactivity.
+2. **MCP server (local, macOS)** — thin HTTP proxy (~120 lines) that runs on the developer's machine via Claude Desktop (stdio transport). All 15 read-only tools are HTTP calls to the backend, authenticated with an API key (X-API-Key header).
+3. **GitHub Actions** — CI pipeline (10 checks) + daily DB backup cron + weekly cleanup.
+4. **Checkly** — 6 uptime/API checks managed as Terraform IaC.
 
 ```
-Claude Desktop (stdio)     Browser
-       |                      |
-       v                      |
-  MCP Server (local)          |
-  25 tools, thin proxy        |
-       | HTTP (X-API-Key)     |
-       v                      v
+Claude Desktop (stdio)     Browser            GitHub Actions
+       |                      |               (CI + daily backup)
+       v                      |                     |
+  MCP Server (local)          |                     |
+  15 tools, thin proxy        |                     |
+       | HTTP (X-API-Key)     |                     |
+       v                      v                     v
   FastAPI + Jinja2 (Render.com) ---- Anthropic Claude API (Haiku/Sonnet)
-       |                     ---- Cloudflare R2 (file storage)
+       |                     ---- Cloudflare R2 (file storage + backups)
        |                     ---- Resend (email reminders)
        |                     ---- RapidAPI (Glassdoor ratings)
        v
-  PostgreSQL (Render.com, 1GB free tier)
+  PostgreSQL (Neon, 1GB free tier)
+
+  Checkly (6 checks, Terraform IaC) → monitors /health + key endpoints
 ```
 
 ### Design Principles
@@ -57,7 +62,8 @@ Claude Desktop (stdio)     Browser
 ```
 backend/src/
 ├── main.py              # App factory (create_app)
-├── pages.py             # Multi-page SSR route handlers (5 pages)
+├── pages.py             # Multi-page SSR route handlers
+├── read_routes.py       # Read-only API routes (MCP + dashboard)
 ├── config.py            # Settings da env con Pydantic
 ├── api_v1.py            # Aggregatore router JSON
 ├── prompts.py           # Prompt AI ottimizzati per token
@@ -69,7 +75,7 @@ backend/src/
 │   └── base.py          # create_engine + DeclarativeBase
 │
 ├── auth/                # Autenticazione
-│   ├── models.py        # User model
+│   ├── models.py        # User model (with login lockout)
 │   ├── service.py       # hash_password, authenticate_user
 │   └── routes.py        # /login, /logout (HTML)
 │
@@ -96,9 +102,34 @@ backend/src/
 │   ├── service.py       # CRUD contatti
 │   └── routes.py        # /contacts (JSON API)
 │
-├── dashboard/           # Spese e statistiche
-│   ├── service.py       # add_spending, seed_totals
+├── dashboard/           # Dashboard with 6 widgets + spending
+│   ├── service.py       # add_spending, seed_totals, widget data
 │   └── routes.py        # /spending, /dashboard (JSON API)
+│
+├── agenda/              # To-do page (DB-backed tasks)
+│   ├── models.py        # TodoItem model
+│   ├── service.py       # CRUD todo items
+│   └── routes.py        # /agenda (HTML + JSON API)
+│
+├── stats/               # Statistics page (9 Chart.js charts)
+│   ├── service.py       # Stats aggregation queries
+│   └── routes.py        # /stats (HTML)
+│
+├── preferences/         # App preferences (persisted in DB)
+│   ├── models.py        # AppPreferences model
+│   ├── service.py       # get/set preferences
+│   └── routes.py        # /preferences (JSON API)
+│
+├── metrics/             # Internal request metrics
+│   ├── models.py        # RequestMetric model
+│   ├── service.py       # Metrics aggregation
+│   ├── middleware.py     # Request timing middleware
+│   └── routes.py        # /admin/metrics (HTML)
+│
+├── notification_center/ # Server-side notification center
+│   ├── models.py        # NotificationDismissal model
+│   ├── service.py       # Computed rules + dismiss/undismiss
+│   └── routes.py        # /notifications (HTML + JSON API)
 │
 ├── batch/               # Batch analysis (persistent PostgreSQL queue)
 │   ├── models.py        # BatchItem model (batch_items table)
@@ -113,19 +144,19 @@ backend/src/
 │   ├── models.py        # NotificationLog model
 │   └── service.py       # SMTP + Fernet encryption
 │
-├── interview/           # Prenotazione colloqui
-│   ├── models.py        # Interview model (1:1 con JobAnalysis)
-│   ├── service.py       # CRUD + upcoming interviews
+├── interview/           # Multi-round interviews
+│   ├── models.py        # Interview model (multi-round per JobAnalysis)
+│   ├── service.py       # CRUD + upcoming interviews + outcomes
 │   └── routes.py        # /interviews (JSON API)
 │
 └── integrations/        # Client esterni
     ├── anthropic_client.py  # Claude API + 7-strategy JSON parsing
     ├── validation.py        # AI response validation + repair
     ├── cache.py             # Redis/Null cache (Protocol)
-    └── glassdoor.py         # Company ratings (RapidAPI)
+    └── glassdoor.py         # Company enrichment (RapidAPI)
 
 mcp-server/
-├── server.py              # FastMCP app, 25 tools (thin HTTP proxy)
+├── server.py              # FastMCP app, 15 read-only tools (thin HTTP proxy)
 ├── api_client.py          # HTTP client → backend API (X-API-Key auth, retry with backoff)
 ├── config.py              # Pydantic settings (backend_url, api_key, mcp_host/port)
 ├── requirements.txt       # fastmcp, httpx, pydantic-settings
@@ -133,6 +164,12 @@ mcp-server/
 │   ├── test_server.py     # Tool → endpoint mapping tests
 │   └── test_api_client.py # Auth, retry, error handling tests
 └── pyproject.toml         # Ruff + mypy config
+
+infra/
+└── checkly/               # Uptime monitoring as Terraform IaC
+    ├── providers.tf       # Checkly provider config
+    ├── checks.tf          # 6 API/browser checks
+    └── terraform.tfvars.example
 ```
 
 Each backend module follows the **models -> service -> routes** pattern:
@@ -300,17 +337,22 @@ Tutte le tabelle ereditano da `Base`. I modelli usano:
 
 | Tabella | Scopo | Relazioni |
 |---------|-------|-----------|
-| `users` | Utenti con login | 1:N cv_profiles, 1:N audit_logs |
+| `users` | Utenti con login (+ lockout) | 1:N cv_profiles, 1:N audit_logs |
 | `cv_profiles` | CV in testo plain | FK user_id, 1:N job_analyses |
 | `job_analyses` | Risultato analisi AI | FK cv_id, 1:N cover_letters + contacts |
 | `cover_letters` | Lettere generate | FK analysis_id |
 | `contacts` | Contatti recruiter | FK analysis_id |
 | `app_settings` | Budget e spese (singleton) | Nessuna FK |
+| `app_preferences` | Operational preferences (singleton) | Nessuna FK |
 | `glassdoor_cache` | Cache rating aziende | Nessuna FK |
 | `audit_logs` | Trail azioni utente | FK user_id (SET NULL) |
 | `notification_logs` | Log email inviate | FK analysis_id (CASCADE) |
-| `interviews` | Scheduled interviews (1:1) | FK analysis_id (CASCADE, UNIQUE) |
+| `notification_dismissals` | Dismissed notification center items | FK user_id |
+| `interviews` | Multi-round interviews | FK analysis_id (CASCADE) |
+| `interview_files` | Interview document uploads | FK interview_id (CASCADE) |
 | `batch_items` | Persistent batch queue items | FK cv_id (CASCADE), FK analysis_id (SET NULL) |
+| `todo_items` | Agenda to-do tasks | FK user_id |
+| `request_metrics` | Internal request timing metrics | Nessuna FK |
 
 ### Indici
 
@@ -330,13 +372,22 @@ backend/alembic/
 ├── alembic.ini         # Config (sqlalchemy.url da settings)
 ├── env.py              # Import tutti i modelli
 └── versions/
-    ├── 001_initial_schema.py        # All original tables
-    ├── 002_add_audit_logs.py        # Audit table
-    ├── 003_add_notification_logs.py # Notification logs table
-    ├── 004_add_interviews.py        # Interviews table
-    ├── 005_interview_redesign.py    # Interview schema redesign
-    ├── 006_add_interview_files.py   # Interview file uploads
-    └── 007_add_batch_items.py       # Persistent batch queue table
+    ├── 001_initial_schema.py             # All original tables
+    ├── 002_add_audit_logs.py             # Audit table
+    ├── 003_add_notification_logs.py      # Notification logs table
+    ├── 004_add_interviews.py             # Interviews table
+    ├── 005_interview_redesign.py         # Interview schema redesign
+    ├── 006_add_interview_files.py        # Interview file uploads
+    ├── 007_add_batch_items.py            # Persistent batch queue table
+    ├── 008_recover_applied_status.py     # Applied status recovery
+    ├── 009_add_login_lockout.py          # Login lockout fields
+    ├── 010_add_benefits_recruiter.py     # Benefits + recruiter fields
+    ├── 011_add_analyses_hash_model_index.py # Composite index
+    ├── 012_add_app_preferences.py        # App preferences table
+    ├── 013_interview_multiround.py       # Multi-round interview redesign
+    ├── 014_add_notification_dismissals.py # Notification dismissals
+    ├── 015_add_todo_items.py             # Agenda to-do items
+    └── 016_add_request_metrics.py        # Request metrics table
 ```
 
 `env.py` importa tutti i modelli per farli "vedere" ad Alembic:
@@ -590,12 +641,17 @@ Le route sono divise in due gruppi:
 
 **Route HTML** (root level): servono pagine Jinja2 (multi-page con sidebar)
 ```
-GET  /              → dashboard.html (metriche, alert, recenti)
+GET  /              → dashboard.html (6 widgets: follow-up, interviews, Cowork, activity, top 5, DB usage)
 GET  /analyze       → analyze.html (tab singola/multipla)
-GET  /history       → history.html (storico, 3 tab stato)
+GET  /history       → history.html (storico, tab per stato)
 GET  /analysis/{id} → analysis_detail.html (dettaglio candidatura)
-GET  /interviews    → interviews.html (prossimi + passati)
+GET  /interviews    → interviews.html (prossimi + passati, multi-round)
+GET  /stats         → stats.html (9 Chart.js charts)
+GET  /agenda        → agenda.html (to-do tasks)
 GET  /settings      → settings.html (CV + crediti API)
+GET  /admin         → admin.html (parameters, maintenance, diagnostics)
+GET  /notifications → notifications.html (notification center)
+GET  /admin/metrics → metrics dashboard
 GET  /login         → login.html (standalone, no sidebar)
 POST /login         → autenticazione
 POST /logout        → logout
@@ -663,18 +719,22 @@ return templates.TemplateResponse("index.html", {"request": request, ...})
 ```
 frontend/templates/
 ├── base.html                # Layout: sidebar + content area + toast container
-├── dashboard.html           # Home: metrics, alerts, recent analyses
+├── dashboard.html           # Home: 6 widgets (follow-up, interviews, Cowork, activity, top 5, DB usage)
 ├── analyze.html             # Single + batch analysis (tab toggle)
-├── history.html             # Analysis history with 3 status tabs (URL hash + sessionStorage persistence)
+├── history.html             # Analysis history with status tabs (URL hash + sessionStorage persistence)
 ├── analysis_detail.html     # Full analysis: score ring, status toggle, action card grid
 ├── interviews.html          # All upcoming interviews + past (collapsed)
+├── stats.html               # 9 Chart.js charts (funnel, distribution, timeline, etc.)
+├── agenda.html              # To-do page with DB-backed tasks
 ├── settings.html            # CV management + API credit tracking
+├── admin.html               # Admin panel: parameters, maintenance, diagnostics
+├── notifications.html       # Notification center with dismiss/undismiss
 ├── login.html               # Standalone login page (no sidebar)
 ├── 404.html                 # Error page (extends base, with sidebar)
 ├── 500.html                 # Error page (extends base, with sidebar)
 └── partials/                # Reusable components
-    ├── sidebar.html             # 5 SVG icon nav items + theme toggle
-    ├── score_ring.html          # SVG ring with color tiers (CSS-driven responsive sizing: 140px/100px)
+    ├── sidebar.html             # SVG icon nav items + theme toggle
+    ├── score_ring.html          # SVG ring with color tiers (CSS-driven responsive sizing)
     ├── job_card.html            # Compact analysis row for lists
     ├── metric_card.html         # Big number + label card
     ├── result_reputation.html   # Glassdoor company rating
@@ -885,9 +945,17 @@ Visualizzazione: `docker compose logs -f backend`
 
 ## 11. CI/CD
 
-### GitHub Actions (`.github/workflows/ci.yml`)
+### GitHub Actions
 
-Pipeline a 5 job paralleli con dipendenze:
+Three workflows:
+
+1. **CI** (`.github/workflows/ci.yml`) — runs on push/PR to main
+2. **Daily backup** (`.github/workflows/daily-backup.yml`) — cron 03:30 UTC, wakes Render + calls `POST /api/v1/backup` to snapshot DB to R2
+3. **Weekly cleanup** (`.github/workflows/weekly-cleanup.yml`) — cron 03:00 UTC
+
+### CI Pipeline
+
+5 jobs with dependencies:
 
 ```
 lint ────────┐
@@ -896,39 +964,40 @@ frontend ────┘              ↑
 security ───────────────────┘
 ```
 
-**Job 1 - Ruff Lint & Format + mypy**: linting, formattazione e type checking Python
+**Job 1 - Ruff Lint & Format + mypy**: linting, formatting, and strict type checking (Python)
 ```yaml
-- run: pip install ruff mypy
-- run: ruff check backend/src/ backend/tests/
-- run: ruff format --check backend/src/ backend/tests/
-- run: mypy backend/src/ --ignore-missing-imports
+- ruff check backend/src/ backend/tests/
+- ruff format --check backend/src/ backend/tests/
+- mypy backend/src/ (strict: --disallow-untyped-defs --no-implicit-optional --warn-return-any)
 ```
 
-**Job 2 - Frontend Lint**: CSS, HTML e JS validation
+**Job 2 - Frontend Lint**: CSS + HTML + JS validation
 ```yaml
-- run: stylelint "frontend/static/css/**/*.css"   # CSS lint (blocking)
-- run: # HTML tag validation (div open/close matching)
-- run: node --check "$f"                          # JS syntax check
+- stylelint "frontend/static/css/**/*.css"    # CSS lint (blocking)
+- HTML tag validation (div open/close)        # Basic template check
+- npx eslint frontend/static/js/              # ESLint for JavaScript
 ```
 
-**Job 3 - Security Audit**: analisi statica e dipendenze
+**Job 3 - Security Audit**: static analysis + dependency CVE check
 ```yaml
-- run: bandit -r backend/src/ -c pyproject.toml -ll -ii   # High severity
-- run: pip-audit -r backend/requirements.txt --desc        # CVE check
+- bandit -r backend/src/ -c pyproject.toml -ll -ii   # High severity
+- pip-audit -r backend/requirements.txt --desc        # CVE check
 ```
 
-**Job 4 - Tests & Coverage**: pytest con coverage minimo 50%
+**Job 4 - Tests & Coverage**: 477 tests, pytest with coverage minimum 50%
 ```yaml
-- run: pytest tests/ -v --tb=short --cov=src --cov-fail-under=50
+- pytest tests/ -v --tb=short --cov=src --cov-fail-under=50
   env:
     DATABASE_URL: "sqlite:///test.db"
     ANTHROPIC_API_KEY: "test-key"
 ```
 
-**Job 5 - Docker Build**: verifica che le immagini si buildano
+**Job 5 - Docker Build**: verifies all images build successfully
 ```yaml
-- run: docker compose build
+- docker compose build
 ```
+
+Additionally, **CodeQL** runs as a separate GitHub-managed workflow for code scanning.
 
 ### Pre-commit Hooks
 
@@ -943,7 +1012,7 @@ Il progetto usa **pre-commit** per validazione locale prima dei commit:
 - check-yaml, check-json         # Syntax check config
 ```
 
-La configurazione stylelint e' in `.stylelintrc.json`, condivisa tra pre-commit e CI.
+La configurazione stylelint e' in `.stylelintrc.json`, condivisa tra pre-commit e CI. ESLint (`.eslintrc.json`) runs in CI for JavaScript linting.
 
 Installazione: `pip install pre-commit && pre-commit install`
 
@@ -965,7 +1034,7 @@ I servizi esterni (Anthropic API) sono mockati con `unittest.mock.MagicMock`.
 
 ### Coverage e test suite
 
-130 tests, coverage > 55%, threshold CI: 50%.
+477 tests, coverage > 55%, threshold CI: 50%. Real DB integration tests (no mocks for DB layer).
 
 ```
 tests/
@@ -1002,40 +1071,30 @@ with patch("src.main.lifespan", _test_lifespan):
 
 ## 12. Deploy su Render.com
 
-### Configurazione (`fly.toml`)
+### Configuration
 
-```toml
-app = "jobsearch"
-primary_region = "cdg"              # Parigi
+The app runs on Render.com (Frankfurt region) as a Docker web service (`srv-d7bp6o6a2pns73eouueg`). Auto-deploy triggers on push to `main`. The Dockerfile entrypoint runs Alembic migrations before starting Uvicorn.
 
-[build]
-  dockerfile = "backend/Dockerfile"  # Usa il Dockerfile del backend
+- **Runtime**: Docker (backend/Dockerfile)
+- **Plan**: Free tier
+- **Region**: Frankfurt
+- **Auto-deploy**: on commit to main
+- **Custom domains**: jobsearches.cc, api.jobsearches.cc, www.jobsearches.cc (via Cloudflare DNS)
 
-[processes]
-  app = "uvicorn src.main:app --host 0.0.0.0 --port 8080 --proxy-headers --forwarded-allow-ips='*'"
+### Differences with Docker Compose
 
-[http_service]
-  internal_port = 8080
-  force_https = true
-  auto_stop_machines = "stop"       # Dormi dopo inattivita'
-  auto_start_machines = true        # Svegliati alla prima richiesta
-  min_machines_running = 0          # Zero quando nessuno usa l'app
-```
-
-### Differenze con Docker Compose
-
-| Aspetto | Docker Compose | Render.com |
+| Aspect | Docker Compose | Render.com |
 |---------|---------------|--------|
-| Container | 4 (nginx + backend + db + redis) | 1 (solo backend) |
-| Static files | Nginx serve /static/ | FastAPI StaticFiles |
-| Database | Container locale | Fly Postgres (managed) |
-| Cache | Redis container | Nessuna (REDIS_URL vuoto) |
-| HTTPS | No (porta 80) | Si (force_https=true) |
-| Porta | 80 (nginx) → 8000 (backend) | 8080 diretto |
+| Container | 4 (nginx + backend + db + redis) | 1 (backend only) |
+| Static files | Nginx serves /static/ | FastAPI StaticFiles |
+| Database | Local container | Neon PostgreSQL (managed) |
+| Cache | Redis container | None (REDIS_URL empty) |
+| HTTPS | No (port 80) | Yes (Render edge proxy) |
+| Port | 80 (nginx) → 8000 (backend) | 8080 direct |
 
 ### Database URL
 
-Render.com usa `postgres://` come schema, ma SQLAlchemy 2.0 richiede `postgresql://`:
+Render.com uses `postgres://` as schema, but SQLAlchemy 2.0 requires `postgresql://`:
 
 ```python
 @property
@@ -1048,7 +1107,49 @@ def effective_database_url(self) -> str:
 
 ---
 
-## 13. Pattern e Decisioni Architetturali
+## 13. Monitoring and Observability
+
+### Checkly (External Monitoring)
+
+6 API/browser checks managed as Terraform IaC in `infra/checkly/`:
+
+- Health endpoint monitoring
+- Key API endpoint checks
+- Alerting on degradation
+
+Configuration: `infra/checkly/checks.tf` with provider in `providers.tf`.
+
+### Internal Metrics
+
+The `metrics/` module provides request-level observability:
+
+- **Middleware** (`metrics/middleware.py`): records request timing, status code, and path for every request
+- **Storage**: `request_metrics` table (migration 016)
+- **Dashboard**: admin-only metrics page at `/admin/metrics` with aggregated stats
+- **Service** (`metrics/service.py`): aggregation queries (avg response time, error rate, top endpoints)
+
+### DB Backup
+
+- **Manual**: `POST /api/v1/backup` (API key auth) — dumps PostgreSQL to Cloudflare R2
+- **Automated**: GitHub Actions daily cron (`daily-backup.yml`) at 03:30 UTC — wakes Render free tier, then calls backup endpoint
+- **Storage**: Cloudflare R2 bucket (`jobsearch-files`, EEUR region)
+
+### Notification Center
+
+Server-side computed rules with dismiss/undismiss:
+
+- Upcoming interviews
+- Low budget warnings
+- Interviews without outcome
+- DB size approaching limit
+- Pending follow-ups
+- Application backlog
+
+Dismissals are persisted in `notification_dismissals` table. Rules are re-evaluated on each page load.
+
+---
+
+## 14. Pattern e Decisioni Architetturali
 
 ### Protocol Pattern per Cache
 
@@ -1182,11 +1283,11 @@ def encrypt_credential(value: str) -> str:
 
 ---
 
-## 14. MCP Server (Claude Desktop Integration)
+## 15. MCP Server (Claude Desktop Integration)
 
 ### Architettura
 
-Il MCP server è un thin proxy locale (~120 righe) che espone 25 tool via Model Context Protocol (MCP), permettendo di interrogare e gestire il database delle candidature direttamente da Claude Desktop.
+Il MCP server è un thin proxy locale (~120 righe) che espone 15 read-only tool via Model Context Protocol (MCP), permettendo di interrogare e gestire il database delle candidature direttamente da Claude Desktop.
 
 ```
 Claude Desktop (stdio) → MCP Server (local) → HTTPS + X-API-Key → FastAPI backend (Render.com) → PostgreSQL
