@@ -23,6 +23,17 @@ from .analysis.routes import router as analysis_router
 from .auth.routes import router as auth_router
 from .auth.service import ensure_admin_user
 from .config import settings
+
+# Sentry — initialize before app creation so FastAPI integration auto-activates
+if settings.sentry_dsn:
+    import sentry_sdk
+
+    sentry_sdk.init(
+        dsn=settings.sentry_dsn,
+        send_default_pii=True,
+        traces_sample_rate=0.2,  # 20% of requests — free tier friendly
+        profile_session_sample_rate=0.1,
+    )
 from .cover_letter.routes import router as cover_letter_router
 from .cv.routes import router as cv_router
 from .dashboard.service import seed_spending_totals

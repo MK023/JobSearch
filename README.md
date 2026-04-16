@@ -57,7 +57,7 @@ The MCP server runs locally on macOS via Claude Desktop (stdio transport). It is
 | **Cover Letter** | Multi-language, context-aware (uses analysis results) |
 | **Follow-up Email/LinkedIn** | Automated outreach scaled to days since application |
 | **Multi-round Interviews** | Per-round scheduling (conoscitivo/tecnico/finale) with outcome tracking (passed/rejected/withdrawn) |
-| **Dashboard** | 6 widgets: follow-up alerts, upcoming interviews, Cowork agent, activity feed, top 5, DB usage |
+| **Dashboard** | 8 widgets: follow-up, interviews, Cowork, activity, news, to-do, top 5, DB usage |
 | **Agenda** | To-do page with DB-backed task management |
 | **Notification Center** | Server-side computed rules (interviews, budget, outcomes, DB size, followup, backlog) with dismiss/undismiss |
 | **Stats Page** | 9 Chart.js charts: funnel, score distribution, timeline, top companies, work mode, contract split, recommendation, spending |
@@ -70,6 +70,8 @@ The MCP server runs locally on macOS via Claude Desktop (stdio transport). It is
 | **Batch Analysis** | Persistent PostgreSQL queue, survives crashes and autostop |
 | **Recruiter Contacts** | Per-application CRM: name, email, phone, LinkedIn |
 | **Company Enrichment** | Glassdoor rating via RapidAPI with 30-day cache |
+| **Salary Estimates** | Job Salary Data API with location fallback and 30-day cache |
+| **Company News** | Real-Time News Data API with 7-day cache + dedicated /news page |
 | **Status "rifiutato"** | Rejected-by-company status for complete funnel tracking |
 | **Cost Tracking** | Per-analysis cost, daily totals, configurable budget |
 | **DB Usage Monitoring** | Track PostgreSQL usage against 1GB free tier limit |
@@ -94,6 +96,7 @@ The MCP server runs locally on macOS via Claude Desktop (stdio transport). It is
 | **Email** | Resend (document reminders) |
 | **Auth** | Session + bcrypt + rate limiting (slowapi) for web UI; API key (X-API-Key) for MCP |
 | **MCP** | FastMCP (local, stdio) — 15 read-only tools, thin HTTP proxy |
+| **Error Tracking** | Sentry (FastAPI auto-integration, 20% trace sampling) |
 | **Monitoring** | Checkly (6 checks, Terraform IaC) |
 | **CI/CD** | GitHub Actions (ruff, ruff format, mypy strict, bandit, pip-audit, stylelint, ESLint, CodeQL, pytest, Docker build) + daily backup cron |
 | **Deploy** | Render.com (Frankfurt, Docker) + Cloudflare (DNS, R2, HSTS) |
@@ -151,8 +154,8 @@ The app is deployed on **Render.com** (Frankfurt region) as a Docker web service
 ANTHROPIC_API_KEY, SECRET_KEY, ADMIN_EMAIL, ADMIN_PASSWORD,
 DATABASE_URL (from Neon), REDIS_URL (optional),
 R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT_URL, R2_BUCKET_NAME,
-API_KEY (for MCP auth), RESEND_API_KEY,
-TRUSTED_HOSTS, CORS_ALLOWED_ORIGINS
+API_KEY (for MCP auth), RESEND_API_KEY, SENTRY_DSN,
+RAPIDAPI_KEY, TRUSTED_HOSTS, CORS_ALLOWED_ORIGINS
 ```
 
 Alembic migrations run automatically on deploy (Dockerfile entrypoint).
