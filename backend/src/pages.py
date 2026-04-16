@@ -51,6 +51,7 @@ def dashboard_page(
     flash = _flash(request)
 
     from .analysis.models import JobAnalysis
+    from .integrations.news import get_cached_news
     from .interview.service import get_upcoming_interviews
 
     dashboard = get_dashboard(db)
@@ -67,6 +68,30 @@ def dashboard_page(
         .all()
     )
 
+    # News widget — latest cached news for active candidatures (cache-only, fast)
+    active_statuses = [AnalysisStatus.APPLIED.value, AnalysisStatus.INTERVIEW.value]
+    active_companies: list[str] = sorted(
+        {
+            r[0]
+            for r in db.query(JobAnalysis.company)
+            .filter(JobAnalysis.status.in_(active_statuses), JobAnalysis.company.isnot(None), JobAnalysis.company != "")
+            .distinct()
+            .all()
+        }
+    )
+    all_news = get_cached_news(active_companies, db)
+    # Flatten and take latest 5 articles across all companies
+    recent_news = sorted(
+        [{**a, "company": g["company"]} for g in all_news for a in g["articles"]],
+        key=lambda x: x.get("published_at", ""),
+        reverse=True,
+    )[:5]
+
+    # Agenda widget — next 3 items (interviews + todos)
+    from .agenda.models import TodoItem
+
+    agenda_todos = db.query(TodoItem).filter(TodoItem.done == False).order_by(TodoItem.created_at.desc()).limit(3).all()  # noqa: E712
+
     return templates.TemplateResponse(  # type: ignore[no-any-return]
         request,
         "dashboard.html",
@@ -79,6 +104,8 @@ def dashboard_page(
             "pending_analyses": pending_analyses,
             "top_candidates": top_candidates,
             "db_usage": db_usage,
+            "recent_news": recent_news,
+            "agenda_todos": agenda_todos,
             "error": flash["error"],
             "message": flash["message"],
         },
@@ -429,28 +456,27 @@ def news_page(
     db: DbSession,
     user: CurrentUser,
 ) -> Response:
-    """Render the company news page — aggregated news for active candidatures."""
+    """Render the company news page — cached news for active candidatures."""
     from .analysis.models import JobAnalysis
-    from .integrations.news import fetch_company_news
+    from .integrations.news import get_cached_news
 
     templates = request.app.state.templates
     flash = _flash(request)
 
     # Get distinct companies from active candidatures (candidato + colloquio)
     active_statuses = [AnalysisStatus.APPLIED.value, AnalysisStatus.INTERVIEW.value]
-    companies: list[str] = [
-        r[0]
-        for r in db.query(JobAnalysis.company)
-        .filter(JobAnalysis.status.in_(active_statuses), JobAnalysis.company.isnot(None), JobAnalysis.company != "")
-        .distinct()
-        .all()
-    ]
+    companies: list[str] = sorted(
+        {
+            r[0]
+            for r in db.query(JobAnalysis.company)
+            .filter(JobAnalysis.status.in_(active_statuses), JobAnalysis.company.isnot(None), JobAnalysis.company != "")
+            .distinct()
+            .all()
+        }
+    )
 
-    news_groups = []
-    for company in sorted(set(companies)):
-        articles = fetch_company_news(company, db)
-        if articles:
-            news_groups.append({"company": company, "articles": articles})
+    # Read from cache only — news are populated during analysis enrichment
+    news_groups = get_cached_news(companies, db)
 
     return templates.TemplateResponse(  # type: ignore[no-any-return]
         request,

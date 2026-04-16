@@ -167,6 +167,45 @@
     {% endif %}
   </section>
 
+  {# News recenti + To-do — side by side #}
+  <div class="grid-2col mb-xl">
+
+    {# News recenti #}
+    <section class="card dash-widget">
+      <h2 class="section-title">News aziende</h2>
+      {% if recent_news %}
+        {% for n in recent_news %}
+        <div class="dash-widget-row">
+          <div class="dash-widget-row-main">
+            <a href="{{ n.link }}" target="_blank" rel="noopener noreferrer" class="dash-widget-row-title">{{ n.title|truncate(60) }}</a>
+            <span class="dash-widget-row-sub">{{ n.company }} &middot; {{ n.source_name }}</span>
+          </div>
+          <span class="meta-small">{{ n.published_at[:10] if n.published_at else '' }}</span>
+        </div>
+        {% endfor %}
+        <div class="meta-small" style="margin-top: var(--space-sm);"><a href="/news" class="link-subtle">Tutte le news &rarr;</a></div>
+      {% else %}
+        <div class="empty-state" style="padding: var(--space-lg);">Le news appariranno dopo l'analisi</div>
+      {% endif %}
+    </section>
+
+    {# To-do pendenti #}
+    <section class="card dash-widget">
+      <h2 class="section-title">To-do</h2>
+      {% if agenda_todos %}
+        {% for t in agenda_todos %}
+        <div class="dash-widget-row">
+          <span class="dash-widget-row-main">{{ t.text }}</span>
+        </div>
+        {% endfor %}
+        <div class="meta-small" style="margin-top: var(--space-sm);"><a href="/agenda" class="link-subtle">Apri agenda &rarr;</a></div>
+      {% else %}
+        <div class="empty-state" style="padding: var(--space-lg);">Nessun to-do pendente</div>
+      {% endif %}
+    </section>
+
+  </div>
+
   {# DB Usage — compact full width #}
   <section class="card dash-widget mb-xl">
     <h2 class="section-title">Database usage</h2>
