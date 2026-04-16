@@ -10,7 +10,9 @@ from pydantic import BaseModel, Field
 from ..analysis.models import AnalysisStatus
 from ..analysis.service import get_analysis_by_id, update_status
 from ..audit.service import audit
+from ..config import settings
 from ..dependencies import CurrentUser, DbSession, validate_uuid
+from ..rate_limit import limiter
 from .models import Interview, InterviewOutcome
 from .service import (
     create_next_round,
@@ -49,6 +51,7 @@ class InterviewPayload(BaseModel):
 
 
 @router.post("/interviews/{analysis_id}")
+@limiter.limit(settings.rate_limit_default)
 def upsert_interview(
     request: Request,
     analysis_id: str,
@@ -151,6 +154,7 @@ def get_interview(
 
 
 @router.delete("/interviews/{analysis_id}")
+@limiter.limit(settings.rate_limit_default)
 def remove_interview(
     request: Request,
     analysis_id: str,
@@ -188,6 +192,7 @@ class NextRoundPayload(BaseModel):
 
 
 @router.post("/interviews/round/{interview_id}/outcome")
+@limiter.limit(settings.rate_limit_default)
 def set_round_outcome(
     request: Request,
     interview_id: str,
@@ -231,6 +236,7 @@ def set_round_outcome(
 
 
 @router.post("/interviews/{analysis_id}/next-round")
+@limiter.limit(settings.rate_limit_default)
 def append_next_round(
     request: Request,
     analysis_id: str,

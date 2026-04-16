@@ -3,10 +3,12 @@
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Form
+from fastapi import APIRouter, Form, Request
 from fastapi.responses import JSONResponse
 
+from ..config import settings
 from ..dependencies import CurrentUser, DbSession
+from ..rate_limit import limiter
 from .models import TodoItem
 
 router = APIRouter(tags=["agenda"])
@@ -33,7 +35,9 @@ def list_todos(
 
 
 @router.post("/todos")
+@limiter.limit(settings.rate_limit_default)
 def add_todo(
+    request: Request,
     db: DbSession,
     user: CurrentUser,
     text: Annotated[str, Form()],
@@ -49,7 +53,9 @@ def add_todo(
 
 
 @router.post("/todos/{todo_id}/toggle")
+@limiter.limit(settings.rate_limit_default)
 def toggle_todo(
+    request: Request,
     todo_id: int,
     db: DbSession,
     user: CurrentUser,
@@ -65,7 +71,9 @@ def toggle_todo(
 
 
 @router.delete("/todos/{todo_id}")
+@limiter.limit(settings.rate_limit_default)
 def delete_todo(
+    request: Request,
     todo_id: int,
     db: DbSession,
     user: CurrentUser,
@@ -80,7 +88,9 @@ def delete_todo(
 
 
 @router.delete("/todos-completed")
+@limiter.limit(settings.rate_limit_default)
 def clear_completed_todos(
+    request: Request,
     db: DbSession,
     user: CurrentUser,
 ) -> JSONResponse:

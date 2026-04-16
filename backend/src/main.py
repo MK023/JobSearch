@@ -195,7 +195,7 @@ def create_app() -> FastAPI:
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
         if request.url.scheme == "https":
-            response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
+            response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload"
         return response
 
     if settings.trusted_hosts_list != ["*"]:
@@ -259,8 +259,12 @@ def create_app() -> FastAPI:
 
     # --- Health check ---
     @app.get("/health")
-    def health(db: DbSession) -> dict[str, Any]:
-        """Return application health status including DB connectivity and uptime."""
+    def health(request: Request, db: DbSession) -> dict[str, Any]:
+        """Return application health status.
+
+        Unauthenticated requests get a minimal response (for Render health checks).
+        Authenticated requests get full diagnostics.
+        """
         db_status = "ok"
         try:
             db.execute(select(1))
@@ -268,6 +272,12 @@ def create_app() -> FastAPI:
             db_status = "unreachable"
 
         status = "ok" if db_status == "ok" else "degraded"
+
+        # Minimal response for unauthenticated health probes
+        if not request.session.get("user_id"):
+            return {"status": status}
+
+        # Full diagnostics for authenticated admin
         uptime = round(time.time() - _startup_time, 1) if _startup_time else 0.0
 
         import contextlib
@@ -276,8 +286,6 @@ def create_app() -> FastAPI:
         with contextlib.suppress(Exception):
             cache_stats = app.state.cache.stats()
 
-        # Postgres-only: monitor free-tier usage (Neon 1GB).
-        # SQLite (CI/local tests) silently returns null.
         db_size_mb: float | None = None
         with contextlib.suppress(Exception):
             size_bytes = db.execute(text("SELECT pg_database_size(current_database())")).scalar()
