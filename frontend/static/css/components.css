@@ -948,6 +948,35 @@
   color: var(--text-primary);
 }
 
+/* Editorial CTA — text + arrow, Anthropic-inspired. For secondary actions like
+   "Apri Analytics →", "Tutte le news →". Not for primary buttons. */
+.link-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--accent-ember);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+  letter-spacing: var(--tracking-tight);
+  transition: color var(--transition-fast), gap var(--transition-fast);
+}
+
+.link-cta::after {
+  content: "\2192";
+  transition: transform var(--transition-fast);
+}
+
+.link-cta:hover {
+  color: var(--accent-ember);
+  gap: var(--space-sm);
+  text-decoration: none;
+}
+
+.link-cta:hover::after {
+  transform: translateX(2px);
+}
+
 .link-back {
   color: var(--text-secondary);
   font-size: var(--text-sm);

@@ -26,7 +26,7 @@ body {
   font-family: var(--font-family);
   font-size: var(--text-base);
   color: var(--text-primary);
-  line-height: 1.5;
+  line-height: var(--line-height-prose);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -50,16 +50,18 @@ body {
 /* ---- Typography ---- */
 
 h1 {
-  font-size: var(--text-2xl);
+  font-size: var(--text-3xl);
   font-weight: var(--weight-bold);
   color: var(--text-primary);
-  letter-spacing: -0.02em;
+  letter-spacing: var(--tracking-tighter);
+  line-height: 1.15;
 }
 
 h2 {
   font-size: var(--text-xl);
   font-weight: var(--weight-semibold);
   color: var(--text-primary);
+  letter-spacing: var(--tracking-tight);
   margin-bottom: var(--space-lg);
 }
 

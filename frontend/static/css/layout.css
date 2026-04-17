@@ -130,15 +130,17 @@ html[data-theme="light"] .theme-icon-moon {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--space-xl);
+  margin-bottom: var(--space-2xl);
   flex-wrap: wrap;
   gap: var(--space-sm);
 }
 
 .page-title {
-  font-size: var(--text-xl);
+  font-size: var(--text-3xl);
   font-weight: var(--weight-bold);
   color: var(--text-primary);
+  letter-spacing: var(--tracking-tighter);
+  line-height: 1.1;
   margin: 0;
 }
 
@@ -257,7 +259,7 @@ html[data-theme="light"] .theme-icon-moon {
   }
 
   .page-title {
-    font-size: var(--text-lg);
+    font-size: var(--text-2xl);
   }
 
   .login-wrapper {
