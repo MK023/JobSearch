@@ -18,10 +18,18 @@ UNLOCK_THRESHOLD = 15  # new analyses-with-status since last run needed to unloc
 
 
 def analyses_with_status_count(db: Session) -> int:
-    """Count analyses where the user has assigned a decision (not da_valutare)."""
+    """Count analyses eligible for the learning loop.
+
+    Must be: (1) triaged by the user (not da_valutare) AND (2) produced by
+    prompt v7+ so they have a career_track assigned. Pre-v7 analyses are
+    excluded because a run on mixed data would poison the user profile.
+    """
     return int(
         db.query(JobAnalysis)
-        .filter(JobAnalysis.status.in_(["candidato", "colloquio", "offerta", "scartato", "rifiutato"]))
+        .filter(
+            JobAnalysis.status.in_(["candidato", "colloquio", "offerta", "scartato", "rifiutato"]),
+            JobAnalysis.career_track.isnot(None),
+        )
         .count()
     )
 

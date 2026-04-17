@@ -20,6 +20,7 @@ Rules:
    analyses. One notification, never duplicated.
 """
 
+import logging
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func
@@ -31,6 +32,8 @@ from ..interview.models import Interview
 from ..interview.service import get_upcoming_interviews
 from ..preferences.service import get_preference
 from .models import Notification, NotificationDismissal, NotificationSeverity, NotificationType
+
+logger = logging.getLogger(__name__)
 
 # Default thresholds — overridable via Settings > Parametri operativi.
 _INTERVIEW_UPCOMING_HOURS = 24
@@ -258,6 +261,7 @@ def _backup_stale(db: Session) -> list[Notification]:
 
         backups = list_backups()
     except Exception:
+        logger.exception("notification_center: backup listing failed")
         return []
 
     if not backups:
@@ -333,6 +337,7 @@ def _recent_errors(db: Session) -> list[Notification]:
             )
         ]
     except Exception:
+        logger.exception("notification_center: recent_errors rule failed")
         return []
 
 
@@ -377,6 +382,48 @@ def _news_available(db: Session) -> list[Notification]:
             )
         ]
     except Exception:
+        logger.exception("notification_center: news_available rule failed")
+        return []
+
+
+def _analytics_available(db: Session) -> list[Notification]:
+    """Notify when the user has enough triaged post-v7 analyses to unlock /analytics."""
+    try:
+        from ..analytics_page.service import UNLOCK_THRESHOLD, get_lock_state
+
+        lock = get_lock_state(db)
+        if lock.get("locked", True):
+            return []
+
+        new_since = lock.get("new_since_last", 0) or 0
+        has_run_history = lock.get("last_run_at") is not None
+        nid = f"analytics:available:{new_since}"
+        title = (
+            f"Analisi disponibile: {new_since} nuove valutazioni dall'ultima esecuzione"
+            if has_run_history
+            else f"Prima analisi disponibile: {new_since} candidature pronte"
+        )
+        body = (
+            "Soglia di "
+            + str(UNLOCK_THRESHOLD)
+            + " raggiunta. Apri la pagina Analytics per eseguire una nuova analisi e aggiornare il profilo."
+        )
+        return [
+            Notification(
+                id=nid,
+                type=NotificationType.ANALYTICS_AVAILABLE,
+                severity=NotificationSeverity.INFO,
+                title=title,
+                body=body,
+                action_url="/analytics",
+                action_label="Apri Analytics",
+                dismissible=True,
+                sticky=False,
+                created_at=datetime.now(UTC),
+            )
+        ]
+    except Exception:
+        logger.exception("notification_center: analytics_available rule failed")
         return []
 
 
@@ -413,6 +460,7 @@ def get_notifications(db: Session) -> list[Notification]:
     out.extend(_backup_stale(db))
     out.extend(_recent_errors(db))
     out.extend(_news_available(db))
+    out.extend(_analytics_available(db))
 
     out = [n for n in out if n.id not in dismissed]
     out.sort(key=lambda n: (_SEVERITY_ORDER[n.severity], -n.created_at.timestamp()))
