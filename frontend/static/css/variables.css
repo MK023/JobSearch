@@ -14,6 +14,10 @@
   --accent-red: #FF453A;
   --accent-purple: #8777d9;
 
+  /* Anthropic-inspired warm ember — used for highlighted CTA/links, not for state */
+  --accent-ember: #e87d3e;
+  --accent-ember-soft: rgb(232 125 62 / 12%);
+
   /* Text — Dark */
   --text-primary: #F5F5F7;
   --text-secondary: #8E8E93;
@@ -32,6 +36,10 @@
   --text-lg: 17px;
   --text-xl: 22px;
   --text-2xl: 28px;
+  --text-3xl: 36px;  /* editorial page title */
+  --line-height-prose: 1.6;
+  --tracking-tight: -0.02em;
+  --tracking-tighter: -0.03em;
 
   /* Font weights */
   --weight-normal: 400;
@@ -114,6 +122,8 @@ html[data-theme="light"] {
   --accent-orange: #ff9500;
   --accent-red: #ff3b30;
   --accent-purple: #6c5ce7;
+  --accent-ember: #d96c2e;
+  --accent-ember-soft: rgb(217 108 46 / 10%);
   --text-primary: #1c1c1e;
   --text-secondary: #636366;
   --text-tertiary: #aeaeb2;

@@ -81,7 +81,7 @@
           </div>
         </div>
         {% endfor %}
-        <div class="meta-small" style="margin-top: var(--space-sm);"><a href="/interviews" class="link-subtle">Gestisci colloqui &rarr;</a></div>
+        <div style="margin-top: var(--space-md);"><a href="/interviews" class="link-cta">Gestisci colloqui</a></div>
       {% else %}
         <div class="empty-state" style="padding: var(--space-lg);">Nessun colloquio in programma</div>
       {% endif %}
@@ -183,7 +183,7 @@
           <span class="meta-small">{{ n.published_at[:10] if n.published_at else '' }}</span>
         </div>
         {% endfor %}
-        <div class="meta-small" style="margin-top: var(--space-sm);"><a href="/news" class="link-subtle">Tutte le news &rarr;</a></div>
+        <div style="margin-top: var(--space-md);"><a href="/news" class="link-cta">Tutte le news</a></div>
       {% else %}
         <div class="empty-state" style="padding: var(--space-lg);">Le news appariranno dopo l'analisi</div>
       {% endif %}
@@ -198,7 +198,7 @@
           <span class="dash-widget-row-main">{{ t.text }}</span>
         </div>
         {% endfor %}
-        <div class="meta-small" style="margin-top: var(--space-sm);"><a href="/agenda" class="link-subtle">Apri agenda &rarr;</a></div>
+        <div style="margin-top: var(--space-md);"><a href="/agenda" class="link-cta">Apri agenda</a></div>
       {% else %}
         <div class="empty-state" style="padding: var(--space-lg);">Nessun to-do pendente</div>
       {% endif %}
