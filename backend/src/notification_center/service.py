@@ -380,6 +380,46 @@ def _news_available(db: Session) -> list[Notification]:
         return []
 
 
+def _analytics_available(db: Session) -> list[Notification]:
+    """Notify when the user has enough triaged post-v7 analyses to unlock /analytics."""
+    try:
+        from ..analytics_page.service import UNLOCK_THRESHOLD, get_lock_state
+
+        lock = get_lock_state(db)
+        if lock.get("locked", True):
+            return []
+
+        new_since = lock.get("new_since_last", 0) or 0
+        has_run_history = lock.get("last_run_at") is not None
+        nid = f"analytics:available:{new_since}"
+        title = (
+            f"Analisi disponibile: {new_since} nuove valutazioni dall'ultima esecuzione"
+            if has_run_history
+            else f"Prima analisi disponibile: {new_since} candidature pronte"
+        )
+        body = (
+            "Soglia di "
+            + str(UNLOCK_THRESHOLD)
+            + " raggiunta. Apri la pagina Analytics per eseguire una nuova analisi e aggiornare il profilo."
+        )
+        return [
+            Notification(
+                id=nid,
+                type=NotificationType.ANALYTICS_AVAILABLE,
+                severity=NotificationSeverity.INFO,
+                title=title,
+                body=body,
+                action_url="/analytics",
+                action_label="Apri Analytics",
+                dismissible=True,
+                sticky=False,
+                created_at=datetime.now(UTC),
+            )
+        ]
+    except Exception:
+        return []
+
+
 _SEVERITY_ORDER = {
     NotificationSeverity.CRITICAL: 0,
     NotificationSeverity.WARNING: 1,
@@ -413,6 +453,7 @@ def get_notifications(db: Session) -> list[Notification]:
     out.extend(_backup_stale(db))
     out.extend(_recent_errors(db))
     out.extend(_news_available(db))
+    out.extend(_analytics_available(db))
 
     out = [n for n in out if n.id not in dismissed]
     out.sort(key=lambda n: (_SEVERITY_ORDER[n.severity], -n.created_at.timestamp()))
