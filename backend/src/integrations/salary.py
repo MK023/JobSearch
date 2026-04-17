@@ -82,20 +82,50 @@ def _parse_salary(item: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+_UNSUPPORTED_LOCATIONS = (
+    "italia",
+    "italy",
+    "milano",
+    "roma",
+    "torino",
+    "bologna",
+    "firenze",
+    "napoli",
+    "genova",
+    "palermo",
+    "france",
+    "francia",
+    "deutschland",
+    "germany",
+    "españa",
+    "spain",
+    "portugal",
+)
+
+
 def fetch_salary_data(
     job_title: str,
     location: str | None = None,
     db: Session | None = None,
 ) -> dict[str, Any] | None:
-    """Fetch salary estimate for a job title. Uses DB cache with 30-day TTL."""
+    """Fetch salary estimate for a job title. DB cache 30-day TTL.
+
+    Skips API call for known-unsupported locations (Italy/EU) to save quota.
+    """
     if not job_title or not settings.rapidapi_key:
         return None
 
     title_norm = job_title.strip().lower()
     loc_norm = (location or "").strip().lower()
+
+    # Skip unsupported locations — API returns empty, wasting quota
+    if loc_norm and any(kw in loc_norm for kw in _UNSUPPORTED_LOCATIONS):
+        return None
+
     key = f"{title_norm}:{loc_norm}"
 
-    # Check cache
+    # Single cache lookup, reused for both read and write paths
+    cached = None
     if db is not None:
         try:
             cached = db.query(SalaryCache).filter(SalaryCache.cache_key == key).first()
@@ -106,20 +136,16 @@ def fetch_salary_data(
         except Exception:  # noqa: S110 — cache miss is non-fatal
             pass
 
-    # Try with location first, fallback to without
-    data = _call_api(job_title, location) if location else None
-    if not data:
-        data = _call_api(job_title)
+    # Single API call — no automatic fallback (burns quota too fast)
+    data = _call_api(job_title, location) if location else _call_api(job_title)
     if not data:
         return None
 
-    # Pick first result (most relevant)
     result = _parse_salary(data[0])
 
-    # Update cache
+    # Update cache reusing the row we already fetched (no second query)
     if db is not None:
         try:
-            cached = db.query(SalaryCache).filter(SalaryCache.cache_key == key).first()
             if cached:
                 cached.salary_data = json.dumps(result)  # type: ignore[assignment]
                 cached.fetched_at = datetime.now(UTC)  # type: ignore[assignment]

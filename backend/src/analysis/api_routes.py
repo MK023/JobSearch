@@ -130,6 +130,40 @@ def change_status(
     return JSONResponse({"ok": True, "status": new_status})
 
 
+@router.post("/analysis/{analysis_id}/salary")
+@limiter.limit("5/hour")
+def fetch_analysis_salary(
+    request: Request,
+    analysis_id: str,
+    db: DbSession,
+    user: CurrentUser,
+) -> JSONResponse:
+    """On-demand salary fetch — user-triggered from detail page.
+
+    Not called during analysis pipeline (was burning RapidAPI quota).
+    Rate-limited to 5/hour per IP as extra safeguard.
+    """
+    validate_uuid(analysis_id)
+    analysis = get_analysis_by_id(db, analysis_id, user_id=cast(UUID, user.id))
+    if not analysis:
+        return JSONResponse({"error": "not found"}, status_code=404)
+
+    # Skip Italian locations — API returns empty consistently
+    loc = (analysis.location or "").lower()
+    if any(kw in loc for kw in ("italia", "italy", "milano", "roma", "torino", "bologna", "firenze")):
+        return JSONResponse({"ok": False, "reason": "location_not_supported"}, status_code=200)
+
+    from ..integrations.salary import fetch_salary_data
+
+    data = fetch_salary_data(analysis.role or "", analysis.location, db)
+    if not data:
+        return JSONResponse({"ok": False, "reason": "no_data"}, status_code=200)
+
+    analysis.salary_data = data  # type: ignore[assignment]
+    db.commit()
+    return JSONResponse({"ok": True, "salary_data": data})
+
+
 @router.delete("/analysis/{analysis_id}")
 def delete_analysis(
     request: Request,
