@@ -50,7 +50,7 @@ def _categorical_lift(kept: list[dict[str, Any]], rejected: list[dict[str, Any]]
                 "lift": lift,  # >1 means more common in kept
             }
         )
-    rows.sort(key=lambda r: r["lift"], reverse=True)
+    rows.sort(key=lambda r: float(r["lift"] or 0), reverse=True)
     return rows
 
 

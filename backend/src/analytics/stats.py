@@ -15,7 +15,7 @@ def counts_by_status(features: list[dict[str, Any]]) -> dict[str, int]:
     return dict(Counter(f.get("status", "unknown") for f in features))
 
 
-def distribution(features: list[dict[str, Any]], key: str) -> dict[str, int]:
+def distribution(features: list[dict[str, Any]], key: str) -> dict[Any, int]:
     """Count analyses by any feature key. Skips None values."""
     return dict(Counter(f.get(key) for f in features if f.get(key) is not None))
 
