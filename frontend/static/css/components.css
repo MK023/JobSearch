@@ -132,8 +132,8 @@
 }
 
 .btn-sm {
-  padding: 4px 10px;
-  font-size: 11px;
+  padding: var(--space-xs) 10px;
+  font-size: var(--text-xs);
 }
 
 .btn-lg {
@@ -191,7 +191,7 @@
 /* ---- Pill ---- */
 
 .pill {
-  padding: 2px 7px;
+  padding: 2px var(--space-sm);
   border-radius: var(--radius-sm);
   font-size: var(--text-xs);
   display: inline-block;
@@ -912,7 +912,7 @@
 
 .tag {
   display: inline-block;
-  padding: 2px 10px;
+  padding: 2px var(--space-sm);
   border-radius: var(--radius-sm);
   font-size: var(--text-xs);
   background: var(--bg-tertiary);
@@ -1121,8 +1121,8 @@ details[open] summary::before {
 
 .pill-rifiutato.active {
   background: rgb(107 114 128 / 15%);
-  border-color: #6b7280;
-  color: #6b7280;
+  border-color: var(--text-muted);
+  color: var(--text-muted);
 }
 
 /* ---- Status toggle (segmented control) ---- */
@@ -1186,7 +1186,7 @@ details[open] summary::before {
 
 .status-opt-rifiutato.active {
   background: rgb(107 114 128 / 15%);
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 /* ---- Action card grid ---- */

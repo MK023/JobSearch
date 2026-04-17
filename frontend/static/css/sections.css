@@ -347,7 +347,7 @@
 }
 
 .completion-banner-error .completion-banner-info {
-  color: var(--accent-red, #ff453a);
+  color: var(--accent-red);
 }
 
 .completion-dismiss {
@@ -2232,12 +2232,12 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
 
 .notification-card-icon {
   flex: 0 0 auto;
-  width: 32px;
-  height: 32px;
+  width: var(--space-2xl);
+  height: var(--space-2xl);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
+  font-size: var(--text-xl);
   line-height: 1;
 }
 
@@ -2569,10 +2569,10 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
 
 .agenda-badge {
   display: inline-block;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 10px;
-  font-weight: 700;
+  padding: 2px var(--space-sm);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
@@ -2590,9 +2590,9 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
 /* Empty state */
 
 .agenda-empty {
-  padding: 12px 16px;
+  padding: var(--space-md) var(--space-lg);
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: var(--text-sm);
   font-style: italic;
 }
 
@@ -2611,7 +2611,7 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: var(--text-sm);
   outline: none;
   transition: border-color var(--transition-fast);
 }
@@ -2637,13 +2637,13 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
 @media (width <= 768px) {
   .agenda-stats {
     grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+    gap: var(--space-md);
   }
 
   .agenda-card {
     flex-wrap: wrap;
-    gap: 8px;
-    padding: 12px;
+    gap: var(--space-sm);
+    padding: var(--space-md);
   }
 
   .agenda-card-meta,
