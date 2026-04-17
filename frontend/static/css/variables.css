@@ -57,6 +57,7 @@
   --space-3xl: 48px;
 
   /* Radii */
+  --radius-chip: 4px;  /* small chips/badges/tags — squared, not pill */
   --radius-sm: 8px;
   --radius-md: 10px;
   --radius-lg: 16px;
