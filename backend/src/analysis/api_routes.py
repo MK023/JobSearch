@@ -155,7 +155,7 @@ def fetch_analysis_salary(
 
     from ..integrations.salary import fetch_salary_data
 
-    data = fetch_salary_data(analysis.role or "", analysis.location, db)
+    data = fetch_salary_data(str(analysis.role or ""), str(analysis.location or "") or None, db)
     if not data:
         return JSONResponse({"ok": False, "reason": "no_data"}, status_code=200)
 
