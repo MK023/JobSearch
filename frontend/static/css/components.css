@@ -134,6 +134,7 @@
 .btn-sm {
   padding: var(--space-xs) 10px;
   font-size: var(--text-xs);
+  border-radius: var(--radius-sm);
 }
 
 .btn-lg {
