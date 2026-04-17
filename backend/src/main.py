@@ -41,7 +41,8 @@ if settings.sentry_dsn:
         dsn=settings.sentry_dsn,
         send_default_pii=True,
         traces_sample_rate=1.0,  # 14-day trial: capture everything
-        profile_session_sample_rate=1.0,
+        profiles_sample_rate=1.0,  # transaction-based profiling
+        profile_session_sample_rate=1.0,  # continuous profiling
         profile_lifecycle="trace",
         release="jobsearch@1.0.0",
         environment="production" if _os.environ.get("RENDER") else "development",
