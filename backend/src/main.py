@@ -26,7 +26,12 @@ from .auth.service import ensure_admin_user
 from .config import settings
 
 # Sentry — initialize before app creation so FastAPI integration auto-activates
-if settings.sentry_dsn:
+# Skip Sentry during pytest runs — otherwise test-induced errors (mocked
+# R2 failures, broken PDFs, etc.) pollute the production dashboard with
+# alerts from the developer's local machine.
+_is_pytest = _os.environ.get("PYTEST_CURRENT_TEST") or "pytest" in _os.environ.get("_", "")
+
+if settings.sentry_dsn and not _is_pytest:
     import logging as _logging
 
     import sentry_sdk
@@ -56,15 +61,15 @@ if settings.sentry_dsn:
         enable_logs=True,
         integrations=_integrations,
     )
-from .cover_letter.routes import router as cover_letter_router
-from .cv.routes import router as cv_router
-from .dashboard.service import seed_spending_totals
-from .database import SessionLocal
-from .dependencies import AuthRequired, DbSession
-from .integrations.cache import create_cache_service
-from .pages import router as pages_router
-from .preferences.routes import router as preferences_router
-from .rate_limit import limiter
+from .cover_letter.routes import router as cover_letter_router  # noqa: E402
+from .cv.routes import router as cv_router  # noqa: E402
+from .dashboard.service import seed_spending_totals  # noqa: E402
+from .database import SessionLocal  # noqa: E402
+from .dependencies import AuthRequired, DbSession  # noqa: E402
+from .integrations.cache import create_cache_service  # noqa: E402
+from .pages import router as pages_router  # noqa: E402
+from .preferences.routes import router as preferences_router  # noqa: E402
+from .rate_limit import limiter  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
