@@ -41,7 +41,7 @@ var _QUOTES = [
     'La perseveranza non \u00e8 una lunga corsa; \u00e8 tante brevi corse una dopo l\u2019altra. \u2014 Walter Elliot',
     'Il modo per iniziare \u00e8 smettere di parlare e iniziare a fare. \u2014 Walt Disney',
     'Non conta quante volte cadi, ma quante volte ti rialzi. \u2014 Proverbio',
-    'La fortuna aiuda gli audaci. \u2014 Virgilio',
+    'La fortuna aiuta gli audaci. \u2014 Virgilio',
     'Ogni no ti avvicina a un s\u00ec. \u2014 Mark Cuban'
 ];
 

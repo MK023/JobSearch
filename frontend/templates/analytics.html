@@ -18,7 +18,7 @@
           {% if lock.locked %}Auto-analisi bloccata{% else %}Pronto per una nuova analisi{% endif %}
         </div>
         <p class="analytics-lock-sub">
-          {{ lock.new_since_last }} / {{ lock.threshold }} nuove candidature triagiate dall'ultima analisi.
+          {{ lock.new_since_last }} / {{ lock.threshold }} nuove candidature valutate dall'ultima analisi.
           {% if lock.last_run_at %}Ultima esecuzione: {{ lock.last_run_at[:10] }}.{% endif %}
         </p>
       </div>
@@ -140,7 +140,7 @@
   </section>
   {% else %}
   <section class="card empty-state">
-    <p class="mb-lg">Nessuna analisi storica ancora eseguita. Triagia almeno {{ threshold }} candidature, poi sblocca la prima analisi.</p>
+    <p class="mb-lg">Nessuna analisi storica ancora eseguita. Valuta almeno {{ threshold }} candidature, poi sblocca la prima analisi.</p>
   </section>
   {% endif %}
 
@@ -150,7 +150,7 @@
     <div class="section-title">Storico esecuzioni</div>
     <div class="dash-table-wrap">
       <table class="dash-table">
-        <thead><tr><th>Data</th><th>Analisi triagiate</th><th>Triggered by</th></tr></thead>
+        <thead><tr><th>Data</th><th>Analisi valutate</th><th>Triggered by</th></tr></thead>
         <tbody>
           {% for r in run_history %}
           <tr>
