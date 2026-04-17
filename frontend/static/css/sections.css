@@ -1567,9 +1567,9 @@
   transition: width 0.3s ease;
 }
 
-.sub-rating-bar-good { background: linear-gradient(90deg, rgb(48 209 88 / 70%), var(--accent-green)); }
-.sub-rating-bar-mid  { background: linear-gradient(90deg, rgb(255 159 10 / 70%), var(--accent-orange)); }
-.sub-rating-bar-low  { background: linear-gradient(90deg, rgb(255 69 58 / 70%), var(--accent-red)); }
+.sub-rating-bar-good { background: var(--accent-green); }
+.sub-rating-bar-mid  { background: var(--accent-orange); }
+.sub-rating-bar-low  { background: var(--accent-red); }
 
 .sub-rating-value {
   font-size: var(--text-sm);
