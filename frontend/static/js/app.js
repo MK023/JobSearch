@@ -56,6 +56,12 @@ function toggleTheme() {
  * Shows error banner after 90s if analysis never completes.
  */
 function _checkPendingAnalysis() {
+    // Guard: prevent duplicate polling loops across Alpine re-inits / page navigations.
+    // Alpine's app() init() fires on every page load; without this guard, a 90s
+    // polling window with 3s interval can spawn N concurrent loops if the user
+    // navigates several pages, flooding /api/v1/analysis/latest.
+    if (window._pendingAnalysisActive) return;
+
     var raw = sessionStorage.getItem('pendingAnalysis');
     if (!raw) return;
 
@@ -70,6 +76,12 @@ function _checkPendingAnalysis() {
         return;
     }
 
+    window._pendingAnalysisActive = true;
+
+    function stop() {
+        window._pendingAnalysisActive = false;
+    }
+
     function poll() {
         fetch('/api/v1/analysis/latest', { headers: { 'Accept': 'application/json' } })
             .then(function(r) { return r.json(); })
@@ -77,8 +89,9 @@ function _checkPendingAnalysis() {
                 if (!data || !data.id || !data.created_at) return scheduleNext();
                 var createdAt = new Date(data.created_at).getTime();
                 if (createdAt >= startedAt) {
-                    if (!sessionStorage.getItem('pendingAnalysis')) return;
+                    if (!sessionStorage.getItem('pendingAnalysis')) { stop(); return; }
                     sessionStorage.removeItem('pendingAnalysis');
+                    stop();
                     _showCompletionBanner(data);
                 } else {
                     scheduleNext();
@@ -88,16 +101,18 @@ function _checkPendingAnalysis() {
     }
 
     function scheduleNext() {
-        if (!sessionStorage.getItem('pendingAnalysis')) return;
+        if (!sessionStorage.getItem('pendingAnalysis')) { stop(); return; }
         var now = Date.now();
         var age = now - startedAt;
         if (age > 90000) {
             sessionStorage.removeItem('pendingAnalysis');
+            stop();
             _showErrorBanner('Analisi non completata. Riprova dalla pagina di analisi.');
             return;
         }
         if (age > 300000) {
             sessionStorage.removeItem('pendingAnalysis');
+            stop();
             return;
         }
         setTimeout(poll, 3000);
