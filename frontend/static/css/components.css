@@ -1502,3 +1502,31 @@ details[open] summary::before {
   font-size: var(--text-xs);
   color: var(--text-secondary);
 }
+
+
+/* ================================================================
+   CHIP/BADGE RADIUS OVERRIDE — enforce squared corners on small labels.
+   Keeps base components (.btn, .card, inputs) with radius-sm (8px)
+   while making badges/pills/chips use radius-chip (4px).
+   ================================================================ */
+.pill,
+.status-badge,
+.tab-badge,
+.filter-chip,
+.score-badge,
+.recommendation-badge,
+.severity-badge,
+.hero-tag,
+.tag,
+.badge,
+.outcome-badge,
+.interview-outcome-badge,
+.contract-option,
+.agenda-btn,
+.bulk-reject-toggle,
+[class^="rec-"],
+[class^="severity-"],
+[class^="status-badge-"],
+[class^="outcome-"] {
+  border-radius: var(--radius-chip);
+}
