@@ -76,6 +76,8 @@ class JobAnalysis(Base):
     company_reputation = Column(JSON, default=dict)
     salary_data = Column(JSON, nullable=True)
     company_news = Column(JSON, nullable=True)
+    career_track = Column(String(30), nullable=True, index=True)
+    track_reason = Column(Text, nullable=True)
     benefits = Column(JSON, nullable=True)
     recruiter_info = Column(JSON, nullable=True)
     experience_required = Column(JSON, nullable=True)

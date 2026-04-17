@@ -61,6 +61,7 @@ if settings.sentry_dsn and not _is_pytest:
         enable_logs=True,
         integrations=_integrations,
     )
+from .analytics_page.routes import page_router as analytics_page_router  # noqa: E402
 from .cover_letter.routes import router as cover_letter_router  # noqa: E402
 from .cv.routes import router as cv_router  # noqa: E402
 from .dashboard.service import seed_spending_totals  # noqa: E402
@@ -280,6 +281,7 @@ def create_app() -> FastAPI:
     # --- HTML routers (root level) ---
     # Pages router first so GET / maps to the new dashboard handler
     app.include_router(pages_router)
+    app.include_router(analytics_page_router)
     app.include_router(auth_router)
     app.include_router(cv_router)
     app.include_router(analysis_router)

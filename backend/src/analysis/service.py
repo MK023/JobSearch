@@ -34,9 +34,10 @@ def run_analysis(
     job_url: str,
     model: str,
     cache: CacheService | None = None,
+    user_id: UUID | None = None,
 ) -> tuple[JobAnalysis, dict[str, Any]]:
     """Run a new analysis and persist it."""
-    result = analyze_job(cv_text, job_description, model, cache, db=db)
+    result = analyze_job(cv_text, job_description, model, cache, db=db, user_id=user_id)
     _merge_glassdoor(result, db, cache)
     # Salary and news are fetched on-demand from the UI (not auto) to save
     # RapidAPI quota — 400 responses for Italian locations and strange titles
@@ -62,6 +63,8 @@ def run_analysis(
         company_reputation=result.get("company_reputation", {}),
         salary_data=result.get("salary_data") or None,
         company_news=result.get("company_news") or None,
+        career_track=result.get("career_track") or None,
+        track_reason=result.get("track_reason") or None,
         benefits=result.get("benefits") or None,
         recruiter_info=result.get("recruiter_info") or None,
         experience_required=result.get("experience_required") or None,
@@ -94,6 +97,8 @@ def rebuild_result(analysis: JobAnalysis, from_cache: bool = False) -> dict[str,
         "company_reputation": analysis.company_reputation or {},
         "salary_data": analysis.salary_data or {},
         "company_news": analysis.company_news or [],
+        "career_track": analysis.career_track or "hybrid_a_b",
+        "track_reason": analysis.track_reason or "",
         "benefits": analysis.benefits or [],
         "recruiter_info": analysis.recruiter_info or {},
         "experience_required": analysis.experience_required or {},

@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% block title %}Analytics — Job Search{% endblock %}
+{% block content %}
+<div class="content-inner">
+
+  <div class="page-header">
+    <h1 class="page-title">Analytics &amp; Auto-adapt</h1>
+  </div>
+
+  {% if error %}<div class="message-banner banner-error">{{ error }}</div>{% endif %}
+  {% if message %}<div class="message-banner banner-success">{{ message }}</div>{% endif %}
+
+  {# Lock status card #}
+  <section class="card analytics-lock {% if lock.locked %}analytics-lock-locked{% else %}analytics-lock-open{% endif %} mb-xl">
+    <div class="analytics-lock-head">
+      <div>
+        <div class="section-title">
+          {% if lock.locked %}Auto-analisi bloccata{% else %}Pronto per una nuova analisi{% endif %}
+        </div>
+        <p class="analytics-lock-sub">
+          {{ lock.new_since_last }} / {{ lock.threshold }} nuove candidature triagiate dall'ultima analisi.
+          {% if lock.last_run_at %}Ultima esecuzione: {{ lock.last_run_at[:10] }}.{% endif %}
+        </p>
+      </div>
+      <div class="analytics-lock-actions">
+        <button id="btn-run-analytics" class="btn btn-primary" {% if lock.locked %}disabled{% endif %}
+                onclick="triggerAnalytics()">
+          {% if lock.locked %}&#x1F512; Sblocca fra {{ lock.threshold - lock.new_since_last }}{% else %}&#x26A1; Esegui analisi{% endif %}
+        </button>
+      </div>
+    </div>
+    <div class="analytics-progress">
+      <div class="analytics-progress-bar" style="width: {{ (lock.new_since_last * 100 // lock.threshold) if lock.threshold > 0 else 0 }}%"></div>
+    </div>
+  </section>
+
+  {# Latest run snapshot #}
+  {% if latest_run %}
+  {% set snap = latest_run.snapshot %}
+  <section class="card card-mb">
+    <div class="section-title">Ultima analisi &middot; {{ latest_run.created_at.strftime('%d/%m/%Y %H:%M') if latest_run.created_at else '' }}</div>
+
+    <div class="grid-metrics mb-lg">
+      <div class="metric-card metric-blue">
+        <div class="metric-row">
+          <div class="metric-icon">&#x1F4CA;</div>
+          <div>
+            <div class="metric-value">{{ snap.total_features|default(0) }}</div>
+            <div class="metric-label">Analisi totali</div>
+          </div>
+        </div>
+      </div>
+      <div class="metric-card metric-green">
+        <div class="metric-row">
+          <div class="metric-icon">&#x2705;</div>
+          <div>
+            <div class="metric-value">{{ snap.discriminant.kept_total|default(0) }}</div>
+            <div class="metric-label">Tenute</div>
+          </div>
+        </div>
+      </div>
+      <div class="metric-card metric-orange">
+        <div class="metric-row">
+          <div class="metric-icon">&#x274C;</div>
+          <div>
+            <div class="metric-value">{{ snap.discriminant.rejected_total|default(0) }}</div>
+            <div class="metric-label">Scartate</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# Role distribution #}
+    {% if snap.role_distribution %}
+    <h3 class="section-subtitle">Distribuzione ruoli</h3>
+    <div class="dash-table-wrap">
+      <table class="dash-table">
+        <thead><tr><th>Bucket</th><th>Conteggio</th></tr></thead>
+        <tbody>
+          {% for role, count in snap.role_distribution.items() %}
+          <tr><td>{{ role }}</td><td>{{ count }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    {# Career track distribution #}
+    {% if snap.career_track_distribution %}
+    <h3 class="section-subtitle">Distribuzione Career Track</h3>
+    <div class="dash-table-wrap">
+      <table class="dash-table">
+        <thead><tr><th>Track</th><th>Conteggio</th></tr></thead>
+        <tbody>
+          {% for track, count in snap.career_track_distribution.items() %}
+          <tr><td>{{ track }}</td><td>{{ count }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    {# Conversion rates #}
+    {% if snap.conversion_by_role %}
+    <h3 class="section-subtitle">Tasso di conversione per ruolo</h3>
+    <div class="dash-table-wrap">
+      <table class="dash-table">
+        <thead>
+          <tr><th>Ruolo</th><th>Candidature</th><th>Colloqui</th><th>Tasso</th></tr>
+        </thead>
+        <tbody>
+          {% for role, stats in snap.conversion_by_role.items() %}
+          <tr>
+            <td>{{ role }}</td>
+            <td>{{ stats.applied|int }}</td>
+            <td>{{ stats.to_interview|int }}</td>
+            <td>{{ (stats.interview_rate * 100)|round(1) }}%</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    {# Bias signals (conflict company + high-score rejected) #}
+    {% if snap.bias_signals %}
+    <h3 class="section-subtitle">Segnali di bias</h3>
+    <ul class="analytics-bias-list">
+      <li>
+        <strong>Alto score scartato:</strong> {{ snap.bias_signals.high_score_rejected|length }} analisi
+      </li>
+      <li>
+        <strong>Basso score tenuto:</strong> {{ snap.bias_signals.low_score_kept|length }} analisi
+      </li>
+      <li>
+        <strong>Stessa azienda, outcome diverso:</strong> {{ snap.bias_signals.same_company_different_outcome|length }} aziende
+      </li>
+    </ul>
+    {% endif %}
+  </section>
+  {% else %}
+  <section class="card empty-state">
+    <p class="mb-lg">Nessuna analisi storica ancora eseguita. Triagia almeno {{ threshold }} candidature, poi sblocca la prima analisi.</p>
+  </section>
+  {% endif %}
+
+  {# Run history #}
+  {% if run_history %}
+  <section class="card card-mb">
+    <div class="section-title">Storico esecuzioni</div>
+    <div class="dash-table-wrap">
+      <table class="dash-table">
+        <thead><tr><th>Data</th><th>Analisi triagiate</th><th>Triggered by</th></tr></thead>
+        <tbody>
+          {% for r in run_history %}
+          <tr>
+            <td>{{ r.created_at.strftime('%d/%m %H:%M') if r.created_at else '' }}</td>
+            <td>{{ r.analyses_count }}</td>
+            <td>{{ r.triggered_by }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+
+</div>
+
+<script>
+function triggerAnalytics() {
+  var btn = document.getElementById('btn-run-analytics');
+  if (!btn || btn.disabled) return;
+  btn.disabled = true;
+  btn.textContent = 'Analisi in corso...';
+  fetch('/api/v1/analytics/run', { method: 'POST', headers: { 'Accept': 'application/json' } })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok) {
+        showToast('Analisi completata', 'success');
+        setTimeout(function() { window.location.reload(); }, 1000);
+      } else {
+        showToast('Analisi bloccata: ' + (data.reason || 'threshold'), 'error');
+        btn.disabled = false;
+        btn.textContent = 'Ritenta';
+      }
+    })
+    .catch(function(e) {
+      console.error('analytics error:', e);
+      showToast('Errore durante analisi', 'error');
+      btn.disabled = false;
+    });
+}
+</script>
+{% endblock %}

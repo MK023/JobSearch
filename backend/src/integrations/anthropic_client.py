@@ -43,6 +43,8 @@ from .validation import (
 )
 
 if TYPE_CHECKING:
+    from uuid import UUID  # noqa: F401 — used in forward-ref type hint
+
     from sqlalchemy.orm import Session  # noqa: F401 — used in forward-ref type hint
 
 logger = logging.getLogger(__name__)
@@ -198,6 +200,7 @@ def analyze_job(
     model: str = "haiku",
     cache: CacheService | None = None,
     db: "Session | None" = None,
+    user_id: "UUID | None" = None,
 ) -> dict[str, Any]:
     """Analyze CV-to-job compatibility.
 
@@ -212,7 +215,20 @@ def analyze_job(
     """
     model_id = MODELS.get(model, MODELS["haiku"])
     ch = content_hash(cv_text, job_description)
-    cache_key = f"analysis:{ANALYSIS_PROMPT_VERSION}:{model}:{ch[:16]}"
+
+    # Inject user profile snippet (learned from past decisions) into the system prompt.
+    # The snippet version is included in the cache key so profile changes invalidate cache.
+    profile_snippet = ""
+    if db is not None and user_id is not None:
+        try:
+            from ..analytics_page.service import get_user_profile_snippet
+
+            profile_snippet = get_user_profile_snippet(db, user_id)
+        except Exception:  # noqa: S110 — profile injection is best-effort
+            pass
+
+    profile_hash = content_hash(profile_snippet, "") if profile_snippet else "none"
+    cache_key = f"analysis:{ANALYSIS_PROMPT_VERSION}:{model}:{profile_hash[:8]}:{ch[:16]}"
 
     if cache:
         cached = cache.get_json(cache_key)
@@ -221,9 +237,18 @@ def analyze_job(
             cached["content_hash"] = ch
             return cached
 
+    system_prompt = ANALYSIS_SYSTEM_PROMPT
+    if profile_snippet:
+        system_prompt = (
+            f"{ANALYSIS_SYSTEM_PROMPT}\n\n"
+            f"### PATTERN STORICI DELL'UTENTE (aggiornati automaticamente da /analytics)\n"
+            f"{profile_snippet}\n"
+            f"Usa questi pattern come contesto aggiuntivo, non come regola assoluta — l'utente evolve."
+        )
+
     user_prompt = ANALYSIS_USER_PROMPT.format(cv_text=cv_text[:12000], job_description=job_description)
     result, usage = _call_api_with_tool(
-        ANALYSIS_SYSTEM_PROMPT,
+        system_prompt,
         user_prompt,
         model_id,
         8192,
@@ -252,7 +277,7 @@ def analyze_job(
             result.get("confidence_reason", ""),
         )
         sonnet_result, sonnet_usage = _call_api_with_tool(
-            ANALYSIS_SYSTEM_PROMPT,
+            system_prompt,
             user_prompt,
             sonnet_id,
             8192,

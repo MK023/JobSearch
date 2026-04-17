@@ -253,6 +253,7 @@ def run_batch(batch_id: str, db: Session, user_id: UUID, cache: CacheService | N
                     cast(str, item.job_url) or "",
                     cast(str, item.model) or "haiku",
                     cache,
+                    user_id,
                 )
                 try:
                     analysis, result = future.result(timeout=_BATCH_ITEM_TIMEOUT)

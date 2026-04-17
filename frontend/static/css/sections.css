@@ -478,6 +478,131 @@
 
 /* --- Verdict / AI summary --- */
 
+/* Analytics page — lock card + progress bar */
+
+.analytics-lock {
+  padding: var(--space-xl);
+}
+
+.analytics-lock-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-lg);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-lg);
+}
+
+.analytics-lock-sub {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  margin-top: var(--space-xs);
+}
+
+.analytics-progress {
+  height: 6px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.analytics-progress-bar {
+  height: 100%;
+  background: var(--accent-blue);
+  border-radius: var(--radius-full);
+  transition: width var(--transition-slow);
+}
+
+.analytics-lock-open .analytics-progress-bar {
+  background: var(--accent-green);
+}
+
+.analytics-bias-list {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-md) 0;
+}
+
+.analytics-bias-list li {
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.analytics-bias-list li:last-child {
+  border-bottom: none;
+}
+
+.section-subtitle {
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  margin: var(--space-lg) 0 var(--space-sm);
+}
+
+/* Career track chip (above verdict in analysis detail) */
+
+.career-track-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-md);
+  font-size: var(--text-sm);
+}
+
+.career-track-label {
+  font-weight: var(--weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: var(--text-xs);
+  flex-shrink: 0;
+}
+
+.career-track-reason {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+.track-plan-a {
+  background: rgb(48 209 88 / 10%);
+  border: 1px solid rgb(48 209 88 / 25%);
+}
+
+.track-plan-a .career-track-label { color: var(--accent-green); }
+
+.track-plan-b {
+  background: rgb(10 132 255 / 10%);
+  border: 1px solid rgb(10 132 255 / 25%);
+}
+
+.track-plan-b .career-track-label { color: var(--accent-blue); }
+
+.track-hybrid {
+  background: rgb(135 119 217 / 10%);
+  border: 1px solid rgb(135 119 217 / 25%);
+}
+
+.track-hybrid .career-track-label { color: var(--accent-purple); }
+
+.track-cybersec {
+  background: rgb(255 159 10 / 10%);
+  border: 1px solid rgb(255 159 10 / 25%);
+}
+
+.track-cybersec .career-track-label { color: var(--accent-orange); }
+
+.track-out {
+  background: rgb(255 69 58 / 8%);
+  border: 1px solid rgb(255 69 58 / 20%);
+}
+
+.track-out .career-track-label { color: var(--accent-red); }
+
+
 .result-verdict {
   color: var(--text-primary);
   font-size: var(--text-lg);

@@ -63,7 +63,14 @@ def analyze(
 
     try:
         analysis, result = run_analysis(
-            db, cast(str, cv.raw_text), cast(UUID, cv.id), job_description, job_url, model, cache
+            db,
+            cast(str, cv.raw_text),
+            cast(UUID, cv.id),
+            job_description,
+            job_url,
+            model,
+            cache,
+            user_id=cast(UUID, user.id),
         )
         add_spending(
             db,

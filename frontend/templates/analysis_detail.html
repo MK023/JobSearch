@@ -76,6 +76,22 @@
       </div>
     </div>
 
+    {# ---- Career track chip ---- #}
+    {% if result.career_track %}
+    {% set track_labels = {
+      'plan_a_devops': ('Piano A · DevOps', 'track-plan-a'),
+      'plan_b_dev': ('Piano B · Dev', 'track-plan-b'),
+      'hybrid_a_b': ('Ibrido A/B', 'track-hybrid'),
+      'cybersec_junior_ok': ('Cybersec Junior', 'track-cybersec'),
+      'out_of_scope': ('Fuori scope', 'track-out')
+    } %}
+    {% set label, cls = track_labels.get(result.career_track, ('—', 'track-hybrid')) %}
+    <div class="career-track-chip {{ cls }}" title="{{ result.track_reason|default('') }}">
+      <span class="career-track-label">{{ label }}</span>
+      {% if result.track_reason %}<span class="career-track-reason">{{ result.track_reason }}</span>{% endif %}
+    </div>
+    {% endif %}
+
     {# ---- Company reputation details ---- #}
     {% include "partials/result_reputation.html" %}
 
