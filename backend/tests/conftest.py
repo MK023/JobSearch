@@ -9,6 +9,7 @@ from sqlalchemy.pool import StaticPool
 
 from src.agenda.models import TodoItem
 from src.analysis.models import AnalysisStatus, AppSettings, JobAnalysis
+from src.analytics_page.models import AnalyticsRun, UserProfile
 from src.audit.models import AuditLog
 from src.auth.models import User
 from src.batch.models import BatchItem
@@ -43,6 +44,8 @@ _ALL_MODELS = [
     RequestMetric,
     SalaryCache,
     NewsCache,
+    AnalyticsRun,
+    UserProfile,
 ]
 
 

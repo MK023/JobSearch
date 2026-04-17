@@ -15,7 +15,7 @@ Token-optimized: compact JSON schemas, tabular rules, zero redundancy.
 #          | v6 = candidate profile section (target DevOps/Cloud, salary range, P.IVA hard-no,
 #                 body rental case-by-case tone); soft-skill cap lowered 10→5;
 #                 Bachelor gap text removed (candidate holds L-31 Informatica); real cert list.
-ANALYSIS_PROMPT_VERSION = "v6"
+ANALYSIS_PROMPT_VERSION = "v7"
 
 # Bump when COVER_LETTER_SYSTEM_PROMPT changes in a way that should invalidate
 # the cover letter cache. Included in cache_key by generate_cover_letter().
@@ -29,7 +29,24 @@ COVER_LETTER_PROMPT_VERSION = "v3"
 ANALYSIS_SYSTEM_PROMPT = """Sei un consulente di carriera italiano esperto. Analizza CV vs annuncio.
 
 ## PROFILO CANDIDATO (preferenze che devono orientare advice, recommendation e tono)
-- **Target stack:** Cloud / DevOps / DevSecOps / Platform Engineering. Non backend generico: se l'annuncio e' "Backend Python puro" senza componente infra, abbassa lo score anche a parita' di match tecnico e suggerisci come "plan B".
+
+### CAREER TRACKS (classifica SEMPRE ogni annuncio in uno di questi bucket)
+- **plan_a_devops**: DevOps / Cloud / SRE / Platform Engineering puro — IaC (Terraform), CI/CD, K8s/K3s, AWS/GCP, observability, scripting. OBIETTIVO PRIMARIO del candidato.
+- **plan_b_dev**: Dev backend / fullstack con focus coding (Python/FastAPI, API REST, microservizi). Fallback onesto: il candidato ha skill e il mercato italiano lo propone spesso come ibrido.
+- **hybrid_a_b**: Ruoli misti "Platform Engineer con coding", "DevOps + Backend", "Cloud Engineer + Python". Il mercato ITALIANO spinge qui — non penalizzare, anzi spesso e' la scelta realistica.
+- **cybersec_junior_ok**: Cybersec junior/entry-level (SOC L1, AppSec junior, Cloud Security junior) in aziende piccole/grown dove il candidato puo' crescere. NON cybersec senior / pentester esperto.
+- **out_of_scope**: Cybersec senior / lead, frontend puro (React/Vue puro), mobile, sistemista classico (no cloud), ruoli con stack totalmente distanti (Java enterprise legacy, PHP, .NET senior).
+
+Scoring per track:
+- plan_a_devops: score pieno, APPLY se match buono
+- plan_b_dev: score -3 vs plan_a, CONSIDER salvo match eccellente
+- hybrid_a_b: score pieno, valuta in base a quale skill pesa di piu' nell'annuncio
+- cybersec_junior_ok: score pieno solo se JUNIOR e azienda non enterprise legacy
+- out_of_scope: score -15/-20 e SKIP salvo salary/benefit eccezionali
+
+NOTA: il candidato e' UMANO, puo' evolvere. Se vedi annunci che allargano gradualmente verso aree adiacenti (data engineering, MLOps, security cloud), trattali come hybrid_a_b, non forzare in out_of_scope.
+
+### Stack e preferenze
 - **Range salariale sano:** Mid 35-50k RAL, Senior 50k+. Offerte sotto 30k vanno flaggate nei red_flags.
 - **Contratto:** dipendente e' la modalita' preferita. P.IVA e' accettabile SOLO se il tariffario orario/giornaliero copre contributi + costi gestione + equivalente RAL. Mai presentare P.IVA come "opportunita' da valutare" senza questo caveat.
 - **Body rental / staff augmentation:** NON verdetto "escludi". Segnala chiaramente, ma invita a valutare caso per caso: se cliente finale e' solido (no legacy infinito), stack e' affine al target, durata commessa ragionevole (>6 mesi) e rimaniamo sullo stesso progetto, puo' essere un ponte accettabile verso un ruolo prodotto. Chiedere SEMPRE visibilita' sul cliente finale prima di accettare.
@@ -62,7 +79,9 @@ Struttura JSON (tutti i campi obbligatori):
   "benefits": ["lista benefit aziendali citati nell'annuncio: welfare, buoni pasto, assicurazione, formazione, smart working, ticket restaurant, bonus, stock options, ecc. Lista vuota se non specificati. Max 10 elementi."],
   "recruiter_info": {"is_recruiter": bool, "agency": "nome agenzia recruitment esterna (Hays, Michael Page, Randstad, Manpower) se applicabile, vuoto altrimenti", "contact": "nome contatto/email se presente, vuoto altrimenti", "is_body_rental": bool, "body_rental_company": "nome azienda body rental/staff augmentation (Capgemini, Reply, Accenture, Deloitte, NTT DATA, Almaviva, Engineering, TCS, Wipro, Infosys, Cognizant, HCLTech, Avanade, ALTEN, Modis, Experis, Adecco, Gi Group, Synergie, Umana, Orienta, Etjca) se applicabile, vuoto altrimenti", "is_freelance": bool, "freelance_reason": "max 15 parole, citazione/sintesi del trigger trovato (es: 'richiesta P.IVA', 'contratto di consulenza'), vuoto altrimenti", "note": "max 20 parole"},
   "experience_required": {"years_min": int or null, "years_max": int or null, "level": "junior|mid|senior|lead|principal|unspecified", "raw_text": "citazione esatta dall'annuncio sugli anni di esperienza, vuoto se non specificato"},
-  "red_flags": ["array di alert sull'annuncio stesso (NON sul match col CV): salary mancante, responsabilita' vaghe, stack troppo eterogeneo per un solo ruolo, multipli livelli di seniority nel titolo, JD molto generico, requisiti contraddittori, elenco infinito di must-have, presenza di buzzword senza sostanza, deadline irrealistica. Max 5 elementi, max 12 parole ciascuno. Lista vuota se l'annuncio e' chiaro e ben scritto."]
+  "red_flags": ["array di alert sull'annuncio stesso (NON sul match col CV): salary mancante, responsabilita' vaghe, stack troppo eterogeneo per un solo ruolo, multipli livelli di seniority nel titolo, JD molto generico, requisiti contraddittori, elenco infinito di must-have, presenza di buzzword senza sostanza, deadline irrealistica. Max 5 elementi, max 12 parole ciascuno. Lista vuota se l'annuncio e' chiaro e ben scritto."],
+  "career_track": "plan_a_devops|plan_b_dev|hybrid_a_b|cybersec_junior_ok|out_of_scope",
+  "track_reason": "1 frase max 25 parole: perche' questo annuncio rientra in questo track. Cita le skill dominanti trovate (es: '70% IaC/K8s/CI-CD, 30% scripting Python' = plan_a_devops; 'Richiede 8 anni pentest Red Team senior' = out_of_scope)"
 }
 
 Score: 80-100=APPLY | 60-79=CONSIDER | 40-59=CONSIDER/SKIP | 0-39=SKIP

@@ -52,6 +52,7 @@ The MCP server runs locally on macOS via Claude Desktop (stdio transport). It is
 | Feature | Description |
 |---------|-------------|
 | **AI Analysis** | Claude Haiku/Sonnet scores CV-to-job compatibility (0-100) |
+| **Career Track Classification** | Each job tagged as `plan_a_devops` / `plan_b_dev` / `hybrid_a_b` / `cybersec_junior_ok` / `out_of_scope` (colored chip in detail view) |
 | **Gap Analysis** | Structured gaps with severity, bridgeability, and action plan |
 | **Interview Prep** | Likely questions + suggested answers based on your CV |
 | **Cover Letter** | Multi-language, context-aware (uses analysis results) |
@@ -61,6 +62,8 @@ The MCP server runs locally on macOS via Claude Desktop (stdio transport). It is
 | **Agenda** | To-do page with DB-backed task management |
 | **Notification Center** | Server-side computed rules (interviews, budget, outcomes, DB size, followup, backlog) with dismiss/undismiss |
 | **Stats Page** | 9 Chart.js charts: funnel, score distribution, timeline, top companies, work mode, contract split, recommendation, spending |
+| **Analytics Page** | `/analytics` — unlocks every 15 new triaged analyses. Computes discriminants and bias signals, persists snapshots in `analytics_runs`, and updates the learned `user_profiles` row |
+| **Auto-Adapt Prompt** | Learned `prompt_snippet` from `user_profiles` is auto-prepended to every Claude analysis call, self-tuning the tool based on past decisions |
 | **Admin Panel** | Operational parameters, maintenance tools, diagnostics |
 | **Internal Metrics** | Request metrics middleware + admin metrics dashboard |
 | **Settings** | AI preferences (model, budget), app preferences persisted in DB |
@@ -88,10 +91,11 @@ The MCP server runs locally on macOS via Claude Desktop (stdio transport). It is
 |-------|-----------|
 | **Backend** | FastAPI + Uvicorn + Jinja2 SSR |
 | **Frontend** | Alpine.js (reactive UI) + Chart.js 4.4 (stats) + vanilla JS modules |
-| **ORM** | SQLAlchemy 2.0 + Alembic (16 migrations) |
+| **ORM** | SQLAlchemy 2.0 + Alembic (19 migrations) |
 | **Database** | PostgreSQL 17 (Neon serverless, 1GB free tier) |
 | **Cache** | Redis 7 (optional, graceful degradation) |
-| **AI** | Anthropic Claude API (tool-use schema-driven JSON, prompt v6 candidate-aware) |
+| **AI** | Anthropic Claude API (tool-use schema-driven JSON, prompt v7 candidate-aware + career-track + auto-adapt) |
+| **Analytics** | Pure-Python data-science primitives (`backend/src/analytics/`, no external deps) + `/analytics` page (`backend/src/analytics_page/`) + CLI scripts (`scripts/export_db.py`, `scripts/analyze_db.py`) |
 | **File Storage** | Cloudflare R2 (S3-compatible, presigned URLs, DB backups) |
 | **Email** | Resend (document reminders) |
 | **Auth** | Session + bcrypt + rate limiting (slowapi) for web UI; API key (X-API-Key) for MCP |

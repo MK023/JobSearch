@@ -17,6 +17,7 @@
 13. [Monitoring and Observability](#13-monitoring-and-observability)
 14. [Architectural Patterns and Decisions](#14-architectural-patterns-and-decisions)
 15. [MCP Server (Claude Desktop Integration)](#15-mcp-server-claude-desktop-integration)
+16. [Learning Loop (Analytics + Auto-Adapt)](#16-learning-loop-analytics--auto-adapt)
 
 ---
 
@@ -125,6 +126,14 @@ backend/src/
 │   ├── service.py       # Metrics aggregation
 │   ├── middleware.py     # Request timing middleware
 │   └── routes.py        # /admin/metrics (HTML)
+│
+├── analytics/           # Pure data-science primitives (no external deps)
+│   └── __init__.py      # Discriminants, bias signals, profile derivation
+│
+├── analytics_page/      # /analytics page (learning loop UI)
+│   ├── models.py        # AnalyticsRun, UserProfile models
+│   ├── service.py       # Run analytics pass, persist snapshot, update profile
+│   └── routes.py        # /analytics (HTML + JSON API)
 │
 ├── notification_center/ # Server-side notification center
 │   ├── models.py        # NotificationDismissal model
@@ -353,6 +362,8 @@ Tutte le tabelle ereditano da `Base`. I modelli usano:
 | `batch_items` | Persistent batch queue items | FK cv_id (CASCADE), FK analysis_id (SET NULL) |
 | `todo_items` | Agenda to-do tasks | FK user_id |
 | `request_metrics` | Internal request timing metrics | Nessuna FK |
+| `analytics_runs` | Snapshot of each /analytics pass (stats, discriminants, bias signals) | FK user_id |
+| `user_profiles` | Learned profile (prompt_snippet auto-injected into next analysis) | FK user_id (1:1) |
 
 ### Indici
 
@@ -387,7 +398,10 @@ backend/alembic/
     ├── 013_interview_multiround.py       # Multi-round interview redesign
     ├── 014_add_notification_dismissals.py # Notification dismissals
     ├── 015_add_todo_items.py             # Agenda to-do items
-    └── 016_add_request_metrics.py        # Request metrics table
+    ├── 016_add_request_metrics.py        # Request metrics table
+    ├── 017_add_salary_data_and_company_news.py  # Salary + news caches
+    ├── 018_add_career_track.py           # career_track column on job_analyses
+    └── 019_add_analytics_runs_user_profile.py   # Analytics runs + learned user profile
 ```
 
 `env.py` importa tutti i modelli per farli "vedere" ad Alembic:
@@ -576,11 +590,13 @@ Ogni analisi traccia: token input, token output, costo in USD. I totali vengono 
 
 ### Prompt Engineering
 
-I prompt sono in `prompts.py`, ottimizzati per minimizzare token:
+I prompt sono in `prompts.py` (current version: **v7**), ottimizzati per minimizzare token:
 - **Schema JSON inline**: ogni campo su una riga
 - **Regole in formato tabellare**: `80-100=APPLY | 60-79=CONSIDER | ...`
 - **Zero ridondanza**: niente ripetizioni tra system e user prompt
 - **Istruzioni sullo scoring calibrato**: lo score deve riflettere competenze REALI e DIMOSTRATE
+- **Career track classification**: ogni analisi ritorna `career_track` ∈ `{plan_a_devops, plan_b_dev, hybrid_a_b, cybersec_junior_ok, out_of_scope}` per classificare il job nella strategia di carriera dell'utente
+- **Auto-adapt**: il `prompt_snippet` in `user_profiles` (popolato dal learning loop, vedi sezione 16) viene **prepended** automaticamente al system prompt ad ogni chiamata. Questo permette al tool di auto-calibrarsi sulla base delle decisioni passate dell'utente.
 
 ---
 
@@ -1370,3 +1386,82 @@ Il file si trova in `~/Library/Application Support/Claude/claude_desktop_config.
 18 test unitari (pytest + asyncio):
 - `test_server.py`: 16 test — verifica che ogni tool chiami l'endpoint corretto con i parametri giusti
 - `test_api_client.py`: 3 test — login flow, estrazione session cookie, gestione errori
+
+---
+
+## 16. Learning Loop (Analytics + Auto-Adapt)
+
+The tool implements a **closed feedback loop** between the user's triage decisions and the AI analysis prompt. The goal: as the user accumulates triaged analyses (APPLY / CONSIDER / SKIP / rejected / hired), the tool learns the user's implicit preferences and injects them into future prompts automatically — no manual prompt tuning required.
+
+### Architecture
+
+```
+  [1] User triages analyses (status changes, outcomes)
+           │
+           ▼
+  [2] /analytics page unlocks when ≥15 new triaged analyses exist
+      since the last AnalyticsRun
+           │
+           ▼
+  [3] User triggers a run → backend/src/analytics_page/service.py
+           │
+           ▼
+  [4] backend/src/analytics/ computes (pure Python, no external deps):
+        • aggregate stats (distribution, scoring bias)
+        • discriminant features (what differentiates applied vs skipped)
+        • bias signals (model drift, score inflation, tech stack drift)
+           │
+           ▼
+  [5] Persist snapshot in `analytics_runs` (audit trail)
+      Update `user_profiles` with refreshed `prompt_snippet`
+           │
+           ▼
+  [6] Next call to analyze() → prompt_snippet auto-prepended
+      to Claude system prompt → AI aligns with user's learned preferences
+           │
+           └─► loop back to [1]
+```
+
+### Module Split
+
+| Module | Purpose | Dependencies |
+|--------|---------|--------------|
+| `backend/src/analytics/` | Pure data-science primitives (stats, discriminants, bias) | **None** (stdlib only) |
+| `backend/src/analytics_page/` | Route handler, orchestration, DB persistence | SQLAlchemy, FastAPI |
+
+The split keeps the core analysis logic **deterministic, testable, and dep-free**. The page module is the thin HTTP/DB glue.
+
+### Database
+
+- **`analytics_runs`**: one row per `/analytics` execution. Stores snapshot of computed stats/discriminants/bias as JSONB + timestamp + user_id. Audit-trail friendly — you can diff two runs to see how the learned profile evolved.
+- **`user_profiles`**: 1:1 with `users`. Stores the latest learned `prompt_snippet` (string, prepended to AI calls) plus structured metadata (dominant tracks, preferred stacks, red flags). Updated on each `/analytics` run.
+
+### Unlock Gate
+
+The `/analytics` entry in the sidebar is **locked** until at least **15 new triaged analyses** exist since the last `analytics_runs.created_at`. This avoids:
+- running expensive recomputes on stale data
+- updating the profile on too-small samples (noise > signal)
+
+### Prompt Injection Point
+
+In `analysis/service.py`, before calling the Anthropic client:
+
+```python
+profile = get_user_profile(db, user_id)
+system_prompt = profile.prompt_snippet + "\n\n" + base_system_prompt_v7
+```
+
+If `user_profiles` row is empty (first run), the base v7 prompt is used unchanged. Once the user completes their first `/analytics` pass, the snippet starts shaping subsequent analyses.
+
+### CLI Scripts (Offline Analysis)
+
+For power users who want to run analytics offline or on a DB snapshot:
+
+- `scripts/export_db.py` — dump relevant tables (job_analyses, interviews, outcomes) to JSON
+- `scripts/analyze_db.py` — run the same `backend/src/analytics/` primitives on an exported snapshot, outputs a report
+
+Useful for A/B testing prompt snippets without touching production data.
+
+### Career Track as a Discriminant
+
+The `career_track` field (see section 6) is a first-class discriminant in the learning loop: the analytics module tracks the user's triage decisions **per track**, which lets the profile capture patterns like "user consistently applies to `plan_a_devops` + `hybrid_a_b` but skips `plan_b_dev`". The resulting `prompt_snippet` steers the AI toward highlighting that bias on future jobs.

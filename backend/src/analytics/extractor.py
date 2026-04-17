@@ -149,14 +149,34 @@ def _interview_stats(interviews: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def _safe_dict(value: Any) -> dict[str, Any]:
+    """Coerce a value to a dict — handles legacy string JSON from old analyses."""
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str) and value.strip().startswith("{"):
+        import json as _json
+
+        try:
+            parsed = _json.loads(value)
+            return parsed if isinstance(parsed, dict) else {}
+        except (ValueError, TypeError):
+            return {}
+    return {}
+
+
+def _safe_list(value: Any) -> list[Any]:
+    """Coerce a value to a list."""
+    return value if isinstance(value, list) else []
+
+
 def extract_features(analysis: dict[str, Any]) -> dict[str, Any]:
     """Flatten a raw analysis dict into features suitable for stats/pandas."""
-    recruiter = analysis.get("recruiter_info") or {}
-    exp_req = analysis.get("experience_required") or {}
-    company_rep = analysis.get("company_reputation") or {}
-    gaps = analysis.get("gaps") or []
-    strengths = analysis.get("strengths") or []
-    iv_stats = _interview_stats(analysis.get("interviews") or [])
+    recruiter = _safe_dict(analysis.get("recruiter_info"))
+    exp_req = _safe_dict(analysis.get("experience_required"))
+    company_rep = _safe_dict(analysis.get("company_reputation"))
+    gaps = _safe_list(analysis.get("gaps"))
+    strengths = _safe_list(analysis.get("strengths"))
+    iv_stats = _interview_stats(_safe_list(analysis.get("interviews")))
     gap_sev = _gap_severities(gaps)
 
     return {

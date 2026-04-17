@@ -44,6 +44,8 @@ class AnalysisAIResponse(BaseModel):
     recruiter_info: dict[str, Any] = Field(default_factory=dict)
     experience_required: dict[str, Any] = Field(default_factory=dict)
     red_flags: list[Any] = Field(default_factory=list)
+    career_track: str = "hybrid_a_b"  # plan_a_devops, plan_b_dev, hybrid_a_b, cybersec_junior_ok, out_of_scope
+    track_reason: str = ""
     full_response: str = ""
 
     @field_validator("score", mode="before")

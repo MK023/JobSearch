@@ -60,7 +60,14 @@ def analyze_api(
 
     try:
         analysis, result = run_analysis(
-            db, cast(str, cv.raw_text), cast(UUID, cv.id), body.job_description, body.job_url, body.model, cache
+            db,
+            cast(str, cv.raw_text),
+            cast(UUID, cv.id),
+            body.job_description,
+            body.job_url,
+            body.model,
+            cache,
+            user_id=cast(UUID, user.id),
         )
         add_spending(
             db,
