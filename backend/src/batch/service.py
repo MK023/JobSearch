@@ -107,27 +107,33 @@ def get_pending_batch_id(db: Session) -> str | None:
 
 
 def get_batch_status(db: Session) -> dict[str, Any]:
-    """Return status summary of the most recent batch."""
+    """Return status summary of the most recent batch, with per-item details."""
     # Find the most recent batch by created_at
     latest = db.query(BatchItem.batch_id).order_by(BatchItem.created_at.desc()).first()
     if not latest:
-        return {"status": "empty"}
+        return {"status": "empty", "items": []}
 
     batch_id = latest[0]
 
-    # Count items by status
-    status_counts = (
-        db.query(BatchItem.status, func.count(BatchItem.id))
-        .filter(BatchItem.batch_id == batch_id)
-        .group_by(BatchItem.status)
-        .all()
-    )
+    items_rows = db.query(BatchItem).filter(BatchItem.batch_id == batch_id).order_by(BatchItem.created_at.asc()).all()
 
     counts: dict[str, int] = {}
-    total = 0
-    for status_val, count in status_counts:
-        counts[status_val.value if hasattr(status_val, "value") else str(status_val)] = count
-        total += count
+    items: list[dict[str, Any]] = []
+    for item in items_rows:
+        status_key = item.status.value if hasattr(item.status, "value") else str(item.status)
+        counts[status_key] = counts.get(status_key, 0) + 1
+        jd = item.job_description or ""
+        preview = item.preview or (jd[:80] + "..." if len(jd) > 80 else jd)
+        items.append(
+            {
+                "id": str(item.id),
+                "status": status_key,
+                "preview": preview,
+                "analysis_id": str(item.analysis_id) if item.analysis_id else None,
+                "error_message": item.error_message,
+            }
+        )
+    total = len(items_rows)
 
     # Determine overall batch status
     if counts.get("running", 0) > 0:
@@ -146,6 +152,7 @@ def get_batch_status(db: Session) -> dict[str, Any]:
         "status": overall,
         "total": total,
         "counts": counts,
+        "items": items,
     }
 
 
