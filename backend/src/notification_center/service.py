@@ -20,6 +20,7 @@ Rules:
    analyses. One notification, never duplicated.
 """
 
+import logging
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func
@@ -31,6 +32,8 @@ from ..interview.models import Interview
 from ..interview.service import get_upcoming_interviews
 from ..preferences.service import get_preference
 from .models import Notification, NotificationDismissal, NotificationSeverity, NotificationType
+
+logger = logging.getLogger(__name__)
 
 # Default thresholds — overridable via Settings > Parametri operativi.
 _INTERVIEW_UPCOMING_HOURS = 24
@@ -258,6 +261,7 @@ def _backup_stale(db: Session) -> list[Notification]:
 
         backups = list_backups()
     except Exception:
+        logger.exception("notification_center: backup listing failed")
         return []
 
     if not backups:
@@ -333,6 +337,7 @@ def _recent_errors(db: Session) -> list[Notification]:
             )
         ]
     except Exception:
+        logger.exception("notification_center: recent_errors rule failed")
         return []
 
 
@@ -377,6 +382,7 @@ def _news_available(db: Session) -> list[Notification]:
             )
         ]
     except Exception:
+        logger.exception("notification_center: news_available rule failed")
         return []
 
 
@@ -417,6 +423,7 @@ def _analytics_available(db: Session) -> list[Notification]:
             )
         ]
     except Exception:
+        logger.exception("notification_center: analytics_available rule failed")
         return []
 
 

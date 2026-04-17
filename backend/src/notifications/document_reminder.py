@@ -143,18 +143,20 @@ def send_document_reminders(db: Session) -> int:
             files_by_interview[iid] = []
         files_by_interview[iid].append(f)
 
+    # Preload all already-notified file IDs across all interviews in ONE query.
+    # Previous code issued one SELECT per file inside the interview loop (N+1).
+    all_file_ids = [str(f.id) for files in files_by_interview.values() for f in files]
+    already_sent_all: set[str] = set()
+    if all_file_ids:
+        notif_types = [f"document_reminder:{fid}" for fid in all_file_ids]
+        rows = (
+            db.query(NotificationLog.notification_type).filter(NotificationLog.notification_type.in_(notif_types)).all()
+        )
+        already_sent_all = {row[0].split(":", 1)[1] for row in rows if ":" in row[0]}
+
     sent_count = 0
     for interview_id, files in files_by_interview.items():
-        # Check if already notified for these files
-        file_ids = [str(f.id) for f in files]
-        already_sent = set()
-        for fid in file_ids:
-            notif_type = f"document_reminder:{fid}"
-            existing = db.query(NotificationLog).filter(NotificationLog.notification_type == notif_type).first()
-            if existing:
-                already_sent.add(fid)
-
-        new_files = [f for f in files if str(f.id) not in already_sent]
+        new_files = [f for f in files if str(f.id) not in already_sent_all]
         if not new_files:
             continue
 
