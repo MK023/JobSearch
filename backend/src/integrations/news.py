@@ -123,16 +123,29 @@ def fetch_company_news(
 
 
 def get_cached_news(company_names: list[str], db: Session) -> list[dict[str, Any]]:
-    """Read news from DB cache only — no API calls. Fast for page rendering."""
+    """Read news from DB cache only — no API calls. Fast for page rendering.
+
+    Single IN-query instead of one per company (fixes N+1 reported by Sentry).
+    """
+    if not company_names:
+        return []
+
+    # Normalize once, build a lookup map to preserve original casing in output
+    by_norm = {name.strip().lower(): name for name in company_names}
+    try:
+        rows = db.query(NewsCache).filter(NewsCache.company_name.in_(list(by_norm.keys()))).all()
+    except Exception:
+        return []
+
     results: list[dict[str, Any]] = []
-    for name in company_names:
-        name_norm = name.strip().lower()
+    for row in rows:
+        if not row.news_data:
+            continue
         try:
-            cached = db.query(NewsCache).filter(NewsCache.company_name == name_norm).first()
-            if cached and cached.news_data:
-                articles = cast(list[dict[str, Any]], json.loads(str(cached.news_data)))
-                if articles:
-                    results.append({"company": name, "articles": articles})
-        except Exception:  # noqa: S110
-            pass
+            articles = cast(list[dict[str, Any]], json.loads(str(row.news_data)))
+        except Exception:  # noqa: S112
+            continue
+        if articles:
+            original = by_norm.get(str(row.company_name), str(row.company_name))
+            results.append({"company": original, "articles": articles})
     return results

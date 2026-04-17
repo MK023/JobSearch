@@ -238,7 +238,9 @@ def _merge_glassdoor(result: dict[str, Any], db: Session, cache: CacheService | 
     if not gd:
         return
 
-    rep = result.get("company_reputation", {}) or {}
+    rep = result.get("company_reputation")
+    if not isinstance(rep, dict):
+        rep = {}
     review_count = gd.get("review_count", 0)
     rep["glassdoor_estimate"] = f"{gd['glassdoor_rating']:.1f}/5"
     rep["review_count"] = review_count

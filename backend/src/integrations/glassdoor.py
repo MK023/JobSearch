@@ -85,30 +85,37 @@ def fetch_glassdoor_rating(
 
         parsed = _parse_company(company)
 
-        if cached:
-            cached.glassdoor_data = json.dumps(company, ensure_ascii=False)  # type: ignore[assignment]
-            cached.rating = parsed.get("glassdoor_rating")  # type: ignore[assignment]
-            cached.review_count = parsed.get("review_count")  # type: ignore[assignment]
-            cached.fetched_at = datetime.now(UTC)  # type: ignore[assignment]
-            db.flush()
-        else:
-            # Concurrent batch workers can race on the same company.
-            # Use a savepoint so IntegrityError doesn't poison the outer txn.
-            from sqlalchemy.exc import IntegrityError
+        # Use PostgreSQL INSERT ... ON CONFLICT DO UPDATE — atomic, zero race.
+        # The savepoint approach leaked exceptions into the outer transaction
+        # causing PendingRollbackError on subsequent flush() calls.
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-            cached = GlassdoorCache(
+        stmt = (
+            pg_insert(GlassdoorCache)
+            .values(
+                id=uuid.uuid4(),
                 company_name=normalized,
                 glassdoor_data=json.dumps(company, ensure_ascii=False),
                 rating=parsed.get("glassdoor_rating"),
                 review_count=parsed.get("review_count"),
+                fetched_at=datetime.now(UTC),
             )
-            try:
-                with db.begin_nested():
-                    db.add(cached)
-            except IntegrityError:
-                # Another worker inserted this company first — that's fine,
-                # our parsed result is still valid to return.
-                pass
+            .on_conflict_do_update(
+                index_elements=["company_name"],
+                set_={
+                    "glassdoor_data": json.dumps(company, ensure_ascii=False),
+                    "rating": parsed.get("glassdoor_rating"),
+                    "review_count": parsed.get("review_count"),
+                    "fetched_at": datetime.now(UTC),
+                },
+            )
+        )
+        try:
+            db.execute(stmt)
+            db.flush()
+        except Exception:
+            # Caching is best-effort. If it fails, the parsed result is still valid.
+            db.rollback()
 
         parsed["cached"] = False
         # Populate Redis cache so subsequent batch items hit it fast

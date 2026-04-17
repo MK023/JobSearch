@@ -2,10 +2,14 @@
 
 Provides salary estimates for job titles with DB-level caching (30 days).
 Graceful degradation: returns None on missing API key, errors, or no data.
+
+Includes a global 429 circuit breaker: on rate limit, all calls are skipped
+for 1 hour to avoid burning through remaining quota.
 """
 
 import json
 import logging
+import time
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
@@ -24,6 +28,11 @@ CACHE_DAYS = 30
 RAPIDAPI_HOST = "job-salary-data.p.rapidapi.com"
 SALARY_URL = f"https://{RAPIDAPI_HOST}/job-salary"
 
+# Circuit breaker: when RapidAPI returns 429, skip all calls for this many seconds.
+# Resets automatically after the cooldown. Protects monthly quota.
+_RATE_LIMIT_COOLDOWN_S = 3600
+_rate_limited_until: float = 0.0
+
 
 class SalaryCache(Base):
     """DB-level cache for salary data (30-day TTL)."""
@@ -38,7 +47,13 @@ class SalaryCache(Base):
 
 def _call_api(job_title: str, location: str | None = None) -> list[dict[str, Any]] | None:
     """Call the Job Salary Data API. Returns parsed data list or None."""
+    global _rate_limited_until
+
     if not settings.rapidapi_key:
+        return None
+
+    # Circuit breaker: skip if we recently hit the rate limit
+    if time.time() < _rate_limited_until:
         return None
 
     params: dict[str, str] = {"job_title": job_title}
@@ -56,6 +71,10 @@ def _call_api(job_title: str, location: str | None = None) -> list[dict[str, Any
             params=params,
             timeout=10.0,
         )
+        if resp.status_code == 429:
+            _rate_limited_until = time.time() + _RATE_LIMIT_COOLDOWN_S
+            logger.warning("Salary API rate-limited (429). Circuit open for %ds", _RATE_LIMIT_COOLDOWN_S)
+            return None
         resp.raise_for_status()
         body = resp.json()
         data = body.get("data", [])
