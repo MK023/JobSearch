@@ -27,9 +27,15 @@ from .config import settings
 
 # Sentry — initialize before app creation so FastAPI integration auto-activates
 if settings.sentry_dsn:
-    import sentry_sdk
+    import logging as _logging
 
-    _integrations: list = []
+    import sentry_sdk
+    from sentry_sdk.integrations.logging import LoggingIntegration
+
+    _integrations: list = [
+        # Capture WARNING+ as Sentry events (INFO+ as breadcrumbs)
+        LoggingIntegration(level=_logging.INFO, event_level=_logging.WARNING),
+    ]
     try:
         from sentry_sdk.integrations.mcp import MCPIntegration
 
