@@ -42,6 +42,81 @@ def _analysis_summary(a: JobAnalysis) -> dict[str, Any]:
     }
 
 
+@router.get("/admin/export/analyses")
+def export_all_analyses(user: CurrentUser, db: DbSession) -> JSONResponse:
+    """Full analyses dump for offline data-science analysis.
+
+    Returns all analyses with every column needed to study patterns:
+    scores, strengths, gaps, status, timestamps, company_reputation,
+    recruiter_info, experience_required, benefits, salary data, etc.
+
+    Single-user app, auth-gated. Payload can be ~1-2 MB for ~300 analyses.
+    """
+    # Import here to avoid circular / heavy imports at module load
+    from .interview.models import Interview
+
+    rows = db.query(JobAnalysis).order_by(JobAnalysis.created_at.asc()).all()
+
+    # Load interviews once, group by analysis_id
+    interview_rows = db.query(Interview).all()
+    interviews_by_analysis: dict[str, list[dict[str, Any]]] = {}
+    for iv in interview_rows:
+        key = str(iv.analysis_id)
+        interviews_by_analysis.setdefault(key, []).append(
+            {
+                "id": str(iv.id),
+                "scheduled_at": iv.scheduled_at.isoformat() if iv.scheduled_at else None,
+                "outcome": iv.outcome,
+                "round_number": iv.round_number,
+                "interview_type": iv.interview_type,
+                "platform": iv.platform,
+            }
+        )
+
+    analyses: list[dict[str, Any]] = []
+    for a in rows:
+        analyses.append(
+            {
+                "id": str(a.id),
+                "created_at": a.created_at.isoformat() if a.created_at else None,
+                "applied_at": a.applied_at.isoformat() if a.applied_at else None,
+                "status": a.status or None,
+                "company": a.company,
+                "role": a.role,
+                "location": a.location,
+                "work_mode": a.work_mode,
+                "salary_info": a.salary_info,
+                "job_url": a.job_url,
+                "score": a.score,
+                "recommendation": a.recommendation,
+                "model_used": a.model_used,
+                "cost_usd": a.cost_usd,
+                "tokens_input": a.tokens_input,
+                "tokens_output": a.tokens_output,
+                "followed_up": a.followed_up,
+                "strengths": a.strengths or [],
+                "gaps": a.gaps or [],
+                "advice": a.advice,
+                "job_summary": a.job_summary,
+                "company_reputation": a.company_reputation or {},
+                "benefits": a.benefits or [],
+                "recruiter_info": a.recruiter_info or {},
+                "experience_required": a.experience_required or {},
+                "salary_data": a.salary_data or {},
+                "interviews": interviews_by_analysis.get(str(a.id), []),
+            }
+        )
+
+    return JSONResponse(
+        {
+            "exported_at": datetime.now(UTC).isoformat(),
+            "total": len(analyses),
+            "user_id": str(user.id),
+            "analyses": analyses,
+        }
+    )
+
+
 @router.get("/candidature")
 def list_candidature(
     db: DbSession,

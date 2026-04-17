@@ -38,6 +38,7 @@ Thumbs.db
 # Project-specific
 .claude/
 .agents/
+data/
 .impeccable.md
 skills-lock.json
 firebase-debug.log
