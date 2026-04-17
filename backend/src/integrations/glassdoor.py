@@ -7,7 +7,7 @@ Graceful degradation: returns None on missing API key, errors, or no match.
 import json
 import uuid
 from datetime import UTC, datetime, timedelta
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import httpx
 from sqlalchemy import Column, DateTime, Float, Integer, String, Text
@@ -16,6 +16,9 @@ from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..database.base import Base
+
+if TYPE_CHECKING:
+    from .cache import CacheService
 
 CACHE_DAYS = 30
 RAPIDAPI_HOST = "company-data12.p.rapidapi.com"
@@ -38,8 +41,10 @@ class GlassdoorCache(Base):
     )
 
 
-def fetch_glassdoor_rating(company_name: str, db: Session) -> dict[str, Any] | None:
-    """Fetch Glassdoor rating for a company using DB cache.
+def fetch_glassdoor_rating(
+    company_name: str, db: Session, cache: "CacheService | None" = None
+) -> dict[str, Any] | None:
+    """Fetch Glassdoor rating for a company using two-tier cache (Redis → DB → API).
 
     Returns a dict with rating data, or None if unavailable.
     """
@@ -50,12 +55,24 @@ def fetch_glassdoor_rating(company_name: str, db: Session) -> dict[str, Any] | N
         return None
 
     normalized = company_name.lower().strip()
+    cache_key = f"glassdoor:{normalized}"
 
+    # Tier 1: Redis cache (fastest, within-batch hits land here)
+    if cache is not None:
+        cached_redis = cache.get_json(cache_key)
+        if cached_redis:
+            cached_redis["cached"] = True
+            return cast(dict[str, Any], cached_redis)
+
+    # Tier 2: DB cache (30-day TTL, survives restart)
     cached = db.query(GlassdoorCache).filter(GlassdoorCache.company_name == normalized).first()
     if cached and cached.fetched_at:
         age = datetime.now(UTC) - cached.fetched_at
         if age < timedelta(days=CACHE_DAYS):
-            return _parse_cached(cached)
+            parsed = _parse_cached(cached)
+            if parsed and cache is not None:
+                cache.set_json(cache_key, parsed, 3600)  # 1h Redis TTL
+            return parsed
 
     try:
         data = _call_api(company_name.strip())
@@ -73,16 +90,30 @@ def fetch_glassdoor_rating(company_name: str, db: Session) -> dict[str, Any] | N
             cached.rating = parsed.get("glassdoor_rating")  # type: ignore[assignment]
             cached.review_count = parsed.get("review_count")  # type: ignore[assignment]
             cached.fetched_at = datetime.now(UTC)  # type: ignore[assignment]
+            db.flush()
         else:
+            # Concurrent batch workers can race on the same company.
+            # Use a savepoint so IntegrityError doesn't poison the outer txn.
+            from sqlalchemy.exc import IntegrityError
+
             cached = GlassdoorCache(
                 company_name=normalized,
                 glassdoor_data=json.dumps(company, ensure_ascii=False),
                 rating=parsed.get("glassdoor_rating"),
                 review_count=parsed.get("review_count"),
             )
-            db.add(cached)
-        db.flush()
+            try:
+                with db.begin_nested():
+                    db.add(cached)
+            except IntegrityError:
+                # Another worker inserted this company first — that's fine,
+                # our parsed result is still valid to return.
+                pass
+
         parsed["cached"] = False
+        # Populate Redis cache so subsequent batch items hit it fast
+        if cache is not None:
+            cache.set_json(cache_key, parsed, 3600)
         return parsed
 
     except Exception:

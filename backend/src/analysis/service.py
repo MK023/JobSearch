@@ -37,9 +37,10 @@ def run_analysis(
 ) -> tuple[JobAnalysis, dict[str, Any]]:
     """Run a new analysis and persist it."""
     result = analyze_job(cv_text, job_description, model, cache, db=db)
-    _merge_glassdoor(result, db)
-    _merge_salary(result, db)
-    _merge_news(result, db)
+    _merge_glassdoor(result, db, cache)
+    # Salary and news are fetched on-demand from the UI (not auto) to save
+    # RapidAPI quota — 400 responses for Italian locations and strange titles
+    # were burning calls fast. See fetch_salary / fetch_news endpoints.
 
     analysis = JobAnalysis(
         cv_id=cv_id,
@@ -227,13 +228,13 @@ def get_stale_candidature(db: Session, days: int = 7) -> list[JobAnalysis]:
     )
 
 
-def _merge_glassdoor(result: dict[str, Any], db: Session) -> None:
+def _merge_glassdoor(result: dict[str, Any], db: Session, cache: CacheService | None = None) -> None:
     """Merge Glassdoor API data into result's company_reputation."""
     company = result.get("company", "")
     if not company:
         return
 
-    gd = fetch_glassdoor_rating(company, db)
+    gd = fetch_glassdoor_rating(company, db, cache)
     if not gd:
         return
 

@@ -83,13 +83,14 @@ def fetch_company_news(
     company_name: str,
     db: Session | None = None,
 ) -> list[dict[str, Any]] | None:
-    """Fetch recent news for a company. Uses DB cache with 7-day TTL."""
+    """Fetch recent news for a company. DB cache 7-day TTL."""
     if not company_name or not settings.rapidapi_key:
         return None
 
     name_norm = company_name.strip().lower()
 
-    # Check cache
+    # Single cache lookup, reused for read and write paths
+    cached = None
     if db is not None:
         try:
             cached = db.query(NewsCache).filter(NewsCache.company_name == name_norm).first()
@@ -106,10 +107,9 @@ def fetch_company_news(
 
     articles = [_parse_article(a) for a in data[:5]]
 
-    # Update cache
+    # Update cache reusing the row we already fetched
     if db is not None:
         try:
-            cached = db.query(NewsCache).filter(NewsCache.company_name == name_norm).first()
             if cached:
                 cached.news_data = json.dumps(articles)  # type: ignore[assignment]
                 cached.fetched_at = datetime.now(UTC)  # type: ignore[assignment]

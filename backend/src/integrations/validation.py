@@ -5,6 +5,7 @@ Missing fields get sensible defaults; wrong types get coerced.
 This is the last line of defense against malformed AI output.
 """
 
+import json
 import logging
 from typing import Any
 
@@ -286,6 +287,16 @@ def validate_analysis(raw: dict[str, Any]) -> dict[str, Any]:
     Applies Pydantic validation, fills defaults, coerces types.
     Returns a clean dict. Never raises - logs warnings for issues.
     """
+    # Coerce stringified JSON dicts back to dicts — Claude occasionally
+    # returns nested objects as JSON strings instead of objects.
+    for key in ("company_reputation", "application_method", "recruiter_info", "experience_required"):
+        val = raw.get(key)
+        if isinstance(val, str) and val.strip().startswith("{"):
+            try:
+                raw[key] = json.loads(val)
+            except (json.JSONDecodeError, TypeError):
+                raw[key] = {}
+
     try:
         validated = AnalysisAIResponse.model_validate(raw)
         result = validated.model_dump()
