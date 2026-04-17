@@ -121,6 +121,10 @@
         <span class="dash-widget-kpi">{{ spending.today_analyses|default(0) }}</span>
       </div>
       <div class="dash-widget-row">
+        <span class="dash-widget-row-main">Candidature inviate</span>
+        <span class="dash-widget-kpi">{{ spending.today_applied|default(0) }}</span>
+      </div>
+      <div class="dash-widget-row">
         <span class="dash-widget-row-main">Speso oggi</span>
         <span class="dash-widget-kpi">${{ "%.3f"|format(spending.today_cost_usd|default(0)) }}</span>
       </div>

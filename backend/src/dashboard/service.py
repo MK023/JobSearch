@@ -98,6 +98,19 @@ def get_spending(db: Session) -> dict[str, Any]:
     budget = float(s.anthropic_budget or 0)
     total_cost = float(s.total_cost_usd or 0)
     remaining = round(budget - total_cost, 4) if budget > 0 else None
+
+    # Count candidatures whose applied_at transition happened today.
+    # Auto-resets at midnight: filter is `DATE(applied_at) = CURRENT_DATE`.
+    today_applied = (
+        db.query(func.count(JobAnalysis.id))
+        .filter(
+            JobAnalysis.applied_at.isnot(None),
+            func.date(JobAnalysis.applied_at) == func.current_date(),
+        )
+        .scalar()
+        or 0
+    )
+
     return {
         "budget": round(budget, 2),
         "total_cost_usd": round(total_cost, 4),
@@ -109,6 +122,7 @@ def get_spending(db: Session) -> dict[str, Any]:
         "today_analyses": int(s.today_analyses or 0),
         "today_tokens_input": int(s.today_tokens_input or 0),
         "today_tokens_output": int(s.today_tokens_output or 0),
+        "today_applied": int(today_applied),
     }
 
 
