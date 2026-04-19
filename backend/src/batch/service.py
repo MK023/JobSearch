@@ -196,7 +196,11 @@ def cleanup_stale_running(db: Session, threshold_minutes: int = _STALE_RUNNING_T
         item.error_message = f"stale_running_recovered_after_{threshold_minutes}m"  # type: ignore[assignment]
     if stale:
         db.commit()
-        logger.warning("Recovered %d stale RUNNING batch items on startup", len(stale))
+        # Info, not warning: a small set of RUNNING items after a SIGTERM
+        # redeploy is expected (background tasks can't drain gracefully).
+        # The recovery ran successfully — no Sentry page needed. If the count
+        # grows unexpectedly, elevate to warning and investigate.
+        logger.info("Recovered %d stale RUNNING batch items on startup", len(stale))
     return len(stale)
 
 
