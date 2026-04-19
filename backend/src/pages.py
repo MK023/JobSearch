@@ -51,6 +51,7 @@ def dashboard_page(
     flash = _flash(request)
 
     from .analysis.models import JobAnalysis
+    from .inbox.service import get_inbox_stats
     from .integrations.news import get_cached_news
     from .interview.service import get_upcoming_interviews
 
@@ -60,6 +61,7 @@ def dashboard_page(
     top_candidates = get_top_candidates(db, limit=5)
     db_usage = get_db_usage(db)
     upcoming_interviews = get_upcoming_interviews(db, days=14)
+    inbox_stats = get_inbox_stats(db, cast(UUID, user.id))
     pending_analyses = (
         db.query(JobAnalysis)
         .filter(JobAnalysis.status == AnalysisStatus.PENDING.value)
@@ -106,6 +108,7 @@ def dashboard_page(
             "db_usage": db_usage,
             "recent_news": recent_news,
             "agenda_todos": agenda_todos,
+            "inbox_stats": inbox_stats,
             "error": flash["error"],
             "message": flash["message"],
         },

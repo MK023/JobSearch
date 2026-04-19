@@ -10,12 +10,13 @@ from __future__ import annotations
 import hashlib
 import re
 import unicodedata
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 from urllib.parse import urlparse
 from uuid import UUID
 
 import bleach  # type: ignore[import-untyped]
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..analysis.models import JobAnalysis
@@ -98,6 +99,69 @@ def count_pending_for_user(db: Session, user_id: UUID) -> int:
         )
         .count()
     )
+
+
+def get_inbox_stats(db: Session, user_id: UUID) -> dict[str, Any]:
+    """Aggregate KPIs for the dashboard widget.
+
+    - ``today_total``: inbox_items received since local midnight (auto-resets)
+    - ``pending_active``: pending + processing, not-yet-resolved
+    - ``done_total``: done (linked to an analysis) in the last 30 days
+    - ``error_total``: error (failed analysis) in the last 30 days
+    - ``last_received_at``: ISO-formatted timestamp of the most recent item
+                              (any status, any age), or None if empty
+    """
+    cutoff_30d = datetime.now(UTC) - timedelta(days=30)
+
+    today_total = (
+        db.query(func.count(InboxItem.id))
+        .filter(
+            InboxItem.user_id == user_id,
+            func.date(InboxItem.created_at) == func.current_date(),
+        )
+        .scalar()
+        or 0
+    )
+
+    pending_active = count_pending_for_user(db, user_id)
+
+    done_total = (
+        db.query(func.count(InboxItem.id))
+        .filter(
+            InboxItem.user_id == user_id,
+            InboxItem.status == InboxStatus.DONE.value,
+            InboxItem.created_at >= cutoff_30d,
+        )
+        .scalar()
+        or 0
+    )
+
+    error_total = (
+        db.query(func.count(InboxItem.id))
+        .filter(
+            InboxItem.user_id == user_id,
+            InboxItem.status == InboxStatus.ERROR.value,
+            InboxItem.created_at >= cutoff_30d,
+        )
+        .scalar()
+        or 0
+    )
+
+    last_row = (
+        db.query(InboxItem.created_at)
+        .filter(InboxItem.user_id == user_id)
+        .order_by(InboxItem.created_at.desc())
+        .first()
+    )
+    last_received_at = last_row[0].isoformat() if last_row and last_row[0] else None
+
+    return {
+        "today_total": int(today_total),
+        "pending_active": int(pending_active),
+        "done_total": int(done_total),
+        "error_total": int(error_total),
+        "last_received_at": last_received_at,
+    }
 
 
 def ingest(
