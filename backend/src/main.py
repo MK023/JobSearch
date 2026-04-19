@@ -276,7 +276,13 @@ def create_app() -> FastAPI:
     from datetime import UTC as _UTC
     from datetime import datetime as _datetime
 
+    from .utils.time import to_italy as _to_italy
+
     app.state.templates.env.globals["now"] = lambda: _datetime.now(_UTC)
+    # Jinja filter: convert a UTC datetime/ISO string to Europe/Rome so
+    # templates can call {{ dt|italytime|strftime("%H:%M") }} and get
+    # the value the user expects on their wall clock (CET/CEST).
+    app.state.templates.env.filters["italytime"] = _to_italy
     app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
     # --- HTML routers (root level) ---

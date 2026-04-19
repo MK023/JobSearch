@@ -48,7 +48,7 @@
             <a href="/analysis/{{ a.id }}" class="dash-widget-row-title">{{ a.company or '—' }}</a>
             <span class="dash-widget-row-sub">{{ a.role or '—' }}</span>
           </div>
-          <span class="meta-small">{{ a.applied_at.strftime('%d/%m') if a.applied_at else '' }}</span>
+          <span class="meta-small">{{ (a.applied_at|italytime).strftime('%d/%m') if a.applied_at else '' }}</span>
         </div>
         {% endfor %}
         {% if followup_alerts|length > 5 %}
@@ -195,7 +195,7 @@
     </div>
     {% if inbox_stats.last_received_at %}
     <div class="meta-small" style="margin-top: var(--space-sm);">
-      Ultima ricezione: {{ inbox_stats.last_received_at[:16]|replace('T', ' ') }}
+      Ultima ricezione: {{ (inbox_stats.last_received_at|italytime).strftime('%d/%m %H:%M') }}
       &middot; <a href="/history#valutazione" class="link-subtle">vedi da valutare</a>
     </div>
     {% endif %}

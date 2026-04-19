@@ -237,7 +237,7 @@
       <summary class="section-title">Audit log recente</summary>
       {% for log in recent_audit %}
       <div class="settings-audit-row">
-        <span class="meta-small">{{ log.created_at.strftime('%d/%m %H:%M') if log.created_at else '' }}</span>
+        <span class="meta-small">{{ (log.created_at|italytime).strftime('%d/%m %H:%M') if log.created_at else '' }}</span>
         <span class="settings-audit-action">{{ log.action }}</span>
         <span class="meta-small">{{ log.detail|truncate(60) if log.detail else '' }}</span>
       </div>

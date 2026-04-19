@@ -173,7 +173,7 @@
               {{ status_labels.get(status_val, status_val|replace('_', ' ')|capitalize) }}
             </span>
             <span class="history-item-date">
-              {{ analysis.created_at.strftime('%d/%m %H:%M') if analysis.created_at else '' }}
+              {{ (analysis.created_at|italytime).strftime('%d/%m %H:%M') if analysis.created_at else '' }}
             </span>
           </a>
           {% if analysis.job_url %}

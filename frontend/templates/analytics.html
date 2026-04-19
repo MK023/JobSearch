@@ -38,7 +38,7 @@
   {% if latest_run %}
   {% set snap = latest_run.snapshot %}
   <section class="card card-mb">
-    <div class="section-title">Ultima analisi &middot; {{ latest_run.created_at.strftime('%d/%m/%Y %H:%M') if latest_run.created_at else '' }}</div>
+    <div class="section-title">Ultima analisi &middot; {{ (latest_run.created_at|italytime).strftime('%d/%m/%Y %H:%M') if latest_run.created_at else '' }}</div>
 
     <div class="grid-metrics mb-lg">
       <div class="metric-card metric-blue">
@@ -154,7 +154,7 @@
         <tbody>
           {% for r in run_history %}
           <tr>
-            <td>{{ r.created_at.strftime('%d/%m %H:%M') if r.created_at else '' }}</td>
+            <td>{{ (r.created_at|italytime).strftime('%d/%m %H:%M') if r.created_at else '' }}</td>
             <td>{{ r.analyses_count }}</td>
             <td>{{ r.triggered_by }}</td>
           </tr>
