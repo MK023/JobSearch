@@ -78,17 +78,9 @@ class TestGetInboxStats:
         assert stats["last_received_at"] is not None
         assert stats["last_received_at"].startswith(latest.created_at.isoformat()[:16])
 
-    def test_stats_isolated_per_user(self, db_session, test_user):
-        import uuid as _uuid
-
-        from src.auth.models import User
-
-        other = User(id=_uuid.uuid4(), email="other@example.com", password_hash="$2b$12$fake")
-        db_session.add(other)
-        db_session.commit()
-
+    def test_stats_isolated_per_user(self, db_session, test_user, other_user):
         _make(db_session, test_user, InboxStatus.DONE.value)
-        _make(db_session, other, InboxStatus.DONE.value)
+        _make(db_session, other_user, InboxStatus.DONE.value)
 
         stats = get_inbox_stats(db_session, test_user.id)
         assert stats["done_total"] == 1  # only own rows

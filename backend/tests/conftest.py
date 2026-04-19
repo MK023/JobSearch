@@ -72,13 +72,34 @@ def db_session():
         session.close()
 
 
+# Non-credential placeholder stored in User.password_hash for test fixtures.
+# Shape doesn't mimic bcrypt on purpose so static analyzers don't mistake it
+# for a hard-coded secret. Any auth path calling bcrypt.verify() on this
+# value will correctly fail — tests that need a valid session use
+# login flow fixtures, not this placeholder.
+FIXTURE_PASSWORD_HASH = "not-a-real-hash-test-fixture"
+
+
 @pytest.fixture
 def test_user(db_session):
     """Create a test user."""
     user = User(
         id=uuid.uuid4(),
         email="test@example.com",
-        password_hash="$2b$12$fakehash",
+        password_hash=FIXTURE_PASSWORD_HASH,
+    )
+    db_session.add(user)
+    db_session.commit()
+    return user
+
+
+@pytest.fixture
+def other_user(db_session):
+    """Secondary user for isolation/BOLA tests."""
+    user = User(
+        id=uuid.uuid4(),
+        email="other@example.com",
+        password_hash=FIXTURE_PASSWORD_HASH,
     )
     db_session.add(user)
     db_session.commit()
