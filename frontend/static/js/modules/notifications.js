@@ -1,8 +1,15 @@
 /**
  * Notification center: server-side dismiss via /api/v1/notifications/dismiss.
  *
- * All notifications are dismissible. Dismiss is persisted in the DB so
- * the sidebar badge stays in sync across tabs and page reloads.
+ * Two dismiss paths — both persist in the DB so the sidebar badge stays in
+ * sync across tabs and page reloads.
+ *
+ * 1. Explicit × button on each card (wireDismissButtons).
+ * 2. Implicit "seen" via action-link click (wireActionLinks): clicking the
+ *    primary CTA of a dismissible notification fires a sendBeacon/fetch
+ *    keepalive dismiss, then lets the browser navigate. The card is hidden
+ *    instantly for visual feedback — important when target=_blank keeps
+ *    the user on the current page.
  */
 
 (function () {
@@ -123,7 +130,57 @@
         });
     }
 
+    // Fire-and-forget dismiss on action-link click so the notification is
+    // treated as "seen" once the user navigates to the destination. Uses
+    // sendBeacon (or fetch keepalive) so the request survives page unload.
+    function dismissBeacon(notificationId) {
+        if (!notificationId) return;
+        var fd = new FormData();
+        fd.append('notification_id', notificationId);
+        try {
+            if (navigator.sendBeacon) {
+                navigator.sendBeacon('/api/v1/notifications/dismiss', fd);
+                return;
+            }
+        } catch (e) {
+            // fall through to fetch keepalive
+        }
+        try {
+            fetch('/api/v1/notifications/dismiss', {
+                method: 'POST',
+                body: fd,
+                keepalive: true,
+            });
+        } catch (e) {
+            // Dismiss is best-effort; never block navigation on failure.
+        }
+    }
+
+    function wireActionLinks() {
+        document.querySelectorAll('.notification-card .notification-card-actions a').forEach(function (link) {
+            if (link.dataset.dismissOnClickWired === '1') return;
+            link.dataset.dismissOnClickWired = '1';
+            link.addEventListener('click', function () {
+                var card = link.closest('.notification-card');
+                if (!card) return;
+                if (card.getAttribute('data-notification-dismissible') !== '1') return;
+                var id = card.getAttribute('data-notification-id');
+                dismissBeacon(id);
+                // Instant visual feedback — survives target=_blank where the
+                // user stays on the current page after opening a new tab.
+                card.style.transition = 'opacity 0.15s';
+                card.style.opacity = '0';
+                setTimeout(function () {
+                    card.style.display = 'none';
+                    updateGroupVisibility();
+                    updateEmptyState();
+                }, 150);
+            });
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         wireDismissButtons();
+        wireActionLinks();
     });
 })();
