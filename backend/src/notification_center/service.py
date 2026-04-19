@@ -22,6 +22,7 @@ Rules:
 
 import logging
 from datetime import UTC, datetime, timedelta
+from typing import cast
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -144,7 +145,7 @@ def _interviews_without_outcome(db: Session, t: dict[str, float] | None = None) 
 
     # Aggregate: multiple interview rounds missing outcome
     count = len(rows)
-    companies = [analysis.company for _, analysis in rows[:3] if analysis.company]
+    companies = [str(analysis.company) for _, analysis in rows[:3] if analysis.company]
     others = count - len(companies)
     company_line = ", ".join(companies) if companies else ""
     if others > 0 and company_line:
@@ -227,7 +228,7 @@ def _followup_due(db: Session) -> list[Notification]:
 
     # Aggregate: multiple follow-ups pending
     count = len(alerts)
-    companies = [a.company for a in alerts[:3] if a.company]
+    companies = [str(a.company) for a in alerts[:3] if a.company]
     others = count - len(companies)
     company_line = ", ".join(companies) if companies else ""
     if others > 0 and company_line:
@@ -537,8 +538,9 @@ def _inbox_errors(db: Session) -> list[Notification]:
 
         if len(errored) == 1:
             item = errored[0]
-            err_msg = (item.error_message or "Errore sconosciuto")[:200]
+            err_msg = str(item.error_message or "Errore sconosciuto")[:200]
             source = str(item.source or "inbox")
+            processed = cast("datetime | None", item.processed_at)
             return [
                 Notification(
                     id=f"inbox:error:{item.id}",
@@ -550,16 +552,17 @@ def _inbox_errors(db: Session) -> list[Notification]:
                     action_label="Dettagli",
                     dismissible=True,
                     sticky=True,
-                    created_at=item.processed_at or datetime.now(UTC),
+                    created_at=processed or datetime.now(UTC),
                 )
             ]
 
         # Aggregate multiple errors
         count = len(errored)
-        first_msgs = [(item.error_message or "errore")[:60] for item in errored[:2]]
+        first_msgs = [str(item.error_message or "errore")[:60] for item in errored[:2]]
         preview = " | ".join(first_msgs)
         if count > 2:
             preview += f" (+ altri {count - 2})"
+        first_processed = cast("datetime | None", errored[0].processed_at)
         return [
             Notification(
                 id=f"inbox:error:aggregated:{count}",
@@ -571,7 +574,7 @@ def _inbox_errors(db: Session) -> list[Notification]:
                 action_label="Dettagli",
                 dismissible=True,
                 sticky=True,
-                created_at=errored[0].processed_at or datetime.now(UTC),
+                created_at=first_processed or datetime.now(UTC),
             )
         ]
     except Exception:
