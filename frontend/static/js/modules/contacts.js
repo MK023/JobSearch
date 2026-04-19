@@ -21,7 +21,7 @@ function loadContacts(id) {
             const list = document.getElementById('contacts-list-' + id);
             if (!list) return;
 
-            while (list.firstChild) list.removeChild(list.firstChild);
+            while (list.firstChild) list.firstChild.remove();
 
             (data.contacts || []).forEach(function(c) {
                 const row = document.createElement('div');

@@ -16,23 +16,22 @@ function cleanupForm() {
             this.loading = true;
             this.message = '';
             const qs = '?days=' + encodeURIComponent(this.days) + '&max_score=' + encodeURIComponent(this.maxScore);
-            const self = this;
             fetch('/analysis/cleanup-preview' + qs)
                 .then(function(r) {
                     if (!r.ok) throw new Error('preview failed: ' + r.status);
                     return r.json();
                 })
-                .then(function(data) { self.count = data.count; })
-                .catch(function(e) {
-                    self.count = null;
-                    self.message = 'Errore anteprima: ' + e.message;
+                .then((data) => { this.count = data.count; })
+                .catch((e) => {
+                    this.count = null;
+                    this.message = 'Errore anteprima: ' + e.message;
                 })
-                .finally(function() { self.loading = false; });
+                .finally(() => { this.loading = false; });
         },
 
         confirmDelete: function() {
             if (this.count === null || this.count <= 0) return;
-            const ok = window.confirm(
+            const ok = globalThis.confirm(
                 'Confermi l\'eliminazione di ' + this.count + ' analisi? L\'operazione non e\' reversibile.'
             );
             if (!ok) return;
@@ -41,18 +40,17 @@ function cleanupForm() {
             const qs = '?days=' + encodeURIComponent(this.days)
                 + '&max_score=' + encodeURIComponent(this.maxScore)
                 + '&dry_run=false';
-            const self = this;
             fetch('/analysis/cleanup' + qs, { method: 'DELETE' })
                 .then(function(r) {
                     if (!r.ok) throw new Error('cleanup failed: ' + r.status);
                     return r.json();
                 })
-                .then(function(data) {
-                    self.message = 'Eliminate ' + data.deleted + ' analisi.';
-                    self.count = 0;
+                .then((data) => {
+                    this.message = 'Eliminate ' + data.deleted + ' analisi.';
+                    this.count = 0;
                 })
-                .catch(function(e) { self.message = 'Errore: ' + e.message; })
-                .finally(function() { self.loading = false; });
+                .catch((e) => { this.message = 'Errore: ' + e.message; })
+                .finally(() => { this.loading = false; });
         }
     };
 }

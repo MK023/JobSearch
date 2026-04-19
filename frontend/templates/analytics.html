@@ -169,7 +169,7 @@
 
 <script>
 function triggerAnalytics() {
-  var btn = document.getElementById('btn-run-analytics');
+  const btn = document.getElementById('btn-run-analytics');
   if (!btn || btn.disabled) return;
   btn.disabled = true;
   btn.textContent = 'Analisi in corso...';

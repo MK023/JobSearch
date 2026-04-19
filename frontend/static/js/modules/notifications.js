@@ -152,7 +152,8 @@
                 return;
             }
         } catch (e) {
-            // fall through to fetch keepalive
+            // Beacon unavailable or quota exceeded — fall through to fetch keepalive.
+            console.debug('sendBeacon dismiss failed, falling back to fetch:', e);
         }
         try {
             fetch('/api/v1/notifications/dismiss', {
@@ -162,6 +163,7 @@
             });
         } catch (e) {
             // Dismiss is best-effort; never block navigation on failure.
+            console.debug('fetch keepalive dismiss failed:', e);
         }
     }
 
@@ -243,7 +245,11 @@
                     if (added > 0) showNewBanner(added);
                 }
             })
-            .catch(function () { /* network hiccup — retry next tick */ });
+            .catch(function (e) {
+                // Network hiccup — the poller retries on the next interval tick,
+                // so swallowing here is intentional.
+                console.debug('pollNotifications failed, will retry:', e);
+            });
     }
 
     function startPolling() {

@@ -26,13 +26,12 @@ function batchManager() {
         },
 
         init: function() {
-            const self = this;
             // Fetch current batch state from server — survives reloads and deploys.
             fetch('/api/v1/batch/status')
-                .then(function(r) { return r.json(); })
-                .then(function(data) {
+                .then((r) => r.json())
+                .then((data) => {
                     if (!data || data.status === 'empty' || !data.items) return;
-                    self.items = data.items.map(function(item) {
+                    this.items = data.items.map(function(item) {
                         return {
                             id: item.id,
                             preview: item.preview || '',
@@ -41,16 +40,16 @@ function batchManager() {
                             error_message: item.error_message
                         };
                     });
-                    self.lastKnownBatchId = data.batch_id;
+                    this.lastKnownBatchId = data.batch_id;
                     if (data.status === 'running') {
-                        self.running = true;
-                        self.statusText = 'Analisi in corso...';
-                        self.pollStatus();
+                        this.running = true;
+                        this.statusText = 'Analisi in corso...';
+                        this.pollStatus();
                     } else if (data.status === 'done' && data.total > 0) {
-                        self.statusText = 'Batch completato. Svuota la coda per iniziarne uno nuovo.';
+                        this.statusText = 'Batch completato. Svuota la coda per iniziarne uno nuovo.';
                     }
                 })
-                .catch(function(e) { console.error('batchInit error:', e); });
+                .catch((e) => { console.error('batchInit error:', e); });
         },
 
         addItem: function() {
@@ -59,7 +58,6 @@ function batchManager() {
 
             const url = this.batchUrl.trim();
             const model = this.batchModel;
-            const self = this;
 
             const fd = new FormData();
             fd.append('job_description', jd);
@@ -71,49 +69,46 @@ function batchManager() {
                     if (handleRateLimit(r, 'Troppe richieste batch')) return null;
                     return r.json();
                 })
-                .then(function(data) {
+                .then((data) => {
                     if (!data) return;
                     if (data.ok) {
                         // Re-sync from server to get real item IDs and status
-                        self.init();
-                        self.batchJd = '';
-                        self.batchUrl = '';
+                        this.init();
+                        this.batchJd = '';
+                        this.batchUrl = '';
                     }
                 })
-                .catch(function(e) { console.error('batchAdd error:', e); });
+                .catch((e) => { console.error('batchAdd error:', e); });
         },
 
         runAll: function() {
-            const self = this;
-            self.running = true;
-            self.statusText = 'Analisi in corso...';
+            this.running = true;
+            this.statusText = 'Analisi in corso...';
 
             fetch('/api/v1/batch/run', { method: 'POST' })
-                .then(function(r) {
-                    if (handleRateLimit(r, 'Troppe richieste batch')) { self.running = false; return null; }
+                .then((r) => {
+                    if (handleRateLimit(r, 'Troppe richieste batch')) { this.running = false; return null; }
                     return r.json();
                 })
-                .then(function(data) {
+                .then((data) => {
                     if (!data) return;
                     if (data.ok) {
-                        self.pollStatus();
+                        this.pollStatus();
                     }
                 })
-                .catch(function(e) {
+                .catch((e) => {
                     console.error('batchRun error:', e);
-                    self.running = false;
+                    this.running = false;
                 });
         },
 
         pollStatus: function() {
-            const self = this;
-
             fetch('/api/v1/batch/status')
                 .then(function(r) { return r.json(); })
-                .then(function(data) {
+                .then((data) => {
                     if (!data || !data.items) return;
                     // Rebuild items from server — matches by id so order/additions are safe.
-                    self.items = data.items.map(function(item) {
+                    this.items = data.items.map(function(item) {
                         return {
                             id: item.id,
                             preview: item.preview || '',
@@ -124,42 +119,40 @@ function batchManager() {
                     });
 
                     if (data.status === 'running' || data.status === 'pending') {
-                        setTimeout(function() { self.pollStatus(); }, 2000);
+                        setTimeout(() => { this.pollStatus(); }, 2000);
                     } else if (data.status === 'done') {
-                        self.running = false;
-                        const ok = data.counts && data.counts.done || 0;
-                        const err = data.counts && data.counts.error || 0;
-                        self.statusText = 'Completato: ' + ok + ' ok, ' + err + ' errori';
+                        this.running = false;
+                        const ok = (data.counts?.done) || 0;
+                        const err = (data.counts?.error) || 0;
+                        this.statusText = 'Completato: ' + ok + ' ok, ' + err + ' errori';
                         if (typeof refreshSpending === 'function') refreshSpending();
                         showToast('Batch completato (' + ok + '/' + data.total + ') — apro lo storico', 'success');
                         // Auto-redirect to history tab "da_valutare" so user can triage
                         setTimeout(function() {
-                            window.location.href = '/history#valutazione';
+                            globalThis.location.href = '/history#valutazione';
                         }, 1500);
                     } else if (data.status === 'error') {
-                        self.running = false;
-                        self.statusText = 'Batch terminato con errori';
+                        this.running = false;
+                        this.statusText = 'Batch terminato con errori';
                         showToast('Batch terminato con errori', 'error');
                     }
                 })
-                .catch(function(e) {
+                .catch((e) => {
                     console.error('pollBatch error:', e);
                     // Keep polling — transient errors shouldn't stop the loop
-                    setTimeout(function() { self.pollStatus(); }, 5000);
+                    setTimeout(() => { this.pollStatus(); }, 5000);
                 });
         },
 
         clearQueue: function() {
-            const self = this;
-
             fetch('/api/v1/batch/clear', { method: 'DELETE' })
                 .then(function(r) { return r.json(); })
-                .then(function() {
-                    self.items = [];
-                    self.statusText = '';
-                    self.running = false;
+                .then(() => {
+                    this.items = [];
+                    this.statusText = '';
+                    this.running = false;
                 })
-                .catch(function(e) { console.error('batchClear error:', e); });
+                .catch((e) => { console.error('batchClear error:', e); });
         }
     };
 }

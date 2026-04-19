@@ -7,8 +7,8 @@
 
 function _getReturnUrl() {
     const ref = document.referrer;
-    if (ref && ref.indexOf('/history') !== -1) return '/history';
-    if (ref && ref.indexOf('/interviews') !== -1) return '/interviews';
+    if (ref?.includes('/history')) return '/history';
+    if (ref?.includes('/interviews')) return '/interviews';
     return '/analyze';
 }
 
@@ -49,7 +49,7 @@ function setStatus(btn) {
             showToast('Stato aggiornato: ' + (labels[status] || status), 'success');
 
             // On detail page, redirect back to context (analyze page)
-            if (window.location.pathname.indexOf('/analysis/') !== -1) {
+            if (window.location.pathname.includes('/analysis/')) {
                 setTimeout(function() {
                     window.location.href = _getReturnUrl();
                 }, 800);
@@ -90,7 +90,7 @@ function deleteAnalysis(id) {
             showToast('Analisi eliminata', 'success');
 
             // On detail page, redirect back immediately
-            if (window.location.pathname.indexOf('/analysis/') !== -1) {
+            if (window.location.pathname.includes('/analysis/')) {
                 window.location.href = _getReturnUrl();
                 return;
             }

@@ -84,7 +84,7 @@ function _loadWeather() {
             const info = _WMO_ICONS[code] || ['N/D', '\uD83C\uDF21\uFE0F'];
             const phrase = _WEATHER_PHRASES[code] || quoteText;
 
-            while (el.firstChild) el.removeChild(el.firstChild);
+            while (el.firstChild) el.firstChild.remove();
 
             const weatherLine = document.createElement('div');
             weatherLine.className = 'weather-line';
@@ -97,7 +97,7 @@ function _loadWeather() {
             el.appendChild(phraseLine);
         })
         .catch(function() {
-            while (el.firstChild) el.removeChild(el.firstChild);
+            while (el.firstChild) el.firstChild.remove();
             const quoteLine = document.createElement('div');
             quoteLine.className = 'weather-quote';
             quoteLine.textContent = quoteText;

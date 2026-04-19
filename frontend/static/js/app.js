@@ -60,13 +60,18 @@ function _checkPendingAnalysis() {
     // Alpine's app() init() fires on every page load; without this guard, a 90s
     // polling window with 3s interval can spawn N concurrent loops if the user
     // navigates several pages, flooding /api/v1/analysis/latest.
-    if (window._pendingAnalysisActive) return;
+    if (globalThis._pendingAnalysisActive) return;
 
     const raw = sessionStorage.getItem('pendingAnalysis');
     if (!raw) return;
 
     let pending;
-    try { pending = JSON.parse(raw); } catch (_) { sessionStorage.removeItem('pendingAnalysis'); return; }
+    try { pending = JSON.parse(raw); } catch (e) {
+        // Corrupt payload in sessionStorage — drop it and bail out of polling.
+        console.debug('pendingAnalysis JSON parse failed:', e);
+        sessionStorage.removeItem('pendingAnalysis');
+        return;
+    }
 
     const startedAt = new Date(pending.startedAt).getTime();
     const elapsed = Date.now() - startedAt;
@@ -76,17 +81,17 @@ function _checkPendingAnalysis() {
         return;
     }
 
-    window._pendingAnalysisActive = true;
+    globalThis._pendingAnalysisActive = true;
 
     function stop() {
-        window._pendingAnalysisActive = false;
+        globalThis._pendingAnalysisActive = false;
     }
 
     function poll() {
         fetch('/api/v1/analysis/latest', { headers: { 'Accept': 'application/json' } })
             .then(function(r) { return r.json(); })
             .then(function(data) {
-                if (!data || !data.id || !data.created_at) return scheduleNext();
+                if (!data?.id || !data.created_at) return scheduleNext();
                 const createdAt = new Date(data.created_at).getTime();
                 if (createdAt >= startedAt) {
                     if (!sessionStorage.getItem('pendingAnalysis')) { stop(); return; }

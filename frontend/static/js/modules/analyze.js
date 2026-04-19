@@ -20,7 +20,10 @@ function submitAnalysis(e) {
     // Update Alpine loading state
     const wrapper = form.closest('[x-data]');
     if (wrapper && typeof Alpine !== 'undefined') {
-        try { Alpine.$data(wrapper).analyzeLoading = true; } catch (_) {}
+        try { Alpine.$data(wrapper).analyzeLoading = true; } catch (e) {
+            // Alpine wrapper not yet initialised — loading indicator is nice-to-have.
+            console.debug('Alpine.$data write failed:', e);
+        }
     }
 
     // Track pending analysis for cross-page notification
@@ -63,7 +66,7 @@ function submitAnalysis(e) {
         }
     })
     .catch(function(err) {
-        if (err && err.name === 'AbortError') return;
+        if (err?.name === 'AbortError') return;
         if (document.visibilityState === 'hidden') return;
         setTimeout(function() {
             if (document.visibilityState === 'hidden') return;
@@ -77,7 +80,10 @@ function submitAnalysis(e) {
 
 function resetLoading(wrapper) {
     if (wrapper && typeof Alpine !== 'undefined') {
-        try { Alpine.$data(wrapper).analyzeLoading = false; } catch (_) {}
+        try { Alpine.$data(wrapper).analyzeLoading = false; } catch (e) {
+            // Alpine wrapper not yet initialised — loading indicator is nice-to-have.
+            console.debug('Alpine.$data write failed:', e);
+        }
     }
 }
 
@@ -102,7 +108,7 @@ function _showAnalysisError(msg) {
 
     const target = document.querySelector('.content-inner');
     const header = target ? target.querySelector('.page-header') : null;
-    if (header && header.nextSibling) {
+    if (header?.nextSibling) {
         target.insertBefore(banner, header.nextSibling);
     } else if (target) {
         target.insertBefore(banner, target.firstChild);
