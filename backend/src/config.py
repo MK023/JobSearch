@@ -8,7 +8,9 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     """Application settings loaded from environment variables / .env file."""
 
-    database_url: str = "postgresql://jobsearch:jobsearch@db:5432/jobsearch"
+    # Safe default: local SQLite file (no credentials embedded in source).
+    # Production deploys (Render, Docker, CI) override via DATABASE_URL env var.
+    database_url: str = "sqlite:///./dev.db"
     anthropic_api_key: str = ""
     redis_url: str = "redis://redis:6379/0"
     rapidapi_key: str = ""
