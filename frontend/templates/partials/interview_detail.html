@@ -36,7 +36,7 @@
         <div class="interview-detail-grid">
             <span class="interview-detail-icon">&#x1F4C5;</span>
             <span class="interview-detail-value">
-                {{ iv.scheduled_at.strftime('%A %d %B %Y, %H:%M') }}{% if iv.ends_at %} &ndash; {{ iv.ends_at.strftime('%H:%M') }}{% endif %}
+                {{ (iv.scheduled_at|italytime).strftime('%A %d %B %Y, %H:%M') }}{% if iv.ends_at %} &ndash; {{ (iv.ends_at|italytime).strftime('%H:%M') }}{% endif %}
             </span>
 
             {% if iv.platform %}

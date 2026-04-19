@@ -78,8 +78,8 @@
     <div class="card interview-card mb-md">
       <div class="interview-card-header">
         <div>
-          <span class="interview-date">{{ iv.scheduled_at.strftime('%d/%m/%Y') }}</span>
-          <span class="interview-time">{{ iv.scheduled_at.strftime('%H:%M') }}{% if iv.ends_at %} &ndash; {{ iv.ends_at.strftime('%H:%M') }}{% endif %}</span>
+          <span class="interview-date">{{ (iv.scheduled_at|italytime).strftime('%d/%m/%Y') }}</span>
+          <span class="interview-time">{{ (iv.scheduled_at|italytime).strftime('%H:%M') }}{% if iv.ends_at %} &ndash; {{ (iv.ends_at|italytime).strftime('%H:%M') }}{% endif %}</span>
         </div>
         <div class="interview-card-header-right">
           {% if iv.outcome == 'passed' %}

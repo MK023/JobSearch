@@ -80,7 +80,7 @@
       <div class="agenda-card-icon agenda-icon-followup">&#x2709;&#xFE0F;</div>
       <div class="agenda-card-body">
         <div class="agenda-card-title">Follow-up {{ a.company or '—' }}</div>
-        <div class="agenda-card-sub">{{ a.role or '—' }} &middot; candidatura {{ a.applied_at.strftime('%d/%m') if a.applied_at else 'N/D' }}</div>
+        <div class="agenda-card-sub">{{ a.role or '—' }} &middot; candidatura {{ (a.applied_at|italytime).strftime('%d/%m') if a.applied_at else 'N/D' }}</div>
       </div>
       <div class="agenda-card-actions">
         <a href="/analysis/{{ a.id }}" class="agenda-btn agenda-btn-blue">Genera email</a>

@@ -203,13 +203,25 @@ _MONTHS_IT = ["gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ot
 
 
 def format_date(dt: datetime) -> str:
-    """Format date as '15 mar 2026'."""
-    return f"{dt.day} {_MONTHS_IT[dt.month - 1]} {dt.year}"
+    """Format date as '15 mar 2026' in Europe/Rome.
+
+    Input is expected to be a timezone-aware UTC datetime (our DB convention).
+    Converts to local time before picking day/month/year so users near
+    midnight don't see the wrong calendar day.
+    """
+    from ..utils.time import to_italy
+
+    local = to_italy(dt)
+    return f"{local.day} {_MONTHS_IT[local.month - 1]} {local.year}"
 
 
 def format_time(start: datetime, end: datetime | None) -> str:
-    """Format time range as '14:30' or '14:30 – 15:30'."""
-    t = f"{start.strftime('%H:%M')}"
+    """Format time range as '14:30' or '14:30 – 15:30' in Europe/Rome."""
+    from ..utils.time import to_italy
+
+    start_local = to_italy(start)
+    t = f"{start_local.strftime('%H:%M')}"
     if end:
-        t += f" – {end.strftime('%H:%M')}"
+        end_local = to_italy(end)
+        t += f" – {end_local.strftime('%H:%M')}"
     return t
