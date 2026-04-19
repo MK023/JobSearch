@@ -44,7 +44,10 @@ class RedisCacheService:
             value = cast(str | None, self._client.get(key))
         except Exception as exc:
             self.errors += 1
-            logger.warning("cache get failed key=%s err=%s", key, exc)
+            # Info, not warning: Redis hiccups are transient and self-recovering.
+            # Keeping this at warning pushed a constant stream to Sentry for no
+            # actionable reason (the caller falls back to the source on None).
+            logger.info("cache get failed key=%s err=%s (falling through to source)", key, exc)
             return None
         if value is None:
             self.misses += 1
@@ -57,7 +60,10 @@ class RedisCacheService:
             self._client.setex(key, ttl, value)
         except Exception as exc:
             self.errors += 1
-            logger.warning("cache set failed key=%s err=%s", key, exc)
+            # Info, not warning: failed writes are non-fatal (next get() just
+            # misses and re-fetches from source). See get() for the matching
+            # rationale — Sentry doesn't need a page for every Redis blip.
+            logger.info("cache set failed key=%s err=%s", key, exc)
 
     def get_json(self, key: str) -> dict[str, Any] | None:
         raw = self.get(key)
@@ -66,7 +72,10 @@ class RedisCacheService:
         try:
             return cast(dict[str, Any], json.loads(raw))
         except (json.JSONDecodeError, TypeError):
-            logger.warning("cache poisoned key=%s — invalid JSON, treating as miss", key)
+            # Info-level: a malformed cache entry is auto-recovered on the next
+            # miss + set cycle. Not worth a Sentry alert; investigate only if
+            # the log line appears repeatedly for the same key.
+            logger.info("cache poisoned key=%s — invalid JSON, treating as miss", key)
             return None
 
     def set_json(self, key: str, data: dict[str, Any], ttl: int) -> None:
