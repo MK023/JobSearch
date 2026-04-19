@@ -171,6 +171,41 @@
     {% endif %}
   </section>
 
+  {# Inbox Chrome extension + (News + To-do below) #}
+  <section class="card dash-widget mb-xl">
+    <h2 class="section-title">Inbox Chrome extension</h2>
+    {% if inbox_stats.today_total or inbox_stats.pending_active or inbox_stats.done_total or inbox_stats.error_total %}
+    <div class="grid-metrics">
+      <div class="dash-widget-row">
+        <span class="dash-widget-row-main">Inviate oggi</span>
+        <span class="dash-widget-kpi">{{ inbox_stats.today_total }}</span>
+      </div>
+      <div class="dash-widget-row">
+        <span class="dash-widget-row-main">In attesa</span>
+        <span class="dash-widget-kpi">{{ inbox_stats.pending_active }}</span>
+      </div>
+      <div class="dash-widget-row">
+        <span class="dash-widget-row-main">Completate (30gg)</span>
+        <span class="dash-widget-kpi">{{ inbox_stats.done_total }}</span>
+      </div>
+      <div class="dash-widget-row">
+        <span class="dash-widget-row-main">Errori (30gg)</span>
+        <span class="dash-widget-kpi">{{ inbox_stats.error_total }}</span>
+      </div>
+    </div>
+    {% if inbox_stats.last_received_at %}
+    <div class="meta-small" style="margin-top: var(--space-sm);">
+      Ultima ricezione: {{ inbox_stats.last_received_at[:16]|replace('T', ' ') }}
+      &middot; <a href="/history#valutazione" class="link-subtle">vedi da valutare</a>
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="empty-state" style="padding: var(--space-lg);">
+      Nessuna analisi dall'estensione. Installa <code>frontend/chrome-extension/</code> e configura la API key.
+    </div>
+    {% endif %}
+  </section>
+
   {# News recenti + To-do — side by side #}
   <div class="grid-2col mb-xl">
 
