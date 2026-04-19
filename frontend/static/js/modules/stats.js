@@ -12,7 +12,12 @@
     function readPayload() {
         const el = document.getElementById('stats-payload');
         if (!el) return null;
-        try { return JSON.parse(el.textContent); } catch (_) { return null; }
+        try { return JSON.parse(el.textContent); } catch (e) {
+            // Malformed SSR payload — render-time bug on the server. Log for
+            // visibility but don't throw: the page degrades to "no charts".
+            console.debug('stats-payload JSON parse failed:', e);
+            return null;
+        }
     }
 
     function themeColor(varName, fallback) {
@@ -30,7 +35,7 @@
         const fg = themeColor('--text-primary', '#c9d1d9');
         const muted = themeColor('--text-secondary', '#8b949e');
         const grid = themeColor('--border-subtle', 'rgba(255,255,255,0.1)');
-        const isDoughnut = opts && opts.noScales;
+        const isDoughnut = opts?.noScales;
         return {
             responsive: true,
             maintainAspectRatio: false,
@@ -139,7 +144,7 @@
                     borderWidth: 0
                 }]
             },
-            options: Object.assign({}, baseOptions(), { indexAxis: 'y' })
+            options: { ...baseOptions(), indexAxis: 'y' }
         });
     }
 

@@ -31,7 +31,7 @@ function togglePlatformFields() {
     ALL_PLATFORM_FIELDS.forEach(function(id) {
         const el = document.getElementById(id);
         if (el) {
-            el.style.display = visible.indexOf(id) !== -1 ? '' : 'none';
+            el.style.display = visible.includes(id) ? '' : 'none';
         }
     });
 }
@@ -54,8 +54,8 @@ function openInterviewModal(analysisId) {
         locale: "it",
         minDate: "today"
     };
-    fpScheduled = flatpickr('#iv-scheduled', Object.assign({}, fpConfig));
-    fpEnds = flatpickr('#iv-ends', Object.assign({}, fpConfig, { minDate: null }));
+    fpScheduled = flatpickr('#iv-scheduled', { ...fpConfig });
+    fpEnds = flatpickr('#iv-ends', { ...fpConfig, minDate: null });
 
     // Show all fields by default (no platform selected)
     togglePlatformFields();
@@ -99,8 +99,8 @@ function openNewRoundModal(analysisId) {
         locale: "it",
         minDate: "today"
     };
-    fpScheduled = flatpickr('#iv-scheduled', Object.assign({}, fpConfig));
-    fpEnds = flatpickr('#iv-ends', Object.assign({}, fpConfig, { minDate: null }));
+    fpScheduled = flatpickr('#iv-scheduled', { ...fpConfig });
+    fpEnds = flatpickr('#iv-ends', { ...fpConfig, minDate: null });
 
     togglePlatformFields();
     document.getElementById('iv-analysis-id').value = analysisId;
@@ -177,7 +177,7 @@ function submitInterview(e) {
     const visible = platform ? (PLATFORM_FIELDS[platform] || []) : ALL_PLATFORM_FIELDS;
 
     function visibleVal(fieldGroupId, inputId) {
-        return visible.indexOf(fieldGroupId) !== -1
+        return visible.includes(fieldGroupId)
             ? (document.getElementById(inputId).value || null)
             : null;
     }
@@ -241,8 +241,8 @@ function submitInterview(e) {
             if (typeof refreshSpending === 'function') refreshSpending();
             window.location.reload();
             showToast('Colloquio salvato', 'success');
-            if (window.location.pathname.indexOf('/analysis/') !== -1 ||
-                window.location.pathname.indexOf('/interviews') !== -1) {
+            if (window.location.pathname.includes('/analysis/') ||
+                window.location.pathname.includes('/interviews')) {
                 setTimeout(function() { window.location.reload(); }, 800);
             }
         }

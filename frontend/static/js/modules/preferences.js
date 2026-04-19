@@ -12,34 +12,32 @@ function aiPreferences() {
         message: '',
 
         load: function() {
-            const self = this;
             fetch('/api/preferences/' + KEY)
                 .then(function(r) {
                     if (!r.ok) throw new Error('load failed: ' + r.status);
                     return r.json();
                 })
-                .then(function(data) { self.sonnetFallback = !!data.value; })
-                .catch(function(e) { self.message = 'Errore lettura: ' + e.message; });
+                .then((data) => { this.sonnetFallback = !!data.value; })
+                .catch((e) => { this.message = 'Errore lettura: ' + e.message; });
         },
 
         save: function() {
-            const self = this;
-            self.loading = true;
-            self.message = '';
+            this.loading = true;
+            this.message = '';
             fetch('/api/preferences/' + KEY, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ value: self.sonnetFallback })
+                body: JSON.stringify({ value: this.sonnetFallback })
             })
                 .then(function(r) {
                     if (!r.ok) throw new Error('save failed: ' + r.status);
                     return r.json();
                 })
-                .then(function() { self.message = 'Salvato'; })
-                .catch(function(e) {
-                    self.message = 'Errore salvataggio: ' + e.message;
+                .then(() => { this.message = 'Salvato'; })
+                .catch((e) => {
+                    this.message = 'Errore salvataggio: ' + e.message;
                 })
-                .finally(function() { self.loading = false; });
+                .finally(() => { this.loading = false; });
         }
     };
 }

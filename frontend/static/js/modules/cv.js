@@ -20,7 +20,7 @@ function initCVUpload() {
 
         // Validate extension
         const ext = '.' + file.name.split('.').pop().toLowerCase();
-        if (CV_ALLOWED_EXT.indexOf(ext) === -1) {
+        if (!CV_ALLOWED_EXT.includes(ext)) {
             showToast('Formato non supportato. Usa PDF, DOCX, DOC, TXT o XLSX.', 'error');
             this.value = '';
             return;

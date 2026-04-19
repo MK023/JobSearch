@@ -22,41 +22,39 @@ function bulkRejectForm() {
             this.loading = true;
             this.message = '';
             const qs = '?days=' + encodeURIComponent(this.days) + '&max_score=' + encodeURIComponent(this.maxScore);
-            const self = this;
             fetch('/analysis/bulk-reject-preview' + qs)
                 .then(function(r) {
                     if (!r.ok) throw new Error('preview failed: ' + r.status);
                     return r.json();
                 })
-                .then(function(data) { self.count = data.count; })
-                .catch(function(e) {
-                    self.count = null;
-                    self.message = 'Errore anteprima: ' + e.message;
+                .then((data) => { this.count = data.count; })
+                .catch((e) => {
+                    this.count = null;
+                    this.message = 'Errore anteprima: ' + e.message;
                 })
-                .finally(function() { self.loading = false; });
+                .finally(() => { this.loading = false; });
         },
 
         confirmReject: function() {
             if (this.count === null || this.count <= 0) return;
-            const ok = window.confirm(
+            const ok = globalThis.confirm(
                 'Confermi di scartare ' + this.count + ' analisi? Potrai rimetterle in valutazione una alla volta dalla loro pagina.'
             );
             if (!ok) return;
             this.loading = true;
             this.message = '';
             const qs = '?days=' + encodeURIComponent(this.days) + '&max_score=' + encodeURIComponent(this.maxScore);
-            const self = this;
             fetch('/analysis/bulk-reject' + qs, { method: 'POST' })
                 .then(function(r) {
                     if (!r.ok) throw new Error('bulk-reject failed: ' + r.status);
                     return r.json();
                 })
-                .then(function(data) {
-                    self.message = 'Scartate ' + data.rejected + ' analisi. Ricarica per vedere i nuovi conteggi.';
-                    self.count = 0;
+                .then((data) => {
+                    this.message = 'Scartate ' + data.rejected + ' analisi. Ricarica per vedere i nuovi conteggi.';
+                    this.count = 0;
                 })
-                .catch(function(e) { self.message = 'Errore: ' + e.message; })
-                .finally(function() { self.loading = false; });
+                .catch((e) => { this.message = 'Errore: ' + e.message; })
+                .finally(() => { this.loading = false; });
         }
     };
 }

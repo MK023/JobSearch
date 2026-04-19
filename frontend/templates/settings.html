@@ -268,16 +268,15 @@
       message: '',
       init: function() {},
       save: function(key, value) {
-        var self = this;
         fetch('/api/preferences/' + key, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ value: value })
         })
           .then(function(r) { return r.json(); })
-          .then(function(data) {
-            self.message = data.ok ? 'Salvato' : (data.detail || 'Errore');
-            setTimeout(function() { self.message = ''; }, 2000);
+          .then((data) => {
+            this.message = data.ok ? 'Salvato' : (data.detail || 'Errore');
+            setTimeout(() => { this.message = ''; }, 2000);
           });
       }
     };
@@ -295,8 +294,8 @@
   }
 
   function createBackup() {
-    var btn = document.getElementById('backup-btn');
-    var status = document.getElementById('backup-status');
+    const btn = document.getElementById('backup-btn');
+    const status = document.getElementById('backup-status');
     btn.disabled = true;
     status.textContent = 'Backup in corso...';
     fetch('/api/v1/backup', { method: 'POST' })
@@ -322,24 +321,24 @@
     fetch('/api/v1/backups')
       .then(function(r) { return r.json(); })
       .then(function(backups) {
-        var list = document.getElementById('backup-list');
-        while (list.firstChild) list.removeChild(list.firstChild);
+        const list = document.getElementById('backup-list');
+        while (list.firstChild) list.firstChild.remove();
         if (!backups.length) {
-          var empty = document.createElement('div');
+          const empty = document.createElement('div');
           empty.className = 'meta-small';
           empty.textContent = 'Nessun backup presente';
           list.appendChild(empty);
           return;
         }
         backups.forEach(function(b) {
-          var item = document.createElement('div');
+          const item = document.createElement('div');
           item.className = 'settings-maint-item';
-          var info = document.createElement('div');
+          const info = document.createElement('div');
           info.className = 'settings-maint-info';
-          var label = document.createElement('span');
+          const label = document.createElement('span');
           label.className = 'settings-maint-label';
           label.textContent = b.key.replace('backups/', '');
-          var meta = document.createElement('span');
+          const meta = document.createElement('span');
           meta.className = 'meta-small';
           meta.textContent = b.size_kb + ' KB';
           info.appendChild(label);

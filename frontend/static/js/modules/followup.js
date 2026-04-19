@@ -14,7 +14,7 @@ function _createGenBox(label, id) {
             return null;
         }
     }
-    while (area.firstChild) area.removeChild(area.firstChild);
+    while (area.firstChild) area.firstChild.remove();
 
     const box = document.createElement('div');
     box.className = 'generated-box';
@@ -73,7 +73,7 @@ function genFollowup(id) {
         })
         .then(function(data) {
             if (!data) return;
-            while (g.box.firstChild) g.box.removeChild(g.box.firstChild);
+            while (g.box.firstChild) g.box.firstChild.remove();
 
             if (data.error) {
                 const errLbl = document.createElement('div');
@@ -101,7 +101,7 @@ function genFollowup(id) {
             if (typeof refreshSpending === 'function') refreshSpending();
         })
         .catch(function(e) {
-            while (g.box.firstChild) g.box.removeChild(g.box.firstChild);
+            while (g.box.firstChild) g.box.firstChild.remove();
             const errLbl = document.createElement('div');
             errLbl.className = 'generated-label';
             errLbl.textContent = '\u274C Errore di rete';
@@ -126,7 +126,7 @@ function genLinkedin(id) {
         })
         .then(function(data) {
             if (!data) return;
-            while (g.box.firstChild) g.box.removeChild(g.box.firstChild);
+            while (g.box.firstChild) g.box.firstChild.remove();
 
             if (data.error) {
                 const errLbl = document.createElement('div');
@@ -163,7 +163,7 @@ function genLinkedin(id) {
             if (typeof refreshSpending === 'function') refreshSpending();
         })
         .catch(function(e) {
-            while (g.box.firstChild) g.box.removeChild(g.box.firstChild);
+            while (g.box.firstChild) g.box.firstChild.remove();
             const errLbl = document.createElement('div');
             errLbl.className = 'generated-label';
             errLbl.textContent = '\u274C Errore di rete';

@@ -29,12 +29,12 @@ function historyTabs() {
     function loadFilters() {
         try {
             const raw = sessionStorage.getItem(FILTERS_KEY);
-            if (!raw) return Object.assign({}, defaultFilters);
+            if (!raw) return { ...defaultFilters };
             const parsed = JSON.parse(raw);
             // Legacy migration: old `hideFreelance: true` -> `contractType: 'dipendente'`
             let contractType = parsed.contractType;
             if (!contractType && parsed.hideFreelance) contractType = 'dipendente';
-            if (validContractTypes.indexOf(contractType) === -1) contractType = 'tutti';
+            if (!validContractTypes.includes(contractType)) contractType = 'tutti';
             return {
                 contractType: contractType,
                 hideBodyRental: !!parsed.hideBodyRental,
@@ -43,7 +43,8 @@ function historyTabs() {
                 searchQuery: typeof parsed.searchQuery === 'string' ? parsed.searchQuery : ''
             };
         } catch (e) {
-            return Object.assign({}, defaultFilters);
+            console.debug('historyFilters parse failed, falling back to defaults:', e);
+            return { ...defaultFilters };
         }
     }
 
@@ -57,13 +58,13 @@ function historyTabs() {
             rifiutati: 0
         },
 
-        filters: Object.assign({}, defaultFilters),
+        filters: { ...defaultFilters },
 
         init: function() {
             // Restore tab from URL hash or sessionStorage
             const hash = location.hash.replace('#', '');
             const stored = sessionStorage.getItem('historyTab');
-            const restored = validTabs.indexOf(hash) !== -1 ? hash : (validTabs.indexOf(stored) !== -1 ? stored : 'valutazione');
+            const restored = validTabs.includes(hash) ? hash : (validTabs.includes(stored) ? stored : 'valutazione');
             this.activeTab = restored;
             this.filters = loadFilters();
             this.filterItems();
@@ -77,7 +78,7 @@ function historyTabs() {
         },
 
         setContractType: function(type) {
-            if (validContractTypes.indexOf(type) === -1) return;
+            if (!validContractTypes.includes(type)) return;
             this.filters.contractType = type;
             this.persistFilters();
             this.filterItems();
@@ -102,7 +103,7 @@ function historyTabs() {
         },
 
         resetFilters: function() {
-            this.filters = Object.assign({}, defaultFilters);
+            this.filters = { ...defaultFilters };
             this.persistFilters();
             this.filterItems();
         },
@@ -111,7 +112,9 @@ function historyTabs() {
             try {
                 sessionStorage.setItem(FILTERS_KEY, JSON.stringify(this.filters));
             } catch (e) {
-                // sessionStorage full or disabled — silently ignore
+                // sessionStorage full or disabled — silent fallthrough is intentional,
+                // filters live in memory for the session and are restored next reload.
+                console.debug('persistFilters failed (quota/private mode):', e);
             }
         },
 
@@ -143,7 +146,7 @@ function historyTabs() {
                 }
                 if (f.searchQuery) {
                     const haystack = item.dataset.histSearch || '';
-                    if (haystack.indexOf(f.searchQuery) === -1) matchFilters = false;
+                    if (!haystack.includes(f.searchQuery)) matchFilters = false;
                 }
 
                 item.style.display = (matchTab && matchFilters) ? '' : 'none';
@@ -170,7 +173,7 @@ function refreshHistoryCounts() {
     if (typeof Alpine !== 'undefined') {
         try {
             const data = Alpine.$data(histEl);
-            if (data && data.filterItems) {
+            if (data?.filterItems) {
                 data.filterItems();
             }
         } catch (e) {
