@@ -91,8 +91,10 @@ def dashboard_page(
 
     # Agenda widget — next 3 items (interviews + todos)
     from .agenda.models import TodoItem
+    from .agenda.service import get_virtual_triage_todos
 
     agenda_todos = db.query(TodoItem).filter(TodoItem.done == False).order_by(TodoItem.created_at.desc()).limit(3).all()  # noqa: E712
+    agenda_triage_todos = get_virtual_triage_todos(db, cast(UUID, user.id))[:3]
 
     return templates.TemplateResponse(  # type: ignore[no-any-return]
         request,
@@ -108,6 +110,7 @@ def dashboard_page(
             "db_usage": db_usage,
             "recent_news": recent_news,
             "agenda_todos": agenda_todos,
+            "agenda_triage_todos": agenda_triage_todos,
             "inbox_stats": inbox_stats,
             "error": flash["error"],
             "message": flash["message"],
@@ -427,8 +430,10 @@ def agenda_page(
     ]
 
     from .agenda.models import TodoItem
+    from .agenda.service import get_virtual_triage_todos
 
     todos = db.query(TodoItem).order_by(TodoItem.done, TodoItem.created_at.desc()).all()
+    triage_todos = get_virtual_triage_todos(db, cast(UUID, user.id))
 
     _days_it = ["Lunedi", "Martedi", "Mercoledi", "Giovedi", "Venerdi", "Sabato", "Domenica"]
     _months_it = ["gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic"]
@@ -447,6 +452,7 @@ def agenda_page(
             "applied_today": applied_today,
             "waiting": waiting,
             "todos": todos,
+            "triage_todos": triage_todos,
             "error": flash["error"],
             "message": flash["message"],
         },
