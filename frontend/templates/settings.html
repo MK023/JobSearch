@@ -39,8 +39,7 @@
       <div class="form-group">
         <label for="cv-text" class="form-label">Testo CV</label>
         <textarea id="cv-text" name="cv_text" class="textarea" rows="12" required
-                  placeholder="Incolla il testo del tuo CV..."
-                  aria-label="Testo del CV">{{ cv.raw_text|default('') if cv else '' }}</textarea>
+                  placeholder="Incolla il testo del tuo CV...">{{ cv.raw_text|default('') if cv else '' }}</textarea>
       </div>
       <div class="form-actions">
         <button type="submit" class="btn btn-primary btn-sm">Salva CV</button>

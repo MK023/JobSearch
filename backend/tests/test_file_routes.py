@@ -13,7 +13,7 @@ from src.interview.file_service import (
     delete_file_record,
     get_file_by_id,
 )
-from src.interview.service import create_or_update_interview
+from src.interview.service import InterviewScheduleData, create_or_update_interview
 
 
 class TestRequestUploadValidation:
@@ -46,7 +46,9 @@ class TestFileServiceIntegration:
 
     def test_file_limit_enforced(self, db_session, test_analysis):
         interview = create_or_update_interview(
-            db_session, test_analysis.id, scheduled_at=datetime(2026, 3, 20, 10, 0, tzinfo=UTC)
+            db_session,
+            test_analysis.id,
+            InterviewScheduleData(scheduled_at=datetime(2026, 3, 20, 10, 0, tzinfo=UTC)),
         )
         db_session.flush()
 
@@ -66,7 +68,9 @@ class TestFileServiceIntegration:
     def test_confirm_rejects_already_confirmed(self, db_session, test_analysis):
         """A file that's already uploaded can't be confirmed again."""
         interview = create_or_update_interview(
-            db_session, test_analysis.id, scheduled_at=datetime(2026, 3, 20, 10, 0, tzinfo=UTC)
+            db_session,
+            test_analysis.id,
+            InterviewScheduleData(scheduled_at=datetime(2026, 3, 20, 10, 0, tzinfo=UTC)),
         )
         db_session.flush()
 
@@ -86,7 +90,9 @@ class TestFileServiceIntegration:
     def test_scan_rejects_pending_file(self, db_session, test_analysis):
         """A pending file (not yet uploaded) can't be scanned."""
         interview = create_or_update_interview(
-            db_session, test_analysis.id, scheduled_at=datetime(2026, 3, 20, 10, 0, tzinfo=UTC)
+            db_session,
+            test_analysis.id,
+            InterviewScheduleData(scheduled_at=datetime(2026, 3, 20, 10, 0, tzinfo=UTC)),
         )
         db_session.flush()
 
@@ -106,7 +112,9 @@ class TestFileServiceIntegration:
     def test_delete_cleans_up_record(self, db_session, test_analysis):
         """Deleting a file should remove the DB record."""
         interview = create_or_update_interview(
-            db_session, test_analysis.id, scheduled_at=datetime(2026, 3, 20, 10, 0, tzinfo=UTC)
+            db_session,
+            test_analysis.id,
+            InterviewScheduleData(scheduled_at=datetime(2026, 3, 20, 10, 0, tzinfo=UTC)),
         )
         db_session.flush()
 

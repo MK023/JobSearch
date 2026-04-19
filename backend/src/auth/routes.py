@@ -1,6 +1,6 @@
 """Authentication routes."""
 
-from typing import cast
+from typing import Annotated, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Form, Request
@@ -34,8 +34,8 @@ def login_page(request: Request) -> Response:
 def login(
     request: Request,
     db: DbSession,
-    email: str = Form(...),
-    password: str = Form(...),
+    email: Annotated[str, Form()],
+    password: Annotated[str, Form()],
 ) -> Response:
     """Authenticate user credentials and create a session."""
     templates = _get_templates(request)

@@ -50,6 +50,7 @@ _BACKLOG_THRESHOLD = 1
 # (which would re-show the same aggregated card — circular link UX bug).
 _FOLLOWUP_LIST_URL = "/agenda"  # get_followup_alerts rendered per-item on the agenda
 _INTERVIEW_LIST_URL = "/interviews"  # past rounds without outcome visible there
+_SETTINGS_URL = "/settings"  # DB cleanup + backup management live on the Settings page
 
 
 def _thresholds(db: Session) -> dict[str, float]:
@@ -181,7 +182,7 @@ def _db_size_high(db: Session) -> list[Notification]:
             severity=NotificationSeverity.WARNING,
             title=f"Database quasi pieno — {size_mb:.0f} MB su 1024 MB",
             body=("Neon free tier ha un limite di 1 GB. Esegui cleanup delle analisi vecchie dalla sezione Settings."),
-            action_url="/settings",
+            action_url=_SETTINGS_URL,
             action_label="Apri Settings",
             dismissible=True,
             sticky=True,
@@ -300,8 +301,12 @@ def _todo_pending(db: Session) -> list[Notification]:
 _BACKUP_MAX_AGE_DAYS = 7
 
 
-def _backup_stale(db: Session) -> list[Notification]:
-    """Warn if no backup exists or last backup is older than 7 days."""
+def _backup_stale(_db: Session) -> list[Notification]:
+    """Warn if no backup exists or last backup is older than 7 days.
+
+    ``_db`` is accepted for signature consistency with sibling rule helpers
+    but not consulted — backup freshness is fetched from R2, not the DB.
+    """
     import os
 
     from ..config import settings as app_cfg
@@ -330,7 +335,7 @@ def _backup_stale(db: Session) -> list[Notification]:
                 severity=NotificationSeverity.WARNING,
                 title="Nessun backup presente",
                 body="Crea un backup del database da Impostazioni per proteggere i dati.",
-                action_url="/settings",
+                action_url=_SETTINGS_URL,
                 action_label="Vai a Impostazioni",
                 dismissible=True,
                 sticky=True,
@@ -356,7 +361,7 @@ def _backup_stale(db: Session) -> list[Notification]:
             severity=NotificationSeverity.WARNING,
             title=f"Backup vecchio ({age.days} giorni)",
             body="L'ultimo backup ha piu' di 7 giorni. Creane uno nuovo da Impostazioni.",
-            action_url="/settings",
+            action_url=_SETTINGS_URL,
             action_label="Crea backup",
             dismissible=True,
             sticky=True,

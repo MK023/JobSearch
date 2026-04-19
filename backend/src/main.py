@@ -142,14 +142,9 @@ def _rate_limit_handler(request: Request, exc: RateLimitExceeded) -> Response:
     )
 
 
-def create_app() -> FastAPI:
-    """Create and configure the FastAPI application."""
-    app = FastAPI(
-        title="Job Search Command Center",
-        lifespan=lifespan,
-    )
+def _register_exception_handlers(app: FastAPI) -> None:
+    """Attach the 4 app-wide exception handlers to ``app``."""
 
-    # --- Exception handlers ---
     @app.exception_handler(AuthRequired)
     async def auth_redirect_handler(request: Request, exc: AuthRequired) -> Response:
         """Redirect unauthenticated users to the login page."""
@@ -174,10 +169,12 @@ def create_app() -> FastAPI:
         templates = app.state.templates
         return templates.TemplateResponse(request, "500.html", status_code=500)  # type: ignore[no-any-return]
 
-    # --- Middleware stack (LIFO: last added = outermost) ---
-    # Order matters: first added = innermost, last added = outermost.
-    # Request flow: CORS → TrustedHost → SecurityHeaders → SlowAPI → Session → App
 
+def _register_middleware(app: FastAPI) -> None:
+    """Attach middleware stack. Order matters: first-added = innermost,
+    last-added = outermost. Request flow (inbound): CORS → Metrics →
+    TrustedHost → SecurityHeaders → CSRFOrigin → SlowAPI → Session → App.
+    """
     _is_production = "localhost" not in settings.trusted_hosts
     app.add_middleware(
         SessionMiddleware,
@@ -244,6 +241,13 @@ def create_app() -> FastAPI:
             allowed_hosts=settings.trusted_hosts_list,
         )
 
+    from .metrics.middleware import MetricsMiddleware
+
+    app.add_middleware(MetricsMiddleware)
+
+    # CORSMiddleware must be added LAST so it becomes the outermost middleware.
+    # SonarCloud S8414: guarantees CORS headers are set even when inner
+    # middleware short-circuits (e.g. rate limit rejects the request).
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins_list,
@@ -252,32 +256,34 @@ def create_app() -> FastAPI:
         allow_headers=["Content-Type", "Authorization", "X-Requested-With", "X-API-Key"],
     )
 
-    from .metrics.middleware import MetricsMiddleware
 
-    app.add_middleware(MetricsMiddleware)
-
-    # --- Templates & static files ---
-    app.state.templates = Jinja2Templates(directory=str(_TEMPLATE_DIR))
-    # Auto cache-bust: short git commit hash, fallback to timestamp
+def _compute_asset_version() -> str:
+    """Short git commit hash used for cache-busting static asset URLs.
+    Falls back to a unix timestamp when git is unavailable (e.g., stripped image).
+    """
     import subprocess as _sp
 
     try:
-        _asset_v = _sp.check_output(  # noqa: S603
+        return _sp.check_output(  # noqa: S603
             ["git", "rev-parse", "--short", "HEAD"],  # noqa: S607
             text=True,
             stderr=_sp.DEVNULL,
         ).strip()
     except Exception:
-        _asset_v = str(int(time.time()))
-    app.state.templates.env.globals["asset_v"] = _asset_v
+        return str(int(time.time()))
 
-    # Timezone-aware "now" helper for templates — used by interview_detail.html
-    # to decide whether a round is past (scheduled_at < now) or future.
+
+def _register_templates_and_static(app: FastAPI) -> None:
+    """Wire Jinja2 templates, globals, custom filters, and static mount."""
     from datetime import UTC as _UTC
     from datetime import datetime as _datetime
 
     from .utils.time import to_italy as _to_italy
 
+    app.state.templates = Jinja2Templates(directory=str(_TEMPLATE_DIR))
+    app.state.templates.env.globals["asset_v"] = _compute_asset_version()
+    # Timezone-aware "now" helper for templates — used by interview_detail.html
+    # to decide whether a round is past (scheduled_at < now) or future.
     app.state.templates.env.globals["now"] = lambda: _datetime.now(_UTC)
     # Jinja filter: convert a UTC datetime/ISO string to Europe/Rome so
     # templates can call {{ dt|italytime|strftime("%H:%M") }} and get
@@ -285,8 +291,12 @@ def create_app() -> FastAPI:
     app.state.templates.env.filters["italytime"] = _to_italy
     app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
-    # --- HTML routers (root level) ---
-    # Pages router first so GET / maps to the new dashboard handler
+
+def _register_routers(app: FastAPI) -> None:
+    """Mount all HTML pages + JSON API routers onto ``app``."""
+    from .api_v1 import api_v1_router
+
+    # HTML routers (root level). Pages router first so GET / maps to dashboard.
     app.include_router(pages_router)
     app.include_router(analytics_page_router)
     app.include_router(auth_router)
@@ -294,11 +304,28 @@ def create_app() -> FastAPI:
     app.include_router(analysis_router)
     app.include_router(cover_letter_router)
     app.include_router(preferences_router)
-
-    # --- API v1 (all JSON endpoints) ---
-    from .api_v1 import api_v1_router
-
+    # API v1 (all JSON endpoints)
     app.include_router(api_v1_router)
+
+
+def create_app() -> FastAPI:
+    """Create and configure the FastAPI application.
+
+    Composition of 4 helpers keeps the function body small and under the
+    SonarCloud S3776 cognitive-complexity threshold (15). Each helper owns
+    one concern: exception handlers, middleware stack, templates+static,
+    routers. Health/favicon endpoints are wired inline below since they
+    close over ``app`` and the cache on ``app.state``.
+    """
+    app = FastAPI(
+        title="Job Search Command Center",
+        lifespan=lifespan,
+    )
+
+    _register_exception_handlers(app)
+    _register_middleware(app)
+    _register_templates_and_static(app)
+    _register_routers(app)
 
     # --- Favicon (browsers request /favicon.ico by default; redirect to SVG) ---
     @app.get("/favicon.ico", include_in_schema=False)

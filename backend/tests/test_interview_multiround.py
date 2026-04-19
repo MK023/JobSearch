@@ -18,6 +18,7 @@ import pytest
 from src.analysis.models import AnalysisStatus
 from src.interview.models import Interview, InterviewOutcome
 from src.interview.service import (
+    InterviewScheduleData,
     create_next_round,
     create_or_update_interview,
     get_interview_by_analysis,
@@ -44,8 +45,7 @@ class TestMultipleRoundsPerAnalysis:
         i = create_or_update_interview(
             db_session,
             test_analysis.id,
-            scheduled_at=_at(24),
-            interview_type="conoscitivo",
+            InterviewScheduleData(scheduled_at=_at(24), interview_type="conoscitivo"),
         )
         assert i is not None
         assert i.round_number == 1
@@ -63,8 +63,7 @@ class TestBackCompatLatestRound:
         updated = create_or_update_interview(
             db_session,
             test_analysis.id,
-            scheduled_at=new_when,
-            interview_type="finale",
+            InterviewScheduleData(scheduled_at=new_when, interview_type="finale"),
         )
         assert updated is not None
         assert updated.round_number == 2
@@ -102,7 +101,7 @@ class TestCreateNextRound:
         assert nr.round_number == 1
 
     def test_appends_with_incremented_number(self, db_session, test_analysis):
-        create_or_update_interview(db_session, test_analysis.id, scheduled_at=_at(24))
+        create_or_update_interview(db_session, test_analysis.id, InterviewScheduleData(scheduled_at=_at(24)))
         nr = create_next_round(db_session, test_analysis.id, scheduled_at=_at(72), interview_type="tecnico")
         assert nr is not None
         assert nr.round_number == 2
@@ -110,12 +109,12 @@ class TestCreateNextRound:
 
 class TestOutcome:
     def test_outcome_defaults_to_null(self, db_session, test_analysis):
-        i = create_or_update_interview(db_session, test_analysis.id, scheduled_at=_at(24))
+        i = create_or_update_interview(db_session, test_analysis.id, InterviewScheduleData(scheduled_at=_at(24)))
         assert i is not None
         assert i.outcome is None
 
     def test_set_outcome_persists_value(self, db_session, test_analysis):
-        i = create_or_update_interview(db_session, test_analysis.id, scheduled_at=_at(24))
+        i = create_or_update_interview(db_session, test_analysis.id, InterviewScheduleData(scheduled_at=_at(24)))
         assert i is not None
 
         updated = set_outcome(db_session, i.id, InterviewOutcome.PASSED)
@@ -123,14 +122,14 @@ class TestOutcome:
         assert updated.outcome == "passed"
 
     def test_set_outcome_accepts_string(self, db_session, test_analysis):
-        i = create_or_update_interview(db_session, test_analysis.id, scheduled_at=_at(24))
+        i = create_or_update_interview(db_session, test_analysis.id, InterviewScheduleData(scheduled_at=_at(24)))
         assert i is not None
         updated = set_outcome(db_session, i.id, "rejected")
         assert updated is not None
         assert updated.outcome == "rejected"
 
     def test_set_outcome_rejects_invalid(self, db_session, test_analysis):
-        i = create_or_update_interview(db_session, test_analysis.id, scheduled_at=_at(24))
+        i = create_or_update_interview(db_session, test_analysis.id, InterviewScheduleData(scheduled_at=_at(24)))
         assert i is not None
         with pytest.raises(ValueError):
             set_outcome(db_session, i.id, "schroedinger")
@@ -147,7 +146,7 @@ class TestOutcomeSideEffectsOnAnalysisStatus:
     def test_rejected_transitions_analysis_to_scartato(self, db_session, test_analysis):
         from src.analysis.service import update_status
 
-        i = create_or_update_interview(db_session, test_analysis.id, scheduled_at=_at(-48))
+        i = create_or_update_interview(db_session, test_analysis.id, InterviewScheduleData(scheduled_at=_at(-48)))
         assert i is not None
 
         # Mimic the route: set outcome then trigger the transition helper.
@@ -165,7 +164,7 @@ class TestOutcomeSideEffectsOnAnalysisStatus:
         test_analysis.status = AnalysisStatus.INTERVIEW.value
         db_session.commit()
 
-        i = create_or_update_interview(db_session, test_analysis.id, scheduled_at=_at(-48))
+        i = create_or_update_interview(db_session, test_analysis.id, InterviewScheduleData(scheduled_at=_at(-48)))
         assert i is not None
         set_outcome(db_session, i.id, InterviewOutcome.PASSED)
         db_session.commit()

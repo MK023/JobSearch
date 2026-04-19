@@ -1,7 +1,7 @@
 """CV routes."""
 
 import re
-from typing import cast
+from typing import Annotated, cast
 from uuid import UUID
 
 from fastapi import APIRouter, File, Form, Request, UploadFile
@@ -21,9 +21,9 @@ async def save_cv_route(
     request: Request,
     db: DbSession,
     user: CurrentUser,
-    cv_text: str = Form(""),
-    cv_name: str = Form(""),
-    cv_file: UploadFile | None = File(None),
+    cv_text: Annotated[str, Form()] = "",
+    cv_name: Annotated[str, Form()] = "",
+    cv_file: Annotated[UploadFile | None, File()] = None,
 ) -> Response:
     """Validate and save the user's CV text or uploaded file."""
     # If file uploaded, extract text from it

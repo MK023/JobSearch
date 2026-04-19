@@ -114,6 +114,9 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v6
+        with:
+          # fetch-depth 0 so SonarCloud can compute PR diffs and blame info.
+          fetch-depth: 0
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -140,6 +143,21 @@ jobs:
           name: coverage-report
           path: backend/coverage.xml
           retention-days: 30
+
+      # SonarCloud scan runs here (not in a separate workflow) so it has direct
+      # access to backend/coverage.xml — required to evaluate the new_coverage
+      # quality gate condition. Scanner must run from repo root to find
+      # sonar-project.properties, hence the working-directory override.
+      - name: SonarCloud scan
+        # Skip on PRs from forks — SONAR_TOKEN isn't exposed to them anyway.
+        if: success() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
+        uses: SonarSource/sonarqube-scan-action@master
+        with:
+          projectBaseDir: ${{ github.workspace }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
 
   # ── Docker Build ────────────────────────────────────────────────────
   docker:

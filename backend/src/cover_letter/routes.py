@@ -1,7 +1,7 @@
 """Cover letter routes."""
 
 import logging
-from typing import cast
+from typing import Annotated, cast
 from urllib.parse import quote
 from uuid import UUID
 
@@ -35,9 +35,9 @@ def generate_cover_letter_route(
     db: DbSession,
     user: CurrentUser,
     cache: Cache,
-    analysis_id: str = Form(...),
-    language: str = Form("italiano"),
-    model: str = Form("haiku"),
+    analysis_id: Annotated[str, Form()],
+    language: Annotated[str, Form()] = "italiano",
+    model: Annotated[str, Form()] = "haiku",
 ) -> Response:
     """Generate a cover letter via AI and redirect back to the analysis page."""
     if language not in ALLOWED_LANGUAGES:

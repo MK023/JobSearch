@@ -1,5 +1,6 @@
 """Authentication service: user management, password hashing, session handling."""
 
+import secrets
 from datetime import UTC, datetime, timedelta
 from typing import cast as type_cast
 
@@ -8,6 +9,12 @@ from sqlalchemy.orm import Session
 
 from ..config import settings
 from .models import LOCKOUT_MINUTES, MAX_FAILED_ATTEMPTS, User
+
+# Process-local dummy bcrypt hash generated at import time from fresh random
+# bytes, used for constant-time login when the email is unknown. Both the
+# input (random bytes, never a literal) and the salt are unique per worker
+# boot — nothing here is a credential that could be leaked or reused.
+_DUMMY_HASH = bcrypt.hashpw(secrets.token_bytes(32), bcrypt.gensalt()).decode()
 
 
 def hash_password(password: str) -> str:
@@ -39,8 +46,7 @@ def authenticate_user(db: Session, email: str, password: str) -> User | None:
     if not user:
         # Timing-safe: always run bcrypt even if user doesn't exist,
         # so attacker can't distinguish "user not found" from "wrong password".
-        _dummy_hash = "$2b$12$LJ3m4ys3Lg2VBe5E5pYave.1RnMqCuOYjxoQWMOcLbHZDNMqDHbG2"  # noqa: S105
-        verify_password(password, _dummy_hash)
+        verify_password(password, _DUMMY_HASH)
         return None
 
     # Check lockout

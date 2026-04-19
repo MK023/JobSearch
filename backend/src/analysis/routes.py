@@ -1,6 +1,6 @@
 """Analysis HTML routes (SSR pages)."""
 
-from typing import cast
+from typing import Annotated, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Form, Request
@@ -30,9 +30,9 @@ def analyze(
     db: DbSession,
     user: CurrentUser,
     cache: Cache,
-    job_description: str = Form(...),
-    job_url: str = Form(""),
-    model: str = Form("haiku"),
+    job_description: Annotated[str, Form()],
+    job_url: Annotated[str, Form()] = "",
+    model: Annotated[str, Form()] = "haiku",
 ) -> Response:
     """Submit a job description for AI analysis against the user's CV."""
     cv = get_latest_cv(db, cast(UUID, user.id))

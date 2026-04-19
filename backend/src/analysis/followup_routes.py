@@ -2,7 +2,7 @@
 
 import logging
 from datetime import UTC, datetime
-from typing import cast
+from typing import Annotated, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Form, Request
@@ -30,9 +30,9 @@ def create_followup_email(
     db: DbSession,
     user: CurrentUser,
     cache: Cache,
-    analysis_id: str = Form(...),
-    language: str = Form("italiano"),
-    model: str = Form("haiku"),
+    analysis_id: Annotated[str, Form()],
+    language: Annotated[str, Form()] = "italiano",
+    model: Annotated[str, Form()] = "haiku",
 ) -> JSONResponse:
     """Generate an AI-drafted follow-up email for a candidature."""
     validate_uuid(analysis_id)
@@ -81,9 +81,9 @@ def create_linkedin_message(
     db: DbSession,
     user: CurrentUser,
     cache: Cache,
-    analysis_id: str = Form(...),
-    language: str = Form("italiano"),
-    model: str = Form("haiku"),
+    analysis_id: Annotated[str, Form()],
+    language: Annotated[str, Form()] = "italiano",
+    model: Annotated[str, Form()] = "haiku",
 ) -> JSONResponse:
     """Generate an AI-drafted LinkedIn message for a candidature."""
     validate_uuid(analysis_id)
