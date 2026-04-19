@@ -228,10 +228,17 @@
       {% endif %}
     </section>
 
-    {# To-do pendenti #}
+    {# To-do pendenti — include virtual triage items from Chrome extension first #}
     <section class="card dash-widget">
       <h2 class="section-title">To-do</h2>
-      {% if agenda_todos %}
+      {% if agenda_triage_todos or agenda_todos %}
+        {% for t in agenda_triage_todos %}
+        <div class="dash-widget-row">
+          <div class="dash-widget-row-main">
+            <a href="{{ t.action_url }}" class="dash-widget-row-title">&#x1F4DD; {{ t.text }}</a>
+          </div>
+        </div>
+        {% endfor %}
         {% for t in agenda_todos %}
         <div class="dash-widget-row">
           <span class="dash-widget-row-main">{{ t.text }}</span>

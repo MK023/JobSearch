@@ -162,6 +162,22 @@
     {% endif %}
   </section>
 
+  {# ===== TRIAGE DA EXTENSION — virtual todos ===== #}
+  {% if triage_todos %}
+  <section class="agenda-group">
+    <div class="agenda-section-header">&#x1F4E5; Da triagiare ({{ triage_todos|length }})</div>
+    {% for t in triage_todos %}
+    <a href="{{ t.action_url }}" class="agenda-card no-underline">
+      <div class="agenda-card-icon agenda-icon-todo">&#x1F4DD;</div>
+      <div class="agenda-card-body">
+        <div class="agenda-card-title">{{ t.text }}</div>
+        <div class="agenda-card-subtitle meta-small">Arrivata dal Chrome extension &middot; apri per triagiare</div>
+      </div>
+    </a>
+    {% endfor %}
+  </section>
+  {% endif %}
+
   {# ===== TO-DO ===== #}
   <section class="agenda-group">
     <div class="agenda-section-header">&#x2705; To-do</div>
