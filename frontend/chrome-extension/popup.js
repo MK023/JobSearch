@@ -75,10 +75,23 @@
         els.sendBtn.disabled = n < MIN_TEXT || n > MAX_TEXT || !state.apiKey;
     }
 
+    // Endpoint is user-supplied via settings → must be validated against any
+    // non-https scheme before it ever flows into fetch() or <a href>. We keep
+    // only the origin (scheme + host + port), dropping paths/queries/fragments.
+    function normalizeEndpoint(raw) {
+        try {
+            const url = new URL((raw || '').trim());
+            if (url.protocol !== 'https:') return DEFAULT_ENDPOINT;
+            return url.origin;
+        } catch (_) {
+            return DEFAULT_ENDPOINT;
+        }
+    }
+
     async function loadSettings() {
         return new Promise((resolve) => {
             chrome.storage.sync.get(['endpoint', 'apiKey'], (items) => {
-                state.endpoint = (items.endpoint || DEFAULT_ENDPOINT).replace(/\/$/, '');
+                state.endpoint = normalizeEndpoint(items.endpoint);
                 state.apiKey = items.apiKey || '';
                 els.endpointInput.value = state.endpoint;
                 els.apikeyInput.value = state.apiKey;
@@ -88,11 +101,12 @@
     }
 
     function saveSettings() {
-        const endpoint = els.endpointInput.value.trim().replace(/\/$/, '') || DEFAULT_ENDPOINT;
+        const endpoint = normalizeEndpoint(els.endpointInput.value);
         const apiKey = els.apikeyInput.value.trim();
         chrome.storage.sync.set({ endpoint, apiKey }, () => {
             state.endpoint = endpoint;
             state.apiKey = apiKey;
+            els.endpointInput.value = endpoint;
             setStatus('Impostazioni salvate.', 'success');
             updateCharCount();
             toggleSettings(false);
@@ -150,19 +164,35 @@
         }
     }
 
+    // Build the link to the analysis or history using the URL constructor so
+    // the result is always rooted at state.endpoint (already validated https).
+    // Direct string concatenation would let a crafted endpoint produce e.g.
+    // "javascript:..." hrefs — URL() + https-only normalization prevents that.
+    function buildAnalysisUrl(analysisId) {
+        const path = analysisId ? `/analysis/${encodeURIComponent(analysisId)}` : '/history';
+        try {
+            const url = new URL(path, state.endpoint);
+            if (url.protocol !== 'https:') return null;
+            return url.toString();
+        } catch (_) {
+            return null;
+        }
+    }
+
     function buildSuccessStatus(data) {
         const span = document.createElement('span');
         const verb = data.dedup ? 'Già in archivio' : 'Analisi avviata';
         span.appendChild(document.createTextNode(`${verb}. `));
 
-        const link = document.createElement('a');
-        link.textContent = data.analysis_id ? 'Apri analisi →' : 'Apri storico →';
-        link.href = data.analysis_id
-            ? `${state.endpoint}/analysis/${encodeURIComponent(data.analysis_id)}`
-            : `${state.endpoint}/history`;
-        link.target = '_blank';
-        link.rel = 'noopener';
-        span.appendChild(link);
+        const href = buildAnalysisUrl(data.analysis_id);
+        if (href) {
+            const link = document.createElement('a');
+            link.textContent = data.analysis_id ? 'Apri analisi →' : 'Apri storico →';
+            link.href = href;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            span.appendChild(link);
+        }
         return span;
     }
 
