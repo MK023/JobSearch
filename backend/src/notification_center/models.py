@@ -42,6 +42,8 @@ class NotificationType(StrEnum):
     APP_ERROR = "app_error"
     NEWS_AVAILABLE = "news_available"
     ANALYTICS_AVAILABLE = "analytics_available"
+    INBOX_ANALYSIS_READY = "inbox_analysis_ready"
+    INBOX_ERROR = "inbox_error"
 
 
 class NotificationDismissal(Base):
