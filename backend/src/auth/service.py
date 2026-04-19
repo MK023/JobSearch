@@ -1,5 +1,6 @@
 """Authentication service: user management, password hashing, session handling."""
 
+import secrets
 from datetime import UTC, datetime, timedelta
 from typing import cast as type_cast
 
@@ -9,11 +10,11 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from .models import LOCKOUT_MINUTES, MAX_FAILED_ATTEMPTS, User
 
-# Process-local dummy bcrypt hash generated at import time, used for
-# constant-time login when the email is unknown. Never committed — each
-# worker boot computes a fresh salt. SonarCloud S8215 / Bandit S105 do
-# not fire against a runtime-generated value.
-_DUMMY_HASH = bcrypt.hashpw(b"not-a-real-password", bcrypt.gensalt()).decode()
+# Process-local dummy bcrypt hash generated at import time from fresh random
+# bytes, used for constant-time login when the email is unknown. Both the
+# input (random bytes, never a literal) and the salt are unique per worker
+# boot — nothing here is a credential that could be leaked or reused.
+_DUMMY_HASH = bcrypt.hashpw(secrets.token_bytes(32), bcrypt.gensalt()).decode()
 
 
 def hash_password(password: str) -> str:
