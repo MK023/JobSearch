@@ -379,27 +379,27 @@ Tipicamente: nessuna tutela da subordinato (ferie, malattia, TFR), gestione fisc
     <div class="contacts-form">
       <div class="form-grid">
         <div class="form-group">
-          <label>Nome</label>
+          <label for="ct-name-{{ current.id }}">Nome</label>
           <input type="text" id="ct-name-{{ current.id }}" placeholder="Nome e cognome">
         </div>
         <div class="form-group">
-          <label>Email</label>
+          <label for="ct-email-{{ current.id }}">Email</label>
           <input type="email" id="ct-email-{{ current.id }}" placeholder="email@example.com">
         </div>
         <div class="form-group">
-          <label>Telefono</label>
+          <label for="ct-phone-{{ current.id }}">Telefono</label>
           <input type="tel" id="ct-phone-{{ current.id }}" placeholder="+39 ...">
         </div>
         <div class="form-group">
-          <label>Azienda</label>
+          <label for="ct-company-{{ current.id }}">Azienda</label>
           <input type="text" id="ct-company-{{ current.id }}" value="{{ current.company or '' }}" placeholder="Azienda">
         </div>
         <div class="form-group">
-          <label>LinkedIn</label>
+          <label for="ct-linkedin-{{ current.id }}">LinkedIn</label>
           <input type="url" id="ct-linkedin-{{ current.id }}" placeholder="https://linkedin.com/in/...">
         </div>
         <div class="form-group">
-          <label>Note</label>
+          <label for="ct-notes-{{ current.id }}">Note</label>
           <input type="text" id="ct-notes-{{ current.id }}" placeholder="Note...">
         </div>
       </div>
