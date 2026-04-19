@@ -17,6 +17,7 @@ from src.contacts.models import Contact
 from src.cover_letter.models import CoverLetter
 from src.cv.models import CVProfile
 from src.database.base import Base
+from src.inbox.models import InboxItem
 from src.integrations.glassdoor import GlassdoorCache
 from src.integrations.news import NewsCache
 from src.integrations.salary import SalaryCache
@@ -46,6 +47,7 @@ _ALL_MODELS = [
     NewsCache,
     AnalyticsRun,
     UserProfile,
+    InboxItem,
 ]
 
 

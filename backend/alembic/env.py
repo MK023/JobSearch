@@ -16,6 +16,7 @@ from src.cv.models import CVProfile  # noqa: F401
 
 # Import all models so Alembic can detect them
 from src.database.base import Base
+from src.inbox.models import InboxItem  # noqa: F401
 from src.integrations.glassdoor import GlassdoorCache  # noqa: F401
 from src.notifications.models import NotificationLog  # noqa: F401
 
