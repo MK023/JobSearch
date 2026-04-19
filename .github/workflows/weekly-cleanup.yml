@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      API_BASE: https://api.jobsearches.cc
+      API_BASE: https://www.jobsearches.cc
       API_KEY: ${{ secrets.JOBSEARCH_API_KEY }}
       DAYS: "180"
       MAX_SCORE: "30"
