@@ -9,6 +9,7 @@ from .analytics_page.routes import api_router as analytics_api_router
 from .batch.routes import router as batch_router
 from .contacts.routes import router as contacts_router
 from .dashboard.routes import router as dashboard_router
+from .inbox.routes import router as inbox_router
 from .interview.file_routes import router as file_router
 from .interview.routes import router as interview_router
 from .notification_center.routes import router as notification_router
@@ -22,6 +23,7 @@ api_v1_router.include_router(followup_router)
 api_v1_router.include_router(contacts_router)
 api_v1_router.include_router(dashboard_router)
 api_v1_router.include_router(batch_router)
+api_v1_router.include_router(inbox_router)
 api_v1_router.include_router(interview_router)
 api_v1_router.include_router(file_router)
 api_v1_router.include_router(notification_router)
