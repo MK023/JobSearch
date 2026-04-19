@@ -42,9 +42,9 @@ function app() {
  * Persists choice in localStorage. Default is dark.
  */
 function toggleTheme() {
-    var html = document.documentElement;
-    var current = html.getAttribute('data-theme') || 'dark';
-    var next = current === 'dark' ? 'light' : 'dark';
+    const html = document.documentElement;
+    const current = html.getAttribute('data-theme') || 'dark';
+    const next = current === 'dark' ? 'light' : 'dark';
     html.setAttribute('data-theme', next);
     localStorage.setItem('theme', next);
 }
@@ -62,14 +62,14 @@ function _checkPendingAnalysis() {
     // navigates several pages, flooding /api/v1/analysis/latest.
     if (window._pendingAnalysisActive) return;
 
-    var raw = sessionStorage.getItem('pendingAnalysis');
+    const raw = sessionStorage.getItem('pendingAnalysis');
     if (!raw) return;
 
-    var pending;
+    let pending;
     try { pending = JSON.parse(raw); } catch (_) { sessionStorage.removeItem('pendingAnalysis'); return; }
 
-    var startedAt = new Date(pending.startedAt).getTime();
-    var elapsed = Date.now() - startedAt;
+    const startedAt = new Date(pending.startedAt).getTime();
+    const elapsed = Date.now() - startedAt;
 
     if (elapsed > 300000) {
         sessionStorage.removeItem('pendingAnalysis');
@@ -87,7 +87,7 @@ function _checkPendingAnalysis() {
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 if (!data || !data.id || !data.created_at) return scheduleNext();
-                var createdAt = new Date(data.created_at).getTime();
+                const createdAt = new Date(data.created_at).getTime();
                 if (createdAt >= startedAt) {
                     if (!sessionStorage.getItem('pendingAnalysis')) { stop(); return; }
                     sessionStorage.removeItem('pendingAnalysis');
@@ -102,8 +102,8 @@ function _checkPendingAnalysis() {
 
     function scheduleNext() {
         if (!sessionStorage.getItem('pendingAnalysis')) { stop(); return; }
-        var now = Date.now();
-        var age = now - startedAt;
+        const now = Date.now();
+        const age = now - startedAt;
         if (age > 90000) {
             sessionStorage.removeItem('pendingAnalysis');
             stop();
@@ -124,30 +124,30 @@ function _checkPendingAnalysis() {
 function _showErrorBanner(msg) {
     if (document.querySelector('.completion-banner-error')) return;
 
-    var banner = document.createElement('div');
+    const banner = document.createElement('div');
     banner.className = 'completion-banner completion-banner-error';
 
-    var info = document.createElement('div');
+    const info = document.createElement('div');
     info.className = 'completion-banner-info';
-    var strong = document.createElement('strong');
+    const strong = document.createElement('strong');
     strong.textContent = msg;
     info.appendChild(strong);
     banner.appendChild(info);
 
-    var link = document.createElement('a');
+    const link = document.createElement('a');
     link.href = '/analyze';
     link.className = 'btn btn-primary btn-sm no-underline';
     link.textContent = 'Riprova';
     banner.appendChild(link);
 
-    var dismiss = document.createElement('button');
+    const dismiss = document.createElement('button');
     dismiss.type = 'button';
     dismiss.className = 'btn btn-ghost btn-sm completion-dismiss';
     dismiss.textContent = '\u00D7';
     dismiss.onclick = function() { banner.remove(); };
     banner.appendChild(dismiss);
 
-    var content = document.querySelector('.content-inner') || document.querySelector('main') || document.body;
+    const content = document.querySelector('.content-inner') || document.querySelector('main') || document.body;
     content.insertBefore(banner, content.firstChild);
 }
 
@@ -155,33 +155,33 @@ function _showCompletionBanner(data) {
     if (window.location.pathname === '/analysis/' + data.id) return;
     if (document.querySelector('.completion-banner')) return;
 
-    var banner = document.createElement('div');
+    const banner = document.createElement('div');
     banner.className = 'completion-banner';
 
-    var info = document.createElement('div');
+    const info = document.createElement('div');
     info.className = 'completion-banner-info';
-    var strong = document.createElement('strong');
+    const strong = document.createElement('strong');
     strong.textContent = 'Analisi completata!';
-    var span = document.createElement('span');
+    const span = document.createElement('span');
     span.textContent = ' ' + (data.role || '') + ' @ ' + (data.company || '');
     info.appendChild(strong);
     info.appendChild(span);
     banner.appendChild(info);
 
-    var link = document.createElement('a');
+    const link = document.createElement('a');
     link.href = '/analysis/' + encodeURIComponent(data.id);
     link.className = 'btn btn-primary btn-sm no-underline';
     link.textContent = 'Apri';
     banner.appendChild(link);
 
-    var dismiss = document.createElement('button');
+    const dismiss = document.createElement('button');
     dismiss.type = 'button';
     dismiss.className = 'btn btn-ghost btn-sm completion-dismiss';
     dismiss.textContent = '\u00D7';
     dismiss.onclick = function() { banner.remove(); };
     banner.appendChild(dismiss);
 
-    var content = document.querySelector('.content-inner') || document.querySelector('main') || document.body;
+    const content = document.querySelector('.content-inner') || document.querySelector('main') || document.body;
     content.insertBefore(banner, content.firstChild);
 }
 
@@ -192,7 +192,7 @@ function _showCompletionBanner(data) {
  */
 function handleRateLimit(response, msg) {
     if (response.status === 429) {
-        var retryAfter = response.headers.get('Retry-After') || '60';
+        const retryAfter = response.headers.get('Retry-After') || '60';
         if (typeof showToast === 'function') {
             showToast((msg || 'Troppe richieste') + '. Riprova tra ' + retryAfter + ' secondi.', 'error');
         }

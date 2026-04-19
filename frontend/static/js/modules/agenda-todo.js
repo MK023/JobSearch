@@ -3,11 +3,11 @@
  */
 
 function addTodoServer() {
-    var input = document.getElementById('agenda-todo-input');
-    var text = (input.value || '').trim();
+    const input = document.getElementById('agenda-todo-input');
+    const text = (input.value || '').trim();
     if (!text) return;
 
-    var fd = new FormData();
+    const fd = new FormData();
     fd.append('text', text);
 
     fetch('/api/v1/todos', { method: 'POST', body: fd })

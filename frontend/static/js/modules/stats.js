@@ -10,27 +10,27 @@
     'use strict';
 
     function readPayload() {
-        var el = document.getElementById('stats-payload');
+        const el = document.getElementById('stats-payload');
         if (!el) return null;
         try { return JSON.parse(el.textContent); } catch (_) { return null; }
     }
 
     function themeColor(varName, fallback) {
-        var v = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+        const v = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
         return v || fallback;
     }
 
-    var PALETTE = [
+    const PALETTE = [
         '#0ea5e9', '#10b981', '#f59e0b', '#ef4444',
         '#8b5cf6', '#ec4899', '#14b8a6', '#f97316',
         '#6366f1', '#84cc16'
     ];
 
     function baseOptions(opts) {
-        var fg = themeColor('--text-primary', '#c9d1d9');
-        var muted = themeColor('--text-secondary', '#8b949e');
-        var grid = themeColor('--border-subtle', 'rgba(255,255,255,0.1)');
-        var isDoughnut = opts && opts.noScales;
+        const fg = themeColor('--text-primary', '#c9d1d9');
+        const muted = themeColor('--text-secondary', '#8b949e');
+        const grid = themeColor('--border-subtle', 'rgba(255,255,255,0.1)');
+        const isDoughnut = opts && opts.noScales;
         return {
             responsive: true,
             maintainAspectRatio: false,
@@ -67,10 +67,10 @@
     }
 
     function renderFunnel(data) {
-        var ctx = document.getElementById('chart-funnel');
+        const ctx = document.getElementById('chart-funnel');
         if (!ctx || !data) return;
-        var labels = ['da_valutare', 'candidato', 'colloquio', 'offerta', 'scartato'];
-        var colors = ['#6b7280', '#0ea5e9', '#10b981', '#a855f7', '#ef4444'];
+        const labels = ['da_valutare', 'candidato', 'colloquio', 'offerta', 'scartato'];
+        const colors = ['#6b7280', '#0ea5e9', '#10b981', '#a855f7', '#ef4444'];
         new Chart(ctx, {
             type: 'bar',
             data: {
@@ -87,7 +87,7 @@
     }
 
     function renderScoreDistribution(items) {
-        var ctx = document.getElementById('chart-score-distribution');
+        const ctx = document.getElementById('chart-score-distribution');
         if (!ctx || !items) return;
         new Chart(ctx, {
             type: 'bar',
@@ -105,7 +105,7 @@
     }
 
     function renderApplicationsPerWeek(items) {
-        var ctx = document.getElementById('chart-applications-per-week');
+        const ctx = document.getElementById('chart-applications-per-week');
         if (!ctx || !items) return;
         new Chart(ctx, {
             type: 'line',
@@ -126,7 +126,7 @@
     }
 
     function renderTopCompanies(items) {
-        var ctx = document.getElementById('chart-top-companies');
+        const ctx = document.getElementById('chart-top-companies');
         if (!ctx || !items) return;
         new Chart(ctx, {
             type: 'bar',
@@ -144,7 +144,7 @@
     }
 
     function renderWorkMode(items) {
-        var ctx = document.getElementById('chart-work-mode');
+        const ctx = document.getElementById('chart-work-mode');
         if (!ctx || !items) return;
         new Chart(ctx, {
             type: 'doughnut',
@@ -161,9 +161,9 @@
     }
 
     function renderContractSplit(data) {
-        var ctx = document.getElementById('chart-contract-split');
+        const ctx = document.getElementById('chart-contract-split');
         if (!ctx || !data) return;
-        var labels = ['dipendente', 'body_rental', 'freelance', 'recruiter_esterno'];
+        const labels = ['dipendente', 'body_rental', 'freelance', 'recruiter_esterno'];
         new Chart(ctx, {
             type: 'doughnut',
             data: {
@@ -179,7 +179,7 @@
     }
 
     function renderRecommendation(data) {
-        var ctx = document.getElementById('chart-recommendation');
+        const ctx = document.getElementById('chart-recommendation');
         if (!ctx || !data) return;
         new Chart(ctx, {
             type: 'pie',
@@ -196,7 +196,7 @@
     }
 
     function renderScoreByStatus(items) {
-        var ctx = document.getElementById('chart-score-by-status');
+        const ctx = document.getElementById('chart-score-by-status');
         if (!ctx || !items) return;
         new Chart(ctx, {
             type: 'bar',
@@ -214,7 +214,7 @@
     }
 
     function renderSpending(items) {
-        var ctx = document.getElementById('chart-spending');
+        const ctx = document.getElementById('chart-spending');
         if (!ctx || !items) return;
         new Chart(ctx, {
             type: 'line',
@@ -236,7 +236,7 @@
 
     document.addEventListener('DOMContentLoaded', function () {
         if (typeof Chart === 'undefined') return;
-        var payload = readPayload();
+        const payload = readPayload();
         if (!payload) return;
         renderFunnel(payload.funnel);
         renderScoreDistribution(payload.score_distribution);

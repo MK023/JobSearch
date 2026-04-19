@@ -3,9 +3,9 @@
  */
 
 function _createGenBox(label, id) {
-    var area = document.getElementById('generated-area-' + id);
+    let area = document.getElementById('generated-area-' + id);
     if (!area) {
-        var alertEl = document.getElementById('followup-' + id);
+        const alertEl = document.getElementById('followup-' + id);
         if (alertEl) {
             area = document.createElement('div');
             area.id = 'generated-area-' + id;
@@ -16,10 +16,10 @@ function _createGenBox(label, id) {
     }
     while (area.firstChild) area.removeChild(area.firstChild);
 
-    var box = document.createElement('div');
+    const box = document.createElement('div');
     box.className = 'generated-box';
 
-    var lbl = document.createElement('div');
+    const lbl = document.createElement('div');
     lbl.className = 'generated-label';
     lbl.textContent = label;
     box.appendChild(lbl);
@@ -29,7 +29,7 @@ function _createGenBox(label, id) {
 }
 
 function _addGenText(parent, text, elId) {
-    var d = document.createElement('div');
+    const d = document.createElement('div');
     d.className = 'generated-text';
     d.textContent = text;
     if (elId) d.id = elId;
@@ -38,7 +38,7 @@ function _addGenText(parent, text, elId) {
 }
 
 function _addCopyBtn(parent, targetId) {
-    var btn = document.createElement('button');
+    const btn = document.createElement('button');
     btn.className = 'btn btn-muted btn-sm';
     btn.textContent = '\uD83D\uDCCB Copia';
     btn.onclick = function() {
@@ -49,7 +49,7 @@ function _addCopyBtn(parent, targetId) {
 }
 
 function _addGenMeta(parent, cost, tokens, extra) {
-    var m = document.createElement('div');
+    const m = document.createElement('div');
     m.className = 'generated-meta';
     m.textContent = '\uD83D\uDCB0 $' + (cost || 0).toFixed(5) +
         ' | ' + (tokens || 0) + ' tok' +
@@ -59,10 +59,10 @@ function _addGenMeta(parent, cost, tokens, extra) {
 
 
 function genFollowup(id) {
-    var g = _createGenBox('\u23F3 Generazione email follow-up...', id);
+    const g = _createGenBox('\u23F3 Generazione email follow-up...', id);
     if (!g) return;
 
-    var fd = new FormData();
+    const fd = new FormData();
     fd.append('analysis_id', id);
     fd.append('language', 'italiano');
 
@@ -76,7 +76,7 @@ function genFollowup(id) {
             while (g.box.firstChild) g.box.removeChild(g.box.firstChild);
 
             if (data.error) {
-                var errLbl = document.createElement('div');
+                const errLbl = document.createElement('div');
                 errLbl.className = 'generated-label';
                 errLbl.textContent = '\u274C Errore';
                 g.box.appendChild(errLbl);
@@ -84,12 +84,12 @@ function genFollowup(id) {
                 return;
             }
 
-            var lbl = document.createElement('div');
+            const lbl = document.createElement('div');
             lbl.className = 'generated-label';
             lbl.textContent = '\u2709\uFE0F Email di follow-up';
             g.box.appendChild(lbl);
 
-            var subj = document.createElement('div');
+            const subj = document.createElement('div');
             subj.className = 'generated-text';
             subj.style.fontWeight = '600';
             subj.textContent = 'Oggetto: ' + data.subject;
@@ -102,7 +102,7 @@ function genFollowup(id) {
         })
         .catch(function(e) {
             while (g.box.firstChild) g.box.removeChild(g.box.firstChild);
-            var errLbl = document.createElement('div');
+            const errLbl = document.createElement('div');
             errLbl.className = 'generated-label';
             errLbl.textContent = '\u274C Errore di rete';
             g.box.appendChild(errLbl);
@@ -112,10 +112,10 @@ function genFollowup(id) {
 
 
 function genLinkedin(id) {
-    var g = _createGenBox('\u23F3 Generazione messaggio LinkedIn...', id);
+    const g = _createGenBox('\u23F3 Generazione messaggio LinkedIn...', id);
     if (!g) return;
 
-    var fd = new FormData();
+    const fd = new FormData();
     fd.append('analysis_id', id);
     fd.append('language', 'italiano');
 
@@ -129,7 +129,7 @@ function genLinkedin(id) {
             while (g.box.firstChild) g.box.removeChild(g.box.firstChild);
 
             if (data.error) {
-                var errLbl = document.createElement('div');
+                const errLbl = document.createElement('div');
                 errLbl.className = 'generated-label';
                 errLbl.textContent = '\u274C Errore';
                 g.box.appendChild(errLbl);
@@ -137,7 +137,7 @@ function genLinkedin(id) {
                 return;
             }
 
-            var lbl = document.createElement('div');
+            const lbl = document.createElement('div');
             lbl.className = 'generated-label';
             lbl.textContent = '\uD83D\uDCBC Messaggio LinkedIn';
             g.box.appendChild(lbl);
@@ -146,7 +146,7 @@ function genLinkedin(id) {
             _addCopyBtn(g.box, 'linkedin-msg-' + id);
 
             if (data.connection_note) {
-                var lbl2 = document.createElement('div');
+                const lbl2 = document.createElement('div');
                 lbl2.className = 'generated-label';
                 lbl2.style.marginTop = '8px';
                 lbl2.textContent = '\uD83E\uDD1D Nota connessione';
@@ -164,7 +164,7 @@ function genLinkedin(id) {
         })
         .catch(function(e) {
             while (g.box.firstChild) g.box.removeChild(g.box.firstChild);
-            var errLbl = document.createElement('div');
+            const errLbl = document.createElement('div');
             errLbl.className = 'generated-label';
             errLbl.textContent = '\u274C Errore di rete';
             g.box.appendChild(errLbl);
@@ -178,10 +178,10 @@ function markFollowupDone(id) {
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data.ok) {
-                var el = document.getElementById('followup-' + id);
+                const el = document.getElementById('followup-' + id);
                 if (el) el.remove();
                 // Also remove associated generated area
-                var genArea = document.getElementById('generated-area-' + id);
+                const genArea = document.getElementById('generated-area-' + id);
                 if (genArea) genArea.remove();
                 window.location.reload();
                 showToast('Follow-up completato', 'success');

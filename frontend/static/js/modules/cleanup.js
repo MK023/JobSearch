@@ -15,8 +15,8 @@ function cleanupForm() {
         preview: function() {
             this.loading = true;
             this.message = '';
-            var qs = '?days=' + encodeURIComponent(this.days) + '&max_score=' + encodeURIComponent(this.maxScore);
-            var self = this;
+            const qs = '?days=' + encodeURIComponent(this.days) + '&max_score=' + encodeURIComponent(this.maxScore);
+            const self = this;
             fetch('/analysis/cleanup-preview' + qs)
                 .then(function(r) {
                     if (!r.ok) throw new Error('preview failed: ' + r.status);
@@ -32,16 +32,16 @@ function cleanupForm() {
 
         confirmDelete: function() {
             if (this.count === null || this.count <= 0) return;
-            var ok = window.confirm(
+            const ok = window.confirm(
                 'Confermi l\'eliminazione di ' + this.count + ' analisi? L\'operazione non e\' reversibile.'
             );
             if (!ok) return;
             this.loading = true;
             this.message = '';
-            var qs = '?days=' + encodeURIComponent(this.days)
+            const qs = '?days=' + encodeURIComponent(this.days)
                 + '&max_score=' + encodeURIComponent(this.maxScore)
                 + '&dry_run=false';
-            var self = this;
+            const self = this;
             fetch('/analysis/cleanup' + qs, { method: 'DELETE' })
                 .then(function(r) {
                     if (!r.ok) throw new Error('cleanup failed: ' + r.status);

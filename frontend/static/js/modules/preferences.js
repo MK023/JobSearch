@@ -4,7 +4,7 @@
  */
 
 function aiPreferences() {
-    var KEY = 'ai_sonnet_fallback_on_low_confidence';
+    const KEY = 'ai_sonnet_fallback_on_low_confidence';
 
     return {
         sonnetFallback: false,
@@ -12,7 +12,7 @@ function aiPreferences() {
         message: '',
 
         load: function() {
-            var self = this;
+            const self = this;
             fetch('/api/preferences/' + KEY)
                 .then(function(r) {
                     if (!r.ok) throw new Error('load failed: ' + r.status);
@@ -23,7 +23,7 @@ function aiPreferences() {
         },
 
         save: function() {
-            var self = this;
+            const self = this;
             self.loading = true;
             self.message = '';
             fetch('/api/preferences/' + KEY, {

@@ -3,7 +3,7 @@
  */
 
 function initBudgetEditing() {
-    var budgetEl = document.getElementById('spending-budget');
+    const budgetEl = document.getElementById('spending-budget');
     if (!budgetEl) return;
 
     budgetEl.addEventListener('blur', saveBudget);
@@ -16,15 +16,15 @@ function initBudgetEditing() {
 }
 
 function saveBudget() {
-    var budgetEl = document.getElementById('spending-budget');
+    const budgetEl = document.getElementById('spending-budget');
     if (!budgetEl) return;
 
-    var raw = budgetEl.textContent.replace(/[^0-9.,]/g, '').replace(',', '.');
-    var val = parseFloat(raw);
+    const raw = budgetEl.textContent.replace(/[^0-9.,]/g, '').replace(',', '.');
+    let val = parseFloat(raw);
     if (isNaN(val) || val < 0) val = 0;
     budgetEl.textContent = '$' + val.toFixed(2);
 
-    var fd = new FormData();
+    const fd = new FormData();
     fd.append('budget', val);
     fetch('/api/v1/spending/budget', { method: 'PUT', body: fd })
         .then(function() { refreshSpending(); })
@@ -35,17 +35,17 @@ function refreshSpending() {
     fetch('/api/v1/spending')
         .then(function(r) { return r.json(); })
         .then(function(d) {
-            var costEl = document.getElementById('spending-cost');
+            const costEl = document.getElementById('spending-cost');
             if (!costEl) return;
 
             costEl.textContent = '$' + d.total_cost_usd.toFixed(4);
 
-            var budgetDisplay = document.getElementById('spending-budget');
+            const budgetDisplay = document.getElementById('spending-budget');
             if (budgetDisplay && !budgetDisplay.matches(':focus')) {
                 budgetDisplay.textContent = '$' + d.budget.toFixed(2);
             }
 
-            var remainEl = document.getElementById('spending-remaining');
+            const remainEl = document.getElementById('spending-remaining');
             if (remainEl) {
                 if (d.remaining !== null) {
                     remainEl.textContent = '$' + d.remaining.toFixed(4);
@@ -57,9 +57,9 @@ function refreshSpending() {
                 }
             }
 
-            var todayEl = document.getElementById('spending-today');
+            const todayEl = document.getElementById('spending-today');
             if (todayEl) {
-                var todayTok = d.today_tokens_input + d.today_tokens_output;
+                const todayTok = d.today_tokens_input + d.today_tokens_output;
                 todayEl.textContent = '$' + d.today_cost_usd.toFixed(4) +
                     ' (' + d.today_analyses + ' analisi, ' + todayTok.toLocaleString('it-IT') + ' tok)';
             }

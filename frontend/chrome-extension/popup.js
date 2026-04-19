@@ -49,7 +49,7 @@
         saveSettings: $('save-settings'),
     };
 
-    let state = {
+    const state = {
         endpoint: DEFAULT_ENDPOINT,
         apiKey: '',
     };

@@ -15,10 +15,10 @@
  */
 
 function historyTabs() {
-    var validTabs = ['valutazione', 'candidature', 'scartati', 'rifiutati'];
-    var validContractTypes = ['tutti', 'dipendente', 'piva'];
-    var FILTERS_KEY = 'historyFilters';
-    var defaultFilters = {
+    const validTabs = ['valutazione', 'candidature', 'scartati', 'rifiutati'];
+    const validContractTypes = ['tutti', 'dipendente', 'piva'];
+    const FILTERS_KEY = 'historyFilters';
+    const defaultFilters = {
         contractType: 'tutti',
         hideBodyRental: false,
         hideRecruiter: false,
@@ -28,11 +28,11 @@ function historyTabs() {
 
     function loadFilters() {
         try {
-            var raw = sessionStorage.getItem(FILTERS_KEY);
+            const raw = sessionStorage.getItem(FILTERS_KEY);
             if (!raw) return Object.assign({}, defaultFilters);
-            var parsed = JSON.parse(raw);
+            const parsed = JSON.parse(raw);
             // Legacy migration: old `hideFreelance: true` -> `contractType: 'dipendente'`
-            var contractType = parsed.contractType;
+            let contractType = parsed.contractType;
             if (!contractType && parsed.hideFreelance) contractType = 'dipendente';
             if (validContractTypes.indexOf(contractType) === -1) contractType = 'tutti';
             return {
@@ -61,9 +61,9 @@ function historyTabs() {
 
         init: function() {
             // Restore tab from URL hash or sessionStorage
-            var hash = location.hash.replace('#', '');
-            var stored = sessionStorage.getItem('historyTab');
-            var restored = validTabs.indexOf(hash) !== -1 ? hash : (validTabs.indexOf(stored) !== -1 ? stored : 'valutazione');
+            const hash = location.hash.replace('#', '');
+            const stored = sessionStorage.getItem('historyTab');
+            const restored = validTabs.indexOf(hash) !== -1 ? hash : (validTabs.indexOf(stored) !== -1 ? stored : 'valutazione');
             this.activeTab = restored;
             this.filters = loadFilters();
             this.filterItems();
@@ -116,33 +116,33 @@ function historyTabs() {
         },
 
         filterItems: function() {
-            var tab = this.activeTab;
-            var f = this.filters;
-            var cVal = 0, cCand = 0, cScar = 0, cRif = 0;
+            const tab = this.activeTab;
+            const f = this.filters;
+            let cVal = 0, cCand = 0, cScar = 0, cRif = 0;
 
             document.querySelectorAll('.history-item[data-hist-status]').forEach(function(item) {
-                var st = item.dataset.histStatus || 'da_valutare';
+                const st = item.dataset.histStatus || 'da_valutare';
 
-                var bucket;
+                let bucket;
                 if (st === 'da_valutare') { cVal++; bucket = 'valutazione'; }
                 else if (st === 'candidato' || st === 'colloquio' || st === 'offerta') { cCand++; bucket = 'candidature'; }
                 else if (st === 'rifiutato') { cRif++; bucket = 'rifiutati'; }
                 else { cScar++; bucket = 'scartati'; }
 
-                var matchTab = (tab === bucket);
-                var matchFilters = true;
+                const matchTab = (tab === bucket);
+                let matchFilters = true;
                 // Contract type: dipendente -> is_freelance != '1'; piva -> is_freelance === '1'; tutti -> nessun filtro
-                var isFreelance = item.dataset.histFreelance === '1';
+                const isFreelance = item.dataset.histFreelance === '1';
                 if (f.contractType === 'dipendente' && isFreelance) matchFilters = false;
                 if (f.contractType === 'piva' && !isFreelance) matchFilters = false;
                 if (f.hideBodyRental && item.dataset.histBodyrental === '1') matchFilters = false;
                 if (f.hideRecruiter && item.dataset.histRecruiter === '1') matchFilters = false;
                 if (f.minScore > 0) {
-                    var score = parseInt(item.dataset.histScore, 10) || 0;
+                    const score = parseInt(item.dataset.histScore, 10) || 0;
                     if (score < f.minScore) matchFilters = false;
                 }
                 if (f.searchQuery) {
-                    var haystack = item.dataset.histSearch || '';
+                    const haystack = item.dataset.histSearch || '';
                     if (haystack.indexOf(f.searchQuery) === -1) matchFilters = false;
                 }
 
@@ -163,13 +163,13 @@ function historyTabs() {
  * after imperative status changes. Called by status.js.
  */
 function refreshHistoryCounts() {
-    var histEl = document.querySelector('.history-section');
+    const histEl = document.querySelector('.history-section');
     if (!histEl) return;
 
     // Access Alpine v3 data and re-filter
     if (typeof Alpine !== 'undefined') {
         try {
-            var data = Alpine.$data(histEl);
+            const data = Alpine.$data(histEl);
             if (data && data.filterItems) {
                 data.filterItems();
             }

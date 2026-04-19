@@ -99,6 +99,11 @@ export default [
         varsIgnorePattern: "^_",
       }],
       "no-shadow-restricted-names": "error",
+
+      // --- ES6+ modernization (SonarCloud S3504 + S6582) ---
+      // "var" has function-scope quirks and hoisting footguns; prefer block-scoped.
+      "no-var": "error",
+      "prefer-const": ["error", { destructuring: "any" }],
     },
   },
   {
@@ -124,6 +129,8 @@ export default [
       "no-self-assign": "error",
       "no-self-compare": "error",
       "use-isnan": "error",
+      "no-var": "error",
+      "prefer-const": ["error", { destructuring: "any" }],
     },
   },
 ];

@@ -3,7 +3,7 @@
  */
 
 function toggleContacts(id) {
-    var el = document.getElementById('contacts-' + id);
+    const el = document.getElementById('contacts-' + id);
     if (!el) return;
 
     if (el.classList.contains('hidden')) {
@@ -18,23 +18,23 @@ function loadContacts(id) {
     fetch('/api/v1/contacts/' + id)
         .then(function(r) { return r.json(); })
         .then(function(data) {
-            var list = document.getElementById('contacts-list-' + id);
+            const list = document.getElementById('contacts-list-' + id);
             if (!list) return;
 
             while (list.firstChild) list.removeChild(list.firstChild);
 
             (data.contacts || []).forEach(function(c) {
-                var row = document.createElement('div');
+                const row = document.createElement('div');
                 row.className = 'contact-row';
 
-                var name = document.createElement('span');
+                const name = document.createElement('span');
                 name.className = 'contact-name';
                 name.textContent = c.name || 'Senza nome';
                 row.appendChild(name);
 
-                var detail = document.createElement('span');
+                const detail = document.createElement('span');
                 detail.className = 'contact-detail';
-                var parts = [];
+                const parts = [];
                 if (c.email) parts.push(c.email);
                 if (c.phone) parts.push(c.phone);
                 if (c.notes) parts.push(c.notes);
@@ -42,7 +42,7 @@ function loadContacts(id) {
                 row.appendChild(detail);
 
                 if (c.linkedin_url) {
-                    var lnk = document.createElement('a');
+                    const lnk = document.createElement('a');
                     lnk.href = c.linkedin_url;
                     lnk.target = '_blank';
                     lnk.rel = 'noopener noreferrer';
@@ -51,7 +51,7 @@ function loadContacts(id) {
                     row.appendChild(lnk);
                 }
 
-                var del = document.createElement('button');
+                const del = document.createElement('button');
                 del.className = 'btn btn-danger btn-sm';
                 del.textContent = '\uD83D\uDDD1\uFE0F';
                 del.onclick = function() { deleteContact(String(c.id), id); };
@@ -67,7 +67,7 @@ function loadContacts(id) {
 }
 
 function saveContact(analysisId) {
-    var fd = new FormData();
+    const fd = new FormData();
     fd.append('analysis_id', analysisId);
     fd.append('name', document.getElementById('ct-name-' + analysisId).value);
     fd.append('email', document.getElementById('ct-email-' + analysisId).value);
@@ -82,7 +82,7 @@ function saveContact(analysisId) {
             if (data.ok) {
                 loadContacts(analysisId);
                 ['name', 'email', 'phone', 'linkedin', 'notes'].forEach(function(f) {
-                    var el = document.getElementById('ct-' + f + '-' + analysisId);
+                    const el = document.getElementById('ct-' + f + '-' + analysisId);
                     if (el && f !== 'company') el.value = '';
                 });
                 showToast('Contatto aggiunto', 'success');

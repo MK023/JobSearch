@@ -26,7 +26,7 @@ function batchManager() {
         },
 
         init: function() {
-            var self = this;
+            const self = this;
             // Fetch current batch state from server — survives reloads and deploys.
             fetch('/api/v1/batch/status')
                 .then(function(r) { return r.json(); })
@@ -54,14 +54,14 @@ function batchManager() {
         },
 
         addItem: function() {
-            var jd = this.batchJd.trim();
+            const jd = this.batchJd.trim();
             if (!jd) return;
 
-            var url = this.batchUrl.trim();
-            var model = this.batchModel;
-            var self = this;
+            const url = this.batchUrl.trim();
+            const model = this.batchModel;
+            const self = this;
 
-            var fd = new FormData();
+            const fd = new FormData();
             fd.append('job_description', jd);
             fd.append('job_url', url);
             fd.append('model', model);
@@ -84,7 +84,7 @@ function batchManager() {
         },
 
         runAll: function() {
-            var self = this;
+            const self = this;
             self.running = true;
             self.statusText = 'Analisi in corso...';
 
@@ -106,7 +106,7 @@ function batchManager() {
         },
 
         pollStatus: function() {
-            var self = this;
+            const self = this;
 
             fetch('/api/v1/batch/status')
                 .then(function(r) { return r.json(); })
@@ -127,8 +127,8 @@ function batchManager() {
                         setTimeout(function() { self.pollStatus(); }, 2000);
                     } else if (data.status === 'done') {
                         self.running = false;
-                        var ok = data.counts && data.counts.done || 0;
-                        var err = data.counts && data.counts.error || 0;
+                        const ok = data.counts && data.counts.done || 0;
+                        const err = data.counts && data.counts.error || 0;
                         self.statusText = 'Completato: ' + ok + ' ok, ' + err + ' errori';
                         if (typeof refreshSpending === 'function') refreshSpending();
                         showToast('Batch completato (' + ok + '/' + data.total + ') — apro lo storico', 'success');
@@ -150,7 +150,7 @@ function batchManager() {
         },
 
         clearQueue: function() {
-            var self = this;
+            const self = this;
 
             fetch('/api/v1/batch/clear', { method: 'DELETE' })
                 .then(function(r) { return r.json(); })

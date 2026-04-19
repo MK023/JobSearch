@@ -3,23 +3,23 @@
  * Uploads the file directly to the backend for server-side text extraction.
  */
 
-var CV_ALLOWED_EXT = ['.txt', '.pdf', '.doc', '.docx', '.xlsx', '.xls'];
-var CV_MAX_SIZE = 10 * 1024 * 1024; // 10 MB
+const CV_ALLOWED_EXT = ['.txt', '.pdf', '.doc', '.docx', '.xlsx', '.xls'];
+const CV_MAX_SIZE = 10 * 1024 * 1024; // 10 MB
 
 function uploadCV() {
     document.getElementById('cv-file').click();
 }
 
 function initCVUpload() {
-    var cvFile = document.getElementById('cv-file');
+    const cvFile = document.getElementById('cv-file');
     if (!cvFile) return;
 
     cvFile.addEventListener('change', function() {
-        var file = this.files[0];
+        const file = this.files[0];
         if (!file) return;
 
         // Validate extension
-        var ext = '.' + file.name.split('.').pop().toLowerCase();
+        const ext = '.' + file.name.split('.').pop().toLowerCase();
         if (CV_ALLOWED_EXT.indexOf(ext) === -1) {
             showToast('Formato non supportato. Usa PDF, DOCX, DOC, TXT o XLSX.', 'error');
             this.value = '';
@@ -34,23 +34,23 @@ function initCVUpload() {
         }
 
         // Submit file via form with enctype multipart
-        var form = document.querySelector('.cv-form');
+        const form = document.querySelector('.cv-form');
         if (!form) return;
 
         // Set enctype for file upload
         form.setAttribute('enctype', 'multipart/form-data');
 
         // Create hidden file input inside form
-        var existingHidden = form.querySelector('input[name="cv_file"]');
+        const existingHidden = form.querySelector('input[name="cv_file"]');
         if (existingHidden) existingHidden.remove();
 
-        var fileInput = document.createElement('input');
+        const fileInput = document.createElement('input');
         fileInput.type = 'file';
         fileInput.name = 'cv_file';
         fileInput.style.display = 'none';
 
         // Copy the file to the new input via DataTransfer
-        var dt = new DataTransfer();
+        const dt = new DataTransfer();
         dt.items.add(file);
         fileInput.files = dt.files;
 
