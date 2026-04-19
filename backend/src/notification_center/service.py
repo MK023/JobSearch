@@ -44,6 +44,9 @@ _BUDGET_CRITICAL_DEFAULT = 0.50
 _DB_SIZE_WARNING_MB = 800  # 80% of 1GB Neon free tier
 _BACKLOG_THRESHOLD = 1
 
+# Action URL used by aggregated notifications that redirect to the full list view.
+_NOTIFICATIONS_URL = "/notifications"
+
 
 def _thresholds(db: Session) -> dict[str, float]:
     """Load notification thresholds from preferences (with hardcoded defaults)."""
@@ -154,7 +157,7 @@ def _interviews_without_outcome(db: Session, t: dict[str, float] | None = None) 
             severity=NotificationSeverity.WARNING,
             title=f"{count} colloqui senza esito registrato",
             body=body,
-            action_url="/notifications",
+            action_url=_NOTIFICATIONS_URL,
             action_label="Vedi tutti",
             dismissible=True,
             sticky=True,
@@ -237,7 +240,7 @@ def _followup_due(db: Session) -> list[Notification]:
             severity=NotificationSeverity.INFO,
             title=f"{count} follow-up suggeriti",
             body=body,
-            action_url="/notifications",
+            action_url=_NOTIFICATIONS_URL,
             action_label="Vedi tutti",
             dismissible=True,
             sticky=False,
@@ -543,7 +546,7 @@ def _inbox_errors(db: Session) -> list[Notification]:
                     severity=NotificationSeverity.WARNING,
                     title=f"Errore analisi inbox ({source})",
                     body=err_msg,
-                    action_url="/notifications",
+                    action_url=_NOTIFICATIONS_URL,
                     action_label="Dettagli",
                     dismissible=True,
                     sticky=True,
@@ -564,7 +567,7 @@ def _inbox_errors(db: Session) -> list[Notification]:
                 severity=NotificationSeverity.WARNING,
                 title=f"{count} errori analisi inbox",
                 body=preview[:400],
-                action_url="/notifications",
+                action_url=_NOTIFICATIONS_URL,
                 action_label="Dettagli",
                 dismissible=True,
                 sticky=True,
