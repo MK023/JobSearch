@@ -3,7 +3,7 @@
  * Uses Open-Meteo free API (no key required).
  */
 
-var _WMO_ICONS = {
+const _WMO_ICONS = {
     0: ['Sereno', '\u2600\uFE0F'],
     1: ['Prevalentemente sereno', '\uD83C\uDF24\uFE0F'],
     2: ['Parzialmente nuvoloso', '\u26C5'],
@@ -27,7 +27,7 @@ var _WMO_ICONS = {
     99: ['Temporale forte', '\u26C8\uFE0F']
 };
 
-var _QUOTES = [
+const _QUOTES = [
     'Il successo non \u00e8 definitivo, il fallimento non \u00e8 fatale: \u00e8 il coraggio di continuare che conta. \u2014 Churchill',
     'Ogni grande impresa inizia con un primo passo. \u2014 Lao Tzu',
     'Non \u00e8 la pi\u00f9 forte delle specie che sopravvive, ma quella pi\u00f9 reattiva ai cambiamenti. \u2014 Darwin',
@@ -45,7 +45,7 @@ var _QUOTES = [
     'Ogni no ti avvicina a un s\u00ec. \u2014 Mark Cuban'
 ];
 
-var _WEATHER_PHRASES = {
+const _WEATHER_PHRASES = {
     0: 'Sole pieno: giornata perfetta per conquistare un nuovo lavoro!',
     1: 'Cielo quasi limpido: buon auspicio per le candidature!',
     2: 'Qualche nuvola, ma niente ferma la tua determinazione!',
@@ -70,35 +70,35 @@ var _WEATHER_PHRASES = {
 };
 
 function _loadWeather() {
-    var el = document.getElementById('weather-widget');
+    const el = document.getElementById('weather-widget');
     if (!el) return;
 
-    var quoteIdx = Math.floor(Date.now() / 3600000) % _QUOTES.length;
-    var quoteText = _QUOTES[quoteIdx];
+    const quoteIdx = Math.floor(Date.now() / 3600000) % _QUOTES.length;
+    const quoteText = _QUOTES[quoteIdx];
 
     fetch('https://api.open-meteo.com/v1/forecast?latitude=45.13&longitude=8.45&current=temperature_2m,weather_code')
         .then(function(r) { return r.json(); })
         .then(function(data) {
-            var temp = Math.round(data.current.temperature_2m);
-            var code = data.current.weather_code;
-            var info = _WMO_ICONS[code] || ['N/D', '\uD83C\uDF21\uFE0F'];
-            var phrase = _WEATHER_PHRASES[code] || quoteText;
+            const temp = Math.round(data.current.temperature_2m);
+            const code = data.current.weather_code;
+            const info = _WMO_ICONS[code] || ['N/D', '\uD83C\uDF21\uFE0F'];
+            const phrase = _WEATHER_PHRASES[code] || quoteText;
 
             while (el.firstChild) el.removeChild(el.firstChild);
 
-            var weatherLine = document.createElement('div');
+            const weatherLine = document.createElement('div');
             weatherLine.className = 'weather-line';
             weatherLine.textContent = info[1] + ' ' + temp + '\u00B0C ' + info[0];
             el.appendChild(weatherLine);
 
-            var phraseLine = document.createElement('div');
+            const phraseLine = document.createElement('div');
             phraseLine.className = 'weather-quote';
             phraseLine.textContent = phrase;
             el.appendChild(phraseLine);
         })
         .catch(function() {
             while (el.firstChild) el.removeChild(el.firstChild);
-            var quoteLine = document.createElement('div');
+            const quoteLine = document.createElement('div');
             quoteLine.className = 'weather-quote';
             quoteLine.textContent = quoteText;
             el.appendChild(quoteLine);

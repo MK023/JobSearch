@@ -4,15 +4,15 @@
  * Platform-based dynamic fields.
  */
 
-var fpScheduled = null;
-var fpEnds = null;
-var _isNewRoundMode = false;
+let fpScheduled = null;
+let fpEnds = null;
+let _isNewRoundMode = false;
 
 /**
  * Platform → visible fields mapping.
  * Fields not listed are hidden for that platform.
  */
-var PLATFORM_FIELDS = {
+const PLATFORM_FIELDS = {
     google_meet: ['fg-meeting-link', 'fg-phone', 'fg-pin'],
     teams: ['fg-meeting-link', 'fg-meeting-id', 'fg-pin'],
     zoom: ['fg-meeting-link', 'fg-pin'],
@@ -21,15 +21,15 @@ var PLATFORM_FIELDS = {
     other: ['fg-meeting-link', 'fg-phone', 'fg-pin', 'fg-location']
 };
 
-var ALL_PLATFORM_FIELDS = ['fg-meeting-link', 'fg-meeting-id', 'fg-phone', 'fg-pin', 'fg-location'];
+const ALL_PLATFORM_FIELDS = ['fg-meeting-link', 'fg-meeting-id', 'fg-phone', 'fg-pin', 'fg-location'];
 
 
 function togglePlatformFields() {
-    var platform = document.getElementById('iv-platform').value;
-    var visible = platform ? (PLATFORM_FIELDS[platform] || []) : ALL_PLATFORM_FIELDS;
+    const platform = document.getElementById('iv-platform').value;
+    const visible = platform ? (PLATFORM_FIELDS[platform] || []) : ALL_PLATFORM_FIELDS;
 
     ALL_PLATFORM_FIELDS.forEach(function(id) {
-        var el = document.getElementById(id);
+        const el = document.getElementById(id);
         if (el) {
             el.style.display = visible.indexOf(id) !== -1 ? '' : 'none';
         }
@@ -39,13 +39,13 @@ function togglePlatformFields() {
 
 function openInterviewModal(analysisId) {
     _isNewRoundMode = false;
-    var modal = document.getElementById('interview-modal');
+    const modal = document.getElementById('interview-modal');
     document.getElementById('iv-analysis-id').value = analysisId;
     document.getElementById('interview-modal-title').textContent = 'Prenota colloquio';
 
     // Initialize flatpickr date/time pickers
     destroyFlatpickrInstances();
-    var fpConfig = {
+    const fpConfig = {
         enableTime: true,
         time_24hr: true,
         dateFormat: "Y-m-dTH:i",
@@ -83,14 +83,14 @@ function openInterviewModal(analysisId) {
 
 function openNewRoundModal(analysisId) {
     _isNewRoundMode = true;
-    var modal = document.getElementById('interview-modal');
+    const modal = document.getElementById('interview-modal');
     document.getElementById('iv-analysis-id').value = analysisId;
     document.getElementById('interview-modal-title').textContent = 'Nuovo round';
 
     destroyFlatpickrInstances();
     resetInterviewForm();
 
-    var fpConfig = {
+    const fpConfig = {
         enableTime: true,
         time_24hr: true,
         dateFormat: "Y-m-dTH:i",
@@ -115,7 +115,7 @@ function destroyFlatpickrInstances() {
 
 
 function closeInterviewModal() {
-    var modal = document.getElementById('interview-modal');
+    const modal = document.getElementById('interview-modal');
     modal.classList.add('hidden');
     _isNewRoundMode = false;
     destroyFlatpickrInstances();
@@ -154,8 +154,8 @@ function populateInterviewForm(data) {
 
 
 function isoToLocalInput(iso) {
-    var d = new Date(iso);
-    var pad = function(n) { return String(n).padStart(2, '0'); };
+    const d = new Date(iso);
+    const pad = function(n) { return String(n).padStart(2, '0'); };
     return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate())
            + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
 }
@@ -164,8 +164,8 @@ function isoToLocalInput(iso) {
 function submitInterview(e) {
     e.preventDefault();
 
-    var analysisId = document.getElementById('iv-analysis-id').value;
-    var scheduled = document.getElementById('iv-scheduled').value;
+    const analysisId = document.getElementById('iv-analysis-id').value;
+    const scheduled = document.getElementById('iv-scheduled').value;
     if (!scheduled) return false;
 
     if (_isNewRoundMode) {
@@ -173,8 +173,8 @@ function submitInterview(e) {
     }
 
     // Only send values from visible platform-dependent fields
-    var platform = document.getElementById('iv-platform').value || null;
-    var visible = platform ? (PLATFORM_FIELDS[platform] || []) : ALL_PLATFORM_FIELDS;
+    const platform = document.getElementById('iv-platform').value || null;
+    const visible = platform ? (PLATFORM_FIELDS[platform] || []) : ALL_PLATFORM_FIELDS;
 
     function visibleVal(fieldGroupId, inputId) {
         return visible.indexOf(fieldGroupId) !== -1
@@ -182,7 +182,7 @@ function submitInterview(e) {
             : null;
     }
 
-    var payload = {
+    const payload = {
         scheduled_at: scheduled,
         ends_at: null,
         platform: platform,
@@ -198,7 +198,7 @@ function submitInterview(e) {
         notes: document.getElementById('iv-notes').value || null
     };
 
-    var endsVal = document.getElementById('iv-ends').value;
+    const endsVal = document.getElementById('iv-ends').value;
     if (endsVal) {
         payload.ends_at = endsVal;
     }
@@ -217,21 +217,21 @@ function submitInterview(e) {
             showToast(res.data.error || 'Errore salvataggio colloquio', 'error');
             return;
         }
-        var data = res.data;
+        const data = res.data;
         if (data.ok) {
             closeInterviewModal();
-            var group = document.querySelector('[data-analysis-id="' + analysisId + '"]');
+            const group = document.querySelector('[data-analysis-id="' + analysisId + '"]');
             if (group) {
                 group.querySelectorAll('.status-option').forEach(function(b) {
                     b.classList.remove('active');
                 });
-                var collBtn = group.querySelector('[data-status="colloquio"]');
+                const collBtn = group.querySelector('[data-status="colloquio"]');
                 if (collBtn) collBtn.classList.add('active');
             }
-            var histItem = document.querySelector('[data-hist-id="' + analysisId + '"]');
+            const histItem = document.querySelector('[data-hist-id="' + analysisId + '"]');
             if (histItem) {
                 histItem.dataset.histStatus = 'colloquio';
-                var stEl = histItem.querySelector('.status-badge');
+                const stEl = histItem.querySelector('.status-badge');
                 if (stEl) {
                     stEl.className = 'status-badge status-colloquio';
                     stEl.textContent = 'COLLOQUIO';
@@ -257,7 +257,7 @@ function submitInterview(e) {
 
 
 function submitNewRound(analysisId, scheduled) {
-    var interviewType = document.getElementById('iv-type').value || null;
+    const interviewType = document.getElementById('iv-type').value || null;
 
     fetch('/api/v1/interviews/' + analysisId + '/next-round', {
         method: 'POST',

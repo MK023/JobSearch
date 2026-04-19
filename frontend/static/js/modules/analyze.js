@@ -6,11 +6,11 @@
 function submitAnalysis(e) {
     e.preventDefault();
 
-    var form = e.target;
-    var jobDesc = form.querySelector('#job_description').value;
-    var jobUrl = form.querySelector('#job_url').value;
-    var modelEl = form.querySelector('input[name="model"]:checked');
-    var model = modelEl ? modelEl.value : 'haiku';
+    const form = e.target;
+    const jobDesc = form.querySelector('#job_description').value;
+    const jobUrl = form.querySelector('#job_url').value;
+    const modelEl = form.querySelector('input[name="model"]:checked');
+    const model = modelEl ? modelEl.value : 'haiku';
 
     if (!jobDesc.trim()) {
         showToast('Inserisci la descrizione del lavoro', 'error');
@@ -18,7 +18,7 @@ function submitAnalysis(e) {
     }
 
     // Update Alpine loading state
-    var wrapper = form.closest('[x-data]');
+    const wrapper = form.closest('[x-data]');
     if (wrapper && typeof Alpine !== 'undefined') {
         try { Alpine.$data(wrapper).analyzeLoading = true; } catch (_) {}
     }
@@ -28,7 +28,7 @@ function submitAnalysis(e) {
         startedAt: new Date().toISOString()
     }));
 
-    var payload = JSON.stringify({
+    const payload = JSON.stringify({
         job_description: jobDesc,
         job_url: jobUrl,
         model: model
@@ -82,17 +82,17 @@ function resetLoading(wrapper) {
 }
 
 function _showAnalysisError(msg) {
-    var existing = document.querySelector('.analysis-error-banner');
+    const existing = document.querySelector('.analysis-error-banner');
     if (existing) existing.remove();
 
-    var banner = document.createElement('div');
+    const banner = document.createElement('div');
     banner.className = 'message-banner banner-error analysis-error-banner';
 
-    var text = document.createElement('span');
+    const text = document.createElement('span');
     text.textContent = msg;
     banner.appendChild(text);
 
-    var dismiss = document.createElement('button');
+    const dismiss = document.createElement('button');
     dismiss.type = 'button';
     dismiss.className = 'btn btn-ghost btn-sm';
     dismiss.textContent = '\u00D7';
@@ -100,8 +100,8 @@ function _showAnalysisError(msg) {
     dismiss.onclick = function() { banner.remove(); };
     banner.appendChild(dismiss);
 
-    var target = document.querySelector('.content-inner');
-    var header = target ? target.querySelector('.page-header') : null;
+    const target = document.querySelector('.content-inner');
+    const header = target ? target.querySelector('.page-header') : null;
     if (header && header.nextSibling) {
         target.insertBefore(banner, header.nextSibling);
     } else if (target) {

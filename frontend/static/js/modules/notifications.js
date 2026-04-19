@@ -23,10 +23,10 @@
 
 (function () {
     function updateBadgeCount(count) {
-        var badge = document.querySelector('.sidebar-item[href="/notifications"] .sidebar-badge');
+        let badge = document.querySelector('.sidebar-item[href="/notifications"] .sidebar-badge');
         if (count > 0) {
             if (!badge) {
-                var link = document.querySelector('.sidebar-item[href="/notifications"]');
+                const link = document.querySelector('.sidebar-item[href="/notifications"]');
                 if (link) {
                     badge = document.createElement('span');
                     badge.className = 'sidebar-badge';
@@ -43,7 +43,7 @@
     }
 
     function updatePillCount(count) {
-        var pill = document.querySelector('.page-header .pill-credit');
+        const pill = document.querySelector('.page-header .pill-credit');
         if (pill) {
             pill.textContent = count > 0 ? count + ' attive' : 'Nessuna';
         }
@@ -51,18 +51,18 @@
 
     function updateGroupVisibility() {
         document.querySelectorAll('.notification-group').forEach(function (group) {
-            var visible = group.querySelectorAll('.notification-card:not([style*="display: none"])');
+            const visible = group.querySelectorAll('.notification-card:not([style*="display: none"])');
             group.style.display = visible.length === 0 ? 'none' : '';
         });
     }
 
     function updateEmptyState() {
-        var anyVisible = document.querySelectorAll(
+        const anyVisible = document.querySelectorAll(
             '.notification-card:not([style*="display: none"])'
         ).length > 0;
-        var emptyBlock = document.getElementById('notification-center-empty-after-dismiss');
+        const emptyBlock = document.getElementById('notification-center-empty-after-dismiss');
         if (!anyVisible && !emptyBlock) {
-            var container = document.querySelector('.content-inner');
+            const container = document.querySelector('.content-inner');
             if (!container) return;
             container.appendChild(_buildEmptyBlock());
         } else if (anyVisible && emptyBlock) {
@@ -71,22 +71,22 @@
     }
 
     function _buildEmptyBlock() {
-        var wrap = document.createElement('div');
+        const wrap = document.createElement('div');
         wrap.id = 'notification-center-empty-after-dismiss';
         wrap.className = 'card card-mb';
 
-        var inner = document.createElement('div');
+        const inner = document.createElement('div');
         inner.className = 'notification-empty';
 
-        var icon = document.createElement('div');
+        const icon = document.createElement('div');
         icon.className = 'notification-empty-icon';
         icon.textContent = '\uD83D\uDC4C';
 
-        var title = document.createElement('div');
+        const title = document.createElement('div');
         title.className = 'notification-empty-title';
         title.textContent = 'Tutto gestito';
 
-        var body = document.createElement('div');
+        const body = document.createElement('div');
         body.className = 'notification-empty-body';
         body.textContent = 'Le notifiche tornano quando cambia lo stato sottostante (nuovo colloquio, budget basso, ecc.).';
 
@@ -100,7 +100,7 @@
     function dismissCard(notificationId, cardEl) {
         if (!notificationId) return;
 
-        var fd = new FormData();
+        const fd = new FormData();
         fd.append('notification_id', notificationId);
 
         fetch('/api/v1/notifications/dismiss', { method: 'POST', body: fd })
@@ -126,7 +126,7 @@
     function wireDismissButtons() {
         document.querySelectorAll('.notification-card').forEach(function (card) {
             if (card.querySelector('.notification-card-dismiss')) return;
-            var btn = document.createElement('button');
+            const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'notification-card-dismiss';
             btn.setAttribute('aria-label', 'Ignora notifica');
@@ -144,7 +144,7 @@
     // sendBeacon (or fetch keepalive) so the request survives page unload.
     function dismissBeacon(notificationId) {
         if (!notificationId) return;
-        var fd = new FormData();
+        const fd = new FormData();
         fd.append('notification_id', notificationId);
         try {
             if (navigator.sendBeacon) {
@@ -170,10 +170,10 @@
             if (link.dataset.dismissOnClickWired === '1') return;
             link.dataset.dismissOnClickWired = '1';
             link.addEventListener('click', function () {
-                var card = link.closest('.notification-card');
+                const card = link.closest('.notification-card');
                 if (!card) return;
                 if (card.getAttribute('data-notification-dismissible') !== '1') return;
-                var id = card.getAttribute('data-notification-id');
+                const id = card.getAttribute('data-notification-id');
                 dismissBeacon(id);
                 // Instant visual feedback — survives target=_blank where the
                 // user stays on the current page after opening a new tab.
@@ -190,30 +190,30 @@
 
     // --- Polling: fresh notifications without manual reload. ---
 
-    var POLL_INTERVAL_MS = 60000;
-    var knownIds = null; // lazy-initialised from the DOM on first poll
+    const POLL_INTERVAL_MS = 60000;
+    let knownIds = null; // lazy-initialised from the DOM on first poll
 
     function isOnNotificationsPage() {
         return window.location.pathname.replace(/\/$/, '') === '/notifications';
     }
 
     function currentDomIds() {
-        var ids = new Set();
+        const ids = new Set();
         document.querySelectorAll('.notification-card').forEach(function (card) {
-            var id = card.getAttribute('data-notification-id');
+            const id = card.getAttribute('data-notification-id');
             if (id) ids.add(id);
         });
         return ids;
     }
 
     function showNewBanner(newCount) {
-        var existing = document.getElementById('notification-fresh-banner');
+        const existing = document.getElementById('notification-fresh-banner');
         if (existing) {
             existing.textContent = newCount + (newCount === 1 ? ' nuova notifica' : ' nuove notifiche') +
                 ' disponibil' + (newCount === 1 ? 'e' : 'i') + ' — click per aggiornare';
             return;
         }
-        var btn = document.createElement('button');
+        const btn = document.createElement('button');
         btn.id = 'notification-fresh-banner';
         btn.type = 'button';
         btn.className = 'notification-fresh-banner';
@@ -221,7 +221,7 @@
             ' disponibil' + (newCount === 1 ? 'e' : 'i') + ' — click per aggiornare';
         btn.addEventListener('click', function () { window.location.reload(); });
 
-        var container = document.querySelector('.content-inner');
+        const container = document.querySelector('.content-inner');
         if (container) container.insertBefore(btn, container.firstChild);
     }
 
@@ -230,7 +230,7 @@
             .then(function (r) { return r.ok ? r.json() : null; })
             .then(function (list) {
                 if (!Array.isArray(list)) return;
-                var ids = new Set(list.map(function (n) { return n.id; }));
+                const ids = new Set(list.map(function (n) { return n.id; }));
                 updateBadgeCount(ids.size);
                 updatePillCount(ids.size);
 
@@ -238,7 +238,7 @@
                     if (knownIds === null) {
                         knownIds = currentDomIds();
                     }
-                    var added = 0;
+                    let added = 0;
                     ids.forEach(function (id) { if (!knownIds.has(id)) added++; });
                     if (added > 0) showNewBanner(added);
                 }

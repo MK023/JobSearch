@@ -21,8 +21,8 @@ function bulkRejectForm() {
         preview: function() {
             this.loading = true;
             this.message = '';
-            var qs = '?days=' + encodeURIComponent(this.days) + '&max_score=' + encodeURIComponent(this.maxScore);
-            var self = this;
+            const qs = '?days=' + encodeURIComponent(this.days) + '&max_score=' + encodeURIComponent(this.maxScore);
+            const self = this;
             fetch('/analysis/bulk-reject-preview' + qs)
                 .then(function(r) {
                     if (!r.ok) throw new Error('preview failed: ' + r.status);
@@ -38,14 +38,14 @@ function bulkRejectForm() {
 
         confirmReject: function() {
             if (this.count === null || this.count <= 0) return;
-            var ok = window.confirm(
+            const ok = window.confirm(
                 'Confermi di scartare ' + this.count + ' analisi? Potrai rimetterle in valutazione una alla volta dalla loro pagina.'
             );
             if (!ok) return;
             this.loading = true;
             this.message = '';
-            var qs = '?days=' + encodeURIComponent(this.days) + '&max_score=' + encodeURIComponent(this.maxScore);
-            var self = this;
+            const qs = '?days=' + encodeURIComponent(this.days) + '&max_score=' + encodeURIComponent(this.maxScore);
+            const self = this;
             fetch('/analysis/bulk-reject' + qs, { method: 'POST' })
                 .then(function(r) {
                     if (!r.ok) throw new Error('bulk-reject failed: ' + r.status);

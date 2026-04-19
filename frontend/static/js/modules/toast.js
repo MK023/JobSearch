@@ -5,10 +5,10 @@
  */
 function showToast(message, type) {
   type = type || "info";
-  var container = document.getElementById("toast-container");
+  const container = document.getElementById("toast-container");
   if (!container) return;
 
-  var toast = document.createElement("div");
+  const toast = document.createElement("div");
   toast.className = "toast toast-" + type;
   toast.setAttribute("role", "alert");
   toast.textContent = message;
