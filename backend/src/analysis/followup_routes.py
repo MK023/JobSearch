@@ -22,6 +22,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["followup"])
 
+_ANALYSIS_NOT_FOUND = "Analysis not found"
+
 
 @router.post("/followup-email")
 @limiter.limit(settings.rate_limit_analyze)
@@ -38,7 +40,7 @@ def create_followup_email(
     validate_uuid(analysis_id)
     analysis = get_analysis_by_id(db, analysis_id, user_id=cast(UUID, user.id))
     if not analysis:
-        return JSONResponse({"error": "Analysis not found"}, status_code=404)
+        return JSONResponse({"error": _ANALYSIS_NOT_FOUND}, status_code=404)
 
     cv = get_latest_cv(db, cast(UUID, user.id))
     if not cv:
@@ -89,7 +91,7 @@ def create_linkedin_message(
     validate_uuid(analysis_id)
     analysis = get_analysis_by_id(db, analysis_id, user_id=cast(UUID, user.id))
     if not analysis:
-        return JSONResponse({"error": "Analysis not found"}, status_code=404)
+        return JSONResponse({"error": _ANALYSIS_NOT_FOUND}, status_code=404)
 
     cv = get_latest_cv(db, cast(UUID, user.id))
     if not cv:
@@ -144,7 +146,7 @@ def mark_followup_done(
     validate_uuid(analysis_id)
     analysis = get_analysis_by_id(db, analysis_id, user_id=cast(UUID, user.id))
     if not analysis:
-        return JSONResponse({"error": "Analysis not found"}, status_code=404)
+        return JSONResponse({"error": _ANALYSIS_NOT_FOUND}, status_code=404)
     analysis.followed_up = True  # type: ignore[assignment]
     audit(db, request, "followup_done", f"analysis={analysis_id}")
     db.commit()

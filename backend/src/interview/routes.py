@@ -32,6 +32,8 @@ VALID_INTERVIEW_TYPES = {"tecnico", "hr", "conoscitivo", "finale", "other"}
 EMAIL_RE = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
 URL_RE = re.compile(r"^https?://", re.IGNORECASE)
 
+_ANALYSIS_NOT_FOUND = "Analysis not found"
+
 
 class InterviewPayload(BaseModel):
     """Input schema for creating or updating an interview."""
@@ -51,6 +53,52 @@ class InterviewPayload(BaseModel):
     notes: str | None = Field(None, max_length=2000)
 
 
+def _parse_scheduled_window(
+    payload: InterviewPayload,
+) -> tuple[datetime | None, datetime | None, JSONResponse | None]:
+    """Parse scheduled_at/ends_at from the payload with all related validations.
+
+    Returns ``(scheduled, ends, error_response)``. If ``error_response`` is not
+    None, the caller must return it unchanged.
+    """
+    try:
+        scheduled = datetime.fromisoformat(payload.scheduled_at)
+        if scheduled.tzinfo is None:
+            scheduled = scheduled.replace(tzinfo=UTC)
+    except ValueError:
+        return None, None, JSONResponse({"error": "Invalid scheduled_at format"}, status_code=400)
+
+    # No scheduling far in the past (allow 24h buffer for timezone edge cases)
+    if scheduled < datetime.now(UTC) - timedelta(hours=24):
+        return None, None, JSONResponse({"error": "Non puoi prenotare un colloquio nel passato"}, status_code=400)
+
+    if not payload.ends_at:
+        return scheduled, None, None
+
+    try:
+        ends = datetime.fromisoformat(payload.ends_at)
+        if ends.tzinfo is None:
+            ends = ends.replace(tzinfo=UTC)
+    except ValueError:
+        return None, None, JSONResponse({"error": "Invalid ends_at format"}, status_code=400)
+    if ends <= scheduled:
+        return None, None, JSONResponse({"error": "L'ora di fine deve essere dopo l'ora di inizio"}, status_code=400)
+    return scheduled, ends, None
+
+
+def _validate_interview_fields(payload: InterviewPayload) -> JSONResponse | None:
+    """Validate platform / type / email / meeting_link. Returns an error or None."""
+    if payload.platform and payload.platform not in VALID_PLATFORMS:
+        return JSONResponse({"error": f"Piattaforma non valida: {payload.platform}"}, status_code=400)
+    if payload.interview_type and payload.interview_type not in VALID_INTERVIEW_TYPES:
+        return JSONResponse({"error": f"Tipo colloquio non valido: {payload.interview_type}"}, status_code=400)
+    if payload.recruiter_email and not EMAIL_RE.match(payload.recruiter_email):
+        return JSONResponse({"error": "Formato email non valido"}, status_code=400)
+    if payload.meeting_link and not URL_RE.match(payload.meeting_link):
+        return JSONResponse({"error": "Il link deve iniziare con http:// o https://"}, status_code=400)
+    return None
+
+
 @router.post("/interviews/{analysis_id}")
 @limiter.limit(settings.rate_limit_default)
 def upsert_interview(
@@ -64,38 +112,15 @@ def upsert_interview(
     validate_uuid(analysis_id)
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:
-        return JSONResponse({"error": "Analysis not found"}, status_code=404)
+        return JSONResponse({"error": _ANALYSIS_NOT_FOUND}, status_code=404)
 
-    try:
-        scheduled = datetime.fromisoformat(payload.scheduled_at)
-        if scheduled.tzinfo is None:
-            scheduled = scheduled.replace(tzinfo=UTC)
-    except ValueError:
-        return JSONResponse({"error": "Invalid scheduled_at format"}, status_code=400)
+    scheduled, ends, err = _parse_scheduled_window(payload)
+    if err is not None or scheduled is None:
+        return err or JSONResponse({"error": "Invalid scheduled_at format"}, status_code=400)
 
-    # No scheduling far in the past (allow 24h buffer for timezone edge cases)
-    if scheduled < datetime.now(UTC) - timedelta(hours=24):
-        return JSONResponse({"error": "Non puoi prenotare un colloquio nel passato"}, status_code=400)
-
-    ends = None
-    if payload.ends_at:
-        try:
-            ends = datetime.fromisoformat(payload.ends_at)
-            if ends.tzinfo is None:
-                ends = ends.replace(tzinfo=UTC)
-        except ValueError:
-            return JSONResponse({"error": "Invalid ends_at format"}, status_code=400)
-        if ends <= scheduled:
-            return JSONResponse({"error": "L'ora di fine deve essere dopo l'ora di inizio"}, status_code=400)
-
-    if payload.platform and payload.platform not in VALID_PLATFORMS:
-        return JSONResponse({"error": f"Piattaforma non valida: {payload.platform}"}, status_code=400)
-    if payload.interview_type and payload.interview_type not in VALID_INTERVIEW_TYPES:
-        return JSONResponse({"error": f"Tipo colloquio non valido: {payload.interview_type}"}, status_code=400)
-    if payload.recruiter_email and not EMAIL_RE.match(payload.recruiter_email):
-        return JSONResponse({"error": "Formato email non valido"}, status_code=400)
-    if payload.meeting_link and not URL_RE.match(payload.meeting_link):
-        return JSONResponse({"error": "Il link deve iniziare con http:// o https://"}, status_code=400)
+    field_err = _validate_interview_fields(payload)
+    if field_err is not None:
+        return field_err
 
     create_or_update_interview(
         db,
@@ -168,7 +193,7 @@ def remove_interview(
     validate_uuid(analysis_id)
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:
-        return JSONResponse({"error": "Analysis not found"}, status_code=404)
+        return JSONResponse({"error": _ANALYSIS_NOT_FOUND}, status_code=404)
 
     deleted = delete_interview(db, str(analysis.id))
     if not deleted:
@@ -255,7 +280,7 @@ def append_next_round(
     validate_uuid(analysis_id)
     analysis = get_analysis_by_id(db, analysis_id)
     if not analysis:
-        return JSONResponse({"error": "Analysis not found"}, status_code=404)
+        return JSONResponse({"error": _ANALYSIS_NOT_FOUND}, status_code=404)
 
     try:
         scheduled = datetime.fromisoformat(payload.scheduled_at)

@@ -79,8 +79,29 @@ def run_analysis(
     return analysis, result
 
 
+_FULL_RESPONSE_EXTRA_FIELDS = (
+    "score_label",
+    "potential_score",
+    "gap_timeline",
+    "confidence",
+    "confidence_reason",
+    "summary",
+    "application_method",
+)
+
+
+def _merge_full_response_fields(result: dict[str, Any], full_response_raw: str) -> None:
+    """Overlay selected keys from the stored full_response JSON into result."""
+    full = _parse_full_response(full_response_raw)
+    for key in _FULL_RESPONSE_EXTRA_FIELDS:
+        if key in full:
+            result[key] = full[key]
+
+
 def rebuild_result(analysis: JobAnalysis, from_cache: bool = False) -> dict[str, Any]:
     """Rebuild the full result dict from a stored analysis row."""
+    tokens_in = analysis.tokens_input or 0
+    tokens_out = analysis.tokens_output or 0
     result = {
         "company": analysis.company,
         "role": analysis.role,
@@ -105,28 +126,15 @@ def rebuild_result(analysis: JobAnalysis, from_cache: bool = False) -> dict[str,
         "summary": "",
         "model_used": analysis.model_used,
         "tokens": {
-            "input": analysis.tokens_input or 0,
-            "output": analysis.tokens_output or 0,
-            "total": (analysis.tokens_input or 0) + (analysis.tokens_output or 0),
+            "input": tokens_in,
+            "output": tokens_out,
+            "total": tokens_in + tokens_out,
         },
         "cost_usd": analysis.cost_usd or 0.0,
         "from_cache": from_cache,
     }
 
-    # Extract extra fields from full_response
-    full = _parse_full_response(cast(str, analysis.full_response))
-    for key in (
-        "score_label",
-        "potential_score",
-        "gap_timeline",
-        "confidence",
-        "confidence_reason",
-        "summary",
-        "application_method",
-    ):
-        if key in full:
-            result[key] = full[key]
-
+    _merge_full_response_fields(result, cast(str, analysis.full_response))
     return result
 
 

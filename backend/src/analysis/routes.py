@@ -22,6 +22,8 @@ from .service import (
 
 router = APIRouter(tags=["analysis"])
 
+_ANALYZE_URL = "/analyze"
+
 
 @router.post("/analyze", response_class=HTMLResponse)
 @limiter.limit(settings.rate_limit_analyze)
@@ -39,16 +41,16 @@ def analyze(
 
     if not cv:
         request.session["flash_error"] = "Salva prima il tuo CV!"
-        return RedirectResponse(url="/analyze", status_code=303)
+        return RedirectResponse(url=_ANALYZE_URL, status_code=303)
 
     if len(job_description) > settings.max_job_desc_size:
         request.session["flash_error"] = f"Descrizione troppo lunga (max {settings.max_job_desc_size} caratteri)"
-        return RedirectResponse(url="/analyze", status_code=303)
+        return RedirectResponse(url=_ANALYZE_URL, status_code=303)
 
     budget_ok, budget_msg = check_budget_available(db)
     if not budget_ok:
         request.session["flash_error"] = budget_msg
-        return RedirectResponse(url="/analyze", status_code=303)
+        return RedirectResponse(url=_ANALYZE_URL, status_code=303)
 
     ch = content_hash(cast(str, cv.raw_text), job_description)
     model_id = MODELS.get(model, MODELS["haiku"])
@@ -85,7 +87,7 @@ def analyze(
         audit(db, request, "analyze_error", str(exc))
         db.commit()
         request.session["flash_error"] = "Analisi AI fallita, riprova più tardi."
-        return RedirectResponse(url="/analyze", status_code=303)
+        return RedirectResponse(url=_ANALYZE_URL, status_code=303)
 
     return RedirectResponse(url=f"/analysis/{analysis.id}", status_code=303)
 

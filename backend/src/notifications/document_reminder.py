@@ -6,6 +6,7 @@ by the Claude API scanner. Uses Resend free tier (100 emails/day).
 
 import logging
 from html import escape
+from typing import cast
 from uuid import UUID
 
 import resend
@@ -116,6 +117,98 @@ def _build_plain_text(
     return "\n".join(lines)
 
 
+def _group_files_by_interview(files: list[InterviewFile]) -> dict[str, list[InterviewFile]]:
+    """Group not-compiled files by their interview_id."""
+    grouped: dict[str, list[InterviewFile]] = {}
+    for f in files:
+        grouped.setdefault(str(f.interview_id), []).append(f)
+    return grouped
+
+
+def _preload_already_notified(db: Session, files_by_interview: dict[str, list[InterviewFile]]) -> set[str]:
+    """Preload all already-notified file IDs across all interviews in ONE query.
+
+    Previous code issued one SELECT per file inside the interview loop (N+1).
+    """
+    all_file_ids = [str(f.id) for files in files_by_interview.values() for f in files]
+    if not all_file_ids:
+        return set()
+    notif_types = [f"document_reminder:{fid}" for fid in all_file_ids]
+    rows = db.query(NotificationLog.notification_type).filter(NotificationLog.notification_type.in_(notif_types)).all()
+    return {row[0].split(":", 1)[1] for row in rows if ":" in row[0]}
+
+
+def _log_reminders_sent(
+    db: Session,
+    analysis_id: UUID,
+    files: list[InterviewFile],
+    subject: str,
+) -> None:
+    """Persist one NotificationLog per file just emailed, to dedupe future runs."""
+    for f in files:
+        db.add(
+            NotificationLog(
+                analysis_id=analysis_id,
+                notification_type=f"document_reminder:{f.id}",
+                recipient=settings.document_reminder_email,
+                subject=subject,
+                detail=f"{f.original_filename} - {f.scan_result or 'non compilato'}",
+            )
+        )
+
+
+def _process_interview_reminder(
+    db: Session,
+    interview_id: str,
+    files: list[InterviewFile],
+    already_sent_all: set[str],
+) -> bool:
+    """Send a reminder email for a single interview and log the outcome.
+
+    Returns True if an email was actually sent, False otherwise (skipped/failed).
+    """
+    new_files = [f for f in files if str(f.id) not in already_sent_all]
+    if not new_files:
+        return False
+
+    interview = db.query(Interview).filter(Interview.id == UUID(interview_id)).first()
+    if not interview:
+        return False
+    analysis = db.query(JobAnalysis).filter(JobAnalysis.id == interview.analysis_id).first()
+    if not analysis:
+        return False
+
+    company = str(analysis.company or "N/D")
+    role = str(analysis.role or "N/D")
+    subject = f"Documenti da compilare: {role} @ {company}"
+
+    html = _build_document_reminder_html(new_files, company, role)
+    text = _build_plain_text(new_files, company, role)
+
+    try:
+        resend.Emails.send(
+            {
+                "from": f"JobSearch <{settings.resend_from_email}>",
+                "to": [settings.document_reminder_email],
+                "subject": subject,
+                "html": html,
+                "text": text,
+            }
+        )
+    except Exception:
+        logger.exception("Failed to send document reminder for interview %s", interview_id)
+        return False
+
+    _log_reminders_sent(db, cast(UUID, analysis.id), new_files, subject)
+    logger.info(
+        "Sent document reminder for %s @ %s (%d files)",
+        role,
+        company,
+        len(new_files),
+    )
+    return True
+
+
 def send_document_reminders(db: Session) -> int:
     """Check for not_compiled files and send reminder emails.
 
@@ -135,78 +228,14 @@ def send_document_reminders(db: Session) -> int:
     if not not_compiled_files:
         return 0
 
-    # Group files by interview_id
-    files_by_interview: dict[str, list[InterviewFile]] = {}
-    for f in not_compiled_files:
-        iid = str(f.interview_id)
-        if iid not in files_by_interview:
-            files_by_interview[iid] = []
-        files_by_interview[iid].append(f)
+    files_by_interview = _group_files_by_interview(not_compiled_files)
+    already_sent_all = _preload_already_notified(db, files_by_interview)
 
-    # Preload all already-notified file IDs across all interviews in ONE query.
-    # Previous code issued one SELECT per file inside the interview loop (N+1).
-    all_file_ids = [str(f.id) for files in files_by_interview.values() for f in files]
-    already_sent_all: set[str] = set()
-    if all_file_ids:
-        notif_types = [f"document_reminder:{fid}" for fid in all_file_ids]
-        rows = (
-            db.query(NotificationLog.notification_type).filter(NotificationLog.notification_type.in_(notif_types)).all()
-        )
-        already_sent_all = {row[0].split(":", 1)[1] for row in rows if ":" in row[0]}
-
-    sent_count = 0
-    for interview_id, files in files_by_interview.items():
-        new_files = [f for f in files if str(f.id) not in already_sent_all]
-        if not new_files:
-            continue
-
-        # Get company/role info
-        interview = db.query(Interview).filter(Interview.id == UUID(interview_id)).first()
-        if not interview:
-            continue
-        analysis = db.query(JobAnalysis).filter(JobAnalysis.id == interview.analysis_id).first()
-        if not analysis:
-            continue
-
-        company = str(analysis.company or "N/D")
-        role = str(analysis.role or "N/D")
-        subject = f"Documenti da compilare: {role} @ {company}"
-
-        html = _build_document_reminder_html(new_files, company, role)
-        text = _build_plain_text(new_files, company, role)
-
-        try:
-            resend.Emails.send(
-                {
-                    "from": f"JobSearch <{settings.resend_from_email}>",
-                    "to": [settings.document_reminder_email],
-                    "subject": subject,
-                    "html": html,
-                    "text": text,
-                }
-            )
-        except Exception:
-            logger.exception("Failed to send document reminder for interview %s", interview_id)
-            continue
-
-        for f in new_files:
-            db.add(
-                NotificationLog(
-                    analysis_id=analysis.id,
-                    notification_type=f"document_reminder:{f.id}",
-                    recipient=settings.document_reminder_email,
-                    subject=subject,
-                    detail=f"{f.original_filename} - {f.scan_result or 'non compilato'}",
-                )
-            )
-
-        sent_count += 1
-        logger.info(
-            "Sent document reminder for %s @ %s (%d files)",
-            role,
-            company,
-            len(new_files),
-        )
+    sent_count = sum(
+        1
+        for interview_id, files in files_by_interview.items()
+        if _process_interview_reminder(db, interview_id, files, already_sent_all)
+    )
 
     if sent_count > 0:
         db.flush()

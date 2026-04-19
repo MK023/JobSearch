@@ -106,6 +106,33 @@ def get_pending_batch_id(db: Session) -> str | None:
     return result[0] if result else None
 
 
+def _overall_batch_status(counts: dict[str, int], total: int) -> str:
+    """Derive the aggregate batch status from per-item counts."""
+    if counts.get("running", 0) > 0:
+        return "running"
+    if counts.get("pending", 0) > 0:
+        return "pending"
+    if counts.get("error", 0) > 0 and counts.get("done", 0) == 0:
+        return "error"
+    if total > 0:
+        return "done"
+    return "empty"
+
+
+def _serialize_batch_item(item: BatchItem) -> tuple[str, dict[str, Any]]:
+    """Serialize a BatchItem to (status_key, summary_dict) for the status endpoint."""
+    status_key = item.status.value if hasattr(item.status, "value") else str(item.status)
+    jd = item.job_description or ""
+    preview = item.preview or (jd[:80] + "..." if len(jd) > 80 else jd)
+    return status_key, {
+        "id": str(item.id),
+        "status": status_key,
+        "preview": preview,
+        "analysis_id": str(item.analysis_id) if item.analysis_id else None,
+        "error_message": item.error_message,
+    }
+
+
 def get_batch_status(db: Session) -> dict[str, Any]:
     """Return status summary of the most recent batch, with per-item details."""
     # Find the most recent batch by created_at
@@ -114,42 +141,19 @@ def get_batch_status(db: Session) -> dict[str, Any]:
         return {"status": "empty", "items": []}
 
     batch_id = latest[0]
-
     items_rows = db.query(BatchItem).filter(BatchItem.batch_id == batch_id).order_by(BatchItem.created_at.asc()).all()
 
     counts: dict[str, int] = {}
     items: list[dict[str, Any]] = []
     for item in items_rows:
-        status_key = item.status.value if hasattr(item.status, "value") else str(item.status)
+        status_key, summary = _serialize_batch_item(item)
         counts[status_key] = counts.get(status_key, 0) + 1
-        jd = item.job_description or ""
-        preview = item.preview or (jd[:80] + "..." if len(jd) > 80 else jd)
-        items.append(
-            {
-                "id": str(item.id),
-                "status": status_key,
-                "preview": preview,
-                "analysis_id": str(item.analysis_id) if item.analysis_id else None,
-                "error_message": item.error_message,
-            }
-        )
+        items.append(summary)
+
     total = len(items_rows)
-
-    # Determine overall batch status
-    if counts.get("running", 0) > 0:
-        overall = "running"
-    elif counts.get("pending", 0) > 0:
-        overall = "pending"
-    elif counts.get("error", 0) > 0 and counts.get("done", 0) == 0:
-        overall = "error"
-    elif total > 0:
-        overall = "done"
-    else:
-        overall = "empty"
-
     return {
         "batch_id": batch_id,
-        "status": overall,
+        "status": _overall_batch_status(counts, total),
         "total": total,
         "counts": counts,
         "items": items,
@@ -204,6 +208,131 @@ def cleanup_stale_running(db: Session, threshold_minutes: int = _STALE_RUNNING_T
     return len(stale)
 
 
+def _submit_and_run_analysis(
+    executor: ThreadPoolExecutor,
+    db: Session,
+    cv: Any,
+    item: BatchItem,
+    cache: CacheService | None,
+    user_id: UUID,
+) -> tuple[Any, dict[str, Any]]:
+    """Submit the analysis to the executor and wait with a hard timeout.
+
+    Hard timeout prevents stuck API calls from blocking the batch.
+    Haiku responds in 3-5s; the 90s ceiling catches real stalls.
+    """
+    future = executor.submit(
+        run_analysis,
+        db,
+        cast(str, cv.raw_text),
+        cast(UUID, cv.id),
+        cast(str, item.job_description),
+        cast(str, item.job_url) or "",
+        cast(str, item.model) or "haiku",
+        cache,
+        user_id,
+    )
+    try:
+        return cast(tuple[Any, dict[str, Any]], future.result(timeout=_BATCH_ITEM_TIMEOUT))
+    except FuturesTimeoutError:
+        future.cancel()
+        raise TimeoutError(f"Analysis timed out after {_BATCH_ITEM_TIMEOUT}s") from None
+
+
+def _finalize_done_item(
+    db: Session,
+    item: BatchItem,
+    analysis: Any,
+    result: dict[str, Any],
+    ch_short: str,
+    item_started_at: float,
+) -> None:
+    """Persist DONE state for an item and emit the telemetry log line."""
+    add_spending(
+        db,
+        result.get("cost_usd", 0.0),
+        result.get("tokens", {}).get("input", 0),
+        result.get("tokens", {}).get("output", 0),
+    )
+    item.status = BatchItemStatus.DONE  # type: ignore[assignment]
+    item.analysis_id = analysis.id
+    item.attempt_count = (item.attempt_count or 0) + 1  # type: ignore[assignment]
+    db.commit()
+
+    duration_ms = int((time.monotonic() - item_started_at) * 1000)
+    tokens = result.get("tokens", {}) or {}
+    logger.info(
+        "batch_item done hash=%s duration_ms=%d cost_usd=%.6f tokens_in=%d tokens_out=%d model=%s preview=%r",
+        ch_short,
+        duration_ms,
+        float(result.get("cost_usd", 0.0)),
+        int(tokens.get("input", 0)),
+        int(tokens.get("output", 0)),
+        cast(str, item.model) or "haiku",
+        item.preview,
+    )
+
+
+def _process_item(
+    executor: ThreadPoolExecutor,
+    db: Session,
+    item: BatchItem,
+    cv: Any,
+    user_id: UUID,
+    cache: CacheService | None,
+) -> BatchItemStatus:
+    """Process a single batch item end-to-end.
+
+    State machine: RUNNING → DONE | SKIPPED | ERROR. Handles race-condition
+    dedup, hard API timeout, DB rollback on failure, and the 4-second
+    throttle between successful Anthropic calls. Always commits a terminal
+    state so ``get_batch_status`` reflects progress.
+    """
+    item.status = BatchItemStatus.RUNNING  # type: ignore[assignment]
+    db.commit()
+
+    item_started_at = time.monotonic()
+    ch_short = (cast(str, item.content_hash) or "")[:8]
+
+    try:
+        # Re-check dedup (race condition safety): another tab / request may
+        # have already produced the same analysis while this item waited.
+        model_id = MODELS.get(cast(str, item.model) or "haiku", MODELS["haiku"])
+        existing = find_existing_analysis(db, cast(str, item.content_hash), model_id)
+        if existing:
+            # Dedup hit discovered at run time → SKIPPED, not DONE.
+            # DONE means "this batch produced a fresh analysis";
+            # SKIPPED means "we reused an earlier one".
+            item.status = BatchItemStatus.SKIPPED  # type: ignore[assignment]
+            item.analysis_id = existing.id
+            db.commit()
+            logger.info("batch_item skipped (dedup) hash=%s preview=%r", ch_short, item.preview)
+            return BatchItemStatus.SKIPPED
+
+        analysis, result = _submit_and_run_analysis(executor, db, cv, item, cache, user_id)
+        _finalize_done_item(db, item, analysis, result, ch_short, item_started_at)
+
+        # Throttle between API calls to respect Anthropic rate limits.
+        time.sleep(4)
+        return BatchItemStatus.DONE
+
+    except Exception as exc:
+        db.rollback()
+        item.status = BatchItemStatus.ERROR  # type: ignore[assignment]
+        item.error_message = str(exc)  # type: ignore[assignment]
+        item.attempt_count = (item.attempt_count or 0) + 1  # type: ignore[assignment]
+        db.commit()
+        duration_ms = int((time.monotonic() - item_started_at) * 1000)
+        logger.warning(
+            "batch_item error hash=%s duration_ms=%d preview=%r — %s",
+            ch_short,
+            duration_ms,
+            item.preview,
+            exc,
+        )
+        return BatchItemStatus.ERROR
+
+
 def run_batch(batch_id: str, db: Session, user_id: UUID, cache: CacheService | None = None) -> None:
     """Process all pending items in a batch (runs as background task)."""
     items = (
@@ -226,88 +355,7 @@ def run_batch(batch_id: str, db: Session, user_id: UUID, cache: CacheService | N
     # on every iteration — relevant on Render free tier (512MB shared vCPU).
     with ThreadPoolExecutor(max_workers=1) as executor:
         for item in items:
-            item.status = BatchItemStatus.RUNNING  # type: ignore[assignment]
-            db.commit()
-
-            item_started_at = time.monotonic()
-            ch_short = (cast(str, item.content_hash) or "")[:8]
-
-            try:
-                # Re-check dedup (race condition safety)
-                model_id = MODELS.get(cast(str, item.model) or "haiku", MODELS["haiku"])
-                existing = find_existing_analysis(db, cast(str, item.content_hash), model_id)
-                if existing:
-                    # Dedup hit discovered at run time → SKIPPED, not DONE.
-                    # DONE means "this batch produced a fresh analysis";
-                    # SKIPPED means "we reused an earlier one".
-                    item.status = BatchItemStatus.SKIPPED  # type: ignore[assignment]
-                    item.analysis_id = existing.id
-                    db.commit()
-                    logger.info("batch_item skipped (dedup) hash=%s preview=%r", ch_short, item.preview)
-                    continue
-
-                # Hard timeout prevents stuck API calls from blocking the batch.
-                # Haiku responds in 3-5s; the 90s ceiling catches real stalls.
-                future = executor.submit(
-                    run_analysis,
-                    db,
-                    cast(str, cv.raw_text),
-                    cast(UUID, cv.id),
-                    cast(str, item.job_description),
-                    cast(str, item.job_url) or "",
-                    cast(str, item.model) or "haiku",
-                    cache,
-                    user_id,
-                )
-                try:
-                    analysis, result = future.result(timeout=_BATCH_ITEM_TIMEOUT)
-                except FuturesTimeoutError:
-                    future.cancel()
-                    raise TimeoutError(f"Analysis timed out after {_BATCH_ITEM_TIMEOUT}s") from None
-
-                add_spending(
-                    db,
-                    result.get("cost_usd", 0.0),
-                    result.get("tokens", {}).get("input", 0),
-                    result.get("tokens", {}).get("output", 0),
-                )
-
-                item.status = BatchItemStatus.DONE  # type: ignore[assignment]
-                item.analysis_id = analysis.id
-                item.attempt_count = (item.attempt_count or 0) + 1  # type: ignore[assignment]
-                db.commit()
-
-                duration_ms = int((time.monotonic() - item_started_at) * 1000)
-                tokens = result.get("tokens", {}) or {}
-                logger.info(
-                    "batch_item done hash=%s duration_ms=%d cost_usd=%.6f "
-                    "tokens_in=%d tokens_out=%d model=%s preview=%r",
-                    ch_short,
-                    duration_ms,
-                    float(result.get("cost_usd", 0.0)),
-                    int(tokens.get("input", 0)),
-                    int(tokens.get("output", 0)),
-                    cast(str, item.model) or "haiku",
-                    item.preview,
-                )
-
-                # Throttle between API calls to respect Anthropic rate limits.
-                time.sleep(4)
-
-            except Exception as exc:
-                db.rollback()
-                item.status = BatchItemStatus.ERROR  # type: ignore[assignment]
-                item.error_message = str(exc)  # type: ignore[assignment]
-                item.attempt_count = (item.attempt_count or 0) + 1  # type: ignore[assignment]
-                db.commit()
-                duration_ms = int((time.monotonic() - item_started_at) * 1000)
-                logger.warning(
-                    "batch_item error hash=%s duration_ms=%d preview=%r — %s",
-                    ch_short,
-                    duration_ms,
-                    item.preview,
-                    exc,
-                )
+            _process_item(executor, db, item, cv, user_id, cache)
 
 
 def batch_results(db: Session, batch_id: str) -> list[BatchItem]:

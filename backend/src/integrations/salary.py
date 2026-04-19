@@ -122,6 +122,56 @@ _UNSUPPORTED_LOCATIONS = (
 )
 
 
+def _read_salary_cache(
+    db: Session | None,
+    key: str,
+) -> tuple[SalaryCache | None, dict[str, Any] | None]:
+    """Read the salary DB cache for ``key``.
+
+    Returns a tuple ``(cached_row, fresh_result_or_none)``. The ``cached_row`` is
+    reused by the write path to avoid a second query. The second element is
+    populated only on a fresh cache hit (TTL still valid with non-empty data).
+    """
+    if db is None:
+        return None, None
+    try:
+        cached = db.query(SalaryCache).filter(SalaryCache.cache_key == key).first()
+    except Exception:  # noqa: S110 — cache miss is non-fatal
+        return None, None
+
+    if not cached or not cached.fetched_at:
+        return cached, None
+
+    age = datetime.now(UTC) - cached.fetched_at.replace(tzinfo=UTC)
+    if age < timedelta(days=CACHE_DAYS) and cached.salary_data:
+        try:
+            return cached, cast(dict[str, Any], json.loads(str(cached.salary_data)))
+        except (json.JSONDecodeError, TypeError):
+            return cached, None
+
+    return cached, None
+
+
+def _write_salary_cache(
+    db: Session | None,
+    cached: SalaryCache | None,
+    key: str,
+    result: dict[str, Any],
+) -> None:
+    """Persist ``result`` to the DB cache, reusing the fetched row if available."""
+    if db is None:
+        return
+    try:
+        if cached:
+            cached.salary_data = json.dumps(result)  # type: ignore[assignment]
+            cached.fetched_at = datetime.now(UTC)  # type: ignore[assignment]
+        else:
+            db.add(SalaryCache(cache_key=key, salary_data=json.dumps(result)))
+        db.flush()
+    except Exception:
+        logger.warning("Failed to cache salary data", exc_info=True)
+
+
 def fetch_salary_data(
     job_title: str,
     location: str | None = None,
@@ -143,17 +193,9 @@ def fetch_salary_data(
 
     key = f"{title_norm}:{loc_norm}"
 
-    # Single cache lookup, reused for both read and write paths
-    cached = None
-    if db is not None:
-        try:
-            cached = db.query(SalaryCache).filter(SalaryCache.cache_key == key).first()
-            if cached and cached.fetched_at:
-                age = datetime.now(UTC) - cached.fetched_at.replace(tzinfo=UTC)
-                if age < timedelta(days=CACHE_DAYS) and cached.salary_data:
-                    return cast(dict[str, Any], json.loads(str(cached.salary_data)))
-        except Exception:  # noqa: S110 — cache miss is non-fatal
-            pass
+    cached, fresh_hit = _read_salary_cache(db, key)
+    if fresh_hit is not None:
+        return fresh_hit
 
     # Single API call — no automatic fallback (burns quota too fast)
     data = _call_api(job_title, location) if location else _call_api(job_title)
@@ -161,17 +203,5 @@ def fetch_salary_data(
         return None
 
     result = _parse_salary(data[0])
-
-    # Update cache reusing the row we already fetched (no second query)
-    if db is not None:
-        try:
-            if cached:
-                cached.salary_data = json.dumps(result)  # type: ignore[assignment]
-                cached.fetched_at = datetime.now(UTC)  # type: ignore[assignment]
-            else:
-                db.add(SalaryCache(cache_key=key, salary_data=json.dumps(result)))
-            db.flush()
-        except Exception:
-            logger.warning("Failed to cache salary data", exc_info=True)
-
+    _write_salary_cache(db, cached, key, result)
     return result

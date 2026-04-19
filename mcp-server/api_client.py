@@ -4,6 +4,7 @@ Includes retry logic with exponential backoff for transient failures.
 """
 
 import asyncio
+from typing import cast
 
 import httpx
 
@@ -39,26 +40,37 @@ async def get_client() -> httpx.AsyncClient:
     return _client
 
 
-async def _request_with_retry(method: str, path: str, *, timeout: float | None = None, **kwargs) -> httpx.Response:
+async def _request_with_retry(
+    method: str,
+    path: str,
+    *,
+    deadline: float | None = None,
+    **kwargs: object,
+) -> httpx.Response:
     """Execute an HTTP request with retry and exponential backoff.
+
+    The per-request timeout is enforced via ``asyncio.timeout()`` instead of
+    the httpx ``timeout=`` parameter (SonarCloud python:S7483); the shared
+    client uses its own base timeout configured at construction time.
 
     Args:
         method: HTTP method (get, post, delete).
         path: API path.
-        timeout: Optional per-request timeout override (seconds).
+        deadline: Optional per-request deadline in seconds (wraps the call
+            with ``asyncio.timeout``). Falls back to the client-level timeout
+            when ``None``.
         **kwargs: Extra keyword arguments forwarded to httpx.
     """
     client = await get_client()
 
-    req_timeout = httpx.Timeout(timeout) if timeout else None
-
     for attempt in range(_MAX_RETRIES + 1):
         try:
-            resp = await getattr(client, method)(path, timeout=req_timeout, **kwargs)
+            async with asyncio.timeout(deadline):
+                resp = cast(httpx.Response, await getattr(client, method)(path, **kwargs))
             resp.raise_for_status()
             return resp
 
-        except (httpx.ConnectTimeout, httpx.ReadTimeout, httpx.ConnectError) as exc:
+        except (httpx.ConnectTimeout, httpx.ReadTimeout, httpx.ConnectError, TimeoutError) as exc:
             if attempt < _MAX_RETRIES:
                 delay = _RETRY_BASE_DELAY * (2**attempt)  # 3s, 6s, 12s
                 await asyncio.sleep(delay)
@@ -68,51 +80,51 @@ async def _request_with_retry(method: str, path: str, *, timeout: float | None =
     raise RuntimeError("Unreachable: retry loop completed without return or raise")
 
 
-async def api_get(path: str, params: dict | None = None, *, timeout: float | None = None) -> dict | list:
+async def api_get(path: str, params: dict | None = None, *, deadline: float | None = None) -> dict | list:
     """Make an authenticated GET request to the backend API.
 
     Args:
         path: API path.
         params: Optional query parameters.
-        timeout: Optional timeout override in seconds.
+        deadline: Optional per-request deadline in seconds (asyncio.timeout).
     """
-    resp = await _request_with_retry("get", path, timeout=timeout, params=params)
-    return resp.json()
+    resp = await _request_with_retry("get", path, deadline=deadline, params=params)
+    return cast("dict | list", resp.json())
 
 
-async def api_post(path: str, data: dict | None = None, *, timeout: float | None = None) -> dict | list:
+async def api_post(path: str, data: dict | None = None, *, deadline: float | None = None) -> dict | list:
     """Make an authenticated POST request to the backend API.
 
     Args:
         path: API path.
         data: Optional request body.
-        timeout: Optional timeout override in seconds.
+        deadline: Optional per-request deadline in seconds (asyncio.timeout).
     """
-    resp = await _request_with_retry("post", path, timeout=timeout, data=data)
-    return resp.json()
+    resp = await _request_with_retry("post", path, deadline=deadline, data=data)
+    return cast("dict | list", resp.json())
 
 
-async def api_post_json(path: str, payload: dict, *, timeout: float | None = None) -> dict | list:
+async def api_post_json(path: str, payload: dict, *, deadline: float | None = None) -> dict | list:
     """Make an authenticated POST request with JSON body.
 
     Args:
         path: API path.
         payload: JSON request body.
-        timeout: Optional timeout override in seconds.
+        deadline: Optional per-request deadline in seconds (asyncio.timeout).
     """
-    resp = await _request_with_retry("post", path, timeout=timeout, json=payload)
-    return resp.json()
+    resp = await _request_with_retry("post", path, deadline=deadline, json=payload)
+    return cast("dict | list", resp.json())
 
 
-async def api_delete(path: str, *, timeout: float | None = None) -> dict | list:
+async def api_delete(path: str, *, deadline: float | None = None) -> dict | list:
     """Make an authenticated DELETE request to the backend API.
 
     Args:
         path: API path.
-        timeout: Optional timeout override in seconds.
+        deadline: Optional per-request deadline in seconds (asyncio.timeout).
     """
-    resp = await _request_with_retry("delete", path, timeout=timeout)
-    return resp.json()
+    resp = await _request_with_retry("delete", path, deadline=deadline)
+    return cast("dict | list", resp.json())
 
 
 async def close_client() -> None:

@@ -42,6 +42,8 @@ from .file_service import (
 
 router = APIRouter(tags=["files"])
 
+_FILE_NOT_FOUND = "File not found"
+
 
 class RequestUploadPayload(BaseModel):
     """Input schema for requesting a presigned upload URL."""
@@ -147,7 +149,7 @@ def confirm_file_upload(
     fid = validate_uuid(file_id)
     file = get_file_by_id(db, fid)
     if not file:
-        return JSONResponse({"error": "File not found"}, status_code=404)
+        return JSONResponse({"error": _FILE_NOT_FOUND}, status_code=404)
 
     if file.status != FileStatus.PENDING:
         return JSONResponse({"error": "File already confirmed"}, status_code=400)
@@ -191,7 +193,7 @@ def scan_file(
     fid = validate_uuid(file_id)
     file = get_file_by_id(db, fid)
     if not file:
-        return JSONResponse({"error": "File not found"}, status_code=404)
+        return JSONResponse({"error": _FILE_NOT_FOUND}, status_code=404)
 
     if file.status not in (FileStatus.UPLOADED, FileStatus.SCAN_ERROR):
         return JSONResponse(
@@ -262,7 +264,7 @@ def get_download_url(
     fid = validate_uuid(file_id)
     file = get_file_by_id(db, fid)
     if not file:
-        return JSONResponse({"error": "File not found"}, status_code=404)
+        return JSONResponse({"error": _FILE_NOT_FOUND}, status_code=404)
 
     if file.status == FileStatus.PENDING:
         return JSONResponse({"error": "File non ancora caricato"}, status_code=400)
@@ -287,7 +289,7 @@ def remove_file(
     fid = validate_uuid(file_id)
     file = get_file_by_id(db, fid)
     if not file:
-        return JSONResponse({"error": "File not found"}, status_code=404)
+        return JSONResponse({"error": _FILE_NOT_FOUND}, status_code=404)
 
     if file.status != FileStatus.PENDING:
         delete_object(str(file.r2_key))

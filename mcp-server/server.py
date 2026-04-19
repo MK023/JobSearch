@@ -33,7 +33,7 @@ async def wake_backend() -> dict:
     Usare PRIMA di un batch per evitare timeout da cold start.
     Ritorna: status, db, uptime.
     """
-    return await api_get("/health", timeout=_WAKE_TIMEOUT)
+    return await api_get("/health", deadline=_WAKE_TIMEOUT)
 
 
 # ── Candidature ─────────────────────────────────────────────────────
@@ -190,7 +190,7 @@ async def batch_run() -> dict:
 
     Usa batch_status() per monitorare il progresso, batch_results() per i risultati.
     """
-    return await api_post("/api/v1/batch/run", timeout=_BATCH_TIMEOUT)
+    return await api_post("/api/v1/batch/run", deadline=_BATCH_TIMEOUT)
 
 
 @mcp.tool()

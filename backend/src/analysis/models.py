@@ -21,6 +21,8 @@ from sqlalchemy.orm import relationship
 
 from ..database.base import Base
 
+_CASCADE_ALL_DELETE_ORPHAN = "all, delete-orphan"
+
 
 class AnalysisStatus(enum.StrEnum):
     """Application tracking status (overall funnel state).
@@ -99,12 +101,12 @@ class JobAnalysis(Base):
 
     # Relationships
     cv = relationship("CVProfile", back_populates="analyses")
-    cover_letters = relationship("CoverLetter", back_populates="analysis", cascade="all, delete-orphan")
-    contacts = relationship("Contact", back_populates="analysis", cascade="all, delete-orphan")
+    cover_letters = relationship("CoverLetter", back_populates="analysis", cascade=_CASCADE_ALL_DELETE_ORPHAN)
+    contacts = relationship("Contact", back_populates="analysis", cascade=_CASCADE_ALL_DELETE_ORPHAN)
     interviews = relationship(
         "Interview",
         back_populates="analysis",
-        cascade="all, delete-orphan",
+        cascade=_CASCADE_ALL_DELETE_ORPHAN,
         order_by="Interview.round_number",
     )
 

@@ -13,6 +13,8 @@ from .discriminator import bias_signals, discriminant_features, score_vs_outcome
 from .extractor import extract_features, feature_summary
 from .stats import conversion_rate, counts_by_status, distribution, group_stats, top_categories
 
+_ROLE_BUCKET = "Role bucket"
+
 
 def _table(headers: list[str], rows: list[list[Any]]) -> str:
     """Render a markdown table."""
@@ -65,7 +67,7 @@ def build_report(analyses: list[dict[str, Any]]) -> str:
     out += _section(
         "Role distribution",
         _table(
-            ["Role bucket", "Count"],
+            [_ROLE_BUCKET, "Count"],
             [[v, c] for v, c in top_categories(features, "role_bucket", n=20)],
         ),
     )
@@ -75,7 +77,7 @@ def build_report(analyses: list[dict[str, Any]]) -> str:
     out += _section(
         "Score by role bucket",
         _table(
-            ["Role bucket", "Count", "Mean score", "Min", "Max"],
+            [_ROLE_BUCKET, "Count", "Mean score", "Min", "Max"],
             [
                 [k, int(v["count"]), v["mean"], int(v["min"]), int(v["max"])]
                 for k, v in sorted(role_stats.items(), key=lambda x: -x[1]["mean"])
@@ -88,7 +90,7 @@ def build_report(analyses: list[dict[str, Any]]) -> str:
     out += _section(
         "Conversion by role (applied → interview / offer)",
         _table(
-            ["Role bucket", "Applied", "Interviews", "Offers", "Interview %", "Offer %"],
+            [_ROLE_BUCKET, "Applied", "Interviews", "Offers", "Interview %", "Offer %"],
             [
                 [
                     k,
