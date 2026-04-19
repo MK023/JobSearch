@@ -465,13 +465,15 @@
 /* ---- Contract type filter (segmented: Tutti / Dipendente / P.IVA) ---- */
 
 .contract-filter {
+  /* <fieldset> reset: browsers apply default border+padding+margin */
   display: inline-flex;
   gap: 0;
   background: var(--bg-tertiary);
   border-radius: var(--radius-md);
   padding: 2px;
   border: 1px solid var(--border-subtle);
-  margin-bottom: var(--space-sm);
+  margin: 0 0 var(--space-sm);
+  min-width: 0;
 }
 
 .contract-option {

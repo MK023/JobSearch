@@ -1,7 +1,7 @@
 """Read-only API routes for MCP and external consumers."""
 
 from datetime import UTC, datetime
-from typing import Any, cast
+from typing import Annotated, Any, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Query
@@ -121,8 +121,11 @@ def export_all_analyses(user: CurrentUser, db: DbSession) -> JSONResponse:
 def list_candidature(
     db: DbSession,
     user: CurrentUser,
-    status: str | None = Query(None, description="Filter by status: da_valutare, candidato, colloquio, scartato"),
-    limit: int = Query(50, ge=1, le=100),
+    status: Annotated[
+        str | None,
+        Query(description="Filter by status: da_valutare, candidato, colloquio, scartato"),
+    ] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> JSONResponse:
     """List candidature with optional status filter."""
     analyses = get_candidature(db, status=status, limit=limit)
@@ -133,8 +136,8 @@ def list_candidature(
 def candidature_search(
     db: DbSession,
     user: CurrentUser,
-    q: str = Query(..., min_length=1, max_length=200, description="Search by company or role"),
-    limit: int = Query(20, ge=1, le=50),
+    q: Annotated[str, Query(min_length=1, max_length=200, description="Search by company or role")],
+    limit: Annotated[int, Query(ge=1, le=50)] = 20,
 ) -> JSONResponse:
     """Search candidature by company or role."""
     analyses = search_candidature(db, query=q, limit=limit)
@@ -145,7 +148,7 @@ def candidature_search(
 def top_candidature(
     db: DbSession,
     user: CurrentUser,
-    limit: int = Query(10, ge=1, le=50),
+    limit: Annotated[int, Query(ge=1, le=50)] = 10,
 ) -> JSONResponse:
     """Get top-scored candidature (excluding rejected)."""
     analyses = get_top_candidature(db, limit=limit)
@@ -156,8 +159,8 @@ def top_candidature(
 def candidature_by_date_range(
     db: DbSession,
     user: CurrentUser,
-    date_from: str = Query(..., description="Start date (YYYY-MM-DD)"),
-    date_to: str = Query(..., description="End date (YYYY-MM-DD)"),
+    date_from: Annotated[str, Query(description="Start date (YYYY-MM-DD)")],
+    date_to: Annotated[str, Query(description="End date (YYYY-MM-DD)")],
 ) -> JSONResponse:
     """Get candidature within a date range."""
     try:
@@ -174,7 +177,7 @@ def candidature_by_date_range(
 def stale_candidature(
     db: DbSession,
     user: CurrentUser,
-    days: int = Query(7, ge=1, le=90, description="Days without updates"),
+    days: Annotated[int, Query(ge=1, le=90, description="Days without updates")] = 7,
 ) -> JSONResponse:
     """Get candidature that haven't been updated in N days."""
     analyses = get_stale_candidature(db, days=days)
@@ -262,8 +265,8 @@ def cover_letters(
 def contacts_search(
     db: DbSession,
     user: CurrentUser,
-    q: str = Query(..., min_length=1, max_length=200, description="Search by name, company, or email"),
-    limit: int = Query(20, ge=1, le=50),
+    q: Annotated[str, Query(min_length=1, max_length=200, description="Search by name, company, or email")],
+    limit: Annotated[int, Query(ge=1, le=50)] = 20,
 ) -> JSONResponse:
     """Search all contacts by name, company, or email."""
     contacts = search_all_contacts(db, query=q, limit=limit)
@@ -313,7 +316,7 @@ def pending_followups(
 def activity_summary(
     db: DbSession,
     user: CurrentUser,
-    days: int = Query(7, ge=1, le=90, description="Number of days to summarize"),
+    days: Annotated[int, Query(ge=1, le=90, description="Number of days to summarize")] = 7,
 ) -> JSONResponse:
     """Get activity summary for the last N days."""
     from datetime import timedelta

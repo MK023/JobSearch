@@ -15,6 +15,7 @@ from ..dependencies import CurrentUser, DbSession, validate_uuid
 from ..rate_limit import limiter
 from .models import Interview, InterviewOutcome
 from .service import (
+    InterviewScheduleData,
     create_next_round,
     create_or_update_interview,
     delete_interview,
@@ -99,19 +100,21 @@ def upsert_interview(
     create_or_update_interview(
         db,
         str(analysis.id),
-        scheduled_at=scheduled,
-        ends_at=ends,
-        platform=payload.platform,
-        interview_type=payload.interview_type,
-        interviewer_name=payload.interviewer_name,
-        recruiter_name=payload.recruiter_name,
-        recruiter_email=payload.recruiter_email,
-        meeting_link=payload.meeting_link,
-        meeting_id=payload.meeting_id,
-        phone_number=payload.phone_number,
-        access_pin=payload.access_pin,
-        location=payload.location,
-        notes=payload.notes,
+        InterviewScheduleData(
+            scheduled_at=scheduled,
+            ends_at=ends,
+            platform=payload.platform,
+            interview_type=payload.interview_type,
+            interviewer_name=payload.interviewer_name,
+            recruiter_name=payload.recruiter_name,
+            recruiter_email=payload.recruiter_email,
+            meeting_link=payload.meeting_link,
+            meeting_id=payload.meeting_id,
+            phone_number=payload.phone_number,
+            access_pin=payload.access_pin,
+            location=payload.location,
+            notes=payload.notes,
+        ),
     )
 
     update_status(db, analysis, AnalysisStatus.INTERVIEW)

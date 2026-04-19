@@ -10,13 +10,15 @@ from src.interview.file_models import (
     FileStatus,
     InterviewFile,
 )
-from src.interview.service import create_or_update_interview
+from src.interview.service import InterviewScheduleData, create_or_update_interview
 
 
 class TestInterviewFileModel:
     def test_create_file_record(self, db_session, test_analysis):
         scheduled = datetime(2026, 3, 15, 10, 0, tzinfo=UTC)
-        interview = create_or_update_interview(db_session, test_analysis.id, scheduled_at=scheduled)
+        interview = create_or_update_interview(
+            db_session, test_analysis.id, InterviewScheduleData(scheduled_at=scheduled)
+        )
         db_session.flush()
 
         file = InterviewFile(
@@ -35,7 +37,9 @@ class TestInterviewFileModel:
 
     def test_file_belongs_to_interview(self, db_session, test_analysis):
         scheduled = datetime(2026, 3, 15, 10, 0, tzinfo=UTC)
-        interview = create_or_update_interview(db_session, test_analysis.id, scheduled_at=scheduled)
+        interview = create_or_update_interview(
+            db_session, test_analysis.id, InterviewScheduleData(scheduled_at=scheduled)
+        )
         db_session.flush()
 
         file = InterviewFile(
@@ -55,7 +59,9 @@ class TestInterviewFileModel:
     def test_cascade_delete(self, db_session, test_analysis):
         """Deleting an interview should delete its files."""
         scheduled = datetime(2026, 3, 15, 10, 0, tzinfo=UTC)
-        interview = create_or_update_interview(db_session, test_analysis.id, scheduled_at=scheduled)
+        interview = create_or_update_interview(
+            db_session, test_analysis.id, InterviewScheduleData(scheduled_at=scheduled)
+        )
         db_session.flush()
 
         file = InterviewFile(

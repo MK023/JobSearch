@@ -9,6 +9,12 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from .models import LOCKOUT_MINUTES, MAX_FAILED_ATTEMPTS, User
 
+# Process-local dummy bcrypt hash generated at import time, used for
+# constant-time login when the email is unknown. Never committed — each
+# worker boot computes a fresh salt. SonarCloud S8215 / Bandit S105 do
+# not fire against a runtime-generated value.
+_DUMMY_HASH = bcrypt.hashpw(b"not-a-real-password", bcrypt.gensalt()).decode()
+
 
 def hash_password(password: str) -> str:
     """Hash a plaintext password using bcrypt."""
@@ -39,8 +45,7 @@ def authenticate_user(db: Session, email: str, password: str) -> User | None:
     if not user:
         # Timing-safe: always run bcrypt even if user doesn't exist,
         # so attacker can't distinguish "user not found" from "wrong password".
-        _dummy_hash = "$2b$12$LJ3m4ys3Lg2VBe5E5pYave.1RnMqCuOYjxoQWMOcLbHZDNMqDHbG2"  # noqa: S105
-        verify_password(password, _dummy_hash)
+        verify_password(password, _DUMMY_HASH)
         return None
 
     # Check lockout

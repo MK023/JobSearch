@@ -58,7 +58,8 @@
   </div>
 
   {# Contract type segmented control — switch between Tutti / Dipendente / P.IVA. Persisted in sessionStorage #}
-  <div class="contract-filter" role="group" aria-label="Tipo contratto">
+  <fieldset class="contract-filter">
+    <legend class="sr-only">Tipo contratto</legend>
     <button type="button" class="contract-option" :class="{ active: filters.contractType === 'tutti' }"
             @click="setContractType('tutti')"
             title="Mostra annunci dipendenti e P.IVA">
@@ -74,7 +75,7 @@
             title="Mostra solo ruoli in P.IVA / libera professione">
       Solo P.IVA
     </button>
-  </div>
+  </fieldset>
 
   {# Secondary filter bar — chips toggle + score min slider. State persisted in sessionStorage by historyTabs() #}
   <div class="filter-bar">

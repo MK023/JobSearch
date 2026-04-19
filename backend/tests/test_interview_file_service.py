@@ -13,13 +13,15 @@ from src.interview.file_service import (
     get_not_compiled_files,
     update_scan_result,
 )
-from src.interview.service import create_or_update_interview
+from src.interview.service import InterviewScheduleData, create_or_update_interview
 
 
 class TestCreateFileRecord:
     def test_creates_pending_file(self, db_session, test_analysis):
         interview = create_or_update_interview(
-            db_session, test_analysis.id, scheduled_at=datetime(2026, 3, 15, 10, 0, tzinfo=UTC)
+            db_session,
+            test_analysis.id,
+            InterviewScheduleData(scheduled_at=datetime(2026, 3, 15, 10, 0, tzinfo=UTC)),
         )
         db_session.flush()
 
@@ -40,7 +42,9 @@ class TestCreateFileRecord:
 class TestConfirmUpload:
     def test_confirms_and_sets_size(self, db_session, test_analysis):
         interview = create_or_update_interview(
-            db_session, test_analysis.id, scheduled_at=datetime(2026, 3, 15, 10, 0, tzinfo=UTC)
+            db_session,
+            test_analysis.id,
+            InterviewScheduleData(scheduled_at=datetime(2026, 3, 15, 10, 0, tzinfo=UTC)),
         )
         db_session.flush()
 
@@ -62,7 +66,9 @@ class TestConfirmUpload:
 class TestUpdateScanResult:
     def test_updates_status_and_result(self, db_session, test_analysis):
         interview = create_or_update_interview(
-            db_session, test_analysis.id, scheduled_at=datetime(2026, 3, 15, 10, 0, tzinfo=UTC)
+            db_session,
+            test_analysis.id,
+            InterviewScheduleData(scheduled_at=datetime(2026, 3, 15, 10, 0, tzinfo=UTC)),
         )
         db_session.flush()
 
@@ -84,7 +90,9 @@ class TestUpdateScanResult:
 class TestGetNotCompiledFiles:
     def test_returns_not_compiled_files(self, db_session, test_analysis):
         interview = create_or_update_interview(
-            db_session, test_analysis.id, scheduled_at=datetime(2026, 3, 15, 10, 0, tzinfo=UTC)
+            db_session,
+            test_analysis.id,
+            InterviewScheduleData(scheduled_at=datetime(2026, 3, 15, 10, 0, tzinfo=UTC)),
         )
         db_session.flush()
 
@@ -105,7 +113,9 @@ class TestGetNotCompiledFiles:
 class TestCountFiles:
     def test_counts_correctly(self, db_session, test_analysis):
         interview = create_or_update_interview(
-            db_session, test_analysis.id, scheduled_at=datetime(2026, 3, 15, 10, 0, tzinfo=UTC)
+            db_session,
+            test_analysis.id,
+            InterviewScheduleData(scheduled_at=datetime(2026, 3, 15, 10, 0, tzinfo=UTC)),
         )
         db_session.flush()
 
@@ -125,7 +135,9 @@ class TestCountFiles:
 class TestDeleteFileRecord:
     def test_deletes_file(self, db_session, test_analysis):
         interview = create_or_update_interview(
-            db_session, test_analysis.id, scheduled_at=datetime(2026, 3, 15, 10, 0, tzinfo=UTC)
+            db_session,
+            test_analysis.id,
+            InterviewScheduleData(scheduled_at=datetime(2026, 3, 15, 10, 0, tzinfo=UTC)),
         )
         db_session.flush()
 
@@ -148,7 +160,9 @@ class TestDeleteFileRecord:
 class TestGetInterviewById:
     def test_returns_interview(self, db_session, test_analysis):
         interview = create_or_update_interview(
-            db_session, test_analysis.id, scheduled_at=datetime(2026, 3, 15, 10, 0, tzinfo=UTC)
+            db_session,
+            test_analysis.id,
+            InterviewScheduleData(scheduled_at=datetime(2026, 3, 15, 10, 0, tzinfo=UTC)),
         )
         db_session.flush()
 

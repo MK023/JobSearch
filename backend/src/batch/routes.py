@@ -29,9 +29,9 @@ def batch_add(
     request: Request,
     user: CurrentUser,
     db: DbSession,
-    job_description: str = Form(...),
-    job_url: str = Form(""),
-    model: str = Form("haiku"),
+    job_description: Annotated[str, Form()],
+    job_url: Annotated[str, Form()] = "",
+    model: Annotated[str, Form()] = "haiku",
 ) -> JSONResponse:
     """Add a job description to the pending batch queue."""
     if job_url and not job_url.startswith(("https://", "http://")):

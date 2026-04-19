@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 from src.interview.file_models import FileStatus, InterviewFile
-from src.interview.service import create_or_update_interview
+from src.interview.service import InterviewScheduleData, create_or_update_interview
 from src.notifications.document_reminder import (
     _build_document_reminder_html,
     _build_plain_text,
@@ -65,7 +65,9 @@ class TestSendDocumentReminders:
 
         # Create interview + file
         interview = create_or_update_interview(
-            db_session, test_analysis.id, scheduled_at=datetime(2026, 3, 20, 10, 0, tzinfo=UTC)
+            db_session,
+            test_analysis.id,
+            InterviewScheduleData(scheduled_at=datetime(2026, 3, 20, 10, 0, tzinfo=UTC)),
         )
         db_session.flush()
 
@@ -101,7 +103,9 @@ class TestSendDocumentReminders:
         mock_settings.resend_from_email = "noreply@test.com"
 
         interview = create_or_update_interview(
-            db_session, test_analysis.id, scheduled_at=datetime(2026, 3, 20, 10, 0, tzinfo=UTC)
+            db_session,
+            test_analysis.id,
+            InterviewScheduleData(scheduled_at=datetime(2026, 3, 20, 10, 0, tzinfo=UTC)),
         )
         db_session.flush()
 

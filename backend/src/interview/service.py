@@ -7,6 +7,7 @@ mutations (advance to next round, log outcome) live in the new helpers
 below and will be wired to the UI in PR-2.
 """
 
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
@@ -15,6 +16,29 @@ from sqlalchemy.orm import Session
 
 from ..analysis.models import AnalysisStatus, JobAnalysis
 from .models import Interview, InterviewOutcome
+
+
+@dataclass
+class InterviewScheduleData:
+    """All optional metadata for an interview round.
+
+    Bundled into a single value object so ``create_or_update_interview`` has
+    3 parameters instead of 15 (SonarCloud S107 / too-many-parameters).
+    """
+
+    scheduled_at: datetime
+    ends_at: datetime | None = None
+    platform: str | None = None
+    interview_type: str | None = None
+    interviewer_name: str | None = None
+    recruiter_name: str | None = None
+    recruiter_email: str | None = None
+    meeting_link: str | None = None
+    meeting_id: str | None = None
+    phone_number: str | None = None
+    access_pin: str | None = None
+    location: str | None = None
+    notes: str | None = None
 
 
 def _latest_round(db: Session, analysis_id: UUID | str) -> Interview | None:
@@ -26,20 +50,7 @@ def _latest_round(db: Session, analysis_id: UUID | str) -> Interview | None:
 def create_or_update_interview(
     db: Session,
     analysis_id: UUID | str,
-    *,
-    scheduled_at: datetime,
-    ends_at: datetime | None = None,
-    platform: str | None = None,
-    interview_type: str | None = None,
-    interviewer_name: str | None = None,
-    recruiter_name: str | None = None,
-    recruiter_email: str | None = None,
-    meeting_link: str | None = None,
-    meeting_id: str | None = None,
-    phone_number: str | None = None,
-    access_pin: str | None = None,
-    location: str | None = None,
-    notes: str | None = None,
+    data: InterviewScheduleData,
 ) -> Interview | None:
     """Create or update the LATEST interview round for the given analysis.
 
@@ -50,40 +61,14 @@ def create_or_update_interview(
     if not analysis:
         return None
 
+    fields = asdict(data)
     interview = _latest_round(db, analysis_id)
 
     if interview:
-        interview.scheduled_at = scheduled_at  # type: ignore[assignment]
-        interview.ends_at = ends_at  # type: ignore[assignment]
-        interview.platform = platform  # type: ignore[assignment]
-        interview.interview_type = interview_type  # type: ignore[assignment]
-        interview.interviewer_name = interviewer_name  # type: ignore[assignment]
-        interview.recruiter_name = recruiter_name  # type: ignore[assignment]
-        interview.recruiter_email = recruiter_email  # type: ignore[assignment]
-        interview.meeting_link = meeting_link  # type: ignore[assignment]
-        interview.meeting_id = meeting_id  # type: ignore[assignment]
-        interview.phone_number = phone_number  # type: ignore[assignment]
-        interview.access_pin = access_pin  # type: ignore[assignment]
-        interview.location = location  # type: ignore[assignment]
-        interview.notes = notes  # type: ignore[assignment]
+        for key, value in fields.items():
+            setattr(interview, key, value)
     else:
-        interview = Interview(
-            analysis_id=analysis_id,
-            round_number=1,
-            scheduled_at=scheduled_at,
-            ends_at=ends_at,
-            platform=platform,
-            interview_type=interview_type,
-            interviewer_name=interviewer_name,
-            recruiter_name=recruiter_name,
-            recruiter_email=recruiter_email,
-            meeting_link=meeting_link,
-            meeting_id=meeting_id,
-            phone_number=phone_number,
-            access_pin=access_pin,
-            location=location,
-            notes=notes,
-        )
+        interview = Interview(analysis_id=analysis_id, round_number=1, **fields)
         db.add(interview)
 
     db.flush()
