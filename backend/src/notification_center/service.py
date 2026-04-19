@@ -45,8 +45,11 @@ _BUDGET_CRITICAL_DEFAULT = 0.50
 _DB_SIZE_WARNING_MB = 800  # 80% of 1GB Neon free tier
 _BACKLOG_THRESHOLD = 1
 
-# Action URL used by aggregated notifications that redirect to the full list view.
-_NOTIFICATIONS_URL = "/notifications"
+# Per-type drill-down URLs: each aggregated card sends the user to the page
+# that renders the underlying items individually, not back to /notifications
+# (which would re-show the same aggregated card — circular link UX bug).
+_FOLLOWUP_LIST_URL = "/agenda"  # get_followup_alerts rendered per-item on the agenda
+_INTERVIEW_LIST_URL = "/interviews"  # past rounds without outcome visible there
 
 
 def _thresholds(db: Session) -> dict[str, float]:
@@ -158,8 +161,8 @@ def _interviews_without_outcome(db: Session, t: dict[str, float] | None = None) 
             severity=NotificationSeverity.WARNING,
             title=f"{count} colloqui senza esito registrato",
             body=body,
-            action_url=_NOTIFICATIONS_URL,
-            action_label="Vedi tutti",
+            action_url=_INTERVIEW_LIST_URL,
+            action_label="Apri colloqui",
             dismissible=True,
             sticky=True,
             created_at=datetime.now(UTC),
@@ -241,8 +244,8 @@ def _followup_due(db: Session) -> list[Notification]:
             severity=NotificationSeverity.INFO,
             title=f"{count} follow-up suggeriti",
             body=body,
-            action_url=_NOTIFICATIONS_URL,
-            action_label="Vedi tutti",
+            action_url=_FOLLOWUP_LIST_URL,
+            action_label="Apri agenda",
             dismissible=True,
             sticky=False,
             created_at=now,
@@ -541,6 +544,8 @@ def _inbox_errors(db: Session) -> list[Notification]:
             err_msg = str(item.error_message or "Errore sconosciuto")[:200]
             source = str(item.source or "inbox")
             processed = cast("datetime | None", item.processed_at)
+            # No action_url: inbox errors have no dedicated drill-down page yet.
+            # User acknowledges via the explicit × dismiss button.
             return [
                 Notification(
                     id=f"inbox:error:{item.id}",
@@ -548,8 +553,8 @@ def _inbox_errors(db: Session) -> list[Notification]:
                     severity=NotificationSeverity.WARNING,
                     title=f"Errore analisi inbox ({source})",
                     body=err_msg,
-                    action_url=_NOTIFICATIONS_URL,
-                    action_label="Dettagli",
+                    action_url=None,
+                    action_label=None,
                     dismissible=True,
                     sticky=True,
                     created_at=processed or datetime.now(UTC),
@@ -570,8 +575,8 @@ def _inbox_errors(db: Session) -> list[Notification]:
                 severity=NotificationSeverity.WARNING,
                 title=f"{count} errori analisi inbox",
                 body=preview[:400],
-                action_url=_NOTIFICATIONS_URL,
-                action_label="Dettagli",
+                action_url=None,
+                action_label=None,
                 dismissible=True,
                 sticky=True,
                 created_at=first_processed or datetime.now(UTC),
