@@ -10,6 +10,15 @@
  *    keepalive dismiss, then lets the browser navigate. The card is hidden
  *    instantly for visual feedback — important when target=_blank keeps
  *    the user on the current page.
+ *
+ * Plus a lightweight polling loop (startPolling):
+ *
+ * - Every POLL_INTERVAL_MS when the tab is visible, fetch /api/v1/notifications
+ * - Update sidebar badge + pill count immediately
+ * - On the /notifications page specifically, show a "N nuove" banner when
+ *   new notification IDs appear — click to reload. Never auto-reload to
+ *   avoid disrupting the user mid-read.
+ * - Pause when the tab is hidden; resume + immediate poll on visibilityhange.
  */
 
 (function () {
@@ -179,8 +188,77 @@
         });
     }
 
+    // --- Polling: fresh notifications without manual reload. ---
+
+    var POLL_INTERVAL_MS = 60000;
+    var knownIds = null; // lazy-initialised from the DOM on first poll
+
+    function isOnNotificationsPage() {
+        return window.location.pathname.replace(/\/$/, '') === '/notifications';
+    }
+
+    function currentDomIds() {
+        var ids = new Set();
+        document.querySelectorAll('.notification-card').forEach(function (card) {
+            var id = card.getAttribute('data-notification-id');
+            if (id) ids.add(id);
+        });
+        return ids;
+    }
+
+    function showNewBanner(newCount) {
+        var existing = document.getElementById('notification-fresh-banner');
+        if (existing) {
+            existing.textContent = newCount + (newCount === 1 ? ' nuova notifica' : ' nuove notifiche') +
+                ' disponibil' + (newCount === 1 ? 'e' : 'i') + ' — click per aggiornare';
+            return;
+        }
+        var btn = document.createElement('button');
+        btn.id = 'notification-fresh-banner';
+        btn.type = 'button';
+        btn.className = 'notification-fresh-banner';
+        btn.textContent = newCount + (newCount === 1 ? ' nuova notifica' : ' nuove notifiche') +
+            ' disponibil' + (newCount === 1 ? 'e' : 'i') + ' — click per aggiornare';
+        btn.addEventListener('click', function () { window.location.reload(); });
+
+        var container = document.querySelector('.content-inner');
+        if (container) container.insertBefore(btn, container.firstChild);
+    }
+
+    function pollNotifications() {
+        fetch('/api/v1/notifications', { credentials: 'same-origin' })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (list) {
+                if (!Array.isArray(list)) return;
+                var ids = new Set(list.map(function (n) { return n.id; }));
+                updateBadgeCount(ids.size);
+                updatePillCount(ids.size);
+
+                if (isOnNotificationsPage()) {
+                    if (knownIds === null) {
+                        knownIds = currentDomIds();
+                    }
+                    var added = 0;
+                    ids.forEach(function (id) { if (!knownIds.has(id)) added++; });
+                    if (added > 0) showNewBanner(added);
+                }
+            })
+            .catch(function () { /* network hiccup — retry next tick */ });
+    }
+
+    function startPolling() {
+        if (isOnNotificationsPage()) knownIds = currentDomIds();
+        setInterval(function () {
+            if (document.visibilityState === 'visible') pollNotifications();
+        }, POLL_INTERVAL_MS);
+        document.addEventListener('visibilitychange', function () {
+            if (document.visibilityState === 'visible') pollNotifications();
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         wireDismissButtons();
         wireActionLinks();
+        startPolling();
     });
 })();

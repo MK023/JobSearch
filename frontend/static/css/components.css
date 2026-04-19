@@ -820,6 +820,29 @@
   color: var(--accent-red);
 }
 
+/* ---- Fresh-notifications banner (polling hint on /notifications) ---- */
+
+.notification-fresh-banner {
+  display: block;
+  width: 100%;
+  padding: var(--space-md) var(--space-lg);
+  margin-bottom: var(--space-lg);
+  border-radius: var(--radius-md);
+  background: var(--accent-ember-soft);
+  border: 1px solid var(--accent-ember);
+  color: var(--accent-ember);
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  text-align: center;
+  cursor: pointer;
+  font-family: inherit;
+  transition: filter var(--transition-fast);
+}
+
+.notification-fresh-banner:hover {
+  filter: brightness(1.15);
+}
+
 /* ---- Textarea ---- */
 
 .textarea {
