@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JobSearch Inbox</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="popup-header">
+      <div class="popup-header-title">
+        <img src="icons/icon-48.png" alt="" width="24" height="24" />
+        <span>JobSearch Inbox</span>
+      </div>
+      <button id="toggle-settings" class="icon-btn" type="button" title="Impostazioni" aria-label="Impostazioni">&#9881;</button>
+    </header>
+
+    <section id="main-panel" class="panel">
+      <label class="field">
+        <span class="field-label">Fonte</span>
+        <select id="source-select">
+          <option value="manual">Manuale</option>
+          <option value="linkedin">LinkedIn</option>
+          <option value="indeed">Indeed</option>
+          <option value="infojobs">InfoJobs</option>
+          <option value="wttj">Welcome to the Jungle</option>
+          <option value="remote_ok">RemoteOK</option>
+          <option value="other">Altro</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span class="field-label">Testo annuncio</span>
+        <textarea
+          id="raw-text"
+          rows="8"
+          placeholder="Incolla qui il testo dell'annuncio (min 50 caratteri)."
+          spellcheck="false"
+          autocomplete="off"
+        ></textarea>
+        <span id="char-count" class="field-hint">0 caratteri</span>
+      </label>
+
+      <div class="button-row">
+        <button id="capture-btn" type="button" class="btn btn-secondary" title="Estrae automaticamente il testo dalla pagina corrente">
+          Auto-capture
+        </button>
+        <button id="send-btn" type="button" class="btn btn-primary">
+          Invia
+        </button>
+      </div>
+
+      <output id="status" class="status" aria-live="polite">Pronto</output>
+    </section>
+
+    <section id="settings-panel" class="panel hidden" aria-hidden="true">
+      <label class="field">
+        <span class="field-label">Endpoint</span>
+        <input
+          id="endpoint-input"
+          type="url"
+          placeholder="https://www.jobsearches.cc"
+          autocomplete="off"
+          spellcheck="false"
+        />
+      </label>
+
+      <label class="field">
+        <span class="field-label">API Key</span>
+        <div class="input-group">
+          <input
+            id="apikey-input"
+            type="password"
+            placeholder="jobsearch_..."
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button id="toggle-apikey" type="button" class="icon-btn" title="Mostra/nascondi" aria-label="Mostra o nascondi la API key">&#128065;</button>
+        </div>
+      </label>
+
+      <div class="button-row">
+        <button id="save-settings" type="button" class="btn btn-primary">Salva</button>
+      </div>
+
+      <p class="field-hint">
+        L'API Key è la stessa usata dal cron <code>weekly-cleanup.yml</code>
+        e dal MCP server. Resta salvata in <code>chrome.storage.sync</code>.
+      </p>
+    </section>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

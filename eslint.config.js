@@ -101,4 +101,29 @@ export default [
       "no-shadow-restricted-names": "error",
     },
   },
+  {
+    // Chrome extension — isolated runtime, chrome.* globals, no CDN libs.
+    files: ["frontend/chrome-extension/*.js"],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "script",
+      globals: {
+        ...globals.browser,
+        chrome: "readonly",
+      },
+    },
+    rules: {
+      "no-undef": "error",
+      "no-unused-vars": ["warn", {
+        args: "none",
+        caughtErrors: "none",
+        varsIgnorePattern: "^_",
+      }],
+      "no-shadow-restricted-names": "error",
+      "eqeqeq": ["warn", "smart"],
+      "no-self-assign": "error",
+      "no-self-compare": "error",
+      "use-isnan": "error",
+    },
+  },
 ];

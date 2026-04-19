@@ -47,6 +47,7 @@ ignore = [
 "mcp-server/tests/*" = ["S101"]  # allow assert in tests
 "backend/alembic/*" = ["S"]   # migrations don't need security linting
 "scripts/*" = ["T201"]        # CLI scripts use print() for UX
+"frontend/chrome-extension/*.py" = ["T201"]  # standalone dev tooling
 
 [tool.ruff.lint.isort]
 known-first-party = ["src"]
