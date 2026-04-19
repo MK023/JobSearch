@@ -28,6 +28,7 @@ from sqlalchemy.orm import Session
 
 from ..analysis.models import AnalysisStatus, JobAnalysis
 from ..dashboard.service import get_followup_alerts, get_spending
+from ..inbox.models import InboxItem, InboxStatus
 from ..interview.models import Interview
 from ..interview.service import get_upcoming_interviews
 from ..preferences.service import get_preference
@@ -113,10 +114,13 @@ def _interviews_without_outcome(db: Session, t: dict[str, float] | None = None) 
         .order_by(Interview.scheduled_at.desc())
         .all()
     )
-    out: list[Notification] = []
-    for interview, analysis in rows:
+    if not rows:
+        return []
+
+    if len(rows) == 1:
+        interview, analysis = rows[0]
         scheduled: datetime = interview.scheduled_at
-        out.append(
+        return [
             Notification(
                 id=f"interview_outcome:{interview.id}",
                 type=NotificationType.INTERVIEW_NO_OUTCOME,
@@ -133,8 +137,30 @@ def _interviews_without_outcome(db: Session, t: dict[str, float] | None = None) 
                 sticky=True,
                 created_at=scheduled,
             )
+        ]
+
+    # Aggregate: multiple interview rounds missing outcome
+    count = len(rows)
+    companies = [analysis.company for _, analysis in rows[:3] if analysis.company]
+    others = count - len(companies)
+    company_line = ", ".join(companies) if companies else ""
+    if others > 0 and company_line:
+        company_line += f" e altri {others}"
+    body = (company_line + ". " if company_line else "") + "Logga gli esiti per mantenere il funnel pulito."
+    return [
+        Notification(
+            id=f"interview_outcome:aggregated:{count}",
+            type=NotificationType.INTERVIEW_NO_OUTCOME,
+            severity=NotificationSeverity.WARNING,
+            title=f"{count} colloqui senza esito registrato",
+            body=body,
+            action_url="/notifications",
+            action_label="Vedi tutti",
+            dismissible=True,
+            sticky=True,
+            created_at=datetime.now(UTC),
         )
-    return out
+    ]
 
 
 def _db_size_high(db: Session) -> list[Notification]:
@@ -170,11 +196,14 @@ def _db_size_mb(db: Session) -> float | None:
 
 def _followup_due(db: Session) -> list[Notification]:
     alerts = get_followup_alerts(db)
-    out: list[Notification] = []
+    if not alerts:
+        return []
     now = datetime.now(UTC)
-    for a in alerts:
+
+    if len(alerts) == 1:
+        a = alerts[0]
         applied: datetime | None = a.applied_at  # type: ignore[assignment]
-        out.append(
+        return [
             Notification(
                 id=f"followup:{a.id}",
                 type=NotificationType.FOLLOWUP_DUE,
@@ -191,8 +220,30 @@ def _followup_due(db: Session) -> list[Notification]:
                 sticky=False,
                 created_at=applied or now,
             )
+        ]
+
+    # Aggregate: multiple follow-ups pending
+    count = len(alerts)
+    companies = [a.company for a in alerts[:3] if a.company]
+    others = count - len(companies)
+    company_line = ", ".join(companies) if companies else ""
+    if others > 0 and company_line:
+        company_line += f" e altri {others}"
+    body = (company_line + ". " if company_line else "") + "Valuta un remind ai recruiter."
+    return [
+        Notification(
+            id=f"followup:aggregated:{count}",
+            type=NotificationType.FOLLOWUP_DUE,
+            severity=NotificationSeverity.INFO,
+            title=f"{count} follow-up suggeriti",
+            body=body,
+            action_url="/notifications",
+            action_label="Vedi tutti",
+            dismissible=True,
+            sticky=False,
+            created_at=now,
         )
-    return out
+    ]
 
 
 def _backlog_to_review(db: Session) -> list[Notification]:
@@ -427,6 +478,104 @@ def _analytics_available(db: Session) -> list[Notification]:
         return []
 
 
+def _inbox_ready(db: Session) -> list[Notification]:
+    """Aggregate: inbox-originated analyses landed in history, still awaiting triage."""
+    try:
+        cutoff = datetime.now(UTC) - timedelta(days=7)
+        count = (
+            db.query(func.count(InboxItem.id))
+            .join(JobAnalysis, InboxItem.analysis_id == JobAnalysis.id)
+            .filter(
+                InboxItem.status == InboxStatus.DONE.value,
+                InboxItem.processed_at >= cutoff,
+                JobAnalysis.status == AnalysisStatus.PENDING.value,
+            )
+            .scalar()
+            or 0
+        )
+        if count == 0:
+            return []
+        title = "1 nuova analisi dal Chrome extension" if count == 1 else f"{count} nuove analisi dal Chrome extension"
+        return [
+            Notification(
+                id=f"inbox:ready:{count}",
+                type=NotificationType.INBOX_ANALYSIS_READY,
+                severity=NotificationSeverity.INFO,
+                title=title,
+                body="Arrivate tramite paste del browser, pronte da valutare.",
+                action_url="/history#valutazione",
+                action_label="Apri valutazione",
+                dismissible=True,
+                sticky=False,
+                created_at=datetime.now(UTC),
+            )
+        ]
+    except Exception:
+        logger.exception("notification_center: inbox_ready rule failed")
+        return []
+
+
+def _inbox_errors(db: Session) -> list[Notification]:
+    """Inbox items that failed analysis. Sticky — require attention. Aggregated when >=2."""
+    try:
+        cutoff = datetime.now(UTC) - timedelta(days=7)
+        errored = (
+            db.query(InboxItem)
+            .filter(
+                InboxItem.status == InboxStatus.ERROR.value,
+                InboxItem.processed_at >= cutoff,
+            )
+            .order_by(InboxItem.processed_at.desc())
+            .limit(20)
+            .all()
+        )
+        if not errored:
+            return []
+
+        if len(errored) == 1:
+            item = errored[0]
+            err_msg = (item.error_message or "Errore sconosciuto")[:200]
+            source = str(item.source or "inbox")
+            return [
+                Notification(
+                    id=f"inbox:error:{item.id}",
+                    type=NotificationType.INBOX_ERROR,
+                    severity=NotificationSeverity.WARNING,
+                    title=f"Errore analisi inbox ({source})",
+                    body=err_msg,
+                    action_url="/notifications",
+                    action_label="Dettagli",
+                    dismissible=True,
+                    sticky=True,
+                    created_at=item.processed_at or datetime.now(UTC),
+                )
+            ]
+
+        # Aggregate multiple errors
+        count = len(errored)
+        first_msgs = [(item.error_message or "errore")[:60] for item in errored[:2]]
+        preview = " | ".join(first_msgs)
+        if count > 2:
+            preview += f" (+ altri {count - 2})"
+        return [
+            Notification(
+                id=f"inbox:error:aggregated:{count}",
+                type=NotificationType.INBOX_ERROR,
+                severity=NotificationSeverity.WARNING,
+                title=f"{count} errori analisi inbox",
+                body=preview[:400],
+                action_url="/notifications",
+                action_label="Dettagli",
+                dismissible=True,
+                sticky=True,
+                created_at=errored[0].processed_at or datetime.now(UTC),
+            )
+        ]
+    except Exception:
+        logger.exception("notification_center: inbox_errors rule failed")
+        return []
+
+
 _SEVERITY_ORDER = {
     NotificationSeverity.CRITICAL: 0,
     NotificationSeverity.WARNING: 1,
@@ -461,6 +610,8 @@ def get_notifications(db: Session) -> list[Notification]:
     out.extend(_recent_errors(db))
     out.extend(_news_available(db))
     out.extend(_analytics_available(db))
+    out.extend(_inbox_ready(db))
+    out.extend(_inbox_errors(db))
 
     out = [n for n in out if n.id not in dismissed]
     out.sort(key=lambda n: (_SEVERITY_ORDER[n.severity], -n.created_at.timestamp()))
