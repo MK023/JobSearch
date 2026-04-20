@@ -51,18 +51,30 @@ def _base_ctx(db: DbSession, user: CurrentUser, active_page: str) -> dict[str, A
     """
     from sqlalchemy import func as _func
 
+    from .agenda.models import TodoItem
     from .analysis.models import JobAnalysis
+    from .analytics_page.service import get_lock_state
     from .interview.service import get_upcoming_interviews
 
     pending_count = (
         db.query(_func.count(JobAnalysis.id)).filter(JobAnalysis.status == AnalysisStatus.PENDING.value).scalar() or 0
     )
+    agenda_count = (
+        db.query(_func.count(TodoItem.id)).filter(TodoItem.done == False).scalar() or 0  # noqa: E712
+    )
+    # Analytics badge piggybacks on the same unlock threshold that fires
+    # the ANALYTICS_AVAILABLE notification rule — badge + notification
+    # card appear and disappear together.
+    analytics_lock = get_lock_state(db)
+    analytics_available = bool(not analytics_lock.get("locked", True))
     return {
         "user": user,
         "active_page": active_page,
         "notification_count": get_unread_count(db),
         "interview_count": len(get_upcoming_interviews(db, days=14)),
         "pending_count": pending_count,
+        "agenda_count": agenda_count,
+        "analytics_available": analytics_available,
     }
 
 

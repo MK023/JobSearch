@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import cast
 from uuid import UUID
 
@@ -15,6 +16,8 @@ from ..dependencies import Cache, CurrentUser, DbSession
 from ..rate_limit import limiter
 from .schemas import InboxRequest, InboxResponse
 from .service import InboxValidationError, ingest, process_pending
+
+_logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/inbox", tags=["inbox"])
 
@@ -45,7 +48,14 @@ def ingest_inbox(
             source=payload.source,
         )
     except InboxValidationError as exc:
-        return JSONResponse({"error": str(exc)}, status_code=400)
+        # Domain-level validation errors carry a user-facing message
+        # authored by us (e.g. "testo troppo corto"). Log the typed exception
+        # server-side for audit and return only the first arg — never the
+        # full str() which CodeQL flags as stack-trace exposure because
+        # a future subclass could embed internal state in its repr.
+        _logger.info("inbox validation rejected: %s", exc)
+        message = str(exc.args[0]) if exc.args else "Richiesta non valida."
+        return JSONResponse({"error": message}, status_code=400)
 
     audit(
         db,

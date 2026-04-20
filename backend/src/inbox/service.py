@@ -234,6 +234,13 @@ def process_pending(
     defense at the LLM layer (we trust the output schema Pydantic validation
     in anthropic_client to catch malformed replies).
     """
+    # Tag Sentry early so any exception raised below (including OOM,
+    # DB errors, Anthropic timeouts) is grouped under the extension
+    # flow — the middleware covers HTTP paths but not BackgroundTasks.
+    from ..errors import tag_flow_source
+
+    tag_flow_source(AnalysisSource.EXTENSION.value)
+
     item = db.query(InboxItem).filter(InboxItem.id == inbox_id).first()
     if not item or item.status != InboxStatus.PENDING.value:
         return

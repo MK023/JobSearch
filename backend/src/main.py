@@ -214,6 +214,23 @@ def _register_middleware(app: FastAPI) -> None:
         return response
 
     @app.middleware("http")
+    async def tag_sentry_flow_source(request: Request, call_next: Any) -> Response:
+        """Tag Sentry scope with ``flow_source`` so exceptions surface
+        split by ingestion channel (extension / cowork / api / mcp).
+
+        The source is inferred from the request path — fast and covers
+        every analysis entry point without touching individual handlers.
+        Background tasks that don't pass through this middleware must
+        call ``tag_flow_source`` explicitly.
+        """
+        from .errors import infer_source_from_path, tag_flow_source
+
+        source = infer_source_from_path(request.url.path)
+        tag_flow_source(source)
+        response: Response = await call_next(request)
+        return response
+
+    @app.middleware("http")
     async def security_headers(request: Request, call_next: Any) -> Response:
         """Add security headers (CSP, HSTS, X-Frame-Options, etc.) to all responses."""
         response: Response = await call_next(request)

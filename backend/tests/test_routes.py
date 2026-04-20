@@ -227,3 +227,52 @@ class TestAuthenticatedPages:
     def test_stats_page_renders(self, auth_client):
         resp = auth_client.get("/stats")
         assert resp.status_code == 200
+
+
+class TestInboxValidationErrorShape:
+    """CodeQL py/stack-trace-exposure fix: ensure the endpoint returns the
+    user-facing message via exc.args[0] instead of str(exc), and that the
+    generic fallback kicks in when args is empty."""
+
+    def test_returns_400_with_validation_message(self, auth_client, real_db):
+        from src.inbox import routes as inbox_routes
+
+        def _boom(**_kwargs):
+            raise inbox_routes.InboxValidationError("testo troppo corto")
+
+        with patch("src.inbox.routes.ingest", _boom):
+            resp = auth_client.post(
+                "/api/v1/inbox",
+                json={"raw_text": "x" * 80, "source": "linkedin", "source_url": "https://example.com/job"},
+            )
+        assert resp.status_code == 400
+        body = resp.json()
+        assert "error" in body
+        assert body["error"] == "testo troppo corto"
+
+    def test_returns_generic_error_when_exception_has_no_args(self, auth_client):
+        from src.inbox import routes as inbox_routes
+
+        def _boom(**_kwargs):
+            raise inbox_routes.InboxValidationError()
+
+        with patch("src.inbox.routes.ingest", _boom):
+            resp = auth_client.post(
+                "/api/v1/inbox",
+                json={"raw_text": "x" * 80, "source": "linkedin", "source_url": "https://example.com/job"},
+            )
+        assert resp.status_code == 400
+        assert resp.json()["error"] == "Richiesta non valida."
+
+
+class TestBackupErrorShape:
+    """CodeQL py/stack-trace-exposure fix on /api/v1/backup."""
+
+    def test_runtime_error_returns_generic_message(self, auth_client):
+        with patch("src.integrations.backup.create_backup", side_effect=RuntimeError("R2 down")):
+            resp = auth_client.post("/api/v1/backup")
+        assert resp.status_code == 500
+        # Must NOT leak the "R2 down" string from str(e).
+        body = resp.json()
+        assert "R2 down" not in body["error"]
+        assert "R2" in body["error"]  # User-facing hint mentions the service generically.
