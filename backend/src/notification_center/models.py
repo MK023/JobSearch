@@ -42,7 +42,10 @@ class NotificationType(StrEnum):
     APP_ERROR = "app_error"
     NEWS_AVAILABLE = "news_available"
     ANALYTICS_AVAILABLE = "analytics_available"
-    INBOX_ANALYSIS_READY = "inbox_analysis_ready"
+    # `INBOX_ANALYSIS_READY` retired — the same analyses are surfaced by
+    # BACKLOG_TO_REVIEW with `source=extension`. Keep `INBOX_ERROR` since
+    # errored inbox items never reach JobAnalysis and aren't covered by
+    # the backlog rule.
     INBOX_ERROR = "inbox_error"
 
 
