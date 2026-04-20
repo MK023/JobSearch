@@ -28,7 +28,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
-from ..dependencies import CurrentUser
+from ..dependencies import AuthRequired
 
 # Signature alias for the "is the peer gone?" probe that StreamingResponse
 # exposes on Request — mocked in tests via a tiny callable.
@@ -106,14 +106,20 @@ async def _event_stream(queue: asyncio.Queue[str], is_disconnected: IsDisconnect
 
 
 @router.get("/sse")
-async def notifications_stream(request: Request, user: CurrentUser) -> StreamingResponse:
+async def notifications_stream(request: Request) -> StreamingResponse:
     """SSE stream. The client subscribes via ``EventSource`` and calls
     its existing fetchNotifications() when it receives any event.
 
-    Auth piggybacks on the standard cookie session — CurrentUser raises
-    AuthRequired for anonymous callers, handled by the global handler.
+    Auth is session-only on purpose: the regular ``CurrentUser`` dependency
+    issues a DB query and keeps the Session open for the lifetime of the
+    request. For a minute-long streaming response that means an idle
+    PostgreSQL connection which eventually drops its SSL (Sentry issue
+    7ee718f44d — "SSL connection has been closed unexpectedly" on /sse).
+    Checking ``request.session`` only is cheap, in-memory, and enough
+    gate for a push-only endpoint that never reads DB rows.
     """
-    del user  # auth side effect only
+    if not request.session.get("user_id"):
+        raise AuthRequired()
 
     global _main_loop
     if _main_loop is None:
@@ -129,5 +135,13 @@ async def notifications_stream(request: Request, user: CurrentUser) -> Streaming
             "Cache-Control": "no-cache, no-transform",
             "X-Accel-Buffering": "no",  # disable Nginx/Render buffering
             "Connection": "keep-alive",
+            # Chrome over Cloudflare's HTTP/3 (QUIC) aborts long-lived SSE
+            # streams with ERR_QUIC_PROTOCOL_ERROR after a few frames. The
+            # `Alt-Svc: clear` header tells the browser to forget any QUIC
+            # alternative for this host on this response, so the next retry
+            # falls back to HTTP/1.1/2 over TCP which handles streaming
+            # reliably. Side effect (discarding Alt-Svc cache) is fine —
+            # the browser just re-learns it on regular requests.
+            "Alt-Svc": "clear",
         },
     )
