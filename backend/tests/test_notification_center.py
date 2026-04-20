@@ -153,6 +153,16 @@ class TestFollowupDue:
         assert followups[0].dismissible is True
         assert followups[0].sticky is False
 
+    def test_aggregate_action_url_includes_since(self, db_session, test_cv):
+        # 3 applications beyond follow-up threshold -> aggregated card
+        # whose action_url should carry ?since=<oldest applied_at> so the
+        # /agenda page can highlight exactly these rows.
+        for days_ago in (7, 10, 15):
+            _make_analysis(db_session, test_cv, status=AnalysisStatus.APPLIED, applied_days_ago=days_ago)
+        notifs = get_notifications(db_session)
+        aggregated = next(n for n in notifs if n.id.startswith("followup:aggregated:"))
+        assert aggregated.action_url.startswith("/agenda?since=")
+
 
 class TestBacklogToReview:
     def test_few_pending_does_not_trigger(self, db_session, test_cv):
