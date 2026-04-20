@@ -107,8 +107,12 @@ class NullCacheService:
         del key, value, ttl
 
     def get_json(self, key: str) -> dict[str, Any] | None:
-        """Always return a miss — there is no backing store."""
-        del key
+        """Always return a miss — delegates to ``get`` to avoid a duplicate body.
+
+        Return type narrows to dict via the explicit None short-circuit; the
+        real ``RedisCacheService.get_json`` still JSON-decodes.
+        """
+        self.get(key)
         return None
 
     def set_json(self, key: str, data: dict[str, Any], ttl: int) -> None:

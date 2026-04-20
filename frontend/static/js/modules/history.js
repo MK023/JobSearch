@@ -152,15 +152,15 @@ function historyTabs() {
             const tab = this.activeTab;
             const f = this.filters;
             const counts = { valutazione: 0, candidature: 0, scartati: 0, rifiutati: 0 };
-            const self = this;
 
-            document.querySelectorAll('.history-item[data-hist-status]').forEach(function(item) {
+            // Arrow callback keeps lexical `this` so we don't need a `self` alias.
+            document.querySelectorAll('.history-item[data-hist-status]').forEach((item) => {
                 const status = item.dataset.histStatus || 'da_valutare';
-                const bucket = self._bucketFor(status);
+                const bucket = this._bucketFor(status);
                 counts[bucket] += 1;
 
                 const matchTab = tab === bucket;
-                const matchFilters = self._matchesSecondaryFilters(item, f);
+                const matchFilters = this._matchesSecondaryFilters(item, f);
                 item.style.display = (matchTab && matchFilters) ? '' : 'none';
             });
 
