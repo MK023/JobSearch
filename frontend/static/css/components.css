@@ -1560,18 +1560,20 @@ details[open] summary::before {
 
 /* Highlight "new" items driven by ?since query param on aggregated
    notifications — rendered on /agenda, /history, /interviews.
-   Subtle ember left-border + tint, fades out after first paint. */
+   Ember 4px left-border + tint. Persistent (no fade) so the user keeps
+   the visual cue as long as the page is open; a brief entry pulse
+   draws the eye without being loud. */
 .row-new {
   position: relative;
   background-color: var(--accent-ember-soft);
-  box-shadow: inset 3px 0 0 0 var(--accent-ember);
-  animation: row-new-fade 4s ease-out 1 forwards;
+  box-shadow: inset 4px 0 0 0 var(--accent-ember);
+  animation: row-new-pulse 1.2s ease-out 1 both;
 }
 
-@keyframes row-new-fade {
-  0% { background-color: var(--accent-ember-soft); }
-  80% { background-color: var(--accent-ember-soft); }
-  100% { background-color: transparent; }
+@keyframes row-new-pulse {
+  0%   { box-shadow: inset 4px 0 0 0 var(--accent-ember), 0 0 0 0 var(--accent-ember); }
+  60%  { box-shadow: inset 4px 0 0 0 var(--accent-ember), 0 0 0 6px transparent; }
+  100% { box-shadow: inset 4px 0 0 0 var(--accent-ember); }
 }
 
 @media (prefers-reduced-motion: reduce) {

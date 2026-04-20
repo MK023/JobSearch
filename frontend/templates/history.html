@@ -147,7 +147,10 @@
     <div class="history-list" id="history-list">
       {% if analyses %}
         {% for analysis in analyses %}
-        {% set is_new = since_ts and analysis.created_at and analysis.created_at >= since_ts %}
+        {# Highlight only rows that were in the aggregate (status PENDING,
+           created_at >= since) — otherwise the tint would spread to every
+           newer row regardless of status and the visual cue becomes noise. #}
+        {% set is_new = since_ts and analysis.status == 'da_valutare' and analysis.created_at and analysis.created_at >= since_ts %}
         <div class="history-item{% if is_new %} row-new{% endif %}"
              data-hist-id="{{ analysis.id }}"
              data-hist-status="{{ analysis.status }}"

@@ -45,15 +45,24 @@ def _parse_since(request: Request) -> Any:
 def _base_ctx(db: DbSession, user: CurrentUser, active_page: str) -> dict[str, Any]:
     """Context keys injected on EVERY page render.
 
-    Sidebar badges: notification count + upcoming interview count.
+    Sidebar badges: unread notifications, upcoming interviews, pending
+    analyses waiting review (so the user sees the Storico backlog count
+    from any page without having to land there first).
     """
+    from sqlalchemy import func as _func
+
+    from .analysis.models import JobAnalysis
     from .interview.service import get_upcoming_interviews
 
+    pending_count = (
+        db.query(_func.count(JobAnalysis.id)).filter(JobAnalysis.status == AnalysisStatus.PENDING.value).scalar() or 0
+    )
     return {
         "user": user,
         "active_page": active_page,
         "notification_count": get_unread_count(db),
         "interview_count": len(get_upcoming_interviews(db, days=14)),
+        "pending_count": pending_count,
     }
 
 
