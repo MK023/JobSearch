@@ -124,7 +124,10 @@ jobs:
           cache-dependency-path: backend/requirements.txt
 
       - name: Install dependencies
-        run: pip install -r requirements.txt pytest pytest-cov
+        # pytest-asyncio required for the SSE broadcaster tests (async def
+        # functions). Present locally via dev extras, missing here — keep
+        # the >=1.3 range aligned with pyproject dev group.
+        run: pip install -r requirements.txt pytest pytest-cov 'pytest-asyncio>=1.3'
 
       - name: Run tests with coverage
         env:
