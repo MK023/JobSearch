@@ -299,6 +299,7 @@ def _register_templates_and_static(app: FastAPI) -> None:
 def _register_routers(app: FastAPI) -> None:
     """Mount all HTML pages + JSON API routers onto ``app``."""
     from .api_v1 import api_v1_router
+    from .notification_center.sse import router as notifications_sse_router
 
     # HTML routers (root level). Pages router first so GET / maps to dashboard.
     app.include_router(pages_router)
@@ -310,6 +311,9 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(preferences_router)
     # API v1 (all JSON endpoints)
     app.include_router(api_v1_router)
+    # SSE push for live notification refresh — registered separately so the
+    # streaming content type doesn't interfere with JSON body parsing middleware.
+    app.include_router(notifications_sse_router)
 
 
 def create_app() -> FastAPI:

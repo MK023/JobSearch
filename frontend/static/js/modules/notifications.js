@@ -262,9 +262,39 @@
         });
     }
 
+    // SSE subscription: the server nudges connected tabs the moment a new
+    // analysis lands (or other notification-worthy events happen), so the
+    // user doesn't have to wait for the next 30s polling tick. Any event
+    // triggers a fetch — the endpoint multiplexes multiple event names
+    // over the same stream and all of them map to "refresh".
+    function startSsePush() {
+        if (typeof EventSource === 'undefined') return;
+        let source = null;
+        const connect = function () {
+            try {
+                // withCredentials so the session cookie travels with the
+                // stream — the endpoint requires an authenticated user.
+                source = new EventSource('/api/v1/notifications/sse', { withCredentials: true });
+            } catch (_) {
+                return;
+            }
+            source.onmessage = pollNotifications;
+            source.addEventListener('analysis:new', pollNotifications);
+            source.onerror = function () {
+                // Browser auto-retries after ~3s by default; on fatal errors
+                // (tab backgrounded and closed) it stops — that's fine.
+                if (source && source.readyState === EventSource.CLOSED) {
+                    setTimeout(connect, 5000);
+                }
+            };
+        };
+        connect();
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         wireDismissButtons();
         wireActionLinks();
         startPolling();
+        startSsePush();
     });
 })();
