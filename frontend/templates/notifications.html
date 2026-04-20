@@ -59,6 +59,5 @@
 
 </div>
 {% endblock %}
-{% block scripts_extra %}
-<script src="{{ url_for('static', path='js/modules/notifications.js') }}?v={{ asset_v }}"></script>
-{% endblock %}
+{# notifications.js is now loaded globally by base.html — no page-specific
+   include needed here anymore. #}
