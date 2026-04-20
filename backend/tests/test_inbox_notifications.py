@@ -1,14 +1,20 @@
-"""Tests for inbox-originated notifications."""
+"""Tests for inbox-originated notifications.
+
+The old `_inbox_ready` rule was retired — the same inbox-DONE items with
+pending JobAnalysis are now surfaced by `_backlog_to_review(source=
+'extension')` (see test_notification_center.py::test_backlog_splits_per_source).
+Only the inbox-specific error path stays here because failed inbox items
+never reach JobAnalysis and are therefore not in the backlog rule's scope.
+"""
 
 from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from src.analysis.models import AnalysisStatus, JobAnalysis
 from src.inbox.models import InboxItem, InboxStatus
 from src.notification_center.models import NotificationType
-from src.notification_center.service import _inbox_errors, _inbox_ready
+from src.notification_center.service import _inbox_errors
 
 
 def _make_inbox(db, user, status, analysis_id=None, error=None, processed_delta_days=0):
@@ -27,76 +33,6 @@ def _make_inbox(db, user, status, analysis_id=None, error=None, processed_delta_
     db.add(item)
     db.commit()
     return item
-
-
-class TestInboxReady:
-    def test_no_done_items_returns_empty(self, db_session, test_user):
-        assert _inbox_ready(db_session) == []
-
-    def test_done_item_with_pending_analysis_triggers(self, db_session, test_user, test_cv):
-        analysis = JobAnalysis(
-            id=uuid.uuid4(),
-            cv_id=test_cv.id,
-            job_description="x",
-            status=AnalysisStatus.PENDING.value,
-        )
-        db_session.add(analysis)
-        db_session.commit()
-        _make_inbox(db_session, test_user, InboxStatus.DONE.value, analysis_id=analysis.id)
-
-        result = _inbox_ready(db_session)
-        assert len(result) == 1
-        assert result[0].type == NotificationType.INBOX_ANALYSIS_READY
-        assert "1 nuova analisi" in result[0].title
-        assert result[0].action_url == "/history#valutazione"
-
-    def test_done_item_with_triaged_analysis_not_counted(self, db_session, test_user, test_cv):
-        analysis = JobAnalysis(
-            id=uuid.uuid4(),
-            cv_id=test_cv.id,
-            job_description="x",
-            status=AnalysisStatus.APPLIED.value,  # already triaged
-        )
-        db_session.add(analysis)
-        db_session.commit()
-        _make_inbox(db_session, test_user, InboxStatus.DONE.value, analysis_id=analysis.id)
-
-        assert _inbox_ready(db_session) == []
-
-    def test_old_items_outside_7d_window_not_counted(self, db_session, test_user, test_cv):
-        analysis = JobAnalysis(
-            id=uuid.uuid4(),
-            cv_id=test_cv.id,
-            job_description="x",
-            status=AnalysisStatus.PENDING.value,
-        )
-        db_session.add(analysis)
-        db_session.commit()
-        _make_inbox(
-            db_session,
-            test_user,
-            InboxStatus.DONE.value,
-            analysis_id=analysis.id,
-            processed_delta_days=10,
-        )
-
-        assert _inbox_ready(db_session) == []
-
-    def test_multiple_done_items_aggregates_count(self, db_session, test_user, test_cv):
-        for _ in range(3):
-            analysis = JobAnalysis(
-                id=uuid.uuid4(),
-                cv_id=test_cv.id,
-                job_description="x",
-                status=AnalysisStatus.PENDING.value,
-            )
-            db_session.add(analysis)
-            db_session.commit()
-            _make_inbox(db_session, test_user, InboxStatus.DONE.value, analysis_id=analysis.id)
-
-        result = _inbox_ready(db_session)
-        assert len(result) == 1  # aggregated
-        assert result[0].title == "3 nuove analisi dal Chrome extension"
 
 
 class TestInboxErrors:
