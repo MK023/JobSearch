@@ -226,7 +226,11 @@ def _register_middleware(app: FastAPI) -> None:
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data: https:; "
             "worker-src 'self' blob:; "
-            "connect-src 'self' https://*.r2.cloudflarestorage.com https://api.open-meteo.com https://*.sentry.io https://browser.sentry-cdn.com https://js-de.sentry-cdn.com; "
+            # cdn.jsdelivr.net in connect-src lets DevTools fetch sourcemaps
+            # (e.g. chart.umd.min.js.map) — purely a DX concern, does not
+            # widen the app's attack surface since the script itself already
+            # loads from the same origin via script-src.
+            "connect-src 'self' https://cdn.jsdelivr.net https://*.r2.cloudflarestorage.com https://api.open-meteo.com https://*.sentry.io https://browser.sentry-cdn.com https://js-de.sentry-cdn.com; "
             "frame-ancestors 'none'"
         )
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
