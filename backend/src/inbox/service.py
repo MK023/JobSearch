@@ -250,7 +250,7 @@ def process_pending(
     db.commit()
 
     try:
-        analysis, _result = run_analysis(
+        analysis, result = run_analysis(
             db=db,
             cv_text=cast(str, cv.raw_text),
             cv_id=cast(UUID, cv.id),
@@ -260,6 +260,18 @@ def process_pending(
             cache=cache,
             user_id=user_id,
             source=AnalysisSource.EXTENSION.value,  # inbox ingestion = Chrome extension flow
+        )
+        # Keep the budget ledger in sync regardless of ingestion source.
+        # Without this, extension-triggered analyses would silently skip
+        # cost tracking and leave today_analyses / today_cost_usd frozen
+        # on the dashboard (user bug report: 20 extension analyses → $0).
+        from ..dashboard.service import add_spending
+
+        add_spending(
+            db,
+            float(result.get("cost_usd", 0.0) or 0),
+            int(result.get("tokens", {}).get("input", 0) or 0),
+            int(result.get("tokens", {}).get("output", 0) or 0),
         )
         item.analysis_id = cast(UUID, analysis.id)  # type: ignore[assignment]
         item.status = InboxStatus.DONE.value  # type: ignore[assignment]
