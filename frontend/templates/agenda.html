@@ -84,8 +84,13 @@
         <div class="agenda-card-sub">{{ a.role or '—' }} &middot; candidatura {{ (a.applied_at|italytime).strftime('%d/%m') if a.applied_at else 'N/D' }}</div>
       </div>
       <div class="agenda-card-actions">
-        <a href="/analysis/{{ a.id }}" class="agenda-btn agenda-btn-blue">Genera email</a>
-        <a href="/analysis/{{ a.id }}" class="agenda-btn agenda-btn-green">Fatto</a>
+        {# "Apri" invece di "Genera email" perché genFollowup richiede il
+           DOM dell'analysis detail page — sull'agenda mancano i contenitori
+           dove scrivere l'email generata, quindi meglio rimandare all'analisi.
+           "Fatto" chiama direttamente l'endpoint POST /followup-done/{id};
+           markFollowupDone gestisce reload + toast. #}
+        <a href="/analysis/{{ a.id }}" class="agenda-btn agenda-btn-blue">Apri</a>
+        <button type="button" class="agenda-btn agenda-btn-green" onclick="markFollowupDone('{{ a.id }}')">Fatto</button>
       </div>
     </div>
     {% endfor %}
