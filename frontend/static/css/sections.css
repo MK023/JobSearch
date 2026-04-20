@@ -1317,8 +1317,66 @@
    SETTINGS PAGE
    ================================================================ */
 
+/* Two-column Settings layout with sticky side index.
+   Design cue from Claude Design mock — lets the user jump to the
+   sub-section they need without scrolling through the whole page. */
+.settings-layout {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: var(--space-xl);
+}
+
+.settings-index {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: sticky;
+  top: var(--space-xl);
+  align-self: start;
+}
+
+.settings-index-item {
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.settings-index-item:hover,
+.settings-index-item:focus-visible {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.settings-main {
+  min-width: 0;
+}
+
+/* On narrow screens stack the index above the content as a horizontal
+   chip scroller — sticky sidebar doesn't pay off below ~1000px and would
+   just steal width from the forms. */
+@media (width <= 1023px) {
+  .settings-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-index {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+    margin-bottom: var(--space-md);
+  }
+}
+
 .settings-section {
   margin-bottom: var(--space-xl);
+
+  /* Give every anchor target a bit of breathing room under the sticky
+     topbar — avoids the title hiding behind the bar on in-page jumps. */
+  scroll-margin-top: var(--space-xl);
 }
 
 .cv-status-row {

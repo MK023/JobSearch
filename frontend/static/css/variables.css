@@ -81,7 +81,12 @@
   --sidebar-active: var(--accent-blue);
 
   /* Content */
-  --content-max-width: 960px;
+
+  /* Widened from 960 → 1200 so list pages (history/interviews/agenda) stop
+     showing ~220px of empty gutter on each side of the cards on 1440+
+     displays. 1200 still reads as "boxed content" on huge monitors
+     (2560+) but uses the screen on standard laptops. */
+  --content-max-width: 1200px;
   --content-padding: 32px;
 
   /* Score colors */

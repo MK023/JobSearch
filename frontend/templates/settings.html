@@ -16,8 +16,25 @@
   <div class="message-banner banner-success">{{ message }}</div>
   {% endif %}
 
+  <div class="settings-layout">
+    {# Sticky side-nav — anchor links scroll to each section. Pure
+       anchor navigation, no JS state: keep back-button and deep links
+       working out of the box. #}
+    <nav class="settings-index" aria-label="Sezioni impostazioni">
+      <a href="#section-cv" class="settings-index-item">Curriculum</a>
+      <a href="#section-api" class="settings-index-item">Crediti API</a>
+      <a href="#section-ai" class="settings-index-item">AI</a>
+      <a href="#section-ops" class="settings-index-item">Parametri operativi</a>
+      <a href="#section-maint" class="settings-index-item">Manutenzione</a>
+      <a href="#section-backup" class="settings-index-item">Backup R2</a>
+      <a href="#section-cleanup" class="settings-index-item">Pulizia DB</a>
+      <a href="#section-diag" class="settings-index-item">Diagnostica</a>
+    </nav>
+
+    <div class="settings-main">
+
   {# ---- CV Section ---- #}
-  <section class="card settings-section" x-data="{ editing: false }">
+  <section id="section-cv" class="card settings-section" x-data="{ editing: false }">
     <h2 class="section-title"><svg class="icon-align" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg> Curriculum Vitae</h2>
 
     {% if cv and cv.raw_text %}
@@ -53,7 +70,7 @@
   </section>
 
   {# ---- API Credits Section ---- #}
-  <section class="card settings-section">
+  <section id="section-api" class="card settings-section">
     <h2 class="section-title"><svg class="icon-align" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg> Crediti API</h2>
 
     <div class="credits-grid">
@@ -87,7 +104,7 @@
   </section>
 
   {# ---- AI Preferences Section ---- #}
-  <section class="card settings-section" x-data="aiPreferences()" x-init="load()">
+  <section id="section-ai" class="card settings-section" x-data="aiPreferences()" x-init="load()">
     <h2 class="section-title"><svg class="icon-align" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6m11-7h-6m-6 0H1m17.66-5.66L15.42 8.58M8.58 15.42l-4.24 4.24M19.66 19.66l-4.24-4.24M8.58 8.58 4.34 4.34"/></svg> Impostazioni AI</h2>
 
     <div class="form-group">
@@ -103,7 +120,7 @@
   </section>
 
   {# ---- Operational Parameters ---- #}
-  <section class="card settings-section" x-data="operationalParams()" x-init="init()">
+  <section id="section-ops" class="card settings-section" x-data="operationalParams()" x-init="init()">
     <h2 class="section-title"><svg class="icon-align" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg> Parametri operativi</h2>
 
     <div class="form-grid">
@@ -136,7 +153,7 @@
   </section>
 
   {# ---- Maintenance Section ---- #}
-  <section class="card settings-section">
+  <section id="section-maint" class="card settings-section">
     <h2 class="section-title"><svg class="icon-align" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg> Manutenzione</h2>
 
     <div class="settings-maint-grid">
@@ -158,7 +175,7 @@
   </section>
 
   {# ---- Backup Section ---- #}
-  <section class="card settings-section">
+  <section id="section-backup" class="card settings-section">
     <h2 class="section-title"><svg class="icon-align" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg> Backup su R2</h2>
 
     <p class="meta-small mb-md">
@@ -177,7 +194,7 @@
   </section>
 
   {# ---- DB Cleanup Section ---- #}
-  <section class="card settings-section" x-data="cleanupForm()">
+  <section id="section-cleanup" class="card settings-section" x-data="cleanupForm()">
     <h2 class="section-title"><svg class="icon-align" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Pulizia DB</h2>
 
     <p class="meta-small mb-md">
@@ -215,7 +232,7 @@
   </section>
 
   {# ---- Diagnostics Section ---- #}
-  <section class="card settings-section">
+  <section id="section-diag" class="card settings-section">
     <h2 class="section-title"><svg class="icon-align" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> Diagnostica</h2>
 
     <div class="settings-maint-grid">
@@ -244,6 +261,9 @@
     </details>
     {% endif %}
   </section>
+
+    </div>{# /.settings-main #}
+  </div>{# /.settings-layout #}
 
 </div>
 {% endblock %}

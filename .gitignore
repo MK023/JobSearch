@@ -76,3 +76,6 @@ terraform.tfvars
 *.tfstate
 *.tfstate.backup
 .terraform.lock.hcl
+
+# Screenshot locali (share dir, non versionati)
+screenshot/
