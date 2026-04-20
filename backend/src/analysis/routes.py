@@ -120,18 +120,19 @@ def view_analysis(
     error = request.session.pop("flash_error", None)
     message = request.session.pop("flash_message", None)
 
-    from ..interview.service import get_upcoming_interviews
-    from ..notification_center.service import get_unread_count
+    # Sidebar context — use _base_ctx so every badge (Storico pending,
+    # Agenda todos, Analytics unlock, Notifiche) keeps showing on the
+    # analysis detail page. The previous hand-rolled dict only passed
+    # notification + interview counts, so the other badges disappeared
+    # as soon as the user opened an analysis.
+    from ..pages import _base_ctx
 
     templates = request.app.state.templates
     return templates.TemplateResponse(  # type: ignore[no-any-return]
         request,
         "analysis_detail.html",
         {
-            "user": user,
-            "active_page": "history",
-            "notification_count": get_unread_count(db),
-            "interview_count": len(get_upcoming_interviews(db, days=30)),
+            **_base_ctx(db, user, "history"),
             "current": analysis,
             "result": result,
             "interview": interview,

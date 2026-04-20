@@ -20,7 +20,13 @@ from ..config import settings
 
 logger = logging.getLogger(__name__)
 
-MAX_BACKUPS = 7
+# Retention: the daily cron creates one archive per run and we cap at 5
+# rolling copies. The cleanup fires right after each upload, so the list
+# naturally stays bounded — user feedback: "non voglio vedere l'elenco
+# crescere all'infinito". 5 copies = ~5 days of point-in-time recovery
+# which is enough for a single-user app; older backups rarely get
+# restored and cost R2 storage + listing bandwidth for no real benefit.
+MAX_BACKUPS = 5
 BACKUP_PREFIX = "backups/"
 
 
