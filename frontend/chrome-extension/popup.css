@@ -1,16 +1,48 @@
+/* JobSearch Inbox — Material 3-inspired popup.
+ *
+ * Design tokens:
+ *  - Radii: 12px (inputs), 20px (buttons), 24px (panel)
+ *  - Elevation: soft outer shadow on header, inputs only on focus
+ *  - Ember accent kept from parent app for brand consistency
+ *  - Light theme toggled via `body.theme-light` (saved in chrome.storage.sync)
+ */
+
 :root {
+  /* Dark (default) */
   --bg: #0d0d0f;
   --bg-elev: #1c1c1e;
   --bg-input: #2c2c2e;
   --text: #f5f5f7;
   --text-secondary: #8e8e93;
   --border: rgb(255 255 255 / 10%);
+  --border-strong: rgb(255 255 255 / 18%);
   --accent: #e87d3e;
+  --accent-soft: rgb(232 125 62 / 18%);
   --accent-hover: #f09b6b;
   --success: #30d158;
   --error: #ff453a;
-  --radius-sm: 6px;
-  --radius-md: 10px;
+  --shadow-md: 0 2px 6px rgb(0 0 0 / 35%), 0 1px 2px rgb(0 0 0 / 25%);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 25%);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --ease-std: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body.theme-light {
+  --bg: #f7f7f9;
+  --bg-elev: #fff;
+  --bg-input: #eef0f3;
+  --text: #1c1c1e;
+  --text-secondary: #555a65;
+  --border: rgb(0 0 0 / 10%);
+  --border-strong: rgb(0 0 0 / 18%);
+  --accent: #d96a29;
+  --accent-soft: rgb(217 106 41 / 14%);
+  --accent-hover: #e58446;
+  --shadow-md: 0 2px 6px rgb(0 0 0 / 8%), 0 1px 2px rgb(0 0 0 / 6%);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 6%);
 }
 
 * {
@@ -24,37 +56,46 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family:
+    Roboto,
     -apple-system,
     "SF Pro Text",
     "Segoe UI",
-    Roboto,
+    system-ui,
     sans-serif;
   font-size: 13px;
   width: 360px;
+  transition: background 0.2s var(--ease-std), color 0.2s var(--ease-std);
 }
 
 .popup-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
   background: var(--bg-elev);
+  box-shadow: var(--shadow-sm);
+  gap: 6px;
 }
 
 .popup-header-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   font-weight: 600;
   font-size: 14px;
+  letter-spacing: 0.1px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 4px;
 }
 
 .panel {
-  padding: 14px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .panel.hidden {
@@ -64,20 +105,21 @@ body {
 .field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .field-label {
   font-size: 11px;
   color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.6px;
   font-weight: 600;
 }
 
 .field-hint {
   font-size: 11px;
   color: var(--text-secondary);
+  line-height: 1.5;
 }
 
 select,
@@ -87,17 +129,18 @@ input[type="password"],
 input[type="text"] {
   background: var(--bg-input);
   color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
   font-size: 13px;
   font-family: inherit;
   width: 100%;
+  transition: border-color 0.15s var(--ease-std), box-shadow 0.15s var(--ease-std);
 }
 
 textarea {
   resize: vertical;
-  min-height: 110px;
+  min-height: 120px;
   font-family:
     ui-monospace,
     SFMono-Regular,
@@ -105,7 +148,7 @@ textarea {
     Menlo,
     monospace;
   font-size: 12px;
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 select:focus,
@@ -113,7 +156,7 @@ textarea:focus,
 input:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgb(232 125 62 / 25%);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .input-group {
@@ -129,29 +172,34 @@ input:focus {
   display: flex;
   gap: 8px;
   justify-content: flex-end;
+  margin-top: 4px;
 }
 
 .btn {
   border: none;
-  border-radius: var(--radius-sm);
-  padding: 8px 14px;
+  border-radius: var(--radius-lg);
+  padding: 10px 20px;
   font-size: 13px;
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
-  transition: filter 0.12s ease;
+  transition:
+    background 0.15s var(--ease-std),
+    box-shadow 0.15s var(--ease-std),
+    transform 0.1s var(--ease-std);
+  letter-spacing: 0.2px;
 }
 
-.btn:hover {
-  filter: brightness(1.1);
+.btn:hover:not(:disabled) {
+  box-shadow: var(--shadow-md);
 }
 
-.btn:active {
-  transform: scale(0.98);
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
 .btn:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
@@ -160,35 +208,53 @@ input:focus {
   color: #fff;
 }
 
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
 .btn-secondary {
   background: var(--bg-input);
   color: var(--text);
-  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--border-strong);
 }
 
 .icon-btn {
   background: transparent;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border: none;
+  border-radius: 50%;
   color: var(--text-secondary);
-  padding: 4px 8px;
-  font-size: 14px;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
   cursor: pointer;
   font-family: inherit;
+  transition: background 0.15s var(--ease-std), color 0.15s var(--ease-std);
 }
 
 .icon-btn:hover {
   color: var(--text);
-  background: var(--bg-input);
+  background: var(--accent-soft);
+}
+
+.icon-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .status {
   font-size: 12px;
   color: var(--text-secondary);
-  min-height: 18px;
-  padding: 6px 8px;
-  border-radius: var(--radius-sm);
+  min-height: 20px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
   background: var(--bg-input);
+  line-height: 1.5;
 }
 
 .status.status-success {
@@ -202,6 +268,7 @@ input:focus {
 .status a {
   color: var(--accent);
   text-decoration: none;
+  font-weight: 500;
 }
 
 .status a:hover {
@@ -210,11 +277,19 @@ input:focus {
 
 code {
   background: var(--bg-input);
-  padding: 1px 4px;
-  border-radius: 3px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
   font-size: 11px;
   font-family:
     ui-monospace,
     SFMono-Regular,
     monospace;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+  }
 }

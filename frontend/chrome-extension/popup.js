@@ -37,6 +37,7 @@
         main: $('main-panel'),
         settings: $('settings-panel'),
         toggleSettings: $('toggle-settings'),
+        toggleTheme: $('toggle-theme'),
         source: $('source-select'),
         rawText: $('raw-text'),
         charCount: $('char-count'),
@@ -52,7 +53,27 @@
     const state = {
         endpoint: DEFAULT_ENDPOINT,
         apiKey: '',
+        theme: 'dark',
     };
+
+    // Theme glyphs: moon when dark (suggesting "click for light"), sun when light.
+    const THEME_GLYPH = { dark: '\u263E', light: '\u2600' };
+
+    function applyTheme(theme) {
+        const isLight = theme === 'light';
+        document.body.classList.toggle('theme-light', isLight);
+        els.toggleTheme.setAttribute('aria-pressed', String(isLight));
+        els.toggleTheme.title = isLight ? 'Passa al tema scuro' : 'Passa al tema chiaro';
+        const glyph = els.toggleTheme.querySelector('span');
+        if (glyph) glyph.textContent = THEME_GLYPH[theme] || THEME_GLYPH.dark;
+    }
+
+    function toggleTheme() {
+        const next = state.theme === 'dark' ? 'light' : 'dark';
+        state.theme = next;
+        applyTheme(next);
+        chrome.storage.sync.set({ theme: next });
+    }
 
     function clearNode(node) {
         // textContent = '' detaches all children without any HTML parsing.
@@ -90,11 +111,13 @@
 
     async function loadSettings() {
         return new Promise((resolve) => {
-            chrome.storage.sync.get(['endpoint', 'apiKey'], (items) => {
+            chrome.storage.sync.get(['endpoint', 'apiKey', 'theme'], (items) => {
                 state.endpoint = normalizeEndpoint(items.endpoint);
                 state.apiKey = items.apiKey || '';
+                state.theme = items.theme === 'light' ? 'light' : 'dark';
                 els.endpointInput.value = state.endpoint;
                 els.apikeyInput.value = state.apiKey;
+                applyTheme(state.theme);
                 resolve();
             });
         });
@@ -253,6 +276,7 @@
     // --- Wiring ---
 
     els.toggleSettings.addEventListener('click', () => toggleSettings());
+    els.toggleTheme.addEventListener('click', toggleTheme);
     els.saveSettings.addEventListener('click', saveSettings);
     els.captureBtn.addEventListener('click', autoCapture);
     els.sendBtn.addEventListener('click', send);
