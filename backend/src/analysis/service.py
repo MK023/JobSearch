@@ -84,6 +84,11 @@ def run_analysis(
     )
     db.add(analysis)
     db.flush()
+    # Nudge every connected browser tab to refresh notifications/history
+    # right now instead of waiting for the next 30s polling tick.
+    from ..notification_center.sse import broadcast_sync
+
+    broadcast_sync("analysis:new")
     return analysis, result
 
 
