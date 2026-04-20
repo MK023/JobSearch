@@ -552,43 +552,6 @@ def _analytics_available(db: Session) -> list[Notification]:
         return []
 
 
-def _inbox_ready(db: Session) -> list[Notification]:
-    """Aggregate: inbox-originated analyses landed in history, still awaiting triage."""
-    try:
-        cutoff = datetime.now(UTC) - timedelta(days=7)
-        count = (
-            db.query(func.count(InboxItem.id))
-            .join(JobAnalysis, InboxItem.analysis_id == JobAnalysis.id)
-            .filter(
-                InboxItem.status == InboxStatus.DONE.value,
-                InboxItem.processed_at >= cutoff,
-                JobAnalysis.status == AnalysisStatus.PENDING.value,
-            )
-            .scalar()
-            or 0
-        )
-        if count == 0:
-            return []
-        title = "1 nuova analisi dal Chrome extension" if count == 1 else f"{count} nuove analisi dal Chrome extension"
-        return [
-            Notification(
-                id=f"inbox:ready:{count}",
-                type=NotificationType.INBOX_ANALYSIS_READY,
-                severity=NotificationSeverity.INFO,
-                title=title,
-                body="Arrivate tramite paste del browser, pronte da valutare.",
-                action_url="/history#valutazione",
-                action_label="Apri valutazione",
-                dismissible=True,
-                sticky=False,
-                created_at=datetime.now(UTC),
-            )
-        ]
-    except Exception:
-        logger.exception("notification_center: inbox_ready rule failed")
-        return []
-
-
 def _inbox_errors(db: Session) -> list[Notification]:
     """Inbox items that failed analysis. Sticky — require attention. Aggregated when >=2."""
     try:
@@ -688,7 +651,11 @@ def get_notifications(db: Session) -> list[Notification]:
     out.extend(_recent_errors(db))
     out.extend(_news_available(db))
     out.extend(_analytics_available(db))
-    out.extend(_inbox_ready(db))
+    # `_inbox_ready` was a precursor to the per-source backlog split.
+    # It would fire in "Suggerimenti" (info) for the exact same items
+    # that `_backlog_to_review(source='extension')` fires in "Da
+    # gestire" (warning), producing visible duplicates. The per-source
+    # backlog card fully subsumes it — keep only that one.
     out.extend(_inbox_errors(db))
 
     out = [n for n in out if n.id not in dismissed]
