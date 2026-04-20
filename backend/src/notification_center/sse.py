@@ -129,5 +129,13 @@ async def notifications_stream(request: Request, user: CurrentUser) -> Streaming
             "Cache-Control": "no-cache, no-transform",
             "X-Accel-Buffering": "no",  # disable Nginx/Render buffering
             "Connection": "keep-alive",
+            # Chrome over Cloudflare's HTTP/3 (QUIC) aborts long-lived SSE
+            # streams with ERR_QUIC_PROTOCOL_ERROR after a few frames. The
+            # `Alt-Svc: clear` header tells the browser to forget any QUIC
+            # alternative for this host on this response, so the next retry
+            # falls back to HTTP/1.1/2 over TCP which handles streaming
+            # reliably. Side effect (discarding Alt-Svc cache) is fine —
+            # the browser just re-learns it on regular requests.
+            "Alt-Svc": "clear",
         },
     )
