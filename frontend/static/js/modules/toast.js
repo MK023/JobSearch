@@ -3,8 +3,7 @@
  * Usage: showToast("Stato aggiornato", "success")
  * Types: "success", "error", "info"
  */
-function showToast(message, type) {
-  type = type || "info";
+function showToast(message, type = "info") {
   const container = document.getElementById("toast-container");
   if (!container) return;
 

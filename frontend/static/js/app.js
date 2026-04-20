@@ -43,9 +43,9 @@ function app() {
  */
 function toggleTheme() {
     const html = document.documentElement;
-    const current = html.getAttribute('data-theme') || 'dark';
+    const current = html.dataset.theme || 'dark';
     const next = current === 'dark' ? 'light' : 'dark';
-    html.setAttribute('data-theme', next);
+    html.dataset.theme = next;
     localStorage.setItem('theme', next);
 }
 
@@ -157,7 +157,7 @@ function _showErrorBanner(msg) {
 }
 
 function _showCompletionBanner(data) {
-    if (window.location.pathname === '/analysis/' + data.id) return;
+    if (globalThis.location.pathname === '/analysis/' + data.id) return;
     if (document.querySelector('.completion-banner')) return;
 
     const banner = document.createElement('div');

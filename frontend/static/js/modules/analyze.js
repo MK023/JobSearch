@@ -62,7 +62,7 @@ function submitAnalysis(e) {
             _showAnalysisError(data.error);
             resetLoading(wrapper);
         } else if (data.redirect) {
-            window.location.href = data.redirect;
+            globalThis.location.href = data.redirect;
         }
     })
     .catch(function(err) {

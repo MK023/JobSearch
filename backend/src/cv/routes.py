@@ -15,6 +15,8 @@ from .text_extract import extract_text
 
 router = APIRouter(tags=["cv"])
 
+_SETTINGS_PATH = "/settings"
+
 
 @router.post("/cv", response_class=HTMLResponse)
 async def save_cv_route(
@@ -33,20 +35,20 @@ async def save_cv_route(
             cv_text = extract_text(file_bytes, cv_file.filename)
         except ValueError as exc:
             request.session["flash_error"] = str(exc)
-            return RedirectResponse(url="/settings", status_code=303)
+            return RedirectResponse(url=_SETTINGS_PATH, status_code=303)
 
     if len(cv_text) < 20:
         request.session["flash_error"] = "CV troppo corto (minimo 20 caratteri)"
-        return RedirectResponse(url="/settings", status_code=303)
+        return RedirectResponse(url=_SETTINGS_PATH, status_code=303)
     if len(cv_text) > settings.max_cv_size:
         request.session["flash_error"] = f"CV troppo lungo (max {settings.max_cv_size} caratteri)"
-        return RedirectResponse(url="/settings", status_code=303)
+        return RedirectResponse(url=_SETTINGS_PATH, status_code=303)
 
     save_cv(db, cast(UUID, user.id), cv_text, cv_name)
     audit(db, request, "cv_save", f"name={cv_name}, len={len(cv_text)}")
     db.commit()
     request.session["flash_message"] = "CV salvato con successo!"
-    return RedirectResponse(url="/settings", status_code=303)
+    return RedirectResponse(url=_SETTINGS_PATH, status_code=303)
 
 
 @router.get("/cv/download")

@@ -178,7 +178,7 @@ function triggerAnalytics() {
     .then(function(data) {
       if (data.ok) {
         showToast('Analisi completata', 'success');
-        setTimeout(function() { window.location.reload(); }, 1000);
+        setTimeout(function() { globalThis.location.reload(); }, 1000);
       } else {
         showToast('Analisi bloccata: ' + (data.reason || 'threshold'), 'error');
         btn.disabled = false;

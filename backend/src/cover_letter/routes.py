@@ -65,7 +65,7 @@ def generate_cover_letter_route(
     generated = []
     try:
         for lang in languages_to_generate:
-            cl, result = create_cover_letter(db, analysis, cast(str, cv.raw_text), lang, model, cache)
+            _, result = create_cover_letter(db, analysis, cast(str, cv.raw_text), lang, model, cache)
             add_spending(
                 db,
                 result.get("cost_usd", 0.0),

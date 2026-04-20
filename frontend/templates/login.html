@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login — Job Search</title>
   <script>
-    (function(){var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t)})();
+    (function(){var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t})();
   </script>
   <link rel="stylesheet" href="{{ url_for('static', path='css/variables.css') }}?v={{ asset_v }}">
   <link rel="stylesheet" href="{{ url_for('static', path='css/base.css') }}?v={{ asset_v }}">

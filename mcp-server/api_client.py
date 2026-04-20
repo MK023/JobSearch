@@ -26,8 +26,13 @@ def _auth_headers() -> dict[str, str]:
     return {}
 
 
-async def get_client() -> httpx.AsyncClient:
-    """Get or create the shared HTTP client."""
+def get_client() -> httpx.AsyncClient:
+    """Get or create the shared HTTP client.
+
+    Synchronous: no awaits are performed, so keeping this ``async`` would just
+    force callers to ``await`` for no reason (ruff S7503 / SonarCloud).
+    The client itself remains ``httpx.AsyncClient``.
+    """
     global _client
     if _client is None or _client.is_closed:
         _client = httpx.AsyncClient(
@@ -45,20 +50,24 @@ async def _request_with_retry(method: str, path: str, *, timeout: float | None =
     Args:
         method: HTTP method (get, post, delete).
         path: API path.
-        timeout: Optional per-request timeout override (seconds).
+        timeout: Optional per-request timeout override (seconds). Applied via
+            ``asyncio.timeout()`` around the underlying httpx call rather than
+            the httpx ``timeout=`` kwarg (SonarCloud S7483).
         **kwargs: Extra keyword arguments forwarded to httpx.
     """
-    client = await get_client()
-
-    req_timeout = httpx.Timeout(timeout) if timeout else None
+    client = get_client()
 
     for attempt in range(_MAX_RETRIES + 1):
         try:
-            resp = await getattr(client, method)(path, timeout=req_timeout, **kwargs)
+            if timeout is not None:
+                async with asyncio.timeout(timeout):
+                    resp = await getattr(client, method)(path, **kwargs)
+            else:
+                resp = await getattr(client, method)(path, **kwargs)
             resp.raise_for_status()
             return resp
 
-        except (httpx.ConnectTimeout, httpx.ReadTimeout, httpx.ConnectError) as exc:
+        except (httpx.ConnectTimeout, httpx.ReadTimeout, httpx.ConnectError, TimeoutError) as exc:
             if attempt < _MAX_RETRIES:
                 delay = _RETRY_BASE_DELAY * (2**attempt)  # 3s, 6s, 12s
                 await asyncio.sleep(delay)
@@ -74,7 +83,8 @@ async def api_get(path: str, params: dict | None = None, *, timeout: float | Non
     Args:
         path: API path.
         params: Optional query parameters.
-        timeout: Optional timeout override in seconds.
+        timeout: Optional timeout override in seconds (enforced via
+            ``asyncio.timeout()`` inside ``_request_with_retry``).
     """
     resp = await _request_with_retry("get", path, timeout=timeout, params=params)
     return resp.json()
@@ -86,7 +96,8 @@ async def api_post(path: str, data: dict | None = None, *, timeout: float | None
     Args:
         path: API path.
         data: Optional request body.
-        timeout: Optional timeout override in seconds.
+        timeout: Optional timeout override in seconds (enforced via
+            ``asyncio.timeout()`` inside ``_request_with_retry``).
     """
     resp = await _request_with_retry("post", path, timeout=timeout, data=data)
     return resp.json()
@@ -98,7 +109,8 @@ async def api_post_json(path: str, payload: dict, *, timeout: float | None = Non
     Args:
         path: API path.
         payload: JSON request body.
-        timeout: Optional timeout override in seconds.
+        timeout: Optional timeout override in seconds (enforced via
+            ``asyncio.timeout()`` inside ``_request_with_retry``).
     """
     resp = await _request_with_retry("post", path, timeout=timeout, json=payload)
     return resp.json()
@@ -109,7 +121,8 @@ async def api_delete(path: str, *, timeout: float | None = None) -> dict | list:
 
     Args:
         path: API path.
-        timeout: Optional timeout override in seconds.
+        timeout: Optional timeout override in seconds (enforced via
+            ``asyncio.timeout()`` inside ``_request_with_retry``).
     """
     resp = await _request_with_retry("delete", path, timeout=timeout)
     return resp.json()

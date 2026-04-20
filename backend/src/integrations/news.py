@@ -79,6 +79,41 @@ def _parse_article(item: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _load_cached_row(db: Session, name_norm: str) -> NewsCache | None:
+    """Return the NewsCache row for this company, or None on query errors."""
+    try:
+        return db.query(NewsCache).filter(NewsCache.company_name == name_norm).first()
+    except Exception:  # pragma: no cover — cache miss is non-fatal
+        logger.warning("News cache lookup failed for %r", name_norm, exc_info=True)
+        return None
+
+
+def _cached_articles_if_fresh(cached: NewsCache | None) -> list[dict[str, Any]] | None:
+    """Return cached articles if the row is present AND within TTL; else None."""
+    if not cached or not cached.fetched_at or not cached.news_data:
+        return None
+    age = datetime.now(UTC) - cached.fetched_at.replace(tzinfo=UTC)
+    if age >= timedelta(days=CACHE_DAYS):
+        return None
+    try:
+        return cast(list[dict[str, Any]], json.loads(str(cached.news_data)))
+    except Exception:
+        return None
+
+
+def _upsert_cache(db: Session, name_norm: str, cached: NewsCache | None, articles: list[dict[str, Any]]) -> None:
+    """Persist the freshly-fetched articles to the DB cache. Best-effort."""
+    try:
+        if cached:
+            cached.news_data = json.dumps(articles)  # type: ignore[assignment]
+            cached.fetched_at = datetime.now(UTC)  # type: ignore[assignment]
+        else:
+            db.add(NewsCache(company_name=name_norm, news_data=json.dumps(articles)))
+        db.flush()
+    except Exception:
+        logger.warning("Failed to cache news data", exc_info=True)
+
+
 def fetch_company_news(
     company_name: str,
     db: Session | None = None,
@@ -88,18 +123,11 @@ def fetch_company_news(
         return None
 
     name_norm = company_name.strip().lower()
+    cached = _load_cached_row(db, name_norm) if db is not None else None
 
-    # Single cache lookup, reused for read and write paths
-    cached = None
-    if db is not None:
-        try:
-            cached = db.query(NewsCache).filter(NewsCache.company_name == name_norm).first()
-            if cached and cached.fetched_at:
-                age = datetime.now(UTC) - cached.fetched_at.replace(tzinfo=UTC)
-                if age < timedelta(days=CACHE_DAYS) and cached.news_data:
-                    return cast(list[dict[str, Any]], json.loads(str(cached.news_data)))
-        except Exception:  # noqa: S110 — cache miss is non-fatal
-            pass
+    fresh = _cached_articles_if_fresh(cached)
+    if fresh is not None:
+        return fresh
 
     data = _call_api(company_name, limit=5)
     if not data:
@@ -107,17 +135,8 @@ def fetch_company_news(
 
     articles = [_parse_article(a) for a in data[:5]]
 
-    # Update cache reusing the row we already fetched
     if db is not None:
-        try:
-            if cached:
-                cached.news_data = json.dumps(articles)  # type: ignore[assignment]
-                cached.fetched_at = datetime.now(UTC)  # type: ignore[assignment]
-            else:
-                db.add(NewsCache(company_name=name_norm, news_data=json.dumps(articles)))
-            db.flush()
-        except Exception:
-            logger.warning("Failed to cache news data", exc_info=True)
+        _upsert_cache(db, name_norm, cached, articles)
 
     return articles
 

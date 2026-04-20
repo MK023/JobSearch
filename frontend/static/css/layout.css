@@ -66,7 +66,9 @@
   min-width: 16px;
   height: 16px;
   padding: 0 4px;
-  background: rgb(255 69 58);
+
+  /* Darker red: small text (10px bold) on white needs AA contrast. */
+  background: rgb(185 28 28);
   color: #fff;
   font-size: 10px;
   font-weight: var(--weight-bold);

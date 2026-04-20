@@ -87,9 +87,22 @@ def run_analysis(
     return analysis, result
 
 
-def rebuild_result(analysis: JobAnalysis, from_cache: bool = False) -> dict[str, Any]:
-    """Rebuild the full result dict from a stored analysis row."""
-    result = {
+_REBUILD_EXTRA_KEYS = (
+    "score_label",
+    "potential_score",
+    "gap_timeline",
+    "confidence",
+    "confidence_reason",
+    "summary",
+    "application_method",
+)
+
+
+def _base_result(analysis: JobAnalysis, from_cache: bool) -> dict[str, Any]:
+    """Build the always-present fields of the result dict (pre-extra merge)."""
+    tokens_input = analysis.tokens_input or 0
+    tokens_output = analysis.tokens_output or 0
+    return {
         "company": analysis.company,
         "role": analysis.role,
         "location": analysis.location,
@@ -113,28 +126,22 @@ def rebuild_result(analysis: JobAnalysis, from_cache: bool = False) -> dict[str,
         "summary": "",
         "model_used": analysis.model_used,
         "tokens": {
-            "input": analysis.tokens_input or 0,
-            "output": analysis.tokens_output or 0,
-            "total": (analysis.tokens_input or 0) + (analysis.tokens_output or 0),
+            "input": tokens_input,
+            "output": tokens_output,
+            "total": tokens_input + tokens_output,
         },
         "cost_usd": analysis.cost_usd or 0.0,
         "from_cache": from_cache,
     }
 
-    # Extract extra fields from full_response
+
+def rebuild_result(analysis: JobAnalysis, from_cache: bool = False) -> dict[str, Any]:
+    """Rebuild the full result dict from a stored analysis row."""
+    result = _base_result(analysis, from_cache)
     full = _parse_full_response(cast(str, analysis.full_response))
-    for key in (
-        "score_label",
-        "potential_score",
-        "gap_timeline",
-        "confidence",
-        "confidence_reason",
-        "summary",
-        "application_method",
-    ):
+    for key in _REBUILD_EXTRA_KEYS:
         if key in full:
             result[key] = full[key]
-
     return result
 
 

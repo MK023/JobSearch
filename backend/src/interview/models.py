@@ -48,9 +48,12 @@ class Interview(Base):
 
     scheduled_at = Column(DateTime(timezone=True), nullable=False)
     ends_at = Column(DateTime(timezone=True), nullable=True)
-    platform = Column(String(20), nullable=True)  # google_meet, teams, zoom, phone, in_person, other
-    interview_type = Column(String(20), nullable=True)  # tecnico, hr, conoscitivo, finale, other
-    outcome = Column(String(20), nullable=True)  # passed, rejected, withdrawn, pending; NULL = not logged
+    # platform values: google_meet / teams / zoom / phone / in_person / other
+    platform = Column(String(20), nullable=True)
+    # interview_type values: tecnico / hr / conoscitivo / finale / other
+    interview_type = Column(String(20), nullable=True)
+    # outcome values: passed / rejected / withdrawn / pending. NULL means not yet logged.
+    outcome = Column(String(20), nullable=True)
     interviewer_name = Column(String(255), nullable=True)
     recruiter_name = Column(String(255), nullable=True)
     recruiter_email = Column(String(255), nullable=True)

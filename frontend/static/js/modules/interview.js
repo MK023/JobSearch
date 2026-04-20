@@ -69,7 +69,7 @@ function openInterviewModal(analysisId) {
         return null;
     })
     .then(function(data) {
-        if (data && data.scheduled_at) {
+        if (data?.scheduled_at) {
             populateInterviewForm(data);
             document.getElementById('interview-modal-title').textContent = 'Modifica colloquio';
         }
@@ -153,13 +153,53 @@ function populateInterviewForm(data) {
 }
 
 
-function isoToLocalInput(iso) {
-    const d = new Date(iso);
-    const pad = function(n) { return String(n).padStart(2, '0'); };
-    return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate())
-           + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+function _pad2(n) {
+    return String(n).padStart(2, '0');
 }
 
+function isoToLocalInput(iso) {
+    const d = new Date(iso);
+    return d.getFullYear() + '-' + _pad2(d.getMonth()+1) + '-' + _pad2(d.getDate())
+           + 'T' + _pad2(d.getHours()) + ':' + _pad2(d.getMinutes());
+}
+
+
+function _markStatusToggleAsColloquio(analysisId) {
+    const group = document.querySelector('[data-analysis-id="' + analysisId + '"]');
+    if (!group) return;
+    group.querySelectorAll('.status-option').forEach(function(b) {
+        b.classList.remove('active');
+    });
+    const collBtn = group.querySelector('[data-status="colloquio"]');
+    if (collBtn) collBtn.classList.add('active');
+}
+
+function _markHistoryRowAsColloquio(analysisId) {
+    const histItem = document.querySelector('[data-hist-id="' + analysisId + '"]');
+    if (!histItem) return;
+    histItem.dataset.histStatus = 'colloquio';
+    const stEl = histItem.querySelector('.status-badge');
+    if (stEl) {
+        stEl.className = 'status-badge status-colloquio';
+        stEl.textContent = 'COLLOQUIO';
+    }
+}
+
+function _onInterviewSaved(analysisId) {
+    closeInterviewModal();
+    _markStatusToggleAsColloquio(analysisId);
+    _markHistoryRowAsColloquio(analysisId);
+    if (typeof refreshHistoryCounts === 'function') refreshHistoryCounts();
+    if (typeof refreshSpending === 'function') refreshSpending();
+    showToast('Colloquio salvato', 'success');
+    // Reload once; any analysis/interviews detail view refreshes after the toast.
+    const path = globalThis.location.pathname;
+    if (path.includes('/analysis/') || path.includes('/interviews')) {
+        setTimeout(function() { globalThis.location.reload(); }, 800);
+    } else {
+        globalThis.location.reload();
+    }
+}
 
 function submitInterview(e) {
     e.preventDefault();
@@ -217,35 +257,7 @@ function submitInterview(e) {
             showToast(res.data.error || 'Errore salvataggio colloquio', 'error');
             return;
         }
-        const data = res.data;
-        if (data.ok) {
-            closeInterviewModal();
-            const group = document.querySelector('[data-analysis-id="' + analysisId + '"]');
-            if (group) {
-                group.querySelectorAll('.status-option').forEach(function(b) {
-                    b.classList.remove('active');
-                });
-                const collBtn = group.querySelector('[data-status="colloquio"]');
-                if (collBtn) collBtn.classList.add('active');
-            }
-            const histItem = document.querySelector('[data-hist-id="' + analysisId + '"]');
-            if (histItem) {
-                histItem.dataset.histStatus = 'colloquio';
-                const stEl = histItem.querySelector('.status-badge');
-                if (stEl) {
-                    stEl.className = 'status-badge status-colloquio';
-                    stEl.textContent = 'COLLOQUIO';
-                }
-            }
-            if (typeof refreshHistoryCounts === 'function') refreshHistoryCounts();
-            if (typeof refreshSpending === 'function') refreshSpending();
-            window.location.reload();
-            showToast('Colloquio salvato', 'success');
-            if (window.location.pathname.includes('/analysis/') ||
-                window.location.pathname.includes('/interviews')) {
-                setTimeout(function() { window.location.reload(); }, 800);
-            }
-        }
+        if (res.data.ok) _onInterviewSaved(analysisId);
     })
     .catch(function(e) {
         console.error('submitInterview error:', e);
@@ -272,7 +284,7 @@ function submitNewRound(analysisId, scheduled) {
         }
         closeInterviewModal();
         showToast('Round ' + res.data.round_number + ' creato', 'success');
-        setTimeout(function() { window.location.reload(); }, 800);
+        setTimeout(function() { globalThis.location.reload(); }, 800);
     })
     .catch(function(e) {
         console.error('submitNewRound error:', e);
@@ -293,7 +305,7 @@ function deleteInterviewFromDetail(analysisId) {
     .then(function(r) { return r.json(); })
     .then(function(data) {
         if (data.ok) {
-            window.location.reload();
+            globalThis.location.reload();
         }
     })
     .catch(function(e) {
@@ -316,7 +328,7 @@ function logRoundOutcome(interviewId, outcome) {
             return;
         }
         showToast('Esito salvato', 'success');
-        setTimeout(function() { window.location.reload(); }, 800);
+        setTimeout(function() { globalThis.location.reload(); }, 800);
     })
     .catch(function(e) {
         console.error('logRoundOutcome error:', e);
@@ -334,7 +346,7 @@ function markAsOffer(analysisId) {
     .then(function(data) {
         if (data.ok) {
             showToast('Offerta registrata!', 'success');
-            setTimeout(function() { window.location.reload(); }, 800);
+            setTimeout(function() { globalThis.location.reload(); }, 800);
         } else {
             showToast(data.error || 'Errore', 'error');
         }

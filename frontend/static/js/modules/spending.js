@@ -19,9 +19,9 @@ function saveBudget() {
     const budgetEl = document.getElementById('spending-budget');
     if (!budgetEl) return;
 
-    const raw = budgetEl.textContent.replace(/[^0-9.,]/g, '').replace(',', '.');
-    let val = parseFloat(raw);
-    if (isNaN(val) || val < 0) val = 0;
+    const raw = budgetEl.textContent.replaceAll(/[^0-9.,]/g, '').replace(',', '.');
+    let val = Number.parseFloat(raw);
+    if (Number.isNaN(val) || val < 0) val = 0;
     budgetEl.textContent = '$' + val.toFixed(2);
 
     const fd = new FormData();
@@ -29,6 +29,12 @@ function saveBudget() {
     fetch('/api/v1/spending/budget', { method: 'PUT', body: fd })
         .then(function() { refreshSpending(); })
         .catch(function(e) { console.error('saveBudget error:', e); });
+}
+
+function _remainingClass(remaining) {
+    if (remaining < 1) return 'credit-remaining-low';
+    if (remaining < 3) return 'credit-remaining-warn';
+    return 'credit-remaining-ok';
 }
 
 function refreshSpending() {
@@ -47,13 +53,12 @@ function refreshSpending() {
 
             const remainEl = document.getElementById('spending-remaining');
             if (remainEl) {
-                if (d.remaining !== null) {
-                    remainEl.textContent = '$' + d.remaining.toFixed(4);
-                    remainEl.classList.remove('credit-remaining-low', 'credit-remaining-warn', 'credit-remaining-ok');
-                    remainEl.classList.add(d.remaining < 1 ? 'credit-remaining-low' : d.remaining < 3 ? 'credit-remaining-warn' : 'credit-remaining-ok');
-                } else {
+                remainEl.classList.remove('credit-remaining-low', 'credit-remaining-warn', 'credit-remaining-ok');
+                if (d.remaining === null) {
                     remainEl.textContent = '-';
-                    remainEl.classList.remove('credit-remaining-low', 'credit-remaining-warn', 'credit-remaining-ok');
+                } else {
+                    remainEl.textContent = '$' + d.remaining.toFixed(4);
+                    remainEl.classList.add(_remainingClass(d.remaining));
                 }
             }
 

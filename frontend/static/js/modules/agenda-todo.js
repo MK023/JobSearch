@@ -15,7 +15,7 @@ function addTodoServer() {
         .then(function (data) {
             if (data.ok) {
                 input.value = '';
-                window.location.reload();
+                globalThis.location.reload();
             } else {
                 showToast(data.error || 'Errore', 'error');
             }
@@ -27,7 +27,7 @@ function toggleTodo(id) {
     fetch('/api/v1/todos/' + id + '/toggle', { method: 'POST' })
         .then(function (r) { return r.json(); })
         .then(function (data) {
-            if (data.ok) window.location.reload();
+            if (data.ok) globalThis.location.reload();
         })
         .catch(function () { showToast('Errore', 'error'); });
 }
@@ -36,7 +36,7 @@ function removeTodo(id) {
     fetch('/api/v1/todos/' + id, { method: 'DELETE' })
         .then(function (r) { return r.json(); })
         .then(function (data) {
-            if (data.ok) window.location.reload();
+            if (data.ok) globalThis.location.reload();
         })
         .catch(function () { showToast('Errore', 'error'); });
 }

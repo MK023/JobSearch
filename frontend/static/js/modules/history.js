@@ -15,8 +15,8 @@
  */
 
 function historyTabs() {
-    const validTabs = ['valutazione', 'candidature', 'scartati', 'rifiutati'];
-    const validContractTypes = ['tutti', 'dipendente', 'piva'];
+    const validTabs = new Set(['valutazione', 'candidature', 'scartati', 'rifiutati']);
+    const validContractTypes = new Set(['tutti', 'dipendente', 'piva']);
     const FILTERS_KEY = 'historyFilters';
     const defaultFilters = {
         contractType: 'tutti',
@@ -26,20 +26,23 @@ function historyTabs() {
         searchQuery: ''
     };
 
+    function _normalizeContractType(parsed) {
+        let contractType = parsed.contractType;
+        // Legacy migration: old `hideFreelance: true` -> `contractType: 'dipendente'`
+        if (!contractType && parsed.hideFreelance) contractType = 'dipendente';
+        return validContractTypes.has(contractType) ? contractType : 'tutti';
+    }
+
     function loadFilters() {
         try {
             const raw = sessionStorage.getItem(FILTERS_KEY);
             if (!raw) return { ...defaultFilters };
             const parsed = JSON.parse(raw);
-            // Legacy migration: old `hideFreelance: true` -> `contractType: 'dipendente'`
-            let contractType = parsed.contractType;
-            if (!contractType && parsed.hideFreelance) contractType = 'dipendente';
-            if (!validContractTypes.includes(contractType)) contractType = 'tutti';
             return {
-                contractType: contractType,
+                contractType: _normalizeContractType(parsed),
                 hideBodyRental: !!parsed.hideBodyRental,
                 hideRecruiter: !!parsed.hideRecruiter,
-                minScore: Math.max(0, Math.min(100, parseInt(parsed.minScore, 10) || 0)),
+                minScore: Math.max(0, Math.min(100, Number.parseInt(parsed.minScore, 10) || 0)),
                 searchQuery: typeof parsed.searchQuery === 'string' ? parsed.searchQuery : ''
             };
         } catch (e) {
@@ -61,11 +64,14 @@ function historyTabs() {
         filters: { ...defaultFilters },
 
         init: function() {
-            // Restore tab from URL hash or sessionStorage
+            // Restore tab from URL hash or sessionStorage (in that priority order)
             const hash = location.hash.replace('#', '');
-            const stored = sessionStorage.getItem('historyTab');
-            const restored = validTabs.includes(hash) ? hash : (validTabs.includes(stored) ? stored : 'valutazione');
-            this.activeTab = restored;
+            if (validTabs.has(hash)) {
+                this.activeTab = hash;
+            } else {
+                const stored = sessionStorage.getItem('historyTab');
+                this.activeTab = validTabs.has(stored) ? stored : 'valutazione';
+            }
             this.filters = loadFilters();
             this.filterItems();
         },
@@ -78,7 +84,7 @@ function historyTabs() {
         },
 
         setContractType: function(type) {
-            if (!validContractTypes.includes(type)) return;
+            if (!validContractTypes.has(type)) return;
             this.filters.contractType = type;
             this.persistFilters();
             this.filterItems();
@@ -91,7 +97,7 @@ function historyTabs() {
         },
 
         setMinScore: function(val) {
-            this.filters.minScore = Math.max(0, Math.min(100, parseInt(val, 10) || 0));
+            this.filters.minScore = Math.max(0, Math.min(100, Number.parseInt(val, 10) || 0));
             this.persistFilters();
             this.filterItems();
         },
@@ -118,44 +124,50 @@ function historyTabs() {
             }
         },
 
+        _bucketFor: function(status) {
+            if (status === 'da_valutare') return 'valutazione';
+            if (status === 'candidato' || status === 'colloquio' || status === 'offerta') return 'candidature';
+            if (status === 'rifiutato') return 'rifiutati';
+            return 'scartati';
+        },
+
+        _matchesSecondaryFilters: function(item, f) {
+            const isFreelance = item.dataset.histFreelance === '1';
+            if (f.contractType === 'dipendente' && isFreelance) return false;
+            if (f.contractType === 'piva' && !isFreelance) return false;
+            if (f.hideBodyRental && item.dataset.histBodyrental === '1') return false;
+            if (f.hideRecruiter && item.dataset.histRecruiter === '1') return false;
+            if (f.minScore > 0) {
+                const score = Number.parseInt(item.dataset.histScore, 10) || 0;
+                if (score < f.minScore) return false;
+            }
+            if (f.searchQuery) {
+                const haystack = item.dataset.histSearch || '';
+                if (!haystack.includes(f.searchQuery)) return false;
+            }
+            return true;
+        },
+
         filterItems: function() {
             const tab = this.activeTab;
             const f = this.filters;
-            let cVal = 0, cCand = 0, cScar = 0, cRif = 0;
+            const counts = { valutazione: 0, candidature: 0, scartati: 0, rifiutati: 0 };
+            const self = this;
 
             document.querySelectorAll('.history-item[data-hist-status]').forEach(function(item) {
-                const st = item.dataset.histStatus || 'da_valutare';
+                const status = item.dataset.histStatus || 'da_valutare';
+                const bucket = self._bucketFor(status);
+                counts[bucket] += 1;
 
-                let bucket;
-                if (st === 'da_valutare') { cVal++; bucket = 'valutazione'; }
-                else if (st === 'candidato' || st === 'colloquio' || st === 'offerta') { cCand++; bucket = 'candidature'; }
-                else if (st === 'rifiutato') { cRif++; bucket = 'rifiutati'; }
-                else { cScar++; bucket = 'scartati'; }
-
-                const matchTab = (tab === bucket);
-                let matchFilters = true;
-                // Contract type: dipendente -> is_freelance != '1'; piva -> is_freelance === '1'; tutti -> nessun filtro
-                const isFreelance = item.dataset.histFreelance === '1';
-                if (f.contractType === 'dipendente' && isFreelance) matchFilters = false;
-                if (f.contractType === 'piva' && !isFreelance) matchFilters = false;
-                if (f.hideBodyRental && item.dataset.histBodyrental === '1') matchFilters = false;
-                if (f.hideRecruiter && item.dataset.histRecruiter === '1') matchFilters = false;
-                if (f.minScore > 0) {
-                    const score = parseInt(item.dataset.histScore, 10) || 0;
-                    if (score < f.minScore) matchFilters = false;
-                }
-                if (f.searchQuery) {
-                    const haystack = item.dataset.histSearch || '';
-                    if (!haystack.includes(f.searchQuery)) matchFilters = false;
-                }
-
+                const matchTab = tab === bucket;
+                const matchFilters = self._matchesSecondaryFilters(item, f);
                 item.style.display = (matchTab && matchFilters) ? '' : 'none';
             });
 
-            this.counts.valutazione = cVal;
-            this.counts.candidature = cCand;
-            this.counts.scartati = cScar;
-            this.counts.rifiutati = cRif;
+            this.counts.valutazione = counts.valutazione;
+            this.counts.candidature = counts.candidature;
+            this.counts.scartati = counts.scartati;
+            this.counts.rifiutati = counts.rifiutati;
         }
     };
 }

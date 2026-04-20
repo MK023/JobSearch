@@ -25,6 +25,8 @@ from .interview.service import get_upcoming_interviews
 
 router = APIRouter(tags=["read-api"])
 
+_ANALYSIS_NOT_FOUND_MSG = "Analysis not found"
+
 
 def _analysis_summary(a: JobAnalysis) -> dict[str, Any]:
     """Compact representation of an analysis for list endpoints."""
@@ -39,6 +41,51 @@ def _analysis_summary(a: JobAnalysis) -> dict[str, Any]:
         "created_at": a.created_at.isoformat() if a.created_at else None,
         "applied_at": a.applied_at.isoformat() if a.applied_at else None,
         "followed_up": a.followed_up,
+    }
+
+
+def _interview_export_row(iv: Any) -> dict[str, Any]:
+    """Compact representation of an Interview row for the export payload."""
+    return {
+        "id": str(iv.id),
+        "scheduled_at": iv.scheduled_at.isoformat() if iv.scheduled_at else None,
+        "outcome": iv.outcome,
+        "round_number": iv.round_number,
+        "interview_type": iv.interview_type,
+        "platform": iv.platform,
+    }
+
+
+def _analysis_export_row(a: JobAnalysis, interviews: list[dict[str, Any]]) -> dict[str, Any]:
+    """Full-detail representation of an analysis row for the export payload."""
+    return {
+        "id": str(a.id),
+        "created_at": a.created_at.isoformat() if a.created_at else None,
+        "applied_at": a.applied_at.isoformat() if a.applied_at else None,
+        "status": a.status or None,
+        "company": a.company,
+        "role": a.role,
+        "location": a.location,
+        "work_mode": a.work_mode,
+        "salary_info": a.salary_info,
+        "job_url": a.job_url,
+        "score": a.score,
+        "recommendation": a.recommendation,
+        "model_used": a.model_used,
+        "cost_usd": a.cost_usd,
+        "tokens_input": a.tokens_input,
+        "tokens_output": a.tokens_output,
+        "followed_up": a.followed_up,
+        "strengths": a.strengths or [],
+        "gaps": a.gaps or [],
+        "advice": a.advice,
+        "job_summary": a.job_summary,
+        "company_reputation": a.company_reputation or {},
+        "benefits": a.benefits or [],
+        "recruiter_info": a.recruiter_info or {},
+        "experience_required": a.experience_required or {},
+        "salary_data": a.salary_data or {},
+        "interviews": interviews,
     }
 
 
@@ -57,55 +104,12 @@ def export_all_analyses(user: CurrentUser, db: DbSession) -> JSONResponse:
 
     rows = db.query(JobAnalysis).order_by(JobAnalysis.created_at.asc()).all()
 
-    # Load interviews once, group by analysis_id
     interview_rows = db.query(Interview).all()
     interviews_by_analysis: dict[str, list[dict[str, Any]]] = {}
     for iv in interview_rows:
-        key = str(iv.analysis_id)
-        interviews_by_analysis.setdefault(key, []).append(
-            {
-                "id": str(iv.id),
-                "scheduled_at": iv.scheduled_at.isoformat() if iv.scheduled_at else None,
-                "outcome": iv.outcome,
-                "round_number": iv.round_number,
-                "interview_type": iv.interview_type,
-                "platform": iv.platform,
-            }
-        )
+        interviews_by_analysis.setdefault(str(iv.analysis_id), []).append(_interview_export_row(iv))
 
-    analyses: list[dict[str, Any]] = []
-    for a in rows:
-        analyses.append(
-            {
-                "id": str(a.id),
-                "created_at": a.created_at.isoformat() if a.created_at else None,
-                "applied_at": a.applied_at.isoformat() if a.applied_at else None,
-                "status": a.status or None,
-                "company": a.company,
-                "role": a.role,
-                "location": a.location,
-                "work_mode": a.work_mode,
-                "salary_info": a.salary_info,
-                "job_url": a.job_url,
-                "score": a.score,
-                "recommendation": a.recommendation,
-                "model_used": a.model_used,
-                "cost_usd": a.cost_usd,
-                "tokens_input": a.tokens_input,
-                "tokens_output": a.tokens_output,
-                "followed_up": a.followed_up,
-                "strengths": a.strengths or [],
-                "gaps": a.gaps or [],
-                "advice": a.advice,
-                "job_summary": a.job_summary,
-                "company_reputation": a.company_reputation or {},
-                "benefits": a.benefits or [],
-                "recruiter_info": a.recruiter_info or {},
-                "experience_required": a.experience_required or {},
-                "salary_data": a.salary_data or {},
-                "interviews": interviews_by_analysis.get(str(a.id), []),
-            }
-        )
+    analyses = [_analysis_export_row(a, interviews_by_analysis.get(str(a.id), [])) for a in rows]
 
     return JSONResponse(
         {
@@ -194,7 +198,7 @@ def candidature_detail(
     validate_uuid(analysis_id)
     analysis = get_analysis_by_id(db, analysis_id, user_id=cast(UUID, user.id))
     if not analysis:
-        return JSONResponse({"error": "Analysis not found"}, status_code=404)
+        return JSONResponse({"error": _ANALYSIS_NOT_FOUND_MSG}, status_code=404)
 
     result = rebuild_result(analysis)
     result["id"] = str(analysis.id)
@@ -216,7 +220,7 @@ def interview_prep(
     validate_uuid(analysis_id)
     analysis = get_analysis_by_id(db, analysis_id, user_id=cast(UUID, user.id))
     if not analysis:
-        return JSONResponse({"error": "Analysis not found"}, status_code=404)
+        return JSONResponse({"error": _ANALYSIS_NOT_FOUND_MSG}, status_code=404)
 
     return JSONResponse(
         {
@@ -242,7 +246,7 @@ def cover_letters(
     validate_uuid(analysis_id)
     analysis = get_analysis_by_id(db, analysis_id, user_id=cast(UUID, user.id))
     if not analysis:
-        return JSONResponse({"error": "Analysis not found"}, status_code=404)
+        return JSONResponse({"error": _ANALYSIS_NOT_FOUND_MSG}, status_code=404)
 
     letters = db.query(CoverLetter).filter(CoverLetter.analysis_id == analysis.id).all()
     return JSONResponse(

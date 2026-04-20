@@ -43,12 +43,12 @@
         {% if article.photo_url %}
         {# Publishers' CDNs occasionally ship images with expired/self-signed
            certs (e.g. ERR_CERT_AUTHORITY_INVALID on focusrisparmio.com) or
-           serve 404s. Hide the broken thumb via onerror instead of leaving a
-           dead placeholder — the article link still works and the flex
-           layout collapses cleanly. `referrerpolicy=no-referrer` also lets
-           some hotlink-protected CDNs serve the image. #}
+           serve 404s. Broken thumbs are hidden by the delegated `error`
+           listener below (avoids inline handlers — SonarCloud Web:S6847).
+           `referrerpolicy=no-referrer` also lets some hotlink-protected
+           CDNs serve the image. #}
         <img class="news-article-thumb" src="{{ article.photo_url }}" alt="" loading="lazy"
-             referrerpolicy="no-referrer" onerror="this.remove()">
+             referrerpolicy="no-referrer">
         {% endif %}
       </div>
       {% endfor %}
@@ -57,4 +57,15 @@
   {% endif %}
 
 </div>
+
+<script>
+// Delegated error handler for news thumbs: some publisher CDNs 404 or ship
+// expired certs — we hide the broken <img> instead of leaving a dead box.
+document.addEventListener('error', function(e) {
+    const t = e.target;
+    if (t instanceof HTMLImageElement && t.classList.contains('news-article-thumb')) {
+        t.remove();
+    }
+}, true);
+</script>
 {% endblock %}

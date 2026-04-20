@@ -24,6 +24,9 @@ CACHE_DAYS = 30
 RAPIDAPI_HOST = "company-data12.p.rapidapi.com"
 SEARCH_URL = f"https://{RAPIDAPI_HOST}/company-search"
 
+_REDIS_TTL_SECONDS = 3600  # 1h
+_MIN_REVIEWS = 3  # reliability floor for a Glassdoor rating
+
 
 class GlassdoorCache(Base):
     """DB-level cache for Glassdoor company data (30-day TTL)."""
@@ -50,81 +53,120 @@ def fetch_glassdoor_rating(
     """
     if not company_name or not company_name.strip():
         return None
-
     if not settings.rapidapi_key:
         return None
 
     normalized = company_name.lower().strip()
     cache_key = f"glassdoor:{normalized}"
 
-    # Tier 1: Redis cache (fastest, within-batch hits land here)
-    if cache is not None:
-        cached_redis = cache.get_json(cache_key)
-        if cached_redis:
-            cached_redis["cached"] = True
-            return cast(dict[str, Any], cached_redis)
+    redis_hit = _try_redis_cache(cache, cache_key)
+    if redis_hit is not None:
+        return redis_hit
 
-    # Tier 2: DB cache (30-day TTL, survives restart)
+    db_hit = _try_db_cache(db, normalized, cache, cache_key)
+    if db_hit is not None:
+        return db_hit
+
+    return _fetch_from_api_and_store(company_name.strip(), normalized, db, cache, cache_key)
+
+
+def _try_redis_cache(cache: "CacheService | None", cache_key: str) -> dict[str, Any] | None:
+    """Return a Redis-cached result for this key, or None on miss."""
+    if cache is None:
+        return None
+    cached_redis = cache.get_json(cache_key)
+    if not cached_redis:
+        return None
+    cached_redis["cached"] = True
+    return cast(dict[str, Any], cached_redis)
+
+
+def _try_db_cache(
+    db: Session,
+    normalized: str,
+    cache: "CacheService | None",
+    cache_key: str,
+) -> dict[str, Any] | None:
+    """Return a DB-cached result (within TTL), or None on miss/expired."""
     cached = db.query(GlassdoorCache).filter(GlassdoorCache.company_name == normalized).first()
-    if cached and cached.fetched_at:
-        age = datetime.now(UTC) - cached.fetched_at
-        if age < timedelta(days=CACHE_DAYS):
-            parsed = _parse_cached(cached)
-            if parsed and cache is not None:
-                cache.set_json(cache_key, parsed, 3600)  # 1h Redis TTL
-            return parsed
+    if not cached or not cached.fetched_at:
+        return None
+    age = datetime.now(UTC) - cached.fetched_at
+    if age >= timedelta(days=CACHE_DAYS):
+        return None
+    parsed = _parse_cached(cached)
+    if parsed and cache is not None:
+        cache.set_json(cache_key, parsed, _REDIS_TTL_SECONDS)
+    return parsed
 
+
+def _fetch_from_api_and_store(
+    query: str,
+    normalized: str,
+    db: Session,
+    cache: "CacheService | None",
+    cache_key: str,
+) -> dict[str, Any] | None:
+    """Call the upstream API, persist the result, and warm Redis."""
     try:
-        data = _call_api(company_name.strip())
+        data = _call_api(query)
         if data is None:
             return None
-
-        company = _best_match(data, company_name.strip())
+        company = _best_match(data, query)
         if company is None:
             return None
-
         parsed = _parse_company(company)
-
-        # Use PostgreSQL INSERT ... ON CONFLICT DO UPDATE — atomic, zero race.
-        # The savepoint approach leaked exceptions into the outer transaction
-        # causing PendingRollbackError on subsequent flush() calls.
-        from sqlalchemy.dialects.postgresql import insert as pg_insert
-
-        stmt = (
-            pg_insert(GlassdoorCache)
-            .values(
-                id=uuid.uuid4(),
-                company_name=normalized,
-                glassdoor_data=json.dumps(company, ensure_ascii=False),
-                rating=parsed.get("glassdoor_rating"),
-                review_count=parsed.get("review_count"),
-                fetched_at=datetime.now(UTC),
-            )
-            .on_conflict_do_update(
-                index_elements=["company_name"],
-                set_={
-                    "glassdoor_data": json.dumps(company, ensure_ascii=False),
-                    "rating": parsed.get("glassdoor_rating"),
-                    "review_count": parsed.get("review_count"),
-                    "fetched_at": datetime.now(UTC),
-                },
-            )
-        )
-        try:
-            db.execute(stmt)
-            db.flush()
-        except Exception:
-            # Caching is best-effort. If it fails, the parsed result is still valid.
-            db.rollback()
-
+        _persist_db_cache(db, normalized, company, parsed)
         parsed["cached"] = False
-        # Populate Redis cache so subsequent batch items hit it fast
         if cache is not None:
-            cache.set_json(cache_key, parsed, 3600)
+            cache.set_json(cache_key, parsed, _REDIS_TTL_SECONDS)
         return parsed
-
     except Exception:
         return None
+
+
+def _persist_db_cache(
+    db: Session,
+    normalized: str,
+    company: dict[str, Any],
+    parsed: dict[str, Any],
+) -> None:
+    """Upsert the DB cache row. Best-effort: rollback silently on failure.
+
+    Uses PostgreSQL INSERT ... ON CONFLICT DO UPDATE — atomic, zero race.
+    The savepoint approach leaked exceptions into the outer transaction
+    causing PendingRollbackError on subsequent flush() calls.
+    """
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+    now = datetime.now(UTC)
+    payload = json.dumps(company, ensure_ascii=False)
+    stmt = (
+        pg_insert(GlassdoorCache)
+        .values(
+            id=uuid.uuid4(),
+            company_name=normalized,
+            glassdoor_data=payload,
+            rating=parsed.get("glassdoor_rating"),
+            review_count=parsed.get("review_count"),
+            fetched_at=now,
+        )
+        .on_conflict_do_update(
+            index_elements=["company_name"],
+            set_={
+                "glassdoor_data": payload,
+                "rating": parsed.get("glassdoor_rating"),
+                "review_count": parsed.get("review_count"),
+                "fetched_at": now,
+            },
+        )
+    )
+    try:
+        db.execute(stmt)
+        db.flush()
+    except Exception:
+        # Caching is best-effort. If it fails, the parsed result is still valid.
+        db.rollback()
 
 
 def _call_api(query: str) -> dict[str, Any] | None:
@@ -147,10 +189,25 @@ def _call_api(query: str) -> dict[str, Any] | None:
         return None
 
 
+def _is_reliable(result: dict[str, Any]) -> bool:
+    """A result is reliable when it has a rating and ≥ _MIN_REVIEWS reviews."""
+    return bool(result.get("rating")) and (result.get("review_count") or 0) >= _MIN_REVIEWS
+
+
+def _name_matches(result: dict[str, Any], query: str, mode: str) -> bool:
+    """Name-match predicate: mode is 'exact', 'prefix', or 'contains'."""
+    name = (result.get("name") or "").lower().strip()
+    if mode == "exact":
+        return name == query
+    if mode == "prefix":
+        return name.startswith(query) or query.startswith(name)
+    return query in name
+
+
 def _best_match(data: dict[str, Any], query: str) -> dict[str, Any] | None:
     """Pick the best matching company from API results.
 
-    Requires at least 3 reviews for reliability.
+    Tries exact > prefix > contains name matches, filtered by reliability.
     """
     if data.get("status") != "OK":
         return None
@@ -159,72 +216,61 @@ def _best_match(data: dict[str, Any], query: str) -> dict[str, Any] | None:
         return None
 
     q = query.lower().strip()
-    min_reviews = 3
-
-    for r in results:
-        name = (r.get("name") or "").lower().strip()
-        if name == q and r.get("rating") and (r.get("review_count") or 0) >= min_reviews:
-            return r
-
-    for r in results:
-        name = (r.get("name") or "").lower().strip()
-        if (
-            (name.startswith(q) or q.startswith(name))
-            and r.get("rating")
-            and (r.get("review_count") or 0) >= min_reviews
-        ):
-            return r
-
-    for r in results:
-        name = (r.get("name") or "").lower().strip()
-        if q in name and r.get("rating") and (r.get("review_count") or 0) >= min_reviews:
-            return r
-
+    for mode in ("exact", "prefix", "contains"):
+        for r in results:
+            if _name_matches(r, q, mode) and _is_reliable(r):
+                return r
     return None
+
+
+_RATING_MAP = {
+    "culture_and_values_rating": "culture",
+    "compensation_and_benefits_rating": "compensation",
+    "work_life_balance_rating": "work_life_balance",
+    "career_opportunities_rating": "career_opportunities",
+    "senior_management_rating": "senior_management",
+    "diversity_and_inclusion_rating": "diversity",
+}
+
+
+def _extract_sub_ratings(c: dict[str, Any]) -> dict[str, float]:
+    """Extract the per-dimension Glassdoor sub-ratings (keep only >0)."""
+    result: dict[str, float] = {}
+    for api_key, our_key in _RATING_MAP.items():
+        val = c.get(api_key)
+        if val and float(val) > 0:
+            result[our_key] = round(float(val), 1)
+    return result
+
+
+def _percentage_or_none(c: dict[str, Any], key: str) -> int | None:
+    """Convert a 0..1 Glassdoor rating to an integer 0..100 percentage."""
+    val = c.get(key)
+    if val and float(val) > 0:
+        return round(float(val) * 100)
+    return None
+
+
+def _build_glassdoor_url(c: dict[str, Any]) -> str:
+    """Build the public Glassdoor company URL, or empty string when unknown."""
+    company_id = c.get("company_id", "")
+    if not company_id:
+        return ""
+    slug = (c.get("name") or "").replace(" ", "-")
+    return f"https://www.glassdoor.com/Overview/Working-at-{slug}-EI_IE{company_id}.htm"
 
 
 def _parse_company(c: dict[str, Any]) -> dict[str, Any]:
     """Parse a company-data12 company object into our standard format."""
-    rating = float(c.get("rating", 0))
-    review_count = int(c.get("review_count", 0))
-
-    sub_ratings: dict[str, float] = {}
-    rating_map = {
-        "culture_and_values_rating": "culture",
-        "compensation_and_benefits_rating": "compensation",
-        "work_life_balance_rating": "work_life_balance",
-        "career_opportunities_rating": "career_opportunities",
-        "senior_management_rating": "senior_management",
-        "diversity_and_inclusion_rating": "diversity",
-    }
-    for api_key, our_key in rating_map.items():
-        val = c.get(api_key)
-        if val and float(val) > 0:
-            sub_ratings[our_key] = round(float(val), 1)
-
-    ceo_name = c.get("ceo") or ""
-    ceo_rating = c.get("ceo_rating")
-    ceo_approval = round(float(ceo_rating) * 100) if ceo_rating and float(ceo_rating) > 0 else None
-
-    company_name_slug = (c.get("name") or "").replace(" ", "-")
-    company_id = c.get("company_id", "")
-    glassdoor_url = (
-        f"https://www.glassdoor.com/Overview/Working-at-{company_name_slug}-EI_IE{company_id}.htm" if company_id else ""
-    )
-
     return {
-        "glassdoor_rating": rating,
-        "glassdoor_url": glassdoor_url,
-        "review_count": review_count,
-        "sub_ratings": sub_ratings,
-        "ceo_name": ceo_name,
-        "ceo_approval": ceo_approval,
-        "recommend_to_friend": (
-            round(float(c["recommend_to_friend_rating"]) * 100) if c.get("recommend_to_friend_rating") else None
-        ),
-        "business_outlook": (
-            round(float(c["business_outlook_rating"]) * 100) if c.get("business_outlook_rating") else None
-        ),
+        "glassdoor_rating": float(c.get("rating", 0)),
+        "glassdoor_url": _build_glassdoor_url(c),
+        "review_count": int(c.get("review_count", 0)),
+        "sub_ratings": _extract_sub_ratings(c),
+        "ceo_name": c.get("ceo") or "",
+        "ceo_approval": _percentage_or_none(c, "ceo_rating"),
+        "recommend_to_friend": _percentage_or_none(c, "recommend_to_friend_rating"),
+        "business_outlook": _percentage_or_none(c, "business_outlook_rating"),
         "industry": c.get("industry") or "",
         "company_size": c.get("company_size") or "",
         "website": c.get("website") or "",

@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>{% block title %}Job Search{% endblock %}</title>
   <script>
-    (function(){var t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t)})();
+    (function(){var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t})();
   </script>
   <script src="https://js-de.sentry-cdn.com/9cd024a73263ff9c8f0232c08918d9c8.min.js" crossorigin="anonymous"></script>
   <script>
     Sentry.onLoad(function(){
       Sentry.init({
         integrations:[Sentry.replayIntegration()],
-        replaysSessionSampleRate:1.0,
-        replaysOnErrorSampleRate:1.0
+        replaysSessionSampleRate:1,
+        replaysOnErrorSampleRate:1
       });
     });
   </script>
