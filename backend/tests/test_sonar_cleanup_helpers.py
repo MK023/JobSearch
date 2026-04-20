@@ -807,3 +807,301 @@ class TestDocumentReminder:
             mock_resend.Emails.send.side_effect = RuntimeError("api down")
             ok = _send_reminder_email("subj", "<h1/>", "txt", "iv-1")
         assert ok is False
+
+
+# ---------- public API wrappers (fetch_company_news / fetch_salary_data /
+#            fetch_glassdoor_rating) — exercise the decision tree without
+#            actually hitting the network. ----------
+
+
+class TestFetchCompanyNews:
+    def test_returns_none_without_api_key(self) -> None:
+        from src.integrations.news import fetch_company_news
+
+        with patch("src.integrations.news.settings") as s:
+            s.rapidapi_key = ""
+            assert fetch_company_news("Acme", db=None) is None
+
+    def test_returns_none_when_api_returns_nothing(self) -> None:
+        from src.integrations.news import fetch_company_news
+
+        with (
+            patch("src.integrations.news.settings") as s,
+            patch("src.integrations.news._call_api", return_value=None),
+        ):
+            s.rapidapi_key = "k"
+            assert fetch_company_news("Acme", db=None) is None
+
+    def test_returns_articles_without_db(self) -> None:
+        from src.integrations.news import fetch_company_news
+
+        sample = [
+            {
+                "title": "T",
+                "link": "u",
+                "snippet": "s",
+                "published_datetime_utc": "2026-01-01",
+                "source_name": "src",
+                "source_url": "srcu",
+                "photo_url": "p",
+            }
+        ]
+        with (
+            patch("src.integrations.news.settings") as s,
+            patch("src.integrations.news._call_api", return_value=sample),
+        ):
+            s.rapidapi_key = "k"
+            out = fetch_company_news("Acme", db=None)
+        assert out is not None and out[0]["title"] == "T"
+
+    def test_returns_fresh_db_cached_without_api_call(self) -> None:
+        from src.integrations.news import fetch_company_news
+
+        row = MagicMock()
+        row.fetched_at = datetime.now(UTC) - timedelta(days=1)
+        row.news_data = '[{"title": "cached"}]'
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = row
+
+        with (
+            patch("src.integrations.news.settings") as s,
+            patch("src.integrations.news._call_api") as mock_api,
+        ):
+            s.rapidapi_key = "k"
+            out = fetch_company_news("Acme", db=db)
+            mock_api.assert_not_called()
+        assert out == [{"title": "cached"}]
+
+
+class TestFetchSalaryData:
+    def test_returns_none_without_api_key(self) -> None:
+        from src.integrations.salary import fetch_salary_data
+
+        with patch("src.integrations.salary.settings") as s:
+            s.rapidapi_key = ""
+            assert fetch_salary_data("Dev", db=None) is None
+
+    def test_skips_unsupported_location(self) -> None:
+        from src.integrations.salary import fetch_salary_data
+
+        with (
+            patch("src.integrations.salary.settings") as s,
+            patch("src.integrations.salary._call_api") as mock_api,
+        ):
+            s.rapidapi_key = "k"
+            assert fetch_salary_data("Dev", location="Milano", db=None) is None
+            mock_api.assert_not_called()
+
+    def test_returns_parsed_on_api_hit(self) -> None:
+        from src.integrations.salary import fetch_salary_data
+
+        with (
+            patch("src.integrations.salary.settings") as s,
+            patch(
+                "src.integrations.salary._call_api",
+                return_value=[{"median_salary": 50000, "job_title": "Dev"}],
+            ),
+        ):
+            s.rapidapi_key = "k"
+            out = fetch_salary_data("Dev", db=None)
+        assert out is not None
+        assert out["median_salary"] == 50000
+
+
+class TestFetchGlassdoor:
+    def test_returns_none_without_company(self) -> None:
+        from src.integrations.glassdoor import fetch_glassdoor_rating
+
+        assert fetch_glassdoor_rating("", MagicMock()) is None
+        assert fetch_glassdoor_rating("   ", MagicMock()) is None
+
+    def test_returns_none_without_api_key(self) -> None:
+        from src.integrations.glassdoor import fetch_glassdoor_rating
+
+        with patch("src.integrations.glassdoor.settings") as s:
+            s.rapidapi_key = ""
+            assert fetch_glassdoor_rating("Acme", MagicMock()) is None
+
+    def test_uses_redis_cache_when_hot(self) -> None:
+        from src.integrations.glassdoor import fetch_glassdoor_rating
+
+        cache = MagicMock()
+        cache.get_json.return_value = {"glassdoor_rating": 4.1}
+        db = MagicMock()
+        with patch("src.integrations.glassdoor.settings") as s:
+            s.rapidapi_key = "k"
+            out = fetch_glassdoor_rating("Acme", db, cache=cache)
+        assert out is not None and out["cached"] is True
+
+    def test_full_miss_calls_api(self) -> None:
+        from src.integrations.glassdoor import fetch_glassdoor_rating
+
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = None
+        api_company = {
+            "name": "Acme",
+            "rating": 4.2,
+            "review_count": 10,
+            "company_id": "1",
+        }
+        with (
+            patch("src.integrations.glassdoor.settings") as s,
+            patch("src.integrations.glassdoor._call_api", return_value={"status": "OK", "data": [api_company]}),
+            patch("src.integrations.glassdoor._persist_db_cache"),
+        ):
+            s.rapidapi_key = "k"
+            out = fetch_glassdoor_rating("Acme", db)
+        assert out is not None
+        assert out["glassdoor_rating"] == pytest.approx(4.2)
+        assert out["cached"] is False
+
+    def test_api_returns_none_bubbles_up(self) -> None:
+        from src.integrations.glassdoor import fetch_glassdoor_rating
+
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = None
+        with (
+            patch("src.integrations.glassdoor.settings") as s,
+            patch("src.integrations.glassdoor._call_api", return_value=None),
+        ):
+            s.rapidapi_key = "k"
+            assert fetch_glassdoor_rating("Acme", db) is None
+
+
+# ---------- batch_results_route (via TestClient to run rate-limit decorator) ----------
+
+
+@pytest.fixture
+def _batch_client(db_session, test_user):
+    """Minimal FastAPI app wrapping /batch/results with dependency overrides."""
+    from fastapi import FastAPI
+    from starlette.testclient import TestClient
+
+    from src.batch.routes import router as batch_router
+    from src.dependencies import get_current_user, get_db
+
+    app = FastAPI()
+    app.include_router(batch_router)
+
+    def _db_override():
+        yield db_session
+
+    def _user_override():
+        return test_user
+
+    app.dependency_overrides[get_db] = _db_override
+    app.dependency_overrides[get_current_user] = _user_override
+    return TestClient(app)
+
+
+class TestBatchResultsRouteIntegration:
+    def test_empty_when_no_items(self, _batch_client) -> None:
+        resp = _batch_client.get("/batch/results")
+        body = resp.json()
+        assert body["status"] == "empty"
+        assert body["results"] == []
+
+    def test_serializes_done_items(self, _batch_client, db_session, test_analysis) -> None:
+        from src.batch.models import BatchItem, BatchItemStatus
+
+        item = BatchItem(
+            batch_id="b-1",
+            cv_id=test_analysis.cv_id,
+            job_description="jd",
+            content_hash="h1",
+            model="haiku",
+            preview="jd",
+            status=BatchItemStatus.DONE,
+            analysis_id=test_analysis.id,
+        )
+        db_session.add(item)
+        db_session.commit()
+
+        resp = _batch_client.get("/batch/results")
+        body = resp.json()
+        assert body["total"] == 1
+        assert body["results"][0]["id"] == str(test_analysis.id)
+        assert body["results"][0]["is_duplicate"] is False
+
+    def test_skipped_items_flagged_as_duplicate(self, _batch_client, db_session, test_analysis) -> None:
+        from src.batch.models import BatchItem, BatchItemStatus
+
+        item = BatchItem(
+            batch_id="b-1",
+            cv_id=test_analysis.cv_id,
+            job_description="jd",
+            content_hash="h1",
+            model="haiku",
+            preview="jd",
+            status=BatchItemStatus.SKIPPED,
+            analysis_id=test_analysis.id,
+        )
+        db_session.add(item)
+        db_session.commit()
+
+        resp = _batch_client.get("/batch/results")
+        body = resp.json()
+        assert body["results"][0]["is_duplicate"] is True
+
+
+# ---------- upsert_interview via TestClient ----------
+
+
+@pytest.fixture
+def _interview_client(db_session, test_user):
+    from fastapi import FastAPI
+    from starlette.testclient import TestClient
+
+    from src.dependencies import get_current_user, get_db
+    from src.interview.routes import router as interview_router
+
+    app = FastAPI()
+    app.include_router(interview_router)
+
+    def _db_override():
+        yield db_session
+
+    def _user_override():
+        return test_user
+
+    app.dependency_overrides[get_db] = _db_override
+    app.dependency_overrides[get_current_user] = _user_override
+    return TestClient(app)
+
+
+class TestUpsertInterviewIntegration:
+    def test_analysis_not_found_returns_404(self, _interview_client) -> None:
+        import uuid as _uuid
+
+        resp = _interview_client.post(
+            f"/interviews/{_uuid.uuid4()}",
+            json={"scheduled_at": (datetime.now(UTC) + timedelta(days=1)).isoformat()},
+        )
+        assert resp.status_code == 404
+
+    def test_validates_past_date(self, _interview_client, test_analysis) -> None:
+        resp = _interview_client.post(
+            f"/interviews/{test_analysis.id}",
+            json={"scheduled_at": (datetime.now(UTC) - timedelta(days=2)).isoformat()},
+        )
+        assert resp.status_code == 400
+
+    def test_validates_bad_platform(self, _interview_client, test_analysis) -> None:
+        resp = _interview_client.post(
+            f"/interviews/{test_analysis.id}",
+            json={
+                "scheduled_at": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
+                "platform": "carrier-pigeon",
+            },
+        )
+        assert resp.status_code == 400
+
+    def test_validates_bad_meeting_link(self, _interview_client, test_analysis) -> None:
+        resp = _interview_client.post(
+            f"/interviews/{test_analysis.id}",
+            json={
+                "scheduled_at": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
+                "meeting_link": "ftp://oops",
+            },
+        )
+        assert resp.status_code == 400
