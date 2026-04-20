@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from ..integrations.anthropic_client import analyze_job
 from ..integrations.cache import CacheService
 from ..integrations.glassdoor import fetch_glassdoor_rating
-from .models import AnalysisStatus, JobAnalysis
+from .models import AnalysisSource, AnalysisStatus, JobAnalysis
 
 
 def find_existing_analysis(db: Session, hash_value: str, model_id: str) -> JobAnalysis | None:
@@ -35,8 +35,15 @@ def run_analysis(
     model: str,
     cache: CacheService | None = None,
     user_id: UUID | None = None,
+    source: str = AnalysisSource.MANUAL.value,
 ) -> tuple[JobAnalysis, dict[str, Any]]:
-    """Run a new analysis and persist it."""
+    """Run a new analysis and persist it.
+
+    ``source`` drives per-source notification aggregation. Callers should
+    pass an explicit value from :class:`AnalysisSource` so the backlog
+    notification center can split "N da valutare" cards per ingestion
+    channel (extension / cowork / mcp / api).
+    """
     result = analyze_job(cv_text, job_description, model, cache, db=db, user_id=user_id)
     _merge_glassdoor(result, db, cache)
     # Salary and news are fetched on-demand from the UI (not auto) to save
@@ -73,6 +80,7 @@ def run_analysis(
         tokens_input=result.get("tokens", {}).get("input", 0),
         tokens_output=result.get("tokens", {}).get("output", 0),
         cost_usd=result.get("cost_usd", 0.0),
+        source=source,
     )
     db.add(analysis)
     db.flush()

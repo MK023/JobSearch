@@ -39,6 +39,22 @@ class AnalysisStatus(enum.StrEnum):
     REJECTED_BY_COMPANY = "rifiutato"
 
 
+class AnalysisSource(enum.StrEnum):
+    """Origin of a JobAnalysis — drives per-source notification aggregation.
+
+    Each value corresponds to a distinct ingestion path. The notification
+    center emits one aggregated card per source so the user can tell at
+    a glance which inbox needs attention (e.g. "3 analisi da valutare
+    (estensione)" vs "1 analisi da valutare (Cowork)").
+    """
+
+    COWORK = "cowork"  # paste flow from /analyze form in the browser UI
+    EXTENSION = "extension"  # Chrome extension -> /api/v1/inbox -> analysis
+    API = "api"  # direct JSON POST to /api/v1/analyze (programmatic)
+    MCP = "mcp"  # MCP server pre-computed import via /api/v1/analysis/import
+    MANUAL = "manual"  # fallback (legacy rows before this column existed)
+
+
 class JobAnalysis(Base):
     """Persisted job-vs-CV analysis with AI scores, gaps, and cost tracking."""
 
@@ -68,6 +84,15 @@ class JobAnalysis(Base):
     status: Column[str] = Column(
         String(20),
         default=AnalysisStatus.PENDING.value,
+    )
+    # Origin of the analysis (extension / cowork / manual / mcp / api).
+    # Indexed: notification aggregator groups pending by source.
+    source: Column[str] = Column(
+        String(20),
+        nullable=False,
+        default=AnalysisSource.MANUAL.value,
+        server_default=AnalysisSource.MANUAL.value,
+        index=True,
     )
     strengths = Column(JSON, default=list)
     gaps = Column(JSON, default=list)

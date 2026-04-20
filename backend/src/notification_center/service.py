@@ -27,7 +27,7 @@ from typing import cast
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from ..analysis.models import AnalysisStatus, JobAnalysis
+from ..analysis.models import AnalysisSource, AnalysisStatus, JobAnalysis
 from ..dashboard.service import get_followup_alerts, get_spending
 from ..inbox.models import InboxItem, InboxStatus
 from ..interview.models import Interview
@@ -270,27 +270,69 @@ def _followup_due(db: Session) -> list[Notification]:
     ]
 
 
+# Human-readable label per source — surfaced in the notification title.
+_SOURCE_LABEL = {
+    AnalysisSource.EXTENSION.value: "estensione",
+    AnalysisSource.COWORK.value: "Cowork",
+    AnalysisSource.API.value: "API",
+    AnalysisSource.MCP.value: "MCP",
+    AnalysisSource.MANUAL.value: "manuale",
+}
+
+# Body phrasing per source — keeps the "why this card exists" context close
+# to the user instead of forcing them to remember which channel is which.
+_SOURCE_BODY = {
+    AnalysisSource.EXTENSION.value: "Annunci arrivati dalla Chrome extension, pronti da valutare.",
+    AnalysisSource.COWORK.value: "Annunci arrivati dal paste del browser (Cowork), pronti da valutare.",
+    AnalysisSource.API.value: "Annunci creati via API programmatica, pronti da valutare.",
+    AnalysisSource.MCP.value: "Annunci importati dal server MCP, pronti da valutare.",
+    AnalysisSource.MANUAL.value: "Annunci legacy da valutare.",
+}
+
+
+def _with_source(url: str, source: str) -> str:
+    """Append ``&source=<x>`` (or ``?source=<x>``) so the destination page
+    can scope the ``.row-new`` highlight to rows coming from that channel
+    only — otherwise a cross-source click would paint the whole list."""
+    sep = "&" if "?" in url else "?"
+    return f"{url}{sep}source={source}"
+
+
 def _backlog_to_review(db: Session) -> list[Notification]:
-    pending_q = db.query(JobAnalysis).filter(JobAnalysis.status == AnalysisStatus.PENDING.value)
-    count = pending_q.count()
-    if count < _BACKLOG_THRESHOLD:
-        return []
-    oldest = pending_q.order_by(JobAnalysis.created_at.asc()).first()
-    oldest_ts = cast(datetime, oldest.created_at) if oldest else None
-    return [
-        Notification(
-            id=f"backlog:da_valutare:{count}",
-            type=NotificationType.BACKLOG_TO_REVIEW,
-            severity=NotificationSeverity.WARNING,
-            title=f"{count} analisi da valutare",
-            body="Nuovi annunci pronti per la revisione.",
-            action_url=_with_since("/history", oldest_ts),
-            action_label="Apri Storico",
-            dismissible=True,
-            sticky=False,
-            created_at=datetime.now(UTC),
+    """Emit one notification per ingestion source that has PENDING items.
+
+    Marco's rule: each source is an independent microservice from the
+    notification-UX standpoint. Mixing them in a single aggregated card
+    makes it impossible to tell at a glance which channel is backlogging.
+    """
+    rows = (
+        db.query(JobAnalysis.source, func.count(JobAnalysis.id), func.min(JobAnalysis.created_at))
+        .filter(JobAnalysis.status == AnalysisStatus.PENDING.value)
+        .group_by(JobAnalysis.source)
+        .all()
+    )
+    notifs: list[Notification] = []
+    for source, count, oldest_ts in rows:
+        if count < _BACKLOG_THRESHOLD:
+            continue
+        label = _SOURCE_LABEL.get(source, source)
+        body = _SOURCE_BODY.get(source, "Annunci pronti da valutare.")
+        action_url = _with_source(_with_since("/history", oldest_ts), source)
+        notifs.append(
+            Notification(
+                id=f"backlog:da_valutare:{source}:{count}",
+                type=NotificationType.BACKLOG_TO_REVIEW,
+                severity=NotificationSeverity.WARNING,
+                title=f"{count} analisi da valutare ({label})",
+                body=body,
+                action_url=action_url,
+                action_label="Apri Storico",
+                dismissible=True,
+                sticky=False,
+                created_at=datetime.now(UTC),
+            )
         )
-    ]
+    return notifs
 
 
 def _todo_pending(db: Session) -> list[Notification]:
