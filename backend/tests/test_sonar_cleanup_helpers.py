@@ -7,17 +7,24 @@ concerns and stay exercised by the existing suites.
 """
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from src.analysis.service import _base_result
-from src.batch.models import BatchItemStatus
+from src.batch.models import BatchItem, BatchItemStatus
+from src.batch.routes import _serialize_batch_result
 from src.batch.service import (
+    _execute_analysis,
     _item_dict,
     _item_preview,
+    _mark_items_error,
     _overall_status,
+    _process_one_item,
+    _record_failure,
+    _record_success,
     _status_key,
+    _try_skip_dedup,
 )
 from src.integrations.glassdoor import (
     GlassdoorCache,
@@ -29,9 +36,35 @@ from src.integrations.glassdoor import (
     _parse_cached,
     _parse_company,
     _percentage_or_none,
+    _try_db_cache,
+    _try_redis_cache,
 )
-from src.integrations.news import _cached_articles_if_fresh
-from src.integrations.salary import _cached_result_if_fresh
+from src.integrations.news import (
+    NewsCache,
+    _cached_articles_if_fresh,
+)
+from src.integrations.news import (
+    _load_cached_row as _news_load_cached_row,
+)
+from src.integrations.news import (
+    _upsert_cache as _news_upsert_cache,
+)
+from src.integrations.salary import (
+    SalaryCache,
+    _cached_result_if_fresh,
+)
+from src.integrations.salary import (
+    _load_cached_row as _salary_load_cached_row,
+)
+from src.integrations.salary import (
+    _upsert_cache as _salary_upsert_cache,
+)
+from src.notifications.document_reminder import (
+    _group_files_by_interview,
+    _preload_already_notified,
+    _send_reminder_email,
+)
+from src.read_routes import _analysis_export_row, _interview_export_row
 
 # ---------- glassdoor ----------
 
@@ -414,3 +447,363 @@ class TestInterviewValidators:
         scheduled, end = result
         assert scheduled.tzinfo is not None
         assert end is not None and end > scheduled
+
+
+# ---------- glassdoor: Redis + DB cache tier helpers ----------
+
+
+class TestGlassdoorCacheTiers:
+    def test_try_redis_cache_none_when_no_cache(self) -> None:
+        assert _try_redis_cache(None, "k") is None
+
+    def test_try_redis_cache_none_on_miss(self) -> None:
+        cache = MagicMock()
+        cache.get_json.return_value = None
+        assert _try_redis_cache(cache, "k") is None
+
+    def test_try_redis_cache_hit_marks_cached(self) -> None:
+        cache = MagicMock()
+        cache.get_json.return_value = {"glassdoor_rating": 4.0}
+        out = _try_redis_cache(cache, "k")
+        assert out is not None and out["cached"] is True
+
+    def test_try_db_cache_miss_when_no_row(self) -> None:
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = None
+        assert _try_db_cache(db, "acme", None, "k") is None
+
+    def test_try_db_cache_returns_none_when_stale(self) -> None:
+        row = GlassdoorCache(
+            company_name="acme",
+            glassdoor_data='{"rating":4.0,"review_count":10,"name":"Acme"}',
+            rating=4.0,
+            review_count=10,
+        )
+        row.fetched_at = datetime.now(UTC) - timedelta(days=60)
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = row
+        assert _try_db_cache(db, "acme", None, "k") is None
+
+    def test_try_db_cache_warms_redis_on_hit(self) -> None:
+        row = GlassdoorCache(
+            company_name="acme",
+            glassdoor_data='{"rating":4.0,"review_count":10,"name":"Acme"}',
+            rating=4.0,
+            review_count=10,
+        )
+        row.fetched_at = datetime.now(UTC) - timedelta(days=1)
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = row
+        cache = MagicMock()
+        out = _try_db_cache(db, "acme", cache, "k")
+        assert out is not None
+        cache.set_json.assert_called_once()
+
+
+# ---------- news/salary cache row loaders + upsert ----------
+
+
+class TestNewsSalaryCacheLoaders:
+    def test_news_load_cached_row_swallows_errors(self) -> None:
+        db = MagicMock()
+        db.query.side_effect = RuntimeError("down")
+        assert _news_load_cached_row(db, "acme") is None
+
+    def test_news_upsert_cache_inserts_when_no_cached(self) -> None:
+        db = MagicMock()
+        _news_upsert_cache(db, "acme", None, [{"title": "x"}])
+        db.add.assert_called_once()
+        db.flush.assert_called_once()
+
+    def test_news_upsert_cache_updates_existing_row(self) -> None:
+        db = MagicMock()
+        row = NewsCache(company_name="acme")
+        _news_upsert_cache(db, "acme", row, [{"title": "y"}])
+        assert "title" in str(row.news_data)
+        db.add.assert_not_called()
+
+    def test_news_upsert_cache_swallows_db_errors(self) -> None:
+        db = MagicMock()
+        db.add.side_effect = RuntimeError("db down")
+        # Should NOT raise
+        _news_upsert_cache(db, "acme", None, [{"title": "x"}])
+
+    def test_salary_load_cached_row_swallows_errors(self) -> None:
+        db = MagicMock()
+        db.query.side_effect = RuntimeError("down")
+        assert _salary_load_cached_row(db, "k") is None
+
+    def test_salary_upsert_cache_inserts_new(self) -> None:
+        db = MagicMock()
+        _salary_upsert_cache(db, "k", None, {"median_salary": 1})
+        db.add.assert_called_once()
+
+    def test_salary_upsert_cache_updates_existing(self) -> None:
+        db = MagicMock()
+        row = SalaryCache(cache_key="k")
+        _salary_upsert_cache(db, "k", row, {"median_salary": 2})
+        assert "median_salary" in str(row.salary_data)
+
+    def test_salary_upsert_cache_swallows_flush_errors(self) -> None:
+        db = MagicMock()
+        db.flush.side_effect = RuntimeError("oops")
+        _salary_upsert_cache(db, "k", None, {"median_salary": 3})  # no raise
+
+
+# ---------- batch.service helpers (mark/record/process) ----------
+
+
+def _fake_batch_item(**overrides) -> MagicMock:
+    item = MagicMock(spec=BatchItem)
+    item.id = "item-1"
+    item.status = BatchItemStatus.PENDING
+    item.preview = "preview"
+    item.job_description = "job"
+    item.job_url = "https://j.example"
+    item.content_hash = "0123456789abcdef"
+    item.model = "haiku"
+    item.attempt_count = 0
+    item.error_message = None
+    item.analysis_id = None
+    for k, v in overrides.items():
+        setattr(item, k, v)
+    return item
+
+
+class TestBatchProcessingHelpers:
+    def test_mark_items_error_sets_all(self) -> None:
+        db = MagicMock()
+        items = [_fake_batch_item(), _fake_batch_item()]
+        _mark_items_error(db, items, "No CV")
+        for it in items:
+            assert it.error_message == "No CV"
+        db.commit.assert_called_once()
+
+    def test_try_skip_dedup_no_existing(self) -> None:
+        db = MagicMock()
+        item = _fake_batch_item()
+        with patch("src.batch.service.find_existing_analysis", return_value=None):
+            assert _try_skip_dedup(db, item, "0123abcd") is False
+
+    def test_try_skip_dedup_marks_skipped(self) -> None:
+        db = MagicMock()
+        item = _fake_batch_item()
+        existing = MagicMock()
+        existing.id = "abc"
+        with patch("src.batch.service.find_existing_analysis", return_value=existing):
+            assert _try_skip_dedup(db, item, "0123abcd") is True
+        assert item.analysis_id == "abc"
+        db.commit.assert_called_once()
+
+    def test_execute_analysis_raises_timeout(self) -> None:
+        import time as _t
+        from concurrent.futures import ThreadPoolExecutor
+
+        item = _fake_batch_item()
+        cv = MagicMock()
+        cv.raw_text = "cv"
+        cv.id = "cv-uuid"
+
+        def _slow(*_a, **_kw):
+            _t.sleep(0.2)
+            return (MagicMock(), {})
+
+        with (
+            ThreadPoolExecutor(max_workers=1) as executor,
+            patch("src.batch.service._BATCH_ITEM_TIMEOUT", 0.01),
+            patch("src.batch.service.run_analysis", side_effect=_slow),
+            pytest.raises(TimeoutError),
+        ):
+            _execute_analysis(executor, MagicMock(), item, cv, None, "u")
+
+    def test_record_success_commits_and_updates_state(self) -> None:
+        db = MagicMock()
+        item = _fake_batch_item()
+        analysis = MagicMock()
+        analysis.id = "a-1"
+        with patch("src.batch.service.add_spending"):
+            _record_success(
+                db,
+                item,
+                analysis,
+                {"cost_usd": 0.01, "tokens": {"input": 5, "output": 3}},
+                "ha",
+                0.0,
+            )
+        assert item.analysis_id == "a-1"
+        assert item.attempt_count == 1
+        db.commit.assert_called_once()
+
+    def test_record_failure_rolls_back_and_marks_error(self) -> None:
+        db = MagicMock()
+        item = _fake_batch_item()
+        _record_failure(db, item, RuntimeError("boom"), "ha", 0.0)
+        assert item.error_message == "boom"
+        db.rollback.assert_called_once()
+        db.commit.assert_called_once()
+
+    def test_process_one_item_uses_dedup_path(self) -> None:
+        db = MagicMock()
+        item = _fake_batch_item()
+        cv = MagicMock()
+        cv.raw_text = "cv"
+        cv.id = "cv-1"
+        existing = MagicMock()
+        existing.id = "a-x"
+        with patch("src.batch.service.find_existing_analysis", return_value=existing):
+            _process_one_item(MagicMock(), db, item, cv, None, "u")
+        assert item.analysis_id == "a-x"
+
+    def test_process_one_item_records_failure_on_exec_error(self) -> None:
+        db = MagicMock()
+        item = _fake_batch_item()
+        cv = MagicMock()
+        cv.raw_text = "cv"
+        cv.id = "cv-1"
+        with (
+            patch("src.batch.service.find_existing_analysis", return_value=None),
+            patch("src.batch.service._execute_analysis", side_effect=RuntimeError("stop")),
+        ):
+            _process_one_item(MagicMock(), db, item, cv, None, "u")
+        assert item.error_message == "stop"
+
+
+# ---------- batch/routes._serialize_batch_result ----------
+
+
+class TestSerializeBatchResult:
+    def test_happy_path(self) -> None:
+        analysis = MagicMock()
+        analysis.id = "a-1"
+        analysis.role = "Dev"
+        analysis.company = "Acme"
+        analysis.location = "Milan"
+        analysis.work_mode = "remote"
+        analysis.score = 85
+        analysis.recommendation = "apply"
+        analysis.strengths = ["s1", "s2", "s3", "s4"]
+        analysis.gaps = ["g1"]
+        analysis.job_url = "u"
+        analysis.model_used = "haiku"
+        analysis.cost_usd = 0.1
+        analysis.created_at = datetime.now(UTC)
+        analysis.status = "candidato"
+        analysis.benefits = None
+        analysis.recruiter_info = None
+        analysis.experience_required = None
+        out = _serialize_batch_result(analysis, {"score_label": "ottimo"}, is_dedup=True)
+        assert out["id"] == "a-1"
+        assert out["is_duplicate"] is True
+        assert out["strengths"] == ["s1", "s2", "s3"]
+        assert out["score_label"] == "ottimo"
+        assert out["benefits"] == []
+
+
+# ---------- read_routes export rows ----------
+
+
+class TestReadRoutesExport:
+    def test_interview_export_row_shape(self) -> None:
+        iv = MagicMock()
+        iv.id = "iv-1"
+        iv.scheduled_at = datetime.now(UTC)
+        iv.outcome = "pending"
+        iv.round_number = 1
+        iv.interview_type = "tecnico"
+        iv.platform = "zoom"
+        out = _interview_export_row(iv)
+        assert out["id"] == "iv-1"
+        assert out["interview_type"] == "tecnico"
+        assert out["scheduled_at"]
+
+    def test_interview_export_row_handles_missing_scheduled_at(self) -> None:
+        iv = MagicMock()
+        iv.id = "iv-1"
+        iv.scheduled_at = None
+        iv.outcome = None
+        iv.round_number = 1
+        iv.interview_type = None
+        iv.platform = None
+        out = _interview_export_row(iv)
+        assert out["scheduled_at"] is None
+
+    def test_analysis_export_row_includes_interviews(self) -> None:
+        a = MagicMock()
+        a.id = "a-1"
+        a.created_at = datetime.now(UTC)
+        a.applied_at = None
+        a.status = "candidato"
+        a.company = "Acme"
+        a.role = "Dev"
+        a.location = "Milan"
+        a.work_mode = "remote"
+        a.salary_info = None
+        a.job_url = "u"
+        a.score = 80
+        a.recommendation = "apply"
+        a.model_used = "haiku"
+        a.cost_usd = 0.1
+        a.tokens_input = 10
+        a.tokens_output = 5
+        a.followed_up = False
+        a.strengths = None
+        a.gaps = None
+        a.advice = None
+        a.job_summary = None
+        a.company_reputation = None
+        a.benefits = None
+        a.recruiter_info = None
+        a.experience_required = None
+        a.salary_data = None
+        interviews = [{"id": "iv-1"}]
+        out = _analysis_export_row(a, interviews)
+        assert out["id"] == "a-1"
+        assert out["interviews"] == interviews
+        assert out["strengths"] == []
+        assert out["applied_at"] is None
+
+
+# ---------- document_reminder helpers ----------
+
+
+class TestDocumentReminder:
+    def test_group_files_by_interview(self) -> None:
+        f1 = MagicMock()
+        f1.interview_id = "iv-1"
+        f2 = MagicMock()
+        f2.interview_id = "iv-1"
+        f3 = MagicMock()
+        f3.interview_id = "iv-2"
+        out = _group_files_by_interview([f1, f2, f3])
+        assert len(out["iv-1"]) == 2
+        assert len(out["iv-2"]) == 1
+
+    def test_preload_already_notified_empty(self) -> None:
+        db = MagicMock()
+        assert _preload_already_notified(db, {}) == set()
+
+    def test_preload_already_notified_extracts_ids(self) -> None:
+        db = MagicMock()
+        # db.query(...).filter(...).all() returns tuples
+        db.query.return_value.filter.return_value.all.return_value = [
+            ("document_reminder:abc",),
+            ("document_reminder:def",),
+            ("no_colon_here",),  # skipped
+        ]
+        f = MagicMock()
+        f.id = "abc"
+        result = _preload_already_notified(db, {"iv-1": [f]})
+        assert "abc" in result
+        assert "def" in result
+
+    def test_send_reminder_email_success(self) -> None:
+        with patch("src.notifications.document_reminder.resend") as mock_resend:
+            ok = _send_reminder_email("subj", "<h1/>", "txt", "iv-1")
+        assert ok is True
+        mock_resend.Emails.send.assert_called_once()
+
+    def test_send_reminder_email_failure_returns_false(self) -> None:
+        with patch("src.notifications.document_reminder.resend") as mock_resend:
+            mock_resend.Emails.send.side_effect = RuntimeError("api down")
+            ok = _send_reminder_email("subj", "<h1/>", "txt", "iv-1")
+        assert ok is False
