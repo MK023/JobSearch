@@ -75,7 +75,8 @@
   <section class="mt-xl">
     <h2 class="section-title">Colloqui passati ({{ past_interviews|length }})</h2>
     {% for iv in past_interviews %}
-    <div class="card interview-card mb-md">
+    {% set is_new = since_ts and iv.scheduled_at and iv.outcome is none and iv.scheduled_at >= since_ts %}
+    <div class="card interview-card mb-md{% if is_new %} row-new{% endif %}">
       <div class="interview-card-header">
         <div>
           <span class="interview-date">{{ (iv.scheduled_at|italytime).strftime('%d/%m/%Y') }}</span>

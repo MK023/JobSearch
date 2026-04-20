@@ -153,6 +153,16 @@ class TestFollowupDue:
         assert followups[0].dismissible is True
         assert followups[0].sticky is False
 
+    def test_aggregate_action_url_includes_since(self, db_session, test_cv):
+        # 3 applications beyond follow-up threshold -> aggregated card
+        # whose action_url should carry ?since=<oldest applied_at> so the
+        # /agenda page can highlight exactly these rows.
+        for days_ago in (7, 10, 15):
+            _make_analysis(db_session, test_cv, status=AnalysisStatus.APPLIED, applied_days_ago=days_ago)
+        notifs = get_notifications(db_session)
+        aggregated = next(n for n in notifs if n.id.startswith("followup:aggregated:"))
+        assert aggregated.action_url.startswith("/agenda?since=")
+
 
 class TestBacklogToReview:
     def test_few_pending_does_not_trigger(self, db_session, test_cv):
@@ -167,6 +177,54 @@ class TestBacklogToReview:
         notifs = [n for n in get_notifications(db_session) if n.type.value == "backlog_to_review"]
         assert len(notifs) == 1
         assert notifs[0].dismissible is True
+
+    def test_backlog_action_url_includes_since(self, db_session, test_cv):
+        # oldest pending → oldest created_at becomes the `since` anchor
+        for _ in range(_BACKLOG_THRESHOLD + 2):
+            _make_analysis(db_session, test_cv, status=AnalysisStatus.PENDING)
+        notif = next(n for n in get_notifications(db_session) if n.type.value == "backlog_to_review")
+        assert notif.action_url.startswith("/history?since=")
+
+
+class TestSinceHelpers:
+    """`_with_since` + `_parse_since` surface the `?since=<ISO>` drill-down
+    query param so destination pages can highlight the aggregated items."""
+
+    def test_with_since_appends_iso_timestamp(self):
+        from src.notification_center.service import _with_since
+
+        ts = datetime(2026, 4, 20, 10, 30, tzinfo=UTC)
+        assert _with_since("/agenda", ts) == "/agenda?since=2026-04-20T10:30:00+00:00"
+
+    def test_with_since_none_returns_url_unchanged(self):
+        from src.notification_center.service import _with_since
+
+        assert _with_since("/agenda", None) == "/agenda"
+
+    def test_parse_since_reads_iso(self):
+        from src.pages import _parse_since
+
+        class _FakeRequest:
+            query_params = {"since": "2026-04-20T10:30:00+00:00"}
+
+        result = _parse_since(_FakeRequest())
+        assert result == datetime(2026, 4, 20, 10, 30, tzinfo=UTC)
+
+    def test_parse_since_missing_returns_none(self):
+        from src.pages import _parse_since
+
+        class _FakeRequest:
+            query_params: dict[str, str] = {}
+
+        assert _parse_since(_FakeRequest()) is None
+
+    def test_parse_since_malformed_returns_none(self):
+        from src.pages import _parse_since
+
+        class _FakeRequest:
+            query_params = {"since": "not-a-date"}
+
+        assert _parse_since(_FakeRequest()) is None
 
 
 class TestOrdering:

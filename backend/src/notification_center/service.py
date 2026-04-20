@@ -53,6 +53,19 @@ _INTERVIEW_LIST_URL = "/interviews"  # past rounds without outcome visible there
 _SETTINGS_URL = "/settings"  # DB cleanup + backup management live on the Settings page
 
 
+def _with_since(url: str, since: datetime | None) -> str:
+    """Append a `?since=<ISO>` query param so the destination page can
+    highlight the items that triggered the aggregated notification.
+
+    The timestamp is the oldest item in the aggregation — rows with
+    created_at/applied_at/scheduled_at >= since are "new" from the
+    notification's point of view.
+    """
+    if since is None:
+        return url
+    return f"{url}?since={since.isoformat()}"
+
+
 def _thresholds(db: Session) -> dict[str, float]:
     """Load notification thresholds from preferences (with hardcoded defaults)."""
     return {
@@ -155,6 +168,7 @@ def _interviews_without_outcome(db: Session, t: dict[str, float] | None = None) 
     if others > 0 and company_line:
         company_line += f" e altri {others}"
     body = (company_line + ". " if company_line else "") + "Logga gli esiti per mantenere il funnel pulito."
+    oldest = min(i.scheduled_at for i, _ in rows)
     return [
         Notification(
             id=f"interview_outcome:aggregated:{count}",
@@ -162,7 +176,7 @@ def _interviews_without_outcome(db: Session, t: dict[str, float] | None = None) 
             severity=NotificationSeverity.WARNING,
             title=f"{count} colloqui senza esito registrato",
             body=body,
-            action_url=_INTERVIEW_LIST_URL,
+            action_url=_with_since(_INTERVIEW_LIST_URL, oldest),
             action_label="Apri colloqui",
             dismissible=True,
             sticky=True,
@@ -238,6 +252,8 @@ def _followup_due(db: Session) -> list[Notification]:
     if others > 0 and company_line:
         company_line += f" e altri {others}"
     body = (company_line + ". " if company_line else "") + "Valuta un remind ai recruiter."
+    applied_dates = [cast(datetime, a.applied_at) for a in alerts if a.applied_at]
+    oldest = min(applied_dates) if applied_dates else None
     return [
         Notification(
             id=f"followup:aggregated:{count}",
@@ -245,7 +261,7 @@ def _followup_due(db: Session) -> list[Notification]:
             severity=NotificationSeverity.INFO,
             title=f"{count} follow-up suggeriti",
             body=body,
-            action_url=_FOLLOWUP_LIST_URL,
+            action_url=_with_since(_FOLLOWUP_LIST_URL, oldest),
             action_label="Apri agenda",
             dismissible=True,
             sticky=False,
@@ -255,11 +271,12 @@ def _followup_due(db: Session) -> list[Notification]:
 
 
 def _backlog_to_review(db: Session) -> list[Notification]:
-    count = (
-        db.query(func.count(JobAnalysis.id)).filter(JobAnalysis.status == AnalysisStatus.PENDING.value).scalar() or 0
-    )
+    pending_q = db.query(JobAnalysis).filter(JobAnalysis.status == AnalysisStatus.PENDING.value)
+    count = pending_q.count()
     if count < _BACKLOG_THRESHOLD:
         return []
+    oldest = pending_q.order_by(JobAnalysis.created_at.asc()).first()
+    oldest_ts = cast(datetime, oldest.created_at) if oldest else None
     return [
         Notification(
             id=f"backlog:da_valutare:{count}",
@@ -267,7 +284,7 @@ def _backlog_to_review(db: Session) -> list[Notification]:
             severity=NotificationSeverity.WARNING,
             title=f"{count} analisi da valutare (Cowork)",
             body="Nuovi risultati da Cowork pronti per la revisione.",
-            action_url="/history",
+            action_url=_with_since("/history", oldest_ts),
             action_label="Apri Storico",
             dismissible=True,
             sticky=False,
@@ -279,9 +296,12 @@ def _backlog_to_review(db: Session) -> list[Notification]:
 def _todo_pending(db: Session) -> list[Notification]:
     from ..agenda.models import TodoItem
 
-    count = db.query(func.count(TodoItem.id)).filter(TodoItem.done == False).scalar() or 0  # noqa: E712
+    open_q = db.query(TodoItem).filter(TodoItem.done == False)  # noqa: E712
+    count = open_q.count()
     if count == 0:
         return []
+    oldest = open_q.order_by(TodoItem.created_at.asc()).first()
+    oldest_ts = cast(datetime, oldest.created_at) if oldest else None
     return [
         Notification(
             id=f"todo:pending:{count}",
@@ -289,7 +309,7 @@ def _todo_pending(db: Session) -> list[Notification]:
             severity=NotificationSeverity.INFO,
             title=f"{count} task da completare",
             body="Hai task aperti nella tua agenda.",
-            action_url="/agenda",
+            action_url=_with_since("/agenda", oldest_ts),
             action_label="Apri Agenda",
             dismissible=True,
             sticky=False,
