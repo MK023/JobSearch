@@ -97,7 +97,7 @@ function genFollowup(id) {
 
             _addGenText(g.box, data.body, 'followup-body-' + id);
             _addCopyBtn(g.box, 'followup-body-' + id);
-            _addGenMeta(g.box, data.cost_usd, (data.tokens || {}).total);
+            _addGenMeta(g.box, data.cost_usd, data.tokens?.total);
             if (typeof refreshSpending === 'function') refreshSpending();
         })
         .catch(function(e) {
@@ -159,7 +159,7 @@ function genLinkedin(id) {
             if (data.approach_tip) {
                 _addGenMeta(g.box, 0, 0, data.approach_tip);
             }
-            _addGenMeta(g.box, data.cost_usd, (data.tokens || {}).total);
+            _addGenMeta(g.box, data.cost_usd, data.tokens?.total);
             if (typeof refreshSpending === 'function') refreshSpending();
         })
         .catch(function(e) {
@@ -183,7 +183,7 @@ function markFollowupDone(id) {
                 // Also remove associated generated area
                 const genArea = document.getElementById('generated-area-' + id);
                 if (genArea) genArea.remove();
-                window.location.reload();
+                globalThis.location.reload();
                 showToast('Follow-up completato', 'success');
             }
         })

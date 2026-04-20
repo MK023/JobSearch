@@ -15,6 +15,11 @@ from .service import ALLOWED_KEYS, get_preference, set_preference
 
 router = APIRouter(prefix="/api/preferences", tags=["preferences"])
 
+# OpenAPI response spec shared by both routes: 400 for non-whitelisted keys.
+_NON_ALLOWED_KEY_RESPONSES: dict[int | str, dict[str, Any]] = {
+    400: {"description": "Preference key not in the server-side whitelist."},
+}
+
 
 class PreferencePayload(BaseModel):
     """Payload for updating a preference — any JSON value is allowed."""
@@ -22,7 +27,7 @@ class PreferencePayload(BaseModel):
     value: Any
 
 
-@router.get("/{key}")
+@router.get("/{key}", responses=_NON_ALLOWED_KEY_RESPONSES)
 def read_preference(key: str, db: DbSession, user: CurrentUser) -> JSONResponse:
     """Return a whitelisted preference value. 400 if key not whitelisted."""
     if key not in ALLOWED_KEYS:
@@ -30,7 +35,7 @@ def read_preference(key: str, db: DbSession, user: CurrentUser) -> JSONResponse:
     return JSONResponse({"key": key, "value": get_preference(db, key, default=None)})
 
 
-@router.put("/{key}")
+@router.put("/{key}", responses=_NON_ALLOWED_KEY_RESPONSES)
 def write_preference(
     key: str,
     payload: PreferencePayload,

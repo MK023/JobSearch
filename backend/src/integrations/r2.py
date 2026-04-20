@@ -34,7 +34,7 @@ def _get_r2_client() -> Any:
                 signature_version="s3v4",
                 s3={"addressing_style": "path"},
             ),
-            region_name="auto",
+            region_name=settings.r2_region,
         )
     return _client
 

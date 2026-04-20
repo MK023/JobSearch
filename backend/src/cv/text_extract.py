@@ -81,6 +81,8 @@ def _extract_txt(data: bytes) -> str:
     for encoding in ("utf-8", "utf-8-sig", "latin-1", "cp1252"):
         try:
             return data.decode(encoding)
-        except (UnicodeDecodeError, ValueError):
+        except ValueError:
+            # UnicodeDecodeError is a subclass of ValueError — catching
+            # ValueError alone covers both malformed-UTF8 and other codec issues.
             continue
     raise ValueError("Encoding del file non riconosciuto. Salva il file come UTF-8.")

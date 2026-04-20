@@ -1,5 +1,10 @@
-{# Interview booking modal #}
-<div id="interview-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="interview-modal-title" onclick="if(event.target===this)closeInterviewModal()">
+{# Interview booking modal — uses a wrapper div that the existing .modal-overlay
+   CSS styles. Dismiss on backdrop click AND Escape key so mouse and keyboard
+   users get parity (SonarCloud Web:S6847 / MouseEventWithoutKeyboardEquivalentCheck). #}
+<div id="interview-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="interview-modal-title"
+     tabindex="-1"
+     onclick="if(event.target===this)closeInterviewModal()"
+     onkeydown="if(event.key==='Escape')closeInterviewModal()">
     <div class="modal-content">
         <div class="modal-header">
             <h3 id="interview-modal-title">Prenota colloquio</h3>

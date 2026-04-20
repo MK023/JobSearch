@@ -97,7 +97,7 @@ def get_metrics_summary(db: Session) -> dict[str, Any]:
         "errors_24h": errors_24h,
         "top_endpoints": [{"endpoint": e, "count": c, "avg_ms": round(float(a), 1)} for e, c, a in top_endpoints],
         "hourly": [{"hour": h.isoformat(), "count": c, "avg_ms": round(float(a), 1)} for h, c, a in hourly],
-        "status_breakdown": {g: c for g, c in status_breakdown},
+        "status_breakdown": dict(status_breakdown),
     }
 
 

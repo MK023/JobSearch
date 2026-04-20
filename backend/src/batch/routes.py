@@ -1,6 +1,6 @@
 """Batch analysis routes."""
 
-from typing import Annotated, cast
+from typing import Annotated, Any, cast
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Form, Request
@@ -113,6 +113,31 @@ def batch_status_route(request: Request, user: CurrentUser, db: DbSession) -> JS
     return JSONResponse(get_batch_status(db))
 
 
+def _serialize_batch_result(analysis: Any, full: dict[str, Any], is_dedup: bool) -> dict[str, Any]:
+    """Compact per-analysis payload used by ``/batch/results``."""
+    return {
+        "id": str(analysis.id),
+        "job_title": analysis.role,
+        "company": analysis.company,
+        "location": analysis.location,
+        "work_mode": analysis.work_mode,
+        "score": analysis.score,
+        "score_label": full.get("score_label", _score_label(int(analysis.score or 0))),
+        "recommendation": analysis.recommendation,
+        "strengths": (analysis.strengths or [])[:3],
+        "gaps": (analysis.gaps or [])[:3],
+        "job_url": analysis.job_url,
+        "model_used": analysis.model_used,
+        "cost_usd": analysis.cost_usd or 0.0,
+        "analyzed_at": analysis.created_at.isoformat() if analysis.created_at else "",
+        "status": str(analysis.status),
+        "is_duplicate": is_dedup,
+        "benefits": analysis.benefits or [],
+        "recruiter_info": analysis.recruiter_info or {},
+        "experience_required": analysis.experience_required or {},
+    }
+
+
 @router.get("/results")
 @limiter.limit(settings.rate_limit_default)
 def batch_results_route(request: Request, user: CurrentUser, db: DbSession) -> JSONResponse:
@@ -124,42 +149,18 @@ def batch_results_route(request: Request, user: CurrentUser, db: DbSession) -> J
     batch_id = status["batch_id"]
     items = batch_results(db, batch_id)
 
-    results = []
+    results: list[dict[str, Any]] = []
     total_cost = 0.0
 
     for item in items:
         if item.status not in (BatchItemStatus.DONE, BatchItemStatus.SKIPPED) or not item.analysis_id:
             continue
-
         analysis = get_analysis_by_id(db, str(item.analysis_id), user_id=cast(UUID, user.id))
         if not analysis:
             continue
 
         full = rebuild_result(analysis)
-        is_dedup = item.status == BatchItemStatus.SKIPPED
-        results.append(
-            {
-                "id": str(analysis.id),
-                "job_title": analysis.role,
-                "company": analysis.company,
-                "location": analysis.location,
-                "work_mode": analysis.work_mode,
-                "score": analysis.score,
-                "score_label": full.get("score_label", _score_label(int(analysis.score or 0))),
-                "recommendation": analysis.recommendation,
-                "strengths": (analysis.strengths or [])[:3],
-                "gaps": (analysis.gaps or [])[:3],
-                "job_url": analysis.job_url,
-                "model_used": analysis.model_used,
-                "cost_usd": analysis.cost_usd or 0.0,
-                "analyzed_at": analysis.created_at.isoformat() if analysis.created_at else "",
-                "status": str(analysis.status),
-                "is_duplicate": is_dedup,
-                "benefits": analysis.benefits or [],
-                "recruiter_info": analysis.recruiter_info or {},
-                "experience_required": analysis.experience_required or {},
-            }
-        )
+        results.append(_serialize_batch_result(analysis, full, bool(item.status == BatchItemStatus.SKIPPED)))
         total_cost += float(analysis.cost_usd or 0.0)
 
     results.sort(key=lambda r: r["score"], reverse=True)

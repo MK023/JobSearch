@@ -203,15 +203,17 @@
   color: var(--text-secondary);
 }
 
+/* Colors darkened to clear the WCAG AA 4.5:1 contrast bar on the
+   translucent tinted backgrounds (SonarCloud css:S7924). */
 .pill-credit-low {
   background: rgb(234 179 8 / 15%);
-  color: rgb(202 138 4);
+  color: rgb(133 77 14);
   font-weight: var(--weight-semibold);
 }
 
 .pill-credit-critical {
   background: rgb(220 38 38 / 15%);
-  color: rgb(185 28 28);
+  color: rgb(127 29 29);
   font-weight: var(--weight-semibold);
   animation: pill-pulse 2.5s ease-in-out infinite;
 }
@@ -257,7 +259,9 @@
 .status-offerta,
 .status-badge-offerta {
   background: rgb(168 85 247 / 18%);
-  color: rgb(126 34 206);
+
+  /* Darker purple to meet WCAG AA on the light-theme tinted background. */
+  color: rgb(88 28 135);
   font-weight: var(--weight-semibold);
 }
 
@@ -1231,7 +1235,9 @@ details[open] summary::before {
 
 .status-opt-offerta.active {
   background: rgb(168 85 247 / 18%);
-  color: rgb(126 34 206);
+
+  /* Darker purple to meet WCAG AA (see .status-offerta rationale above). */
+  color: rgb(88 28 135);
 }
 
 .status-opt-scartato.active {

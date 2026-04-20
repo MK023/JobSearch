@@ -43,8 +43,7 @@ const FileUpload = {
         }
     },
 
-    async uploadFile(file) {
-        // Validate client-side
+    _validateFile(file) {
         const allowedTypes = [
             'application/pdf',
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -55,16 +54,16 @@ const FileUpload = {
         ];
         if (!allowedTypes.includes(file.type)) {
             if (typeof showToast === 'function') showToast('Tipo file non supportato. Usa PDF, DOCX, DOC, TXT o XLSX.', 'error');
-            return;
+            return false;
         }
         if (file.size > 10 * 1024 * 1024) {
             if (typeof showToast === 'function') showToast('File troppo grande. Massimo 10 MB.', 'error');
-            return;
+            return false;
         }
+        return true;
+    },
 
-        // 1. Request presigned URL
-        this._showUploadProgress(file.name);
-        let uploadData;
+    async _requestPresignedUrl(file) {
         try {
             const resp = await fetch('/api/v1/files/request-upload', {
                 method: 'POST',
@@ -75,21 +74,22 @@ const FileUpload = {
                     content_type: file.type,
                 }),
             });
-            uploadData = await resp.json();
+            const data = await resp.json();
             if (!resp.ok) {
-                if (typeof showToast === 'function') showToast(uploadData.error || 'Errore nella richiesta di upload', 'error');
-                this._hideUploadProgress();
-                return;
+                if (typeof showToast === 'function') showToast(data.error || 'Errore nella richiesta di upload', 'error');
+                return null;
             }
+            return data;
         } catch (err) {
+            console.error('requestPresignedUrl error:', err);
             if (typeof showToast === 'function') showToast('Errore di rete. Riprova.', 'error');
-            this._hideUploadProgress();
-            return;
+            return null;
         }
+    },
 
-        // 2. PUT directly to R2
+    async _putToR2(uploadUrl, file) {
         try {
-            const putResp = await fetch(uploadData.upload_url, {
+            const putResp = await fetch(uploadUrl, {
                 method: 'PUT',
                 headers: { 'Content-Type': file.type },
                 body: file,
@@ -97,31 +97,45 @@ const FileUpload = {
             if (!putResp.ok) {
                 throw new Error('R2 upload failed: ' + putResp.status);
             }
+            return true;
         } catch (err) {
+            console.error('putToR2 error:', err);
             if (typeof showToast === 'function') showToast('Upload fallito. Riprova.', 'error');
-            this._hideUploadProgress();
-            return;
+            return false;
         }
+    },
 
-        // 3. Confirm upload
+    async _confirmUpload(fileId) {
         try {
-            const confirmResp = await fetch('/api/v1/files/' + uploadData.file_id + '/confirm', {
-                method: 'POST',
-            });
-            if (!confirmResp.ok) {
-                const errData = await confirmResp.json();
+            const resp = await fetch('/api/v1/files/' + fileId + '/confirm', { method: 'POST' });
+            if (!resp.ok) {
+                const errData = await resp.json();
                 if (typeof showToast === 'function') showToast(errData.error || 'Conferma upload fallita', 'error');
-                this._hideUploadProgress();
-                return;
+                return false;
             }
+            return true;
         } catch (err) {
+            console.error('confirmUpload error:', err);
             if (typeof showToast === 'function') showToast('Errore nella conferma. Il file potrebbe essere stato caricato.', 'error');
-            this._hideUploadProgress();
-            return;
+            return false;
         }
+    },
 
+    async uploadFile(file) {
+        if (!this._validateFile(file)) return;
+
+        this._showUploadProgress(file.name);
+        const uploadData = await this._requestPresignedUrl(file);
+        if (!uploadData) { this._hideUploadProgress(); return; }
+
+        const putOk = await this._putToR2(uploadData.upload_url, file);
+        if (!putOk) { this._hideUploadProgress(); return; }
+
+        const confirmOk = await this._confirmUpload(uploadData.file_id);
         this._hideUploadProgress();
-        this.loadFiles();  // Refresh list
+        if (!confirmOk) return;
+
+        this.loadFiles();
     },
 
     async scanFile(fileId) {
@@ -138,10 +152,11 @@ const FileUpload = {
                 if (typeof showToast === 'function') showToast(data.error || 'Scansione fallita', 'error');
             }
         } catch (err) {
+            console.error('scanFile error:', err);
             if (typeof showToast === 'function') showToast('Errore nella scansione. Riprova.', 'error');
         }
 
-        this.loadFiles();  // Refresh list
+        this.loadFiles();
     },
 
     async deleteFile(fileId) {
@@ -155,11 +170,12 @@ const FileUpload = {
                 return;
             }
         } catch (err) {
+            console.error('deleteFile error:', err);
             if (typeof showToast === 'function') showToast('Errore nella eliminazione. Riprova.', 'error');
             return;
         }
 
-        this.loadFiles();  // Refresh list
+        this.loadFiles();
     },
 
     _renderFiles(files) {
@@ -224,7 +240,7 @@ const FileUpload = {
             const canScan = f.status === 'uploaded' || f.status === 'scan_error';
             if (canScan) {
                 const scanBtn = document.createElement('button');
-                scanBtn.setAttribute('data-scan-id', f.id);
+                scanBtn.dataset.scanId = f.id;
                 scanBtn.className = 'btn btn-ghost btn-sm';
                 scanBtn.textContent = 'Scansiona';
                 scanBtn.addEventListener('click', () => FileUpload.scanFile(f.id));

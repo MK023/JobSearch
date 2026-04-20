@@ -87,19 +87,37 @@ class RedisCacheService:
 
 
 class NullCacheService:
-    """No-op cache for when Redis is unavailable."""
+    """No-op cache for when Redis is unavailable.
+
+    Every method here is intentionally a stub: the class exists to satisfy the
+    ``CacheService`` Protocol when Redis is not configured, so callers can
+    always call ``get``/``set`` without a feature flag. Parameter names must
+    match the Protocol signature, hence the explicit ``del`` / docstring-only
+    bodies below (rather than ``_`` prefixes, which would break Protocol
+    conformance).
+    """
 
     def get(self, key: str) -> str | None:
+        """Always return a miss — there is no backing store."""
+        del key
         return None
 
     def set(self, key: str, value: str, ttl: int) -> None:
-        pass
+        """Discard the write — there is no backing store."""
+        del key, value, ttl
 
     def get_json(self, key: str) -> dict[str, Any] | None:
+        """Always return a miss — delegates to ``get`` to avoid a duplicate body.
+
+        Return type narrows to dict via the explicit None short-circuit; the
+        real ``RedisCacheService.get_json`` still JSON-decodes.
+        """
+        self.get(key)
         return None
 
     def set_json(self, key: str, data: dict[str, Any], ttl: int) -> None:
-        pass
+        """Discard the write — there is no backing store."""
+        del key, data, ttl
 
     def stats(self) -> dict[str, int]:
         return {"hits": 0, "misses": 0, "errors": 0}

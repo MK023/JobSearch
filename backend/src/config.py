@@ -16,7 +16,9 @@ class Settings(BaseSettings):
     rapidapi_key: str = ""
 
     # Authentication
-    secret_key: str = "dev-only-change-me"  # noqa: S105 — dev default, blocked in prod by RENDER/FLY guard
+    # Dev-only default; production deploys are blocked at startup via the
+    # RENDER/FLY guard at the bottom of this module (ruff S105 allowed here).
+    secret_key: str = "dev-only-change-me"  # noqa: S105
     admin_email: str = ""
     admin_password: str = ""
     api_key: str = ""  # API key for programmatic access (MCP server)
@@ -29,6 +31,9 @@ class Settings(BaseSettings):
     r2_secret_access_key: str = ""
     r2_endpoint_url: str = ""
     r2_bucket_name: str = "jobsearch-files"
+    # Cloudflare R2 expects the literal "auto"; keeping this as a setting lets
+    # us target mock S3 endpoints in tests without changing code.
+    r2_region: str = "auto"
 
     # Sentry (error tracking)
     sentry_dsn: str = ""
@@ -90,4 +95,6 @@ settings = Settings()
 
 # Prevent deployment with default secret key
 if settings.secret_key == "dev-only-change-me" and _os.environ.get("RENDER"):  # noqa: S105
+    # The dev default string is intentionally duplicated here (ruff S105) — it's the
+    # exact sentinel we need to refuse at boot when running on Render.
     raise RuntimeError("SECRET_KEY must be set to a secure random value in production")

@@ -127,7 +127,7 @@ def scan_document(
 
     try:
         if content_type == "application/pdf":
-            return _scan_pdf(client, file_bytes, filename, content_type, model_id)
+            return _scan_pdf(client, file_bytes, filename, model_id)
         if content_type in XLSX_TYPES:
             return _scan_text_based(
                 client,
@@ -176,10 +176,14 @@ def _scan_pdf(
     client: anthropic.Anthropic,
     file_bytes: bytes,
     filename: str,
-    content_type: str,
     model_id: str,
 ) -> dict[str, Any]:
-    """Scan a PDF using Claude's document understanding (base64 input)."""
+    """Scan a PDF using Claude's document understanding (base64 input).
+
+    ``content_type`` is intentionally not a parameter: this helper is only
+    called from the ``application/pdf`` branch of ``scan_document``, so the
+    media type is fixed to ``application/pdf`` below.
+    """
     b64_data = base64.b64encode(file_bytes).decode("utf-8")
 
     message = client.messages.create(

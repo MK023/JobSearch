@@ -106,7 +106,7 @@ function batchManager() {
             fetch('/api/v1/batch/status')
                 .then(function(r) { return r.json(); })
                 .then((data) => {
-                    if (!data || !data.items) return;
+                    if (!data?.items) return;
                     // Rebuild items from server — matches by id so order/additions are safe.
                     this.items = data.items.map(function(item) {
                         return {

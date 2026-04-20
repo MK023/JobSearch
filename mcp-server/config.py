@@ -13,7 +13,10 @@ class Settings(BaseSettings):
     api_key: str = ""
 
     # MCP server settings
-    mcp_host: str = "0.0.0.0"  # noqa: S104 — used only for streamable-http transport, not in stdio mode
+    # 0.0.0.0 is only bound when the server runs in streamable-http transport
+    # inside a container; stdio mode (default for Claude Desktop / Claude Code)
+    # never opens a listening socket.
+    mcp_host: str = "0.0.0.0"  # noqa: S104
     mcp_port: int = 8081
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
