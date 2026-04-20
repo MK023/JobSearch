@@ -66,3 +66,9 @@ warn_unused_configs = true
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]
 pythonpath = ["backend"]
+# pytest-asyncio 1.x changed defaults — "auto" collects `async def` tests
+# without a per-function mark, matching how they're written in
+# test_notification_center_sse.py. Pinning the fixture loop scope
+# also silences the deprecation warning that fires on every run.
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
