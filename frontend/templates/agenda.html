@@ -217,4 +217,8 @@
 {% endblock %}
 {% block scripts_extra %}
 <script src="{{ url_for('static', path='js/modules/agenda-todo.js') }}?v={{ asset_v }}"></script>
+{# Needed for the inline onclick="markFollowupDone(...)" on follow-up
+   agenda cards — the function lives in followup.js and without this
+   include agenda triggers a ReferenceError at click time. #}
+<script src="{{ url_for('static', path='js/modules/followup.js') }}?v={{ asset_v }}"></script>
 {% endblock %}
