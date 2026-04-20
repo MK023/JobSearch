@@ -268,14 +268,19 @@
     // triggers a fetch — the endpoint multiplexes multiple event names
     // over the same stream and all of them map to "refresh".
     function startSsePush() {
-        if (typeof EventSource === 'undefined') return;
+        if (typeof EventSource === 'undefined') {
+            console.debug('[notifications] EventSource unsupported — SSE push disabled');
+            return;
+        }
+        console.debug('[notifications] starting SSE subscriber');
         let source = null;
         const connect = function () {
             try {
                 // withCredentials so the session cookie travels with the
                 // stream — the endpoint requires an authenticated user.
                 source = new EventSource('/api/v1/notifications/sse', { withCredentials: true });
-            } catch (_) {
+            } catch (e) {
+                console.debug('[notifications] EventSource ctor failed:', e);
                 return;
             }
             source.onmessage = pollNotifications;
@@ -291,10 +296,19 @@
         connect();
     }
 
-    document.addEventListener('DOMContentLoaded', function () {
+    // Defensive init: if notifications.js is loaded after DOMContentLoaded
+    // already fired (race with async/defer in the future, or script reordering)
+    // the addEventListener handler would never run. Check readyState and
+    // dispatch directly when the DOM is already parsed.
+    function init() {
         wireDismissButtons();
         wireActionLinks();
         startPolling();
         startSsePush();
-    });
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
 })();

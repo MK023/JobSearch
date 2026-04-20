@@ -25,6 +25,19 @@ from .auth.routes import router as auth_router
 from .auth.service import ensure_admin_user
 from .config import settings
 
+# Ensure INFO-level messages from our own `src.*` loggers reach stdout (and
+# thus Render logs). Without this the root logger defaults to WARNING and
+# diagnostic lines like `logger.info("sse broadcast: ...")` are silently
+# dropped — exactly what bit us troubleshooting SSE push earlier. `force=True`
+# replaces any handler Sentry's LoggingIntegration may have installed first.
+# Third-party libraries that default to INFO (SQLAlchemy, httpx) stay quiet
+# because their own loggers are WARNING-by-default.
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    force=True,
+)
+
 # Sentry — initialize before app creation so FastAPI integration auto-activates
 # Skip Sentry during pytest runs — otherwise test-induced errors (mocked
 # R2 failures, broken PDFs, etc.) pollute the production dashboard with
