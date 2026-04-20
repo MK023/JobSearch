@@ -16,7 +16,7 @@ from ..dashboard.service import add_spending, check_budget_available, remove_spe
 from ..dependencies import Cache, CurrentUser, DbSession, validate_uuid
 from ..integrations.anthropic_client import MODELS, content_hash
 from ..rate_limit import limiter
-from .models import AnalysisStatus, JobAnalysis
+from .models import AnalysisSource, AnalysisStatus, JobAnalysis
 from .schemas import AnalysisImportRequest, AnalyzeRequest
 from .service import find_existing_analysis, get_analysis_by_id, run_analysis, update_status
 
@@ -68,6 +68,7 @@ def analyze_api(
             body.model,
             cache,
             user_id=cast(UUID, user.id),
+            source=AnalysisSource.API.value,  # /api/v1/analyze JSON = programmatic caller
         )
         add_spending(
             db,
@@ -257,6 +258,7 @@ def import_analysis(
         model_used=body.model_used,
         tokens_input=body.tokens_input,
         tokens_output=body.tokens_output,
+        source=AnalysisSource.MCP.value,  # pre-computed import, used by MCP server
         cost_usd=body.cost_usd,
     )
     db.add(analysis)

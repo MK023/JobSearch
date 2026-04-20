@@ -195,6 +195,7 @@ def history_page(
             "analyses": analyses,
             "counts": counts,
             "since_ts": _parse_since(request),
+            "since_source": request.query_params.get("source"),
             "error": flash["error"],
             "message": flash["message"],
         },

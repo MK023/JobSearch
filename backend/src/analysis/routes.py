@@ -13,6 +13,7 @@ from ..dashboard.service import add_spending, check_budget_available
 from ..dependencies import Cache, CurrentUser, DbSession
 from ..integrations.anthropic_client import MODELS, content_hash
 from ..rate_limit import limiter
+from .models import AnalysisSource
 from .service import (
     find_existing_analysis,
     get_analysis_by_id,
@@ -71,6 +72,7 @@ def analyze(
             model,
             cache,
             user_id=cast(UUID, user.id),
+            source=AnalysisSource.COWORK.value,  # HTML form from /analyze = cowork paste flow
         )
         add_spending(
             db,

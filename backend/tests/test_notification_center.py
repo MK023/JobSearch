@@ -9,7 +9,7 @@ observable output, not just flip a mock.
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from src.analysis.models import AnalysisStatus, JobAnalysis
+from src.analysis.models import AnalysisSource, AnalysisStatus, JobAnalysis
 from src.dashboard.service import get_or_create_settings
 from src.interview.models import Interview, InterviewOutcome
 from src.notification_center.service import (
@@ -25,7 +25,13 @@ from src.notification_center.service import (
 
 
 def _make_analysis(
-    db_session, test_cv, *, status: AnalysisStatus, score: int = 60, applied_days_ago: int | None = None
+    db_session,
+    test_cv,
+    *,
+    status: AnalysisStatus,
+    score: int = 60,
+    applied_days_ago: int | None = None,
+    source: str = AnalysisSource.COWORK.value,
 ):
     a = JobAnalysis(
         id=uuid.uuid4(),
@@ -35,6 +41,7 @@ def _make_analysis(
         role="Engineer",
         score=score,
         status=status.value,
+        source=source,
         created_at=datetime.now(UTC),
         applied_at=(datetime.now(UTC) - timedelta(days=applied_days_ago)) if applied_days_ago is not None else None,
     )
@@ -177,6 +184,21 @@ class TestBacklogToReview:
         notifs = [n for n in get_notifications(db_session) if n.type.value == "backlog_to_review"]
         assert len(notifs) == 1
         assert notifs[0].dismissible is True
+
+    def test_backlog_splits_per_source(self, db_session, test_cv):
+        # Extension + Cowork pending items in the same DB -> two distinct
+        # backlog notifications, each with its own title, body, and
+        # source-scoped action_url. This is the core of the "microservice"
+        # behavior Marco wants.
+        for _ in range(2):
+            _make_analysis(db_session, test_cv, status=AnalysisStatus.PENDING, source=AnalysisSource.EXTENSION.value)
+        _make_analysis(db_session, test_cv, status=AnalysisStatus.PENDING, source=AnalysisSource.COWORK.value)
+        backlog = [n for n in get_notifications(db_session) if n.type.value == "backlog_to_review"]
+        sources = {n.id.split(":")[2] for n in backlog}
+        assert sources == {"extension", "cowork"}
+        for n in backlog:
+            assert "source=" in n.action_url
+            assert "?since=" in n.action_url
 
     def test_backlog_action_url_includes_since(self, db_session, test_cv):
         # oldest pending → oldest created_at becomes the `since` anchor

@@ -19,7 +19,7 @@ import bleach  # type: ignore[import-untyped]
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from ..analysis.models import JobAnalysis
+from ..analysis.models import AnalysisSource, JobAnalysis
 from ..analysis.service import find_existing_analysis, run_analysis
 from ..cv.service import get_latest_cv
 from ..integrations.anthropic_client import MODELS
@@ -259,6 +259,7 @@ def process_pending(
             model=model,
             cache=cache,
             user_id=user_id,
+            source=AnalysisSource.EXTENSION.value,  # inbox ingestion = Chrome extension flow
         )
         item.analysis_id = cast(UUID, analysis.id)  # type: ignore[assignment]
         item.status = InboxStatus.DONE.value  # type: ignore[assignment]
