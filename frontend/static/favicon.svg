@@ -1,7 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="7 7 20 20" fill="none">
   <!-- 5 petali a ventaglio in gradazione ember — metafora: il profilo che si apre in più direzioni (career track + opportunità) -->
   <!-- Pivot comune in basso-sinistra (11, 26). Rotazione progressiva -10° → +50° -->
   <!-- Colori: dal più saturo (back) al più chiaro (front) -->
+  <!-- viewBox stretto attorno al contenuto reale (7..27 su entrambi gli assi) perché quello pieno 0..32 lasciava ~30% di padding vuoto e il disegno appariva piccolissimo sulla tab del browser a 16×16 -->
   <g transform="translate(11 26)">
     <path d="M 0 0 Q -3.2 -9 0 -18 Q 3.2 -9 0 0 Z" fill="#8a4a24" transform="rotate(-10)"/>
     <path d="M 0 0 Q -3.2 -9 0 -18 Q 3.2 -9 0 0 Z" fill="#b56332" transform="rotate(5)"/>

@@ -13,6 +13,14 @@
   display: flex;
   flex-direction: column;
   overflow-wrap: anywhere;
+
+  /* Without min-width: 0 a .card inside a grid track (1fr) falls back to
+     min-content sizing — long nowrap titles (e.g. dashboard To-do triage
+     row "Triagia Akronos Technologies (partner: Mobility leader...)")
+     force the track wider than its sibling, breaking the 50/50 grid.
+     Setting min-width: 0 lets the 1fr track bound the card and the
+     .dash-widget-row-title's text-overflow: ellipsis actually trigger. */
+  min-width: 0;
   transition: border-color var(--transition-fast), transform var(--transition-fast);
 }
 

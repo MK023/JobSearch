@@ -56,11 +56,14 @@ def render_icon(size: int, out_path: Path) -> None:
     img = Image.new("RGBA", (canvas, canvas), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    # Pivot at bottom-left third, petals fan upward-right
-    pivot_x = canvas * (11 / 32)
-    pivot_y = canvas * (26 / 32)
-    petal_length = canvas * (18 / 32)
-    petal_width = canvas * (3.2 / 32)
+    # Pivot at bottom-left third, petals fan upward-right. Proportions
+    # reference a 20-unit box (matches the tightened favicon.svg viewBox
+    # "7 7 20 20"): the old 0..32 denominator left ~30% empty padding
+    # and the extension icon looked undersized in the toolbar.
+    pivot_x = canvas * (4 / 20)
+    pivot_y = canvas * (19 / 20)
+    petal_length = canvas * (18 / 20)
+    petal_width = canvas * (3.2 / 20)
 
     for color, angle in zip(PETAL_COLORS, PETAL_ROTATIONS, strict=True):
         pts = _petal_points(pivot_x, pivot_y, petal_length, petal_width, angle)
