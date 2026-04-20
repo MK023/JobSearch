@@ -33,6 +33,9 @@
         <path d="M9 11l3 3L22 4"/>
         <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
       </svg>
+      {% if agenda_count and agenda_count > 0 %}
+      <span class="sidebar-badge" aria-label="{{ agenda_count }} task in agenda">{{ agenda_count if agenda_count < 10 else '9+' }}</span>
+      {% endif %}
     </a>
 
     <!-- Colloqui -->

@@ -1,5 +1,6 @@
 """Dashboard and spending routes."""
 
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Form, Request
@@ -8,6 +9,8 @@ from fastapi.responses import JSONResponse
 from ..dependencies import CurrentUser, DbSession
 from ..rate_limit import limiter
 from .service import get_dashboard, get_db_usage, get_spending, update_budget
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["dashboard"])
 
@@ -66,9 +69,15 @@ def create_backup_endpoint(
     try:
         result = create_backup(db)
         return JSONResponse({"ok": True, **result})
-    except RuntimeError as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
+    except RuntimeError:
+        # Backup invariant breach (missing R2 credentials, bucket not
+        # reachable, table too large). Logged with traceback server-side —
+        # the client gets a generic message to avoid leaking internals
+        # (CodeQL py/stack-trace-exposure).
+        logger.exception("backup: RuntimeError")
+        return JSONResponse({"error": "Backup non disponibile: controlla le impostazioni R2."}, status_code=500)
     except Exception:
+        logger.exception("backup: unexpected error")
         return JSONResponse({"error": "Backup failed"}, status_code=500)
 
 

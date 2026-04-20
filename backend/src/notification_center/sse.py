@@ -58,11 +58,15 @@ async def broadcast(event_name: str) -> None:
     Safe to call from any async code path; sync code should use
     :func:`broadcast_sync` instead.
     """
+    n = len(_subscribers)
+    # INFO (not debug) so Render logs show whether broadcasts actually fire
+    # — essential to diagnose "SSE didn't trigger" reports from the field.
+    logger.info("sse broadcast: event=%s subscribers=%d", event_name, n)
     for queue in list(_subscribers):
         try:
             queue.put_nowait(event_name)
         except asyncio.QueueFull:
-            logger.debug("sse: queue full, dropping event %s", event_name)
+            logger.warning("sse: queue full, dropping event %s", event_name)
 
 
 def broadcast_sync(event_name: str) -> None:
@@ -76,6 +80,7 @@ def broadcast_sync(event_name: str) -> None:
     is a silent no-op, which is the correct behavior.
     """
     if _main_loop is None:
+        logger.info("sse broadcast_sync: dropped event=%s (no main loop captured — no tab connected yet)", event_name)
         return
     asyncio.run_coroutine_threadsafe(broadcast(event_name), _main_loop)
 
