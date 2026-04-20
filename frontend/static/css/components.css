@@ -1556,3 +1556,24 @@ details[open] summary::before {
 [class^="outcome-"] {
   border-radius: var(--radius-chip);
 }
+
+
+/* Highlight "new" items driven by ?since query param on aggregated
+   notifications — rendered on /agenda, /history, /interviews.
+   Subtle ember left-border + tint, fades out after first paint. */
+.row-new {
+  position: relative;
+  background-color: var(--accent-ember-soft);
+  box-shadow: inset 3px 0 0 0 var(--accent-ember);
+  animation: row-new-fade 4s ease-out 1 forwards;
+}
+
+@keyframes row-new-fade {
+  0% { background-color: var(--accent-ember-soft); }
+  80% { background-color: var(--accent-ember-soft); }
+  100% { background-color: transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row-new { animation: none; }
+}

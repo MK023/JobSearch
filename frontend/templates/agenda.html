@@ -76,7 +76,8 @@
 
     {# Follow-up scaduti #}
     {% for a in followup_alerts[:5] %}
-    <div class="agenda-card">
+    {% set is_new = since_ts and a.applied_at and a.applied_at >= since_ts %}
+    <div class="agenda-card{% if is_new %} row-new{% endif %}">
       <div class="agenda-card-icon agenda-icon-followup">&#x2709;&#xFE0F;</div>
       <div class="agenda-card-body">
         <div class="agenda-card-title">Follow-up {{ a.company or '—' }}</div>
@@ -182,7 +183,8 @@
   <section class="agenda-group">
     <div class="agenda-section-header">&#x2705; To-do</div>
     {% for t in todos %}
-    <div class="agenda-card{% if t.done %} agenda-card-done{% endif %}" id="todo-{{ t.id }}">
+    {% set is_new = since_ts and t.created_at and not t.done and t.created_at >= since_ts %}
+    <div class="agenda-card{% if t.done %} agenda-card-done{% endif %}{% if is_new %} row-new{% endif %}" id="todo-{{ t.id }}">
       <button type="button"
               class="agenda-card-icon agenda-icon-todo agenda-card-icon-btn"
               onclick="toggleTodo({{ t.id }})">

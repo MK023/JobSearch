@@ -25,6 +25,23 @@ def _flash(request: Request) -> dict[str, Any]:
     }
 
 
+def _parse_since(request: Request) -> Any:
+    """Parse ?since=<ISO> query param — used by aggregated notification
+    drill-downs to let the destination page highlight items that were
+    in the original aggregation. Silent fallback to None on malformed
+    input (the highlight is a UI nicety, not a correctness requirement).
+    """
+    raw = request.query_params.get("since")
+    if not raw:
+        return None
+    from datetime import datetime
+
+    try:
+        return datetime.fromisoformat(raw)
+    except ValueError:
+        return None
+
+
 def _base_ctx(db: DbSession, user: CurrentUser, active_page: str) -> dict[str, Any]:
     """Context keys injected on EVERY page render.
 
@@ -168,6 +185,7 @@ def history_page(
             **_base_ctx(db, user, "history"),
             "analyses": analyses,
             "counts": counts,
+            "since_ts": _parse_since(request),
             "error": flash["error"],
             "message": flash["message"],
         },
@@ -228,6 +246,7 @@ def interviews_page(
             **_base_ctx(db, user, "interviews"),
             "upcoming_interviews": upcoming,
             "past_interviews": past_rows,
+            "since_ts": _parse_since(request),
             "error": flash["error"],
             "message": flash["message"],
         },
@@ -453,6 +472,7 @@ def agenda_page(
             "waiting": waiting,
             "todos": todos,
             "triage_todos": triage_todos,
+            "since_ts": _parse_since(request),
             "error": flash["error"],
             "message": flash["message"],
         },
