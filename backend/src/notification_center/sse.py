@@ -23,12 +23,16 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
 from ..dependencies import CurrentUser
+
+# Signature alias for the "is the peer gone?" probe that StreamingResponse
+# exposes on Request — mocked in tests via a tiny callable.
+IsDisconnected = Callable[[], Awaitable[bool]]
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +80,26 @@ def broadcast_sync(event_name: str) -> None:
     asyncio.run_coroutine_threadsafe(broadcast(event_name), _main_loop)
 
 
+async def _event_stream(queue: asyncio.Queue[str], is_disconnected: IsDisconnected) -> AsyncIterator[str]:
+    """SSE frame producer — extracted so tests can drive it without spinning
+    up a full HTTP client. Yields the initial `hello` frame, then alternates
+    event frames and keepalive comments until the peer disconnects."""
+    try:
+        yield "event: hello\ndata: connected\n\n"
+        while True:
+            if await is_disconnected():
+                break
+            try:
+                event = await asyncio.wait_for(queue.get(), timeout=_HEARTBEAT_SECONDS)
+                yield f"event: {event}\ndata: {event}\n\n"
+            except TimeoutError:
+                # Comment line keeps the connection alive through
+                # proxies/load balancers that close idle streams.
+                yield ": keepalive\n\n"
+    finally:
+        _subscribers.discard(queue)
+
+
 @router.get("/sse")
 async def notifications_stream(request: Request, user: CurrentUser) -> StreamingResponse:
     """SSE stream. The client subscribes via ``EventSource`` and calls
@@ -93,24 +117,8 @@ async def notifications_stream(request: Request, user: CurrentUser) -> Streaming
     queue: asyncio.Queue[str] = asyncio.Queue(maxsize=_QUEUE_MAX)
     _subscribers.add(queue)
 
-    async def event_generator() -> AsyncIterator[str]:
-        try:
-            yield "event: hello\ndata: connected\n\n"
-            while True:
-                if await request.is_disconnected():
-                    break
-                try:
-                    event = await asyncio.wait_for(queue.get(), timeout=_HEARTBEAT_SECONDS)
-                    yield f"event: {event}\ndata: {event}\n\n"
-                except TimeoutError:
-                    # Comment line keeps the connection alive through
-                    # proxies/load balancers that close idle streams.
-                    yield ": keepalive\n\n"
-        finally:
-            _subscribers.discard(queue)
-
     return StreamingResponse(
-        event_generator(),
+        _event_stream(queue, request.is_disconnected),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache, no-transform",
