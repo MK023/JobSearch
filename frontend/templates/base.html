@@ -47,6 +47,11 @@
           crossorigin="anonymous" defer></script>
   <script src="{{ url_for('static', path='js/modules/toast.js') }}?v={{ asset_v }}"></script>
   <script src="{{ url_for('static', path='js/app.js') }}?v={{ asset_v }}"></script>
+  {# notifications.js hosts the SSE subscriber and the 30s polling fallback —
+     must load on every page or the badge never updates and broadcast events
+     fire against a subscriber-less server (exact root cause of "SSE non
+     trigger" from the field: notifications.js was only on /notifications). #}
+  <script src="{{ url_for('static', path='js/modules/notifications.js') }}?v={{ asset_v }}"></script>
   {% block scripts_extra %}{% endblock %}
 </body>
 </html>
