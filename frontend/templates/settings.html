@@ -338,6 +338,10 @@
   }
 
   function loadBackupList() {
+    // Show only the most recent backup — the full rolling window (5 copies
+    // on R2) is an implementation detail of disaster recovery, not something
+    // the user needs in their face. What matters: "il backup di ieri/oggi è
+    // stato fatto e di quanto pesa". The rest lives silently on R2.
     fetch('/api/v1/backups')
       .then(function(r) { return r.json(); })
       .then(function(backups) {
@@ -350,22 +354,21 @@
           list.appendChild(empty);
           return;
         }
-        backups.forEach(function(b) {
-          const item = document.createElement('div');
-          item.className = 'settings-maint-item';
-          const info = document.createElement('div');
-          info.className = 'settings-maint-info';
-          const label = document.createElement('span');
-          label.className = 'settings-maint-label';
-          label.textContent = b.key.replace('backups/', '');
-          const meta = document.createElement('span');
-          meta.className = 'meta-small';
-          meta.textContent = b.size_kb + ' KB';
-          info.appendChild(label);
-          info.appendChild(meta);
-          item.appendChild(info);
-          list.appendChild(item);
-        });
+        const latest = backups[0];
+        const item = document.createElement('div');
+        item.className = 'settings-maint-item';
+        const info = document.createElement('div');
+        info.className = 'settings-maint-info';
+        const label = document.createElement('span');
+        label.className = 'settings-maint-label';
+        label.textContent = 'Ultimo backup: ' + latest.key.replace('backups/', '');
+        const meta = document.createElement('span');
+        meta.className = 'meta-small';
+        meta.textContent = latest.size_kb + ' KB · ' + backups.length + ' copie su R2';
+        info.appendChild(label);
+        info.appendChild(meta);
+        item.appendChild(info);
+        list.appendChild(item);
       });
   }
 
