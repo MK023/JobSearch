@@ -149,8 +149,14 @@ jobs:
       # quality gate condition. Scanner must run from repo root to find
       # sonar-project.properties, hence the working-directory override.
       - name: SonarCloud scan
-        # Skip on PRs from forks — SONAR_TOKEN isn't exposed to them anyway.
-        if: success() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
+        # Skip on PRs from forks (no SONAR_TOKEN) and on Dependabot PRs
+        # (GitHub exposes Actions secrets to Dependabot only if registered
+        # under the separate Dependabot secrets scope — we haven't).
+        if: >-
+          success()
+          && github.actor != 'dependabot[bot]'
+          && (github.event_name == 'push'
+              || github.event.pull_request.head.repo.full_name == github.repository)
         uses: SonarSource/sonarqube-scan-action@master
         with:
           projectBaseDir: ${{ github.workspace }}
