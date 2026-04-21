@@ -2,8 +2,10 @@
 
 from datetime import UTC, datetime, timedelta
 
+from src.batch import service as batch_service
 from src.batch.models import BatchItem, BatchItemStatus
 from src.batch.service import (
+    _process_item,
     add_to_queue,
     cleanup_stale_running,
     clear_completed,
@@ -215,3 +217,97 @@ class TestCleanupStaleRunning:
 
         recovered = cleanup_stale_running(db_session, threshold_minutes=10)
         assert recovered == 0
+
+
+class TestProcessItem:
+    """_process_item drives the RUNNING → DONE/SKIPPED/ERROR state machine for a
+    single batch row. All collaborators (analysis submission, Anthropic throttle,
+    dedup lookup) are mocked so the test pins the state machine and DB effects.
+    """
+
+    def _make_item(self, db_session, test_cv) -> BatchItem:
+        batch_id, _, _ = add_to_queue(db_session, test_cv.id, "Job A", cv_text="cv")
+        return db_session.query(BatchItem).filter(BatchItem.batch_id == batch_id).first()
+
+    def _patch_throttle(self, monkeypatch):
+        """time.sleep(4) is the Anthropic rate-limit pause; short-circuit it in tests."""
+        monkeypatch.setattr(batch_service.time, "sleep", lambda _s: None)
+
+    def test_dedup_hit_marks_item_skipped(self, monkeypatch, db_session, test_cv, test_analysis):
+        self._patch_throttle(monkeypatch)
+        item = self._make_item(db_session, test_cv)
+
+        monkeypatch.setattr(batch_service, "find_existing_analysis", lambda *a, **kw: test_analysis)
+
+        def must_not_run(*a, **kw):
+            raise AssertionError("dedup hit must skip analysis run")
+
+        monkeypatch.setattr(batch_service, "_submit_and_run_analysis", must_not_run)
+
+        status = _process_item(executor=None, db=db_session, item=item, cv=test_cv, user_id=test_cv.user_id, cache=None)
+
+        assert status == BatchItemStatus.SKIPPED
+        db_session.refresh(item)
+        assert item.status == BatchItemStatus.SKIPPED
+        assert item.analysis_id == test_analysis.id
+
+    def test_happy_path_marks_item_done_and_commits(self, monkeypatch, db_session, test_cv, test_analysis):
+        item = self._make_item(db_session, test_cv)
+
+        monkeypatch.setattr(batch_service, "find_existing_analysis", lambda *a, **kw: None)
+        monkeypatch.setattr(
+            batch_service,
+            "_submit_and_run_analysis",
+            lambda *a, **kw: (test_analysis, {"cost_usd": 0.01, "tokens": {"input": 100, "output": 50}}),
+        )
+
+        slept: list[float] = []
+        monkeypatch.setattr(batch_service.time, "sleep", lambda s: slept.append(s))
+
+        status = _process_item(executor=None, db=db_session, item=item, cv=test_cv, user_id=test_cv.user_id, cache=None)
+
+        assert status == BatchItemStatus.DONE
+        db_session.refresh(item)
+        assert item.status == BatchItemStatus.DONE
+        assert item.analysis_id == test_analysis.id
+        assert item.attempt_count == 1
+        # Preserve the 4-second inter-item throttle contract: one sleep of 4s after DONE.
+        assert slept == [4]
+
+    def test_exception_rolls_back_and_marks_error(self, monkeypatch, db_session, test_cv):
+        self._patch_throttle(monkeypatch)
+        item = self._make_item(db_session, test_cv)
+
+        monkeypatch.setattr(batch_service, "find_existing_analysis", lambda *a, **kw: None)
+
+        def boom(*a, **kw):
+            raise RuntimeError("anthropic timeout")
+
+        monkeypatch.setattr(batch_service, "_submit_and_run_analysis", boom)
+
+        status = _process_item(executor=None, db=db_session, item=item, cv=test_cv, user_id=test_cv.user_id, cache=None)
+
+        assert status == BatchItemStatus.ERROR
+        db_session.refresh(item)
+        assert item.status == BatchItemStatus.ERROR
+        assert "anthropic timeout" in (item.error_message or "")
+        assert item.attempt_count == 1
+
+    def test_defaults_to_haiku_when_item_model_is_empty(self, monkeypatch, db_session, test_cv, test_analysis):
+        """An empty model string (legacy rows) must resolve to haiku, not KeyError."""
+        self._patch_throttle(monkeypatch)
+        item = self._make_item(db_session, test_cv)
+        item.model = ""
+        db_session.commit()
+
+        captured: dict[str, str] = {}
+
+        def fake_find(db, content_hash, model_id):
+            captured["model_id"] = model_id
+            return test_analysis  # short-circuit via SKIPPED
+
+        monkeypatch.setattr(batch_service, "find_existing_analysis", fake_find)
+
+        _process_item(executor=None, db=db_session, item=item, cv=test_cv, user_id=test_cv.user_id, cache=None)
+
+        assert captured["model_id"] == batch_service.MODELS["haiku"]

@@ -7,7 +7,14 @@ import pytest
 
 from src.analysis.models import AnalysisStatus
 from src.interview.models import Interview
-from src.interview.routes import EMAIL_RE, URL_RE, VALID_INTERVIEW_TYPES, VALID_PLATFORMS
+from src.interview.routes import (
+    EMAIL_RE,
+    URL_RE,
+    VALID_INTERVIEW_TYPES,
+    VALID_PLATFORMS,
+    InterviewPayload,
+    _parse_scheduled_window,
+)
 from src.interview.service import (
     InterviewScheduleData,
     create_or_update_interview,
@@ -216,3 +223,77 @@ class TestValidation:
     )
     def test_xss_urls_rejected(self, url):
         assert not URL_RE.match(url)
+
+
+def _future_iso(hours: int = 24) -> str:
+    return (datetime.now(UTC) + timedelta(hours=hours)).isoformat()
+
+
+class TestParseScheduledWindow:
+    """_parse_scheduled_window validates scheduled_at / ends_at and returns error JSONResponse.
+
+    Extracted from upsert_interview to keep cognitive complexity below SonarCloud's
+    S3776 threshold. Tests pin every branch.
+    """
+
+    def test_parses_valid_future_scheduled_only(self):
+        scheduled_iso = _future_iso(48)
+        payload = InterviewPayload(scheduled_at=scheduled_iso)
+        scheduled, ends, err = _parse_scheduled_window(payload)
+        assert err is None
+        assert ends is None
+        assert scheduled is not None and scheduled == datetime.fromisoformat(scheduled_iso)
+
+    def test_defaults_naive_scheduled_to_utc(self):
+        naive = (datetime.now(UTC) + timedelta(days=1)).replace(tzinfo=None).isoformat()
+        payload = InterviewPayload(scheduled_at=naive)
+        scheduled, _, err = _parse_scheduled_window(payload)
+        assert err is None
+        assert scheduled is not None and scheduled.tzinfo == UTC
+
+    def test_rejects_invalid_scheduled_format(self):
+        payload = InterviewPayload(scheduled_at="not-a-date")
+        scheduled, ends, err = _parse_scheduled_window(payload)
+        assert scheduled is None and ends is None
+        assert err is not None and err.status_code == 400
+
+    def test_rejects_far_past_scheduled(self):
+        past = (datetime.now(UTC) - timedelta(days=7)).isoformat()
+        payload = InterviewPayload(scheduled_at=past)
+        _, _, err = _parse_scheduled_window(payload)
+        assert err is not None and err.status_code == 400
+
+    def test_allows_24h_past_buffer(self):
+        """Recently past (within 24h) must be allowed: timezone-edge bookings are legit."""
+        recent = (datetime.now(UTC) - timedelta(hours=2)).isoformat()
+        payload = InterviewPayload(scheduled_at=recent)
+        scheduled, _, err = _parse_scheduled_window(payload)
+        assert err is None and scheduled is not None
+
+    def test_parses_valid_ends_at_after_scheduled(self):
+        scheduled_iso = _future_iso(24)
+        ends_iso = (datetime.fromisoformat(scheduled_iso) + timedelta(hours=1)).isoformat()
+        payload = InterviewPayload(scheduled_at=scheduled_iso, ends_at=ends_iso)
+        scheduled, ends, err = _parse_scheduled_window(payload)
+        assert err is None
+        assert scheduled is not None and ends is not None
+        assert ends > scheduled
+
+    def test_rejects_invalid_ends_format(self):
+        payload = InterviewPayload(scheduled_at=_future_iso(24), ends_at="broken")
+        _, _, err = _parse_scheduled_window(payload)
+        assert err is not None and err.status_code == 400
+
+    def test_rejects_ends_before_or_equal_scheduled(self):
+        scheduled_iso = _future_iso(24)
+        payload = InterviewPayload(scheduled_at=scheduled_iso, ends_at=scheduled_iso)
+        _, _, err = _parse_scheduled_window(payload)
+        assert err is not None and err.status_code == 400
+
+    def test_defaults_naive_ends_to_utc(self):
+        scheduled_iso = _future_iso(24)
+        ends_naive = (datetime.fromisoformat(scheduled_iso) + timedelta(hours=1)).replace(tzinfo=None).isoformat()
+        payload = InterviewPayload(scheduled_at=scheduled_iso, ends_at=ends_naive)
+        _, ends, err = _parse_scheduled_window(payload)
+        assert err is None
+        assert ends is not None and ends.tzinfo == UTC
