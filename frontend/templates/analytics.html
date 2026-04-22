@@ -144,6 +144,74 @@
   </section>
   {% endif %}
 
+  {# LinkedIn Easy Apply summary (populated async via /api/v1/analytics/linkedin/summary) #}
+  <section class="card card-mb" id="linkedin-summary-card" hidden>
+    <div class="section-title">
+      LinkedIn Easy Apply &middot;
+      <span id="li-date-range" class="analytics-lock-sub"></span>
+    </div>
+
+    <div class="grid-metrics mb-lg">
+      <div class="metric-card metric-blue">
+        <div class="metric-row">
+          <div class="metric-icon">&#x1F4E7;</div>
+          <div>
+            <div class="metric-value" id="li-total">—</div>
+            <div class="metric-label">Candidature importate</div>
+          </div>
+        </div>
+      </div>
+      <div class="metric-card metric-green">
+        <div class="metric-row">
+          <div class="metric-icon">&#x1F3E2;</div>
+          <div>
+            <div class="metric-value" id="li-companies">—</div>
+            <div class="metric-label">Aziende uniche</div>
+          </div>
+        </div>
+      </div>
+      <div class="metric-card metric-orange">
+        <div class="metric-row">
+          <div class="metric-icon">&#x1F4CA;</div>
+          <div>
+            <div class="metric-value" id="li-dark-count">—</div>
+            <div class="metric-label">Aziende senza analisi AI</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h3 class="section-subtitle">Candidature per mese (ultimi 24)</h3>
+    <div class="dash-table-wrap">
+      <table class="dash-table" id="li-monthly-table">
+        <thead><tr><th>Mese</th><th>Candidature</th></tr></thead>
+        <tbody id="li-monthly-body"></tbody>
+      </table>
+    </div>
+
+    <h3 class="section-subtitle">Top 10 aziende senza analisi AI (dark)</h3>
+    <p class="analytics-lock-sub mb-lg">
+      Hai candidato queste aziende via LinkedIn ma non hai mai fatto passare la loro JD dall'analisi AI.
+      Valuta se rifare candidatura con CV rivisto oppure ingestirle nel cowork flow.
+    </p>
+    <div class="dash-table-wrap">
+      <table class="dash-table" id="li-dark-table">
+        <thead>
+          <tr><th>Azienda</th><th>Candidature</th><th>Prima</th><th>Ultima</th></tr>
+        </thead>
+        <tbody id="li-dark-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card empty-state mb-xl" id="linkedin-empty-card" hidden>
+    <p class="mb-lg">
+      Nessuna candidatura LinkedIn importata. Esegui lo script
+      <code>scripts/import_linkedin_export.py</code> passandogli l'archivio
+      "Get a copy of your data" scaricato da LinkedIn.
+    </p>
+  </section>
+
   {# Run history #}
   {% if run_history %}
   <section class="card card-mb">
@@ -168,6 +236,73 @@
 </div>
 
 <script>
+function appendCell(row, text) {
+  const td = document.createElement('td');
+  td.textContent = text == null ? '' : String(text);
+  row.appendChild(td);
+}
+
+function clearChildren(el) {
+  while (el.firstChild) el.removeChild(el.firstChild);
+}
+
+function renderMonthlyRows(tbody, months) {
+  clearChildren(tbody);
+  (months || []).forEach(function (m) {
+    const tr = document.createElement('tr');
+    appendCell(tr, m.month);
+    appendCell(tr, m.count);
+    tbody.appendChild(tr);
+  });
+}
+
+function renderDarkRows(tbody, companies) {
+  clearChildren(tbody);
+  (companies || []).forEach(function (c) {
+    const tr = document.createElement('tr');
+    appendCell(tr, c.company);
+    appendCell(tr, c.count);
+    appendCell(tr, c.first_apply || '');
+    appendCell(tr, c.last_apply || '');
+    tbody.appendChild(tr);
+  });
+}
+
+function loadLinkedinSummary() {
+  fetch('/api/v1/analytics/linkedin/summary', { headers: { 'Accept': 'application/json' } })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (s) {
+      if (!s) return;
+      const card = document.getElementById('linkedin-summary-card');
+      const empty = document.getElementById('linkedin-empty-card');
+      if (!s.total_applications) {
+        if (empty) empty.hidden = false;
+        return;
+      }
+      if (card) card.hidden = false;
+
+      const set = function (id, v) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = v == null ? '—' : String(v);
+      };
+      set('li-total', s.total_applications);
+      set('li-companies', s.unique_companies);
+      set('li-dark-count', (s.top_companies_without_analysis || []).length);
+      if (s.first_application && s.last_application) {
+        set('li-date-range', 'dal ' + s.first_application + ' al ' + s.last_application);
+      }
+
+      const monthBody = document.getElementById('li-monthly-body');
+      if (monthBody) renderMonthlyRows(monthBody, s.applications_by_month);
+
+      const darkBody = document.getElementById('li-dark-body');
+      if (darkBody) renderDarkRows(darkBody, s.top_companies_without_analysis);
+    })
+    .catch(function (e) { console.error('linkedin summary error:', e); });
+}
+
+document.addEventListener('DOMContentLoaded', loadLinkedinSummary);
+
 function triggerAnalytics() {
   const btn = document.getElementById('btn-run-analytics');
   if (!btn || btn.disabled) return;
