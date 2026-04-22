@@ -23,6 +23,7 @@ from src.integrations.news import NewsCache
 from src.integrations.salary import SalaryCache
 from src.interview.file_models import InterviewFile
 from src.interview.models import Interview
+from src.linkedin_import.models import LinkedinApplication
 from src.metrics.models import RequestMetric
 from src.notification_center.models import NotificationDismissal
 from src.notifications.models import NotificationLog
@@ -48,6 +49,7 @@ _ALL_MODELS = [
     AnalyticsRun,
     UserProfile,
     InboxItem,
+    LinkedinApplication,
 ]
 
 

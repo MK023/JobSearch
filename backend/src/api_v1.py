@@ -12,6 +12,7 @@ from .dashboard.routes import router as dashboard_router
 from .inbox.routes import router as inbox_router
 from .interview.file_routes import router as file_router
 from .interview.routes import router as interview_router
+from .linkedin_import.routes import router as linkedin_import_router
 from .notification_center.routes import router as notification_router
 from .read_routes import router as read_router
 
@@ -29,3 +30,4 @@ api_v1_router.include_router(file_router)
 api_v1_router.include_router(notification_router)
 api_v1_router.include_router(agenda_router)
 api_v1_router.include_router(analytics_api_router)
+api_v1_router.include_router(linkedin_import_router)
