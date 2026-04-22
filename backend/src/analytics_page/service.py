@@ -12,6 +12,7 @@ from ..analysis.models import JobAnalysis
 from ..analytics.discriminator import bias_signals, discriminant_features
 from ..analytics.extractor import extract_features
 from ..analytics.stats import conversion_rate, counts_by_status, distribution
+from ..linkedin_import.service import get_summary as linkedin_summary
 from .models import AnalyticsRun, UserProfile
 
 UNLOCK_THRESHOLD = 15  # new analyses-with-status since last run needed to unlock
@@ -147,6 +148,11 @@ def run_analytics(db: Session, user_id: UUID, triggered_by: str = "manual") -> A
         "discriminant": discriminant_features(features),
         "bias_signals": bias_signals(features),
         "total_features": len(features),
+        # Integrated LinkedIn Easy Apply data source — read-only view over
+        # linkedin_applications. Exposed inside the snapshot so every
+        # downstream consumer (template, profile builder, exports) sees
+        # one source of truth instead of a separate endpoint.
+        "linkedin_import": linkedin_summary(db),
     }
 
     run = AnalyticsRun(
