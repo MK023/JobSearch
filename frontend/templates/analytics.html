@@ -34,9 +34,17 @@
     </div>
   </section>
 
-  {# Latest run snapshot #}
+  {# Latest run snapshot — unified view across JobAnalysis + linkedin_applications #}
   {% if latest_run %}
   {% set snap = latest_run.snapshot %}
+  {% set volume = snap.total_volume_unified|default({}) %}
+  {% set li = snap.linkedin_import|default({}) %}
+  {% set role_dist = snap.role_distribution_unified|default(snap.role_distribution)|default({}) %}
+  {% set monthly = snap.applications_by_month_unified|default([]) %}
+  {% set kept_total = snap.discriminant.kept_total|default(0) if snap.discriminant else 0 %}
+  {% set rejected_total = snap.discriminant.rejected_total|default(0) if snap.discriminant else 0 %}
+  {% set total_unique = volume.unique_candidatures|default(snap.total_features|default(0)) %}
+
   <section class="card card-mb">
     <div class="section-title">Ultima analisi &middot; {{ (latest_run.created_at|italytime).strftime('%d/%m/%Y %H:%M') if latest_run.created_at else '' }}</div>
 
@@ -45,8 +53,15 @@
         <div class="metric-row">
           <div class="metric-icon">&#x1F4CA;</div>
           <div>
-            <div class="metric-value">{{ snap.total_features|default(0) }}</div>
-            <div class="metric-label">Analisi totali</div>
+            <div class="metric-value">{{ total_unique }}</div>
+            <div class="metric-label">Candidature totali</div>
+            {% if volume %}
+            <div class="metric-sublabel">
+              {{ volume.job_analyses_count|default(0) }} cowork &middot;
+              {{ volume.linkedin_count|default(0) }} LinkedIn &middot;
+              {{ volume.overlap_count|default(0) }} overlap
+            </div>
+            {% endif %}
           </div>
         </div>
       </div>
@@ -54,8 +69,8 @@
         <div class="metric-row">
           <div class="metric-icon">&#x2705;</div>
           <div>
-            <div class="metric-value">{{ snap.discriminant.kept_total|default(0) }}</div>
-            <div class="metric-label">Tenute</div>
+            <div class="metric-value">{{ kept_total }}</div>
+            <div class="metric-label">Tenute (triage AI)</div>
           </div>
         </div>
       </div>
@@ -63,22 +78,37 @@
         <div class="metric-row">
           <div class="metric-icon">&#x274C;</div>
           <div>
-            <div class="metric-value">{{ snap.discriminant.rejected_total|default(0) }}</div>
-            <div class="metric-label">Scartate</div>
+            <div class="metric-value">{{ rejected_total }}</div>
+            <div class="metric-label">Scartate (triage AI)</div>
           </div>
         </div>
       </div>
     </div>
 
-    {# Role distribution #}
-    {% if snap.role_distribution %}
-    <h3 class="section-subtitle">Distribuzione ruoli</h3>
+    {# Role distribution (unified when available, legacy otherwise) #}
+    {% if role_dist %}
+    <h3 class="section-subtitle">Distribuzione ruoli{% if snap.role_distribution_unified %} (fonti unificate){% endif %}</h3>
     <div class="dash-table-wrap">
       <table class="dash-table">
         <thead><tr><th>Bucket</th><th>Conteggio</th></tr></thead>
         <tbody>
-          {% for role, count in snap.role_distribution.items() %}
+          {% for role, count in role_dist.items() %}
           <tr><td>{{ role }}</td><td>{{ count }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    {# Monthly trend — unified series #}
+    {% if monthly %}
+    <h3 class="section-subtitle">Candidature per mese (ultimi 24, fonti unificate)</h3>
+    <div class="dash-table-wrap">
+      <table class="dash-table">
+        <thead><tr><th>Mese</th><th>Candidature</th></tr></thead>
+        <tbody>
+          {% for m in monthly %}
+          <tr><td>{{ m.month }}</td><td>{{ m.count }}</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -100,7 +130,7 @@
     </div>
     {% endif %}
 
-    {# Conversion rates #}
+    {# Conversion rates by role #}
     {% if snap.conversion_by_role %}
     <h3 class="section-subtitle">Tasso di conversione per ruolo</h3>
     <div class="dash-table-wrap">
@@ -122,7 +152,7 @@
     </div>
     {% endif %}
 
-    {# Bias signals (conflict company + high-score rejected) #}
+    {# Bias signals #}
     {% if snap.bias_signals %}
     <h3 class="section-subtitle">Segnali di bias</h3>
     <ul class="analytics-bias-list">
@@ -137,80 +167,53 @@
       </li>
     </ul>
     {% endif %}
+
+    {# LinkedIn "dark" companies — candidature where AI analysis is missing #}
+    {% if li.total_applications %}
+    <h3 class="section-subtitle">LinkedIn Easy Apply &middot;
+      <span class="analytics-lock-sub">
+        {{ li.total_applications }} candidature su {{ li.unique_companies }} aziende
+        {% if li.first_application and li.last_application %}
+          (dal {{ li.first_application }} al {{ li.last_application }})
+        {% endif %}
+      </span>
+    </h3>
+    {% if li.top_companies_without_analysis %}
+    <p class="analytics-lock-sub mb-lg">
+      Aziende candidate via LinkedIn senza analisi AI nel cowork flow.
+      Valuta ingestion nel flow per avere score e gap.
+    </p>
+    <div class="dash-table-wrap">
+      <table class="dash-table">
+        <thead>
+          <tr><th>Azienda</th><th>Candidature</th><th>Prima</th><th>Ultima</th></tr>
+        </thead>
+        <tbody>
+          {% for c in li.top_companies_without_analysis %}
+          <tr>
+            <td>{{ c.company }}</td>
+            <td>{{ c.count }}</td>
+            <td>{{ c.first_apply or '' }}</td>
+            <td>{{ c.last_apply or '' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="analytics-lock-sub mb-lg">
+      <em>Nessuna candidatura LinkedIn importata.</em> Esegui
+      <code>scripts/import_linkedin_export.py</code> con l'archivio
+      "Get a copy of your data" scaricato da LinkedIn per popolare questa sezione.
+    </div>
+    {% endif %}
   </section>
   {% else %}
   <section class="card empty-state">
     <p class="mb-lg">Nessuna analisi storica ancora eseguita. Valuta almeno {{ threshold }} candidature, poi sblocca la prima analisi.</p>
   </section>
   {% endif %}
-
-  {# LinkedIn Easy Apply summary (populated async via /api/v1/analytics/linkedin/summary) #}
-  <section class="card card-mb" id="linkedin-summary-card" hidden>
-    <div class="section-title">
-      LinkedIn Easy Apply &middot;
-      <span id="li-date-range" class="analytics-lock-sub"></span>
-    </div>
-
-    <div class="grid-metrics mb-lg">
-      <div class="metric-card metric-blue">
-        <div class="metric-row">
-          <div class="metric-icon">&#x1F4E7;</div>
-          <div>
-            <div class="metric-value" id="li-total">—</div>
-            <div class="metric-label">Candidature importate</div>
-          </div>
-        </div>
-      </div>
-      <div class="metric-card metric-green">
-        <div class="metric-row">
-          <div class="metric-icon">&#x1F3E2;</div>
-          <div>
-            <div class="metric-value" id="li-companies">—</div>
-            <div class="metric-label">Aziende uniche</div>
-          </div>
-        </div>
-      </div>
-      <div class="metric-card metric-orange">
-        <div class="metric-row">
-          <div class="metric-icon">&#x1F4CA;</div>
-          <div>
-            <div class="metric-value" id="li-dark-count">—</div>
-            <div class="metric-label">Aziende senza analisi AI</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <h3 class="section-subtitle">Candidature per mese (ultimi 24)</h3>
-    <div class="dash-table-wrap">
-      <table class="dash-table" id="li-monthly-table">
-        <thead><tr><th>Mese</th><th>Candidature</th></tr></thead>
-        <tbody id="li-monthly-body"></tbody>
-      </table>
-    </div>
-
-    <h3 class="section-subtitle">Top 10 aziende senza analisi AI (dark)</h3>
-    <p class="analytics-lock-sub mb-lg">
-      Hai candidato queste aziende via LinkedIn ma non hai mai fatto passare la loro JD dall'analisi AI.
-      Valuta se rifare candidatura con CV rivisto oppure ingestirle nel cowork flow.
-    </p>
-    <div class="dash-table-wrap">
-      <table class="dash-table" id="li-dark-table">
-        <thead>
-          <tr><th>Azienda</th><th>Candidature</th><th>Prima</th><th>Ultima</th></tr>
-        </thead>
-        <tbody id="li-dark-body"></tbody>
-      </table>
-    </div>
-  </section>
-
-  <section class="card empty-state mb-xl" id="linkedin-empty-card" hidden>
-    <p class="mb-lg">
-      Nessuna candidatura LinkedIn importata. Esegui lo script
-      <code>scripts/import_linkedin_export.py</code> passandogli l'archivio
-      "Get a copy of your data" scaricato da LinkedIn.
-    </p>
-  </section>
 
   {# Run history #}
   {% if run_history %}
@@ -236,73 +239,6 @@
 </div>
 
 <script>
-function appendCell(row, text) {
-  const td = document.createElement('td');
-  td.textContent = text == null ? '' : String(text);
-  row.appendChild(td);
-}
-
-function clearChildren(el) {
-  while (el.firstChild) el.removeChild(el.firstChild);
-}
-
-function renderMonthlyRows(tbody, months) {
-  clearChildren(tbody);
-  (months || []).forEach(function (m) {
-    const tr = document.createElement('tr');
-    appendCell(tr, m.month);
-    appendCell(tr, m.count);
-    tbody.appendChild(tr);
-  });
-}
-
-function renderDarkRows(tbody, companies) {
-  clearChildren(tbody);
-  (companies || []).forEach(function (c) {
-    const tr = document.createElement('tr');
-    appendCell(tr, c.company);
-    appendCell(tr, c.count);
-    appendCell(tr, c.first_apply || '');
-    appendCell(tr, c.last_apply || '');
-    tbody.appendChild(tr);
-  });
-}
-
-function loadLinkedinSummary() {
-  fetch('/api/v1/analytics/linkedin/summary', { headers: { 'Accept': 'application/json' } })
-    .then(function (r) { return r.ok ? r.json() : null; })
-    .then(function (s) {
-      if (!s) return;
-      const card = document.getElementById('linkedin-summary-card');
-      const empty = document.getElementById('linkedin-empty-card');
-      if (!s.total_applications) {
-        if (empty) empty.hidden = false;
-        return;
-      }
-      if (card) card.hidden = false;
-
-      const set = function (id, v) {
-        const el = document.getElementById(id);
-        if (el) el.textContent = v == null ? '—' : String(v);
-      };
-      set('li-total', s.total_applications);
-      set('li-companies', s.unique_companies);
-      set('li-dark-count', (s.top_companies_without_analysis || []).length);
-      if (s.first_application && s.last_application) {
-        set('li-date-range', 'dal ' + s.first_application + ' al ' + s.last_application);
-      }
-
-      const monthBody = document.getElementById('li-monthly-body');
-      if (monthBody) renderMonthlyRows(monthBody, s.applications_by_month);
-
-      const darkBody = document.getElementById('li-dark-body');
-      if (darkBody) renderDarkRows(darkBody, s.top_companies_without_analysis);
-    })
-    .catch(function (e) { console.error('linkedin summary error:', e); });
-}
-
-document.addEventListener('DOMContentLoaded', loadLinkedinSummary);
-
 function triggerAnalytics() {
   const btn = document.getElementById('btn-run-analytics');
   if (!btn || btn.disabled) return;
