@@ -13,6 +13,11 @@ from ..analytics.discriminator import bias_signals, discriminant_features
 from ..analytics.extractor import extract_features
 from ..analytics.stats import conversion_rate, counts_by_status, distribution
 from ..linkedin_import.service import get_summary as linkedin_summary
+from ..linkedin_import.unified import (
+    applications_by_month_unified,
+    role_distribution_unified,
+    total_volume_unified,
+)
 from .models import AnalyticsRun, UserProfile
 
 UNLOCK_THRESHOLD = 15  # new analyses-with-status since last run needed to unlock
@@ -153,6 +158,15 @@ def run_analytics(db: Session, user_id: UUID, triggered_by: str = "manual") -> A
         # downstream consumer (template, profile builder, exports) sees
         # one source of truth instead of a separate endpoint.
         "linkedin_import": linkedin_summary(db),
+        # Unified metrics across JobAnalysis + linkedin_applications.
+        # Dedup key: (lower(company), role_bucket). These are the numbers
+        # the UI should render for "total volume / role mix / monthly trend"
+        # going forward — the *_unified keys supersede their non-unified
+        # counterparts (total_features, role_distribution) once the template
+        # is updated.
+        "total_volume_unified": total_volume_unified(db, features),
+        "role_distribution_unified": role_distribution_unified(db, features),
+        "applications_by_month_unified": applications_by_month_unified(db, features),
     }
 
     run = AnalyticsRun(
