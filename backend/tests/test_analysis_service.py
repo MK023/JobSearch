@@ -5,6 +5,8 @@ from datetime import UTC
 
 from src.analysis.models import AnalysisStatus, JobAnalysis
 from src.analysis.service import (
+    find_by_company,
+    find_by_url,
     find_existing_analysis,
     get_analysis_by_id,
     get_recent_analyses,
@@ -92,6 +94,51 @@ class TestGetAnalysisById:
     def test_returns_none_for_missing(self, db_session):
         result = get_analysis_by_id(db_session, str(uuid.uuid4()))
         assert result is None
+
+
+class TestFindByUrl:
+    def test_returns_analysis_with_matching_url(self, db_session, test_cv):
+        a = JobAnalysis(cv_id=test_cv.id, job_description="Job", job_url="https://example.com/job/1", company="Acme")
+        db_session.add(a)
+        db_session.commit()
+        result = find_by_url(db_session, "https://example.com/job/1")
+        assert result is not None
+        assert result.id == a.id
+
+    def test_returns_none_for_different_url(self, db_session, test_analysis):
+        result = find_by_url(db_session, "https://other.com/job/99")
+        assert result is None
+
+    def test_returns_none_for_empty_url(self, db_session):
+        result = find_by_url(db_session, "")
+        assert result is None
+
+
+class TestFindByCompany:
+    def test_finds_same_company(self, db_session, test_cv):
+        a = JobAnalysis(cv_id=test_cv.id, job_description="Job", company="Acme Corp", role="Dev")
+        db_session.add(a)
+        db_session.commit()
+        results = find_by_company(db_session, "Acme Corp")
+        assert any(r.id == a.id for r in results)
+
+    def test_case_insensitive(self, db_session, test_cv):
+        a = JobAnalysis(cv_id=test_cv.id, job_description="Job", company="Acme Corp", role="Dev")
+        db_session.add(a)
+        db_session.commit()
+        results = find_by_company(db_session, "acme corp")
+        assert any(r.id == a.id for r in results)
+
+    def test_excludes_self(self, db_session, test_cv):
+        a = JobAnalysis(cv_id=test_cv.id, job_description="Job", company="Acme Corp", role="Dev")
+        db_session.add(a)
+        db_session.commit()
+        results = find_by_company(db_session, "Acme Corp", exclude_id=a.id)
+        assert not any(r.id == a.id for r in results)
+
+    def test_returns_empty_for_blank_company(self, db_session):
+        results = find_by_company(db_session, "")
+        assert results == []
 
 
 class TestGetRecentAnalyses:

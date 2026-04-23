@@ -26,6 +26,23 @@ def find_existing_analysis(db: Session, hash_value: str, model_id: str) -> JobAn
     )
 
 
+def find_by_url(db: Session, job_url: str) -> JobAnalysis | None:
+    """Return the most recent analysis for this exact URL, if any."""
+    if not job_url:
+        return None
+    return db.query(JobAnalysis).filter(JobAnalysis.job_url == job_url).order_by(JobAnalysis.created_at.desc()).first()
+
+
+def find_by_company(db: Session, company: str, exclude_id: UUID | None = None) -> list[JobAnalysis]:
+    """Return all analyses for the same company (case-insensitive), excluding one optional id."""
+    if not company or not company.strip():
+        return []
+    q = db.query(JobAnalysis).filter(JobAnalysis.company.ilike(company.strip()))
+    if exclude_id is not None:
+        q = q.filter(JobAnalysis.id != exclude_id)
+    return q.order_by(JobAnalysis.created_at.desc()).all()
+
+
 def run_analysis(
     db: Session,
     cv_text: str,

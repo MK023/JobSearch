@@ -20,7 +20,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..analysis.models import AnalysisSource, JobAnalysis
-from ..analysis.service import find_existing_analysis, run_analysis
+from ..analysis.service import find_by_url, find_existing_analysis, run_analysis
 from ..cv.service import get_latest_cv
 from ..integrations.anthropic_client import MODELS
 from ..integrations.cache import CacheService
@@ -252,6 +252,17 @@ def process_pending(
         item.processed_at = datetime.now(UTC)  # type: ignore[assignment]
         db.commit()
         return
+
+    # URL dedup: if the same job posting was already analyzed, reuse it and
+    # skip the AI call entirely — saves Anthropic credits for duplicate sends.
+    if item.source_url:
+        existing_by_url = find_by_url(db, cast(str, item.source_url))
+        if existing_by_url:
+            item.analysis_id = cast(UUID, existing_by_url.id)  # type: ignore[assignment]
+            item.status = InboxStatus.DONE.value  # type: ignore[assignment]
+            item.processed_at = datetime.now(UTC)  # type: ignore[assignment]
+            db.commit()
+            return
 
     item.status = InboxStatus.PROCESSING.value  # type: ignore[assignment]
     db.commit()
