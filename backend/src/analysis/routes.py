@@ -15,6 +15,8 @@ from ..integrations.anthropic_client import MODELS, content_hash
 from ..rate_limit import limiter
 from .models import AnalysisSource
 from .service import (
+    find_by_company,
+    find_by_url,
     find_existing_analysis,
     get_analysis_by_id,
     rebuild_result,
@@ -52,6 +54,16 @@ def analyze(
     if not budget_ok:
         request.session["flash_error"] = budget_msg
         return RedirectResponse(url=_ANALYZE_PATH, status_code=303)
+
+    # URL dedup: same job posting pasted again (even with different JD text).
+    if job_url:
+        existing_url = find_by_url(db, job_url)
+        if existing_url:
+            audit(db, request, "analyze_cache_url", f"id={existing_url.id}")
+            request.session["flash_message"] = (
+                f"URL già analizzato il {existing_url.created_at.strftime('%d/%m/%Y %H:%M')} - mostro il risultato salvato"
+            )
+            return RedirectResponse(url=f"/analysis/{existing_url.id}", status_code=303)
 
     ch = content_hash(cast(str, cv.raw_text), job_description)
     model_id = MODELS.get(model, MODELS["haiku"])
@@ -111,6 +123,7 @@ def view_analysis(
 
     result = rebuild_result(analysis)
     interview = get_interview_by_analysis(db, cast(UUID, analysis.id))
+    same_company_analyses = find_by_company(db, cast(str, analysis.company), exclude_id=cast(UUID, analysis.id))
     # Sort newest-first so a fresh bilingual generation (italiano + english)
     # appears in the correct order at the top of the page.
     cover_letters = sorted(analysis.cover_letters or [], key=lambda c: c.created_at, reverse=True)
@@ -139,6 +152,7 @@ def view_analysis(
             "cover_letter": cover_letter,
             "cover_letters": cover_letters,
             "contacts": contacts,
+            "same_company_analyses": same_company_analyses,
             "error": error,
             "message": message,
         },
