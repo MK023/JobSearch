@@ -196,13 +196,25 @@
     {% if inbox_stats.last_received_at %}
     <div class="meta-small" style="margin-top: var(--space-sm);">
       Ultima ricezione: {{ (inbox_stats.last_received_at|italytime).strftime('%d/%m %H:%M') }}
-      &middot; <a href="/history#valutazione" class="link-subtle">vedi da valutare</a>
     </div>
     {% endif %}
     {% else %}
     <div class="empty-state" style="padding: var(--space-lg);">
       Nessuna analisi dall'estensione. Installa <code>frontend/chrome-extension/</code> e configura la API key.
     </div>
+    {% endif %}
+    {% if pending_extension %}
+    <div class="section-divider" style="margin: var(--space-md) 0;"></div>
+    <p class="meta-small" style="margin-bottom: var(--space-xs);">Da valutare</p>
+    {% for a in pending_extension %}
+    <div class="dash-widget-row">
+      <div class="dash-widget-row-main">
+        <a href="/history/{{ a.id }}" class="dash-widget-row-title">{{ a.company }}</a>
+        {% if a.role %}<span class="meta-small"> &mdash; {{ a.role|truncate(40) }}</span>{% endif %}
+      </div>
+      <span class="meta-small">{{ (a.created_at|italytime).strftime('%d/%m %H:%M') }}</span>
+    </div>
+    {% endfor %}
     {% endif %}
   </section>
 

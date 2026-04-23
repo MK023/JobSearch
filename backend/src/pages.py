@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, Response
 
-from .analysis.models import AnalysisStatus
+from .analysis.models import AnalysisSource, AnalysisStatus
 from .analysis.service import get_recent_analyses
 from .cv.service import get_latest_cv
 from .dashboard.service import get_dashboard, get_db_usage, get_followup_alerts, get_spending, get_top_candidates
@@ -102,7 +102,20 @@ def dashboard_page(
     inbox_stats = get_inbox_stats(db, cast(UUID, user.id))
     pending_analyses = (
         db.query(JobAnalysis)
-        .filter(JobAnalysis.status == AnalysisStatus.PENDING.value)
+        .filter(
+            JobAnalysis.status == AnalysisStatus.PENDING.value,
+            JobAnalysis.source == AnalysisSource.COWORK.value,
+        )
+        .order_by(JobAnalysis.created_at.desc())
+        .limit(5)
+        .all()
+    )
+    pending_extension = (
+        db.query(JobAnalysis)
+        .filter(
+            JobAnalysis.status == AnalysisStatus.PENDING.value,
+            JobAnalysis.source == AnalysisSource.EXTENSION.value,
+        )
         .order_by(JobAnalysis.created_at.desc())
         .limit(5)
         .all()
@@ -144,6 +157,7 @@ def dashboard_page(
             "followup_alerts": followup_alerts,
             "upcoming_interviews": upcoming_interviews,
             "pending_analyses": pending_analyses,
+            "pending_extension": pending_extension,
             "top_candidates": top_candidates,
             "db_usage": db_usage,
             "recent_news": recent_news,
@@ -420,10 +434,13 @@ def agenda_page(
     # Follow-up alerts
     followup_alerts = get_followup_alerts(db)
 
-    # Pending analyses (Cowork)
+    # Pending analyses (Cowork only)
     pending_analyses = (
         db.query(JobAnalysis)
-        .filter(JobAnalysis.status == AnalysisStatus.PENDING.value)
+        .filter(
+            JobAnalysis.status == AnalysisStatus.PENDING.value,
+            JobAnalysis.source == AnalysisSource.COWORK.value,
+        )
         .order_by(JobAnalysis.created_at.desc())
         .limit(10)
         .all()
