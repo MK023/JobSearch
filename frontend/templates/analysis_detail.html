@@ -21,6 +21,22 @@
   <div class="message-banner banner-error">{{ error }}</div>
   {% endif %}
 
+  {# ---- Altre analisi stessa azienda — alert visibile subito ---- #}
+  {% if same_company_analyses %}
+  <div class="card card-mb">
+    <h3 class="section-title">&#x26A0;&#xFE0F; Altre analisi per {{ current.company }}</h3>
+    {% for a in same_company_analyses %}
+    <div class="dash-widget-row">
+      <div class="dash-widget-row-main">
+        <a href="/analysis/{{ a.id }}" class="dash-widget-row-title">{{ a.role or '—' }}</a>
+        <span class="dash-widget-row-sub">{{ (a.created_at|italytime).strftime('%d/%m/%Y') }} &middot; source: {{ a.source }}</span>
+      </div>
+      <span class="score-badge score-{{ 'high' if a.score >= 85 else ('mid' if a.score >= 70 else 'low') }}">{{ a.score or 0 }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
   {% if result %}
   <div class="card result-card">
 
@@ -369,22 +385,6 @@ Tipicamente: nessuna tutela da subordinato (ferie, malattia, TFR), gestione fisc
     {% endif %}
 
   </div>{# end result-card #}
-  {% endif %}
-
-  {# ---- 10b. Altre analisi stessa azienda ---- #}
-  {% if same_company_analyses %}
-  <div class="card card-mb">
-    <h3 class="section-title">&#x26A0;&#xFE0F; Altre analisi per {{ current.company }}</h3>
-    {% for a in same_company_analyses %}
-    <div class="dash-widget-row">
-      <div class="dash-widget-row-main">
-        <a href="/analysis/{{ a.id }}" class="dash-widget-row-title">{{ a.role or '—' }}</a>
-        <span class="dash-widget-row-sub">{{ (a.created_at|italytime).strftime('%d/%m/%Y') }} &middot; source: {{ a.source }}</span>
-      </div>
-      <span class="score-badge score-{{ 'high' if a.score >= 85 else ('mid' if a.score >= 70 else 'low') }}">{{ a.score or 0 }}</span>
-    </div>
-    {% endfor %}
-  </div>
   {% endif %}
 
   {# ---- 10. Contacts panel (hidden by default) ---- #}
