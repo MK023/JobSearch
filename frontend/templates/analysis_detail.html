@@ -32,16 +32,19 @@
 
       <div class="hero-v2-info">
 
-        {# Top row: rec badge · role · company · same-company pill #}
-        <div class="hero-top-row">
+        {# 1. Role — headline, dominant #}
+        <div class="hero-role-headline">{{ result.role }}</div>
+
+        {# 2. Secondary line: company · rec badge · same-company #}
+        <div class="hero-secondary-line">
+          <span class="hero-company-pill">{{ result.company }}</span>
+          <span class="hero-secondary-sep">&middot;</span>
           <span class="recommendation-badge recommendation-{{ result.recommendation }}">
             {% if result.recommendation == 'APPLY' %}&#x1F680;
             {% elif result.recommendation == 'CONSIDER' %}&#x1F914;
             {% else %}&#x26D4;{% endif %}
             {{ result.recommendation }}
           </span>
-          <span class="result-hero-role">{{ result.role }}</span>
-          <span class="hero-company-pill">{{ result.company }}</span>
           {% if same_company_analyses %}
           <a href="#same-company" class="hero-same-company-pill" title="{{ same_company_analyses|length }} altre analisi per {{ current.company }}">
             &#x26A0;&#xFE0F; {{ same_company_analyses|length }} {% if same_company_analyses|length == 1 %}altra analisi{% else %}altre analisi{% endif %} &rarr;
@@ -49,11 +52,7 @@
           {% endif %}
         </div>
 
-        {% if result.score_label %}
-        <div class="result-hero-label">{{ result.score_label }}</div>
-        {% endif %}
-
-        {# Tags: career track + location + work mode + salary + metadata #}
+        {# 3. Tag chips: career track · location · work mode · salary · glassdoor #}
         <div class="hero-tags-row">
           {% if result.career_track %}
           {% set track_labels = {
@@ -101,10 +100,6 @@
           {% elif result.company_reputation %}
           <span class="hero-tag">&#x2B50; Glassdoor: n/d</span>
           {% endif %}
-        </div>
-
-        <div class="hero-cost-meta">
-          &#x1F4B2;{{ '%.5f' % result.cost_usd }} &middot; {{ result.tokens.total }} tok{% if result.from_cache %} &middot; &#x26A1; cache{% endif %}
         </div>
 
       </div>{# end hero-v2-info #}
@@ -245,6 +240,11 @@
   <div class="card card-mb">
     <div class="detail-section-label">Dettagli ruolo</div>
     <div class="detail-table">
+
+      <div class="detail-row">
+        <span class="detail-key">Analisi AI</span>
+        <span class="detail-val detail-note">&#x1F4B2;{{ '%.5f' % result.cost_usd }} &middot; {{ result.tokens.total }} tok{% if result.from_cache %} &middot; &#x26A1; cache{% endif %}</span>
+      </div>
 
       {% if result.experience_required and (result.experience_required.years_min or result.experience_required.years_max or (result.experience_required.level and result.experience_required.level != 'unspecified')) %}
       {% set er = result.experience_required %}
