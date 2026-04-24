@@ -307,6 +307,24 @@ def _compute_asset_version() -> str:
         return str(int(time.time()))
 
 
+def _parse_job_summary(value: object) -> list[str]:
+    import json as _json  # noqa: PLC0415
+
+    if isinstance(value, list):
+        return [str(s).strip() for s in value]
+    if isinstance(value, str):
+        s = value.strip()
+        if s.startswith("["):
+            try:
+                parsed = _json.loads(s)
+                if isinstance(parsed, list):
+                    return [str(item).strip() for item in parsed]
+            except (ValueError, TypeError):
+                pass
+        return [s]
+    return [str(value)]
+
+
 def _register_templates_and_static(app: FastAPI) -> None:
     """Wire Jinja2 templates, globals, custom filters, and static mount."""
     from datetime import UTC as _UTC
@@ -323,6 +341,7 @@ def _register_templates_and_static(app: FastAPI) -> None:
     # templates can call {{ dt|italytime|strftime("%H:%M") }} and get
     # the value the user expects on their wall clock (CET/CEST).
     app.state.templates.env.filters["italytime"] = _to_italy
+    app.state.templates.env.filters["job_summary_items"] = _parse_job_summary
     app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
 
