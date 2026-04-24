@@ -3324,3 +3324,36 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
     align-items: flex-start;
   }
 }
+
+/* --- Job summary bullet list --- */
+
+.job-summary-list {
+  margin: var(--space-sm) 0 var(--space-md) var(--space-xl);
+  padding: 0;
+}
+
+.job-summary-list li {
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  margin-bottom: var(--space-xs);
+}
+
+/* --- Interview rounds — agenda-style past rounds --- */
+
+.iv-past-rounds-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-sm) 0 var(--space-md);
+}
+
+.iv-round-outcome-badge {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.iv-outcome-passed { color: var(--accent-green); }
+.iv-outcome-rejected { color: var(--accent-red); }
+.iv-outcome-withdrawn { color: var(--text-secondary); }

@@ -1,7 +1,8 @@
 {# Interview detail card — multi-round capable.
-   Shows each round in chronological order with its own details and outcome
-   UI. Past rounds without a logged outcome surface the "Passato / Scartato /
-   Ritirato" buttons; future rounds just show the schedule.
+   Past rounds with a logged outcome (passed/rejected/withdrawn) are
+   collapsed inside a <details> shown in agenda-card style.
+   Active rounds (no outcome, or outcome=pending) stay expanded with
+   the full detail grid and action buttons.
 #}
 {% if current and current.interviews and current.status in ('colloquio', 'offerta') %}
 {% set rounds = current.interviews %}
@@ -14,21 +15,65 @@
         <span class="status-badge status-badge-{{ current.status }}">{{ current.status }}</span>
     </div>
 
+    {# ── Collapsed past rounds (outcome logged and final) ─────────────── #}
+    {% set ns = namespace(past_done_count=0) %}
     {% for iv in rounds %}
+      {% if iv.outcome and iv.outcome != 'pending' %}{% set ns.past_done_count = ns.past_done_count + 1 %}{% endif %}
+    {% endfor %}
+
+    {% if ns.past_done_count > 0 %}
+    <details>
+        <summary class="detail-summary">
+            &#x23F3; {{ ns.past_done_count }} round {% if ns.past_done_count == 1 %}precedente{% else %}precedenti{% endif %}
+        </summary>
+        <div class="iv-past-rounds-list">
+        {% for iv in rounds %}
+        {% if iv.outcome and iv.outcome != 'pending' %}
+        <div class="agenda-card agenda-card-interview">
+            <div class="agenda-card-icon agenda-icon-interview">&#x1F3A4;</div>
+            <div class="agenda-card-body">
+                <div class="agenda-card-title">
+                    Round {{ iv.round_number }}{% if iv.interview_type %} &middot; {{ iv.interview_type|capitalize }}{% endif %}
+                </div>
+                <div class="agenda-card-sub">
+                    {{ (iv.scheduled_at|italytime).strftime('%d/%m/%Y %H:%M') }}
+                    {% if iv.platform == 'phone' %} &middot; Telefonico
+                    {% elif iv.platform == 'teams' %} &middot; Teams
+                    {% elif iv.platform == 'google_meet' %} &middot; Google Meet
+                    {% elif iv.platform == 'zoom' %} &middot; Zoom
+                    {% elif iv.platform == 'in_person' %} &middot; In presenza
+                    {% elif iv.platform %} &middot; {{ iv.platform }}{% endif %}
+                    {% if iv.recruiter_name %} &middot; {{ iv.recruiter_name }}{% endif %}
+                </div>
+            </div>
+            <div class="agenda-card-meta">
+                {% if iv.outcome == 'passed' %}
+                <span class="iv-round-outcome-badge iv-outcome-passed">&#x2705; Passato</span>
+                {% elif iv.outcome == 'rejected' %}
+                <span class="iv-round-outcome-badge iv-outcome-rejected">&#x274C; Scartato</span>
+                {% elif iv.outcome == 'withdrawn' %}
+                <span class="iv-round-outcome-badge iv-outcome-withdrawn">&#x1F514; Ritirato</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+        </div>
+    </details>
+    {% endif %}
+
+    {# ── Active rounds: no outcome or pending ─────────────────────────── #}
+    {% for iv in rounds %}
+    {% if not (iv.outcome and iv.outcome != 'pending') %}
     {% set is_past = iv.scheduled_at and iv.scheduled_at < now() %}
-    {% set outcome = iv.outcome %}
     {% set is_last = loop.last %}
-    <div class="interview-round {% if outcome %}interview-round-{{ outcome }}{% elif is_past %}interview-round-pending{% else %}interview-round-upcoming{% endif %}">
+    <div class="interview-round {% if iv.outcome == 'pending' %}interview-round-pending{% elif is_past %}interview-round-pending{% else %}interview-round-upcoming{% endif %}">
         <div class="interview-round-header">
             <span class="interview-round-number">Round {{ iv.round_number }}</span>
             {% if iv.interview_type %}
             <span class="interview-round-type">{% if iv.interview_type == 'tecnico' %}Tecnico{% elif iv.interview_type == 'hr' %}HR{% elif iv.interview_type == 'conoscitivo' %}Conoscitivo{% elif iv.interview_type == 'finale' %}Finale{% else %}Altro{% endif %}</span>
             {% endif %}
-            {% if outcome %}
-            <span class="interview-round-outcome interview-round-outcome-{{ outcome }}">
-                {% if outcome == 'passed' %}&#x2705; Passato{% elif outcome == 'rejected' %}&#x274C; Scartato{% elif outcome == 'withdrawn' %}&#x1F514; Ritirato{% else %}In attesa{% endif %}
-            </span>
-            {% elif is_past %}
+            {% if is_past %}
             <span class="interview-round-outcome interview-round-outcome-pending">In attesa di esito</span>
             {% endif %}
         </div>
@@ -85,7 +130,7 @@
             {% endif %}
         </div>
 
-        {% if is_past and not outcome %}
+        {% if is_past and not iv.outcome %}
         <div class="interview-round-actions">
             <button class="btn btn-success btn-sm" onclick="logRoundOutcome('{{ iv.id }}', 'passed', '{{ current.id }}')">
                 &#x2705; Passato al prossimo step
@@ -106,6 +151,7 @@
         </div>
         {% endif %}
     </div>
+    {% endif %}
     {% endfor %}
 
     {# File attachments: keep on LAST round only, preserving existing behavior #}

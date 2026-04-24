@@ -110,6 +110,22 @@
       </div>{# end hero-v2-info #}
     </div>{# end result-hero-v2 #}
 
+    {# Actions row — immediately below hero info #}
+    {% if current %}
+    <div class="detail-act-row">
+      <button type="button" class="detail-act-btn" onclick="genFollowup('{{ current.id }}')">&#x2709;&#xFE0F; Email</button>
+      <button type="button" class="detail-act-btn" onclick="genLinkedin('{{ current.id }}')">&#x1F4BC; LinkedIn</button>
+      <button type="button" class="detail-act-btn" onclick="toggleContacts('{{ current.id }}')">&#x1F464; Contatti</button>
+      {% if current.job_url %}
+      <a href="{{ current.job_url }}" target="_blank" rel="noopener noreferrer" class="detail-act-btn">&#x2197; Annuncio</a>
+      {% endif %}
+      <span class="detail-act-spacer"></span>
+      <button type="button" class="detail-act-btn detail-act-danger" onclick="deleteAnalysis('{{ current.id }}')">Elimina</button>
+      <a href="/analyze" class="detail-act-btn detail-act-primary">Nuova analisi &rarr;</a>
+    </div>
+    <div id="generated-area-{{ current.id }}"></div>
+    {% endif %}
+
     {# Interview banner — visible only if a round is scheduled #}
     {% if current and current.interview %}
     {% set iv = current.interview %}
@@ -158,20 +174,6 @@
         </button>
       </div>
     </div>
-
-    {# Actions row #}
-    <div class="detail-act-row">
-      <button type="button" class="detail-act-btn" onclick="genFollowup('{{ current.id }}')">&#x2709;&#xFE0F; Email</button>
-      <button type="button" class="detail-act-btn" onclick="genLinkedin('{{ current.id }}')">&#x1F4BC; LinkedIn</button>
-      <button type="button" class="detail-act-btn" onclick="toggleContacts('{{ current.id }}')">&#x1F464; Contatti</button>
-      {% if current.job_url %}
-      <a href="{{ current.job_url }}" target="_blank" rel="noopener noreferrer" class="detail-act-btn">&#x2197; Annuncio</a>
-      {% endif %}
-      <span class="detail-act-spacer"></span>
-      <button type="button" class="detail-act-btn detail-act-danger" onclick="deleteAnalysis('{{ current.id }}')">Elimina</button>
-      <a href="/analyze" class="detail-act-btn detail-act-primary">Nuova analisi &rarr;</a>
-    </div>
-    <div id="generated-area-{{ current.id }}"></div>
     {% endif %}
 
   </div>{# end result-card #}
@@ -338,7 +340,11 @@
       {% if result.job_summary %}
       <details>
         <summary class="detail-summary">&#x1F4CB; Punti chiave annuncio</summary>
-        <div class="job-summary-text" style="padding: var(--space-sm) 0 var(--space-md);">{{ result.job_summary }}</div>
+        <ul class="job-summary-list">
+          {% for item in result.job_summary | job_summary_items %}
+          <li>{{ item }}</li>
+          {% endfor %}
+        </ul>
       </details>
       {% endif %}
     </div>
