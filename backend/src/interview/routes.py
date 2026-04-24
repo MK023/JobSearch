@@ -63,12 +63,14 @@ def _parse_datetime_field(value: str) -> datetime | None:
     return parsed
 
 
-def _validate_schedule(payload: InterviewPayload) -> tuple[datetime, datetime | None] | JSONResponse:
+def _validate_schedule(
+    payload: InterviewPayload, allow_past: bool = False
+) -> tuple[datetime, datetime | None] | JSONResponse:
     """Validate scheduled_at/ends_at. Returns the parsed pair or an error response."""
     scheduled = _parse_datetime_field(payload.scheduled_at)
     if scheduled is None:
         return JSONResponse({"error": "Invalid scheduled_at format"}, status_code=400)
-    if scheduled < datetime.now(UTC) - timedelta(hours=24):
+    if not allow_past and scheduled < datetime.now(UTC) - timedelta(hours=24):
         return JSONResponse({"error": "Non puoi prenotare un colloquio nel passato"}, status_code=400)
 
     ends: datetime | None = None
@@ -103,6 +105,7 @@ def upsert_interview(
     payload: InterviewPayload,
     db: DbSession,
     user: CurrentUser,
+    allow_past: bool = False,
 ) -> JSONResponse:
     """Create or update an interview with validation and status transition."""
     validate_uuid(analysis_id)
@@ -110,7 +113,7 @@ def upsert_interview(
     if not analysis:
         return JSONResponse({"error": _ANALYSIS_NOT_FOUND_MSG}, status_code=404)
 
-    schedule_result = _validate_schedule(payload)
+    schedule_result = _validate_schedule(payload, allow_past=allow_past)
     if isinstance(schedule_result, JSONResponse):
         return schedule_result
     scheduled, ends = schedule_result
