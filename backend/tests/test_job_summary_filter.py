@@ -1,6 +1,6 @@
 """Tests for the job_summary_items Jinja2 filter (_parse_job_summary in main.py)."""
 
-from backend.src.main import _parse_job_summary
+from src.main import _parse_job_summary
 
 
 def test_list_passthrough() -> None:
