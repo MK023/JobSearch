@@ -173,6 +173,13 @@ function genLinkedin(id) {
 }
 
 
+document.addEventListener('DOMContentLoaded', function () {
+    document.addEventListener('click', function (e) {
+        const btn = e.target.closest('[data-followup-done]');
+        if (btn) markFollowupDone(btn.dataset.followupDone);
+    });
+});
+
 function markFollowupDone(id) {
     fetch('/api/v1/followup-done/' + id, { method: 'POST' })
         .then(function(r) { return r.json(); })

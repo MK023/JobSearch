@@ -90,7 +90,7 @@
            "Fatto" chiama direttamente l'endpoint POST /followup-done/{id};
            markFollowupDone gestisce reload + toast. #}
         <a href="/analysis/{{ a.id }}" class="agenda-btn agenda-btn-blue">Apri</a>
-        <button type="button" class="agenda-btn agenda-btn-green" onclick="markFollowupDone('{{ a.id }}')">Fatto</button>
+        <button type="button" class="agenda-btn agenda-btn-green" data-followup-done="{{ a.id }}">Fatto</button>
       </div>
     </div>
     {% endfor %}

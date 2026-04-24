@@ -101,6 +101,8 @@ async def _event_stream(queue: asyncio.Queue[str], is_disconnected: IsDisconnect
                 # Comment line keeps the connection alive through
                 # proxies/load balancers that close idle streams.
                 yield ": keepalive\n\n"
+    except Exception:  # noqa: BLE001, S110 — network/SSL drops close the stream silently
+        pass
     finally:
         _subscribers.discard(queue)
 
