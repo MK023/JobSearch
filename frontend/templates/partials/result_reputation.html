@@ -1,9 +1,13 @@
-{# Company reputation details block (inside result card) #}
+{# Company reputation — own full-width card, always visible.
+   Rendered only when there is useful reputation data.
+#}
 {% if result.company_reputation and (result.company_reputation.known_pros or result.company_reputation.known_cons or result.company_reputation.source|default('') == 'glassdoor_api') %}
 {% set rep = result.company_reputation %}
 {% set is_api = rep.source|default('') == 'glassdoor_api' %}
-<details open>
-    <summary>Reputazione aziendale
+<div class="card card-mb">
+
+    <div class="reputation-header">
+        <span class="reputation-header-title">Reputazione aziendale</span>
         {% set gr_str = rep.glassdoor_estimate|default('non disponibile') %}
         {% if gr_str != 'non disponibile' %}
         {% set gr = gr_str|replace('/5','')|float(0) %}
@@ -16,7 +20,13 @@
         {% else %}
         <span class="reputation-rating reputation-rating-na">n/d</span>
         {% endif %}
-    </summary>
+        <span class="reputation-badge {% if is_api %}reputation-badge-verified{% else %}reputation-badge-estimate{% endif %}" style="margin-left:auto;">
+            {% if is_api %}Glassdoor verificato{% else %}Stima AI{% endif %}
+        </span>
+        {% if is_api and rep.glassdoor_url %}
+        <a href="{{ rep.glassdoor_url }}" target="_blank" rel="noopener noreferrer" class="glassdoor-link">Vedi su Glassdoor</a>
+        {% endif %}
+    </div>
 
     {# Sub-ratings bars #}
     {% if is_api and rep.sub_ratings %}
@@ -37,7 +47,7 @@
     </div>
     {% endif %}
 
-    {# Company info (enrichment data from same API) #}
+    {# Company meta #}
     {% if is_api and (rep.industry or rep.company_size or rep.headquarters or rep.founded) %}
     <div class="ceo-info">
         {% if rep.industry %}<span class="ceo-detail">Settore: {{ rep.industry }}</span>{% endif %}
@@ -58,7 +68,7 @@
     </div>
     {% endif %}
 
-    {# Pros / Cons grid #}
+    {# Pros / Cons grid — full width of the card #}
     <div class="reputation-grid">
         {% if rep.known_pros %}
         <div class="reputation-col reputation-pros">
@@ -78,15 +88,11 @@
         {% endif %}
     </div>
 
-    {# Footer #}
+    {% if rep.note %}
     <div class="reputation-footer">
-        {% if rep.note %}<span class="reputation-note">{{ rep.note }}</span>{% endif %}
-        {% if is_api and rep.glassdoor_url %}
-        <a href="{{ rep.glassdoor_url }}" target="_blank" rel="noopener noreferrer" class="glassdoor-link">Vedi su Glassdoor</a>
-        {% endif %}
-        <span class="reputation-badge {% if is_api %}reputation-badge-verified{% else %}reputation-badge-estimate{% endif %}">
-            {% if is_api %}Dati Glassdoor verificati{% else %}Stima AI{% endif %}
-        </span>
+        <span class="reputation-note">{{ rep.note }}</span>
     </div>
-</details>
+    {% endif %}
+
+</div>
 {% endif %}

@@ -28,7 +28,7 @@
     {# Hero grid: score ring + all info #}
     <div class="result-hero-v2">
 
-      {% with score=result.score, size="lg" %}{% include "partials/score_ring.html" %}{% endwith %}
+      {% with score=result.score, size="md" %}{% include "partials/score_ring.html" %}{% endwith %}
 
       <div class="hero-v2-info">
 
@@ -264,7 +264,9 @@
       {% if result.benefits %}
       <div class="detail-row">
         <span class="detail-key">Benefits</span>
-        <span class="detail-val">{{ result.benefits|join(' &middot; ') }}</span>
+        <span class="detail-val detail-val-tags">
+          {% for b in result.benefits %}<span class="hero-tag hero-tag-green">{{ b }}</span>{% endfor %}
+        </span>
       </div>
       {% endif %}
 
@@ -333,9 +335,8 @@
     </div>
     {% endif %}
 
-    {# Collapsible extras: reputation · salary · job summary #}
+    {# Collapsible extras: salary · job summary #}
     <div class="detail-collapsibles">
-      {% include "partials/result_reputation.html" %}
       {% include "partials/result_salary.html" %}
       {% if result.job_summary %}
       <details>
@@ -350,6 +351,11 @@
     </div>
 
   </div>{# end details card #}
+
+  {# ═══════════════════════════════════════════════════════
+     CARD 4b — COMPANY REPUTATION (full-width, own card)
+  ═══════════════════════════════════════════════════════ #}
+  {% include "partials/result_reputation.html" %}
 
   {# ═══════════════════════════════════════════════════════
      CARD 5 — INTERVIEW DETAILS (if scheduled)
