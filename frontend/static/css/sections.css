@@ -1501,6 +1501,20 @@
    REPUTATION (company reputation in analysis detail)
    ================================================================ */
 
+.reputation-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.reputation-header-title {
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
 .reputation-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2748,7 +2762,7 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
   display: grid;
   grid-template-columns: auto 1fr;
   gap: var(--space-lg);
-  align-items: flex-start;
+  align-items: center;
   margin-bottom: var(--space-lg);
 }
 
