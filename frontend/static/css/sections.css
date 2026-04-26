@@ -3408,10 +3408,10 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
 .detail-page-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: var(--space-xl);
-  margin-bottom: var(--space-lg);
-  padding-bottom: var(--space-lg);
+  align-items: center;
+  gap: var(--space-2xl);
+  margin-bottom: var(--space-xl);
+  padding-bottom: var(--space-xl);
   border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -3421,39 +3421,39 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
 }
 
 .detail-page-title {
-  font-size: 1.75rem;
+  font-size: 2rem;
   font-weight: var(--weight-bold);
   color: var(--text-primary);
-  line-height: 1.2;
+  line-height: 1.15;
   margin: var(--space-xs) 0 var(--space-sm);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
 }
 
 .detail-page-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-xs);
+  gap: 5px;
+  row-gap: 4px;
 }
 
 .detail-page-meta-item {
   font-size: var(--text-xs);
   color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 .detail-page-meta-sep {
   color: var(--text-muted);
   font-size: var(--text-xs);
+  opacity: 0.5;
 }
 
 .detail-page-actions {
   display: flex;
   flex-shrink: 0;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: flex-end;
+  align-items: center;
   gap: var(--space-xs);
-  padding-top: calc(var(--space-md) + var(--space-xs));
 }
 
 /* ── Hero card — 3-col grid ── */
@@ -3461,7 +3461,7 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
 .detail-hero-grid {
   display: grid;
   grid-template-columns: auto 1fr auto;
-  gap: var(--space-xl);
+  gap: var(--space-2xl);
   align-items: center;
 }
 
@@ -3556,31 +3556,4 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
 
 .detail-link:hover {
   text-decoration: underline;
-}
-
-/* ── Responsive collapse ── */
-
-@media (width <= 768px) {
-  .detail-page-header {
-    flex-direction: column;
-    gap: var(--space-md);
-  }
-
-  .detail-page-actions {
-    padding-top: 0;
-    justify-content: flex-start;
-  }
-
-  .detail-hero-grid {
-    grid-template-columns: auto 1fr;
-    grid-template-rows: auto auto;
-  }
-
-  .detail-hero-right {
-    grid-column: 1 / -1;
-    flex-direction: row;
-    text-align: left;
-    justify-content: flex-start;
-    min-width: 0;
-  }
 }
