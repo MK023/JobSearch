@@ -12,8 +12,6 @@
 {% block content %}
 <div class="content-inner">
 
-  <a href="/history" class="link-back">&larr; Storico</a>
-
   {% if error %}
   <div class="message-banner banner-error">{{ error }}</div>
   {% endif %}
@@ -21,178 +19,205 @@
   {% if result %}
 
   {# ═══════════════════════════════════════════════════════
-     CARD 1 — HERO: score · role · tags · status · actions
+     PAGE HEADER — outside any card
+     back link · role (h1) · meta row · actions (right)
   ═══════════════════════════════════════════════════════ #}
-  <div class="card result-card">
+  <div class="detail-page-header">
 
-    {# Hero grid: score ring + all info #}
-    <div class="result-hero-v2">
+    <div class="detail-page-header-left">
+      <a href="/history" class="link-back">&larr; Storico</a>
 
-      {% with score=result.score, size="md" %}{% include "partials/score_ring.html" %}{% endwith %}
+      {# Role — dominant headline #}
+      <h1 class="detail-page-title">{{ result.role }}</h1>
 
-      <div class="hero-v2-info">
+      {# Meta row: career track · company · location · work mode · salary · glassdoor · confidence #}
+      <div class="detail-page-meta">
 
-        {# 1. Role — headline, dominant #}
-        <div class="hero-role-headline">{{ result.role }}</div>
+        {% if result.career_track %}
+        {% set track_labels = {
+          'plan_a_devops': ('Piano A · DevOps', 'track-plan-a'),
+          'plan_b_dev': ('Piano B · Dev', 'track-plan-b'),
+          'hybrid_a_b': ('Ibrido A/B', 'track-hybrid'),
+          'cybersec_junior_ok': ('Cybersec Junior', 'track-cybersec'),
+          'out_of_scope': ('Fuori scope', 'track-out')
+        } %}
+        {% set label, cls = track_labels.get(result.career_track, ('—', 'track-hybrid')) %}
+        <span class="career-track-chip {{ cls }}" title="{{ result.track_reason|default('') }}">
+          <span class="career-track-label">{{ label }}</span>
+        </span>
+        <span class="detail-page-meta-sep">&middot;</span>
+        {% endif %}
 
-        {# 2. Secondary line: company · rec badge · same-company #}
-        <div class="hero-secondary-line">
-          <span class="hero-company-pill">{{ result.company }}</span>
-          <span class="hero-secondary-sep">&middot;</span>
-          <span class="recommendation-badge recommendation-{{ result.recommendation }}">
-            {% if result.recommendation == 'APPLY' %}&#x1F680;
-            {% elif result.recommendation == 'CONSIDER' %}&#x1F914;
-            {% else %}&#x26D4;{% endif %}
-            {{ result.recommendation }}
-          </span>
-          {% if same_company_analyses %}
-          <a href="#same-company" class="hero-same-company-pill" title="{{ same_company_analyses|length }} altre analisi per {{ current.company }}">
-            &#x26A0;&#xFE0F; {{ same_company_analyses|length }} {% if same_company_analyses|length == 1 %}altra analisi{% else %}altre analisi{% endif %} &rarr;
-          </a>
-          {% endif %}
-        </div>
+        <span class="hero-company-pill">{{ result.company }}</span>
 
-        {# 3. Tag chips: career track · location · work mode · salary · glassdoor #}
-        <div class="hero-tags-row">
-          {% if result.career_track %}
-          {% set track_labels = {
-            'plan_a_devops': ('Piano A · DevOps', 'track-plan-a'),
-            'plan_b_dev': ('Piano B · Dev', 'track-plan-b'),
-            'hybrid_a_b': ('Ibrido A/B', 'track-hybrid'),
-            'cybersec_junior_ok': ('Cybersec Junior', 'track-cybersec'),
-            'out_of_scope': ('Fuori scope', 'track-out')
-          } %}
-          {% set label, cls = track_labels.get(result.career_track, ('—', 'track-hybrid')) %}
-          <span class="career-track-chip {{ cls }}" title="{{ result.track_reason|default('') }}">
-            <span class="career-track-label">{{ label }}</span>
-          </span>
-          {% endif %}
+        {% if result.location %}
+        <span class="detail-page-meta-sep">&middot;</span>
+        <span class="detail-page-meta-item">&#x1F4CD; {{ result.location }}</span>
+        {% endif %}
 
-          {% if result.location %}<span class="hero-tag">&#x1F4CD; {{ result.location }}</span>{% endif %}
-          {% if result.work_mode %}<span class="hero-tag">&#x1F3E2; {{ result.work_mode }}</span>{% endif %}
-          {% if result.salary_info %}<span class="hero-tag hero-tag-green">&#x1F4B6; {{ result.salary_info }}</span>{% endif %}
-          {% if result.potential_score %}<span class="hero-tag">&#x1F4C8; Potenziale: {{ result.potential_score }}/100</span>{% endif %}
-          {% if result.gap_timeline %}<span class="hero-tag">&#x23F1;&#xFE0F; {{ result.gap_timeline }}</span>{% endif %}
-          {% if result.confidence %}<span class="hero-tag">&#x1F3AF; {{ result.confidence }}{% if result.confidence_reason %}: {{ result.confidence_reason }}{% endif %}</span>{% endif %}
+        {% if result.work_mode %}
+        <span class="detail-page-meta-sep">&middot;</span>
+        <span class="detail-page-meta-item">&#x1F3E2; {{ result.work_mode }}</span>
+        {% endif %}
 
-          {% if result.application_method %}
-          {% set am = result.application_method %}
-          {% if am.type == 'email' %}
-          <span class="hero-tag">&#x1F4E7; <a href="mailto:{{ am.detail }}" class="color-inherit">{{ am.detail }}</a></span>
-          {% elif am.type == 'quick_apply' %}
-          <span class="hero-tag hero-tag-green">&#x26A1; Candidatura rapida{{ ' &mdash; ' + am.detail if am.detail else '' }}</span>
-          {% elif am.type == 'link' %}
-          {% if am.detail and (am.detail.startswith('https://') or am.detail.startswith('http://')) %}
-          <span class="hero-tag">&#x1F517; <a href="{{ am.detail }}" target="_blank" rel="noopener noreferrer" class="color-inherit">Candidati qui</a></span>
-          {% endif %}
-          {% else %}
-          <span class="hero-tag">&#x2753; Metodo candidatura non chiaro</span>
-          {% endif %}
-          {% if am.note %}<span class="hero-tag">&#x1F4CC; {{ am.note }}</span>{% endif %}
-          {% endif %}
+        {% if result.salary_info %}
+        <span class="detail-page-meta-sep">&middot;</span>
+        <span class="hero-tag hero-tag-green">&#x1F4B6; {{ result.salary_info }}</span>
+        {% endif %}
 
-          {% if result.company_reputation and result.company_reputation.glassdoor_estimate and result.company_reputation.glassdoor_estimate != 'non disponibile' %}
-          {% set gr = result.company_reputation.glassdoor_estimate|replace('/5','')|float(0) %}
-          {% set is_api = result.company_reputation.source|default('') == 'glassdoor_api' %}
-          <span class="hero-tag {% if gr >= 4.0 %}hero-tag-green{% elif gr >= 3.0 %}hero-tag-orange{% else %}hero-tag-red{% endif %}" title="{{ result.company_reputation.note|default('') }}">
-            &#x2B50; Glassdoor {% if not is_api %}~{% endif %}{{ result.company_reputation.glassdoor_estimate }}{% if is_api and result.company_reputation.review_count %} ({{ '{:,}'.format(result.company_reputation.review_count).replace(',', '.') }}){% endif %}
-          </span>
-          {% elif result.company_reputation %}
-          <span class="hero-tag">&#x2B50; Glassdoor: n/d</span>
-          {% endif %}
-        </div>
+        {% if result.company_reputation and result.company_reputation.glassdoor_estimate and result.company_reputation.glassdoor_estimate != 'non disponibile' %}
+        {% set gr = result.company_reputation.glassdoor_estimate|replace('/5','')|float(0) %}
+        {% set is_api = result.company_reputation.source|default('') == 'glassdoor_api' %}
+        <span class="detail-page-meta-sep">&middot;</span>
+        <span class="hero-tag {% if gr >= 4.0 %}hero-tag-green{% elif gr >= 3.0 %}hero-tag-orange{% else %}hero-tag-red{% endif %}">
+          &#x2B50; {% if not is_api %}~{% endif %}{{ result.company_reputation.glassdoor_estimate }}{% if is_api and result.company_reputation.review_count %} ({{ '{:,}'.format(result.company_reputation.review_count).replace(',', '.') }}){% endif %}
+        </span>
+        {% endif %}
 
-      </div>{# end hero-v2-info #}
-    </div>{# end result-hero-v2 #}
+        {% if result.confidence %}
+        <span class="detail-page-meta-sep">&middot;</span>
+        <span class="detail-page-meta-item">&#x1F3AF; {{ result.confidence }}{% if result.confidence_reason %}: {{ result.confidence_reason }}{% endif %}</span>
+        {% endif %}
 
-    {# Actions row — immediately below hero info #}
+        {% if same_company_analyses %}
+        <span class="detail-page-meta-sep">&middot;</span>
+        <a href="#same-company" class="hero-same-company-pill">
+          &#x26A0;&#xFE0F; {{ same_company_analyses|length }} {% if same_company_analyses|length == 1 %}altra analisi{% else %}altre analisi{% endif %} &rarr;
+        </a>
+        {% endif %}
+
+      </div>{# end detail-page-meta #}
+    </div>{# end detail-page-header-left #}
+
+    {# Actions — top-right #}
     {% if current %}
-    <div class="detail-act-row">
+    <div class="detail-page-actions">
       <button type="button" class="detail-act-btn" onclick="genFollowup('{{ current.id }}')">&#x2709;&#xFE0F; Email</button>
       <button type="button" class="detail-act-btn" onclick="genLinkedin('{{ current.id }}')">&#x1F4BC; LinkedIn</button>
       <button type="button" class="detail-act-btn" onclick="toggleContacts('{{ current.id }}')">&#x1F464; Contatti</button>
       {% if current.job_url %}
       <a href="{{ current.job_url }}" target="_blank" rel="noopener noreferrer" class="detail-act-btn">&#x2197; Annuncio</a>
       {% endif %}
-      <span class="detail-act-spacer"></span>
       <button type="button" class="detail-act-btn detail-act-danger" onclick="deleteAnalysis('{{ current.id }}')">Elimina</button>
       <a href="/analyze" class="detail-act-btn detail-act-primary">Nuova analisi &rarr;</a>
     </div>
     <div id="generated-area-{{ current.id }}"></div>
     {% endif %}
 
-    {# Interview banner — visible only if a round is scheduled #}
-    {% if current and current.interview %}
-    {% set iv = current.interview %}
-    <div class="interview-banner">
-      <span class="interview-banner-icon">&#x1F3A4;</span>
-      <div class="interview-banner-main">
-        <div class="interview-banner-title">Colloquio pianificato</div>
-        <div class="interview-banner-sub">
-          {% if iv.interview_type %}{{ iv.interview_type|capitalize }} &middot; {% endif %}
-          {{ (iv.scheduled_at|italytime).strftime('%d/%m/%Y %H:%M') }}
-          {% if iv.platform == 'phone' %} &middot; Telefonico
-          {% elif iv.platform == 'teams' %} &middot; Teams
-          {% elif iv.platform == 'google_meet' %} &middot; Google Meet
-          {% elif iv.platform == 'zoom' %} &middot; Zoom
-          {% elif iv.platform == 'in_person' %} &middot; In presenza
-          {% elif iv.platform %} &middot; {{ iv.platform }}{% endif %}
-          {% if iv.outcome %} &middot; <strong>{{ iv.outcome }}</strong>{% endif %}
-        </div>
-      </div>
-      <button class="interview-banner-cta" onclick="openInterviewModal('{{ current.id }}')">Gestisci &rarr;</button>
-    </div>
-    {% endif %}
+  </div>{# end detail-page-header #}
 
-    {# Status toggle — JS hooks preserved, new visual style #}
-    {% if current %}
-    <div class="status-section">
-      <span class="status-section-label">Stato</span>
-      <div class="status-toggle" data-analysis-id="{{ current.id }}">
-        <button type="button" class="status-option status-opt-da_valutare {{ 'active' if current.status == 'da_valutare' }}" data-status="da_valutare" onclick="setStatus(this)">
-          <span class="status-dot"></span>Da valutare
-        </button>
-        <button type="button" class="status-option status-opt-candidato {{ 'active' if current.status == 'candidato' }}" data-status="candidato" onclick="setStatus(this)">
-          <span class="status-dot"></span>Candidato
-        </button>
-        <button type="button" class="status-option status-opt-colloquio {{ 'active' if current.status == 'colloquio' }}" data-status="colloquio" onclick="setStatus(this)">
-          <span class="status-dot"></span>Colloquio
-        </button>
-        <button type="button" class="status-option status-opt-offerta {{ 'active' if current.status == 'offerta' }}" data-status="offerta" onclick="setStatus(this)">
-          <span class="status-dot"></span>Offerta
-        </button>
-        <button type="button" class="status-option status-opt-scartato {{ 'active' if current.status == 'scartato' }}" data-status="scartato" onclick="setStatus(this)">
-          <span class="status-dot"></span>Scartato
-        </button>
-        <button type="button" class="status-option status-opt-rifiutato {{ 'active' if current.status == 'rifiutato' }}" data-status="rifiutato" onclick="setStatus(this)">
-          <span class="status-dot"></span>Rifiutato
-        </button>
-      </div>
-    </div>
-    {% endif %}
-
-  </div>{# end result-card #}
 
   {# ═══════════════════════════════════════════════════════
-     CARD 2 — VERDICT + ADVICE
+     CARD 1 — HERO: score ring · verdict + summary · sub-scores
   ═══════════════════════════════════════════════════════ #}
-  {% if result.summary or result.advice %}
-  <div class="card card-mb">
-    {% if result.summary %}
-    <div class="result-verdict-v2">{{ result.summary }}</div>
-    {% endif %}
-    {% if result.advice %}
-    {% if result.summary %}<div class="verdict-divider"></div>{% endif %}
-    <div class="advice-v2">
-      <div class="advice-v2-title">&#x1F4A1; Il mio consiglio</div>
-      <div class="advice-text">{{ result.advice }}</div>
+  <div class="card result-card card-mb">
+    <div class="detail-hero-grid">
+
+      {# Col 1 — score ring (large) #}
+      {% with score=result.score, size="lg" %}{% include "partials/score_ring.html" %}{% endwith %}
+
+      {# Col 2 — verdict + summary + advice #}
+      <div class="detail-hero-body">
+        <div class="detail-hero-eyebrow-label">Verdetto</div>
+        <div class="detail-hero-rec-row">
+          <span class="recommendation-badge recommendation-{{ result.recommendation }}">
+            {% if result.recommendation == 'APPLY' %}&#x1F680;
+            {% elif result.recommendation == 'CONSIDER' %}&#x1F914;
+            {% else %}&#x26D4;{% endif %}
+            {{ result.recommendation }}
+          </span>
+        </div>
+        {% if result.summary %}
+        <div class="detail-hero-summary">{{ result.summary }}</div>
+        {% endif %}
+        {% if result.advice %}
+        <div class="detail-hero-advice">
+          <span class="detail-hero-advice-label">&#x1F4A1; Consiglio</span>
+          {{ result.advice }}
+        </div>
+        {% endif %}
+      </div>
+
+      {# Col 3 — sub-scores (optional, only if useful data) #}
+      {% if result.potential_score or result.gap_timeline %}
+      <div class="detail-hero-right">
+        {% if result.potential_score %}
+        <div class="detail-hero-subscore">
+          <div class="detail-hero-subscore-label">Potenziale</div>
+          <div class="detail-hero-subscore-val">{{ result.potential_score }}<span class="detail-hero-subscore-unit">/100</span></div>
+        </div>
+        {% endif %}
+        {% if result.gap_timeline %}
+        <div class="detail-hero-subscore">
+          <div class="detail-hero-subscore-label">Gap colmabile</div>
+          <div class="detail-hero-subscore-val detail-hero-subscore-val-sm">{{ result.gap_timeline }}</div>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+
+    </div>{# end detail-hero-grid #}
+  </div>{# end hero card #}
+
+
+  {# ═══════════════════════════════════════════════════════
+     STATUS BAR — standalone, outside cards
+  ═══════════════════════════════════════════════════════ #}
+  {% if current %}
+  <div class="status-section">
+    <span class="status-section-label">Stato</span>
+    <div class="status-toggle" data-analysis-id="{{ current.id }}">
+      <button type="button" class="status-option status-opt-da_valutare {{ 'active' if current.status == 'da_valutare' }}" data-status="da_valutare" onclick="setStatus(this)">
+        <span class="status-dot"></span>Da valutare
+      </button>
+      <button type="button" class="status-option status-opt-candidato {{ 'active' if current.status == 'candidato' }}" data-status="candidato" onclick="setStatus(this)">
+        <span class="status-dot"></span>Candidato
+      </button>
+      <button type="button" class="status-option status-opt-colloquio {{ 'active' if current.status == 'colloquio' }}" data-status="colloquio" onclick="setStatus(this)">
+        <span class="status-dot"></span>Colloquio
+      </button>
+      <button type="button" class="status-option status-opt-offerta {{ 'active' if current.status == 'offerta' }}" data-status="offerta" onclick="setStatus(this)">
+        <span class="status-dot"></span>Offerta
+      </button>
+      <button type="button" class="status-option status-opt-scartato {{ 'active' if current.status == 'scartato' }}" data-status="scartato" onclick="setStatus(this)">
+        <span class="status-dot"></span>Scartato
+      </button>
+      <button type="button" class="status-option status-opt-rifiutato {{ 'active' if current.status == 'rifiutato' }}" data-status="rifiutato" onclick="setStatus(this)">
+        <span class="status-dot"></span>Rifiutato
+      </button>
     </div>
-    {% endif %}
   </div>
   {% endif %}
 
+
   {# ═══════════════════════════════════════════════════════
-     CARD 3 — STRENGTHS + GAPS
+     INTERVIEW BANNER — standalone if scheduled
+  ═══════════════════════════════════════════════════════ #}
+  {% if current and current.interview %}
+  {% set iv = current.interview %}
+  <div class="interview-banner" style="margin-bottom:var(--space-md);">
+    <span class="interview-banner-icon">&#x1F3A4;</span>
+    <div class="interview-banner-main">
+      <div class="interview-banner-title">Colloquio pianificato</div>
+      <div class="interview-banner-sub">
+        {% if iv.interview_type %}{{ iv.interview_type|capitalize }} &middot; {% endif %}
+        {{ (iv.scheduled_at|italytime).strftime('%d/%m/%Y %H:%M') }}
+        {% if iv.platform == 'phone' %} &middot; Telefonico
+        {% elif iv.platform == 'teams' %} &middot; Teams
+        {% elif iv.platform == 'google_meet' %} &middot; Google Meet
+        {% elif iv.platform == 'zoom' %} &middot; Zoom
+        {% elif iv.platform == 'in_person' %} &middot; In presenza
+        {% elif iv.platform %} &middot; {{ iv.platform }}{% endif %}
+        {% if iv.outcome %} &middot; <strong>{{ iv.outcome }}</strong>{% endif %}
+      </div>
+    </div>
+    <button class="interview-banner-cta" onclick="openInterviewModal('{{ current.id }}')">Gestisci &rarr;</button>
+  </div>
+  {% endif %}
+
+
+  {# ═══════════════════════════════════════════════════════
+     CARD 2 — STRENGTHS + GAPS (2-col)
   ═══════════════════════════════════════════════════════ #}
   {% if result.strengths or result.gaps %}
   <div class="card card-mb">
@@ -234,8 +259,9 @@
   </div>
   {% endif %}
 
+
   {# ═══════════════════════════════════════════════════════
-     CARD 4 — DETTAGLI RUOLO
+     CARD 3 — DETTAGLI RUOLO (full-width)
   ═══════════════════════════════════════════════════════ #}
   <div class="card card-mb">
     <div class="detail-section-label">Dettagli ruolo</div>
@@ -286,6 +312,27 @@
       </div>
       {% endif %}
 
+      {% if result.application_method %}
+      {% set am = result.application_method %}
+      <div class="detail-row">
+        <span class="detail-key">Candidatura</span>
+        <span class="detail-val">
+          {% if am.type == 'email' %}
+          <a href="mailto:{{ am.detail }}" class="detail-link">&#x1F4E7; {{ am.detail }}</a>
+          {% elif am.type == 'quick_apply' %}
+          <span class="hero-tag hero-tag-green">&#x26A1; Rapida{{ ' &mdash; ' + am.detail if am.detail else '' }}</span>
+          {% elif am.type == 'link' %}
+            {% if am.detail and (am.detail.startswith('https://') or am.detail.startswith('http://')) %}
+            <a href="{{ am.detail }}" target="_blank" rel="noopener noreferrer" class="detail-link">&#x1F517; Candidati qui</a>
+            {% endif %}
+          {% else %}
+          &#x2753; Metodo non chiaro
+          {% endif %}
+          {% if am.note %}<span class="detail-note"> &middot; {{ am.note }}</span>{% endif %}
+        </span>
+      </div>
+      {% endif %}
+
       {% if result.red_flags %}
       <div class="detail-row">
         <span class="detail-key">&#x1F6A9; Red flag</span>
@@ -318,7 +365,7 @@
     </div>
     {% endif %}
 
-    {# Same-company section (anchor target for pill in hero) #}
+    {# Same-company section (anchor target) #}
     {% if same_company_analyses %}
     <div id="same-company" class="warn-inline warn-inline-orange" style="margin-top: var(--space-md);">
       <span class="warn-inline-icon">&#x26A0;&#xFE0F;</span>
@@ -352,13 +399,15 @@
 
   </div>{# end details card #}
 
+
   {# ═══════════════════════════════════════════════════════
-     CARD 4b — COMPANY REPUTATION (full-width, own card)
+     CARD 3b — COMPANY REPUTATION (full-width, own card)
   ═══════════════════════════════════════════════════════ #}
   {% include "partials/result_reputation.html" %}
 
+
   {# ═══════════════════════════════════════════════════════
-     CARD 5 — INTERVIEW DETAILS (if scheduled)
+     CARD 4 — INTERVIEW DETAILS (if scheduled)
   ═══════════════════════════════════════════════════════ #}
   {% if current and current.interview %}
   <div class="card card-mb">
@@ -366,8 +415,9 @@
   </div>
   {% endif %}
 
+
   {# ═══════════════════════════════════════════════════════
-     CARD 6 — INTERVIEW PREP SCRIPTS (collapsible)
+     CARD 5 — INTERVIEW PREP SCRIPTS (collapsible)
   ═══════════════════════════════════════════════════════ #}
   {% if current and current.interview and result.interview_scripts %}
   <div class="card card-mb">
@@ -383,8 +433,9 @@
   </div>
   {% endif %}
 
+
   {# ═══════════════════════════════════════════════════════
-     CARD 7 — COVER LETTER
+     CARD 6 — COVER LETTER
   ═══════════════════════════════════════════════════════ #}
   {% if cover_letters %}
   {% include "partials/cover_letter_result.html" %}

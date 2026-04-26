@@ -3397,3 +3397,163 @@ html[data-theme="light"] .flatpickr-time .flatpickr-am-pm:hover {
 .iv-outcome-passed { color: var(--accent-green); }
 .iv-outcome-rejected { color: var(--accent-red); }
 .iv-outcome-withdrawn { color: var(--text-secondary); }
+
+
+/* ================================================================
+   DETAIL PAGE — redesigned layout (page header + hero 3-col)
+   ================================================================ */
+
+/* ── Page header (outside any card) ── */
+
+.detail-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2xl);
+  margin-bottom: var(--space-xl);
+  padding-bottom: var(--space-xl);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.detail-page-header-left {
+  min-width: 0;
+  flex: 1;
+}
+
+.detail-page-title {
+  font-size: 2rem;
+  font-weight: var(--weight-bold);
+  color: var(--text-primary);
+  line-height: 1.15;
+  margin: var(--space-xs) 0 var(--space-sm);
+  letter-spacing: -0.025em;
+}
+
+.detail-page-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  row-gap: 4px;
+}
+
+.detail-page-meta-item {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.detail-page-meta-sep {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  opacity: 0.5;
+}
+
+.detail-page-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+/* ── Hero card — 3-col grid ── */
+
+.detail-hero-grid {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--space-2xl);
+  align-items: center;
+}
+
+.detail-hero-body {
+  min-width: 0;
+}
+
+.detail-hero-eyebrow-label {
+  font-size: 10px;
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: var(--space-xs);
+}
+
+.detail-hero-rec-row {
+  margin-bottom: var(--space-sm);
+}
+
+.detail-hero-summary {
+  font-size: var(--text-base);
+  line-height: var(--line-height-prose);
+  color: var(--text-primary);
+  margin-bottom: var(--space-sm);
+}
+
+.detail-hero-advice {
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--space-sm);
+}
+
+.detail-hero-advice-label {
+  display: block;
+  font-size: 10px;
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-blue);
+  margin-bottom: 4px;
+}
+
+/* ── Hero right col — sub-scores ── */
+
+.detail-hero-right {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  text-align: right;
+  flex-shrink: 0;
+  min-width: 90px;
+}
+
+.detail-hero-subscore {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.detail-hero-subscore-label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-weight: var(--weight-medium);
+}
+
+.detail-hero-subscore-val {
+  font-size: 1.4rem;
+  font-weight: var(--weight-bold);
+  color: var(--score-green);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.detail-hero-subscore-val-sm {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.detail-hero-subscore-unit {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-weight: var(--weight-normal);
+}
+
+.detail-link {
+  color: var(--accent-blue);
+  text-decoration: none;
+}
+
+.detail-link:hover {
+  text-decoration: underline;
+}
