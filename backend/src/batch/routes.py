@@ -22,6 +22,12 @@ from .service import add_to_queue, batch_results, clear_completed, get_batch_sta
 
 router = APIRouter(prefix="/batch", tags=["batch"])
 
+# Origins that callers may pass via ``/batch/add?source=…``. The MCP
+# workflow uses ``cowork``; direct UI submissions stick with the default
+# ``manual``. Anything outside the whitelist is rejected to avoid
+# silently writing arbitrary strings to ``job_analyses.source``.
+_VALID_BATCH_SOURCES = frozenset({"manual", "cowork"})
+
 
 @router.post("/add")
 @limiter.limit(settings.rate_limit_analyze)
@@ -32,10 +38,21 @@ def batch_add(
     job_description: Annotated[str, Form()],
     job_url: Annotated[str, Form()] = "",
     model: Annotated[str, Form()] = "haiku",
+    source: Annotated[str, Form()] = "manual",
 ) -> JSONResponse:
-    """Add a job description to the pending batch queue."""
+    """Add a job description to the pending batch queue.
+
+    ``source`` lets the MCP / Cowork workflow tag its batch items so the
+    resulting analyses end up under the right dashboard widget. Defaults
+    to ``manual`` for direct UI submissions.
+    """
     if job_url and not job_url.startswith(("https://", "http://")):
         return JSONResponse({"error": "job_url deve essere un URL valido (https://...)"}, status_code=400)
+
+    if source not in _VALID_BATCH_SOURCES:
+        return JSONResponse(
+            {"error": f"source non valido (consentiti: {sorted(_VALID_BATCH_SOURCES)})"}, status_code=400
+        )
 
     if len(job_description) > settings.max_job_desc_size:
         return JSONResponse(
@@ -69,8 +86,9 @@ def batch_add(
         job_url=job_url,
         model=model,
         cv_text=cast(str, cv.raw_text),
+        source=source,
     )
-    audit(db, request, "batch_add", f"batch={batch_id}, count={count}, skipped={skipped}")
+    audit(db, request, "batch_add", f"batch={batch_id}, count={count}, skipped={skipped}, source={source}")
     db.commit()
     return JSONResponse({"ok": True, "batch_id": batch_id, "count": count, "skipped": skipped})
 

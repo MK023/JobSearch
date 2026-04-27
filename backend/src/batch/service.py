@@ -42,11 +42,17 @@ def add_to_queue(
     job_url: str = "",
     model: str = "haiku",
     cv_text: str = "",
+    source: str = "manual",
 ) -> tuple[str, int, int]:
     """Add a job to the pending batch queue.
 
     Before inserting, checks for existing analysis (dedup).
     Returns (batch_id, total_count, skipped_count).
+
+    ``source`` flows through the queue → ``_execute_analysis`` →
+    ``run_analysis`` so the resulting ``JobAnalysis`` carries the
+    caller's origin (e.g. ``cowork`` for the MCP workflow). Defaults to
+    ``manual`` for direct API/UI submissions.
     """
     # Find or create a pending batch
     existing_batch = (
@@ -74,6 +80,7 @@ def add_to_queue(
         content_hash=ch,
         model=model,
         preview=preview,
+        source=source,
     )
 
     if existing:
@@ -260,6 +267,7 @@ def _execute_analysis(
         cast(str, item.model) or "haiku",
         cache,
         user_id,
+        cast(str, item.source) or "manual",
     )
     try:
         return future.result(timeout=_BATCH_ITEM_TIMEOUT)

@@ -1,12 +1,123 @@
 """Tests for batch route-level logic (max_batch_size, pending-items, item status, clear)."""
 
 import uuid
+from contextlib import asynccontextmanager
+from unittest.mock import patch
 
-from sqlalchemy import func
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, event, func
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
+from src.auth.models import User
 from src.batch.models import BatchItem, BatchItemStatus
 from src.batch.service import add_to_queue, clear_completed, get_batch_status, get_pending_batch_id
 from src.config import settings
+from src.cv.models import CVProfile
+from src.database import get_db
+from src.database.base import Base
+from src.dependencies import get_current_user
+
+# Ensure all models are registered with Base.metadata.
+from tests.conftest import _ALL_MODELS  # noqa: F401
+
+
+def _sqlite_date_trunc(part, value):
+    if value is None:
+        return None
+    fmt = {"hour": "%Y-%m-%d %H:00:00", "day": "%Y-%m-%d", "month": "%Y-%m-01"}.get(part, "%Y-%m-%d")
+    from datetime import datetime as _dt
+
+    if isinstance(value, str):
+        value = _dt.fromisoformat(value)
+    return value.strftime(fmt)
+
+
+@pytest.fixture
+def _http_db():
+    """Dedicated in-memory DB for HTTP-level tests in this file.
+
+    The other tests use the shared ``db_session`` fixture; we need a
+    distinct session here because the TestClient runs handlers in its
+    own request scope and we want to inspect the rows the route wrote
+    after the response returns.
+    """
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+
+    @event.listens_for(engine, "connect")
+    def _register_functions(dbapi_conn, _rec):
+        dbapi_conn.create_function("date_trunc", 2, _sqlite_date_trunc)
+
+    Base.metadata.create_all(bind=engine)
+    session = sessionmaker(bind=engine)()
+    try:
+        yield session
+    finally:
+        session.close()
+
+
+@pytest.fixture
+def _http_user(_http_db):
+    user = User(id=uuid.uuid4(), email="batch@test.com", password_hash="$2b$12$fake")
+    _http_db.add(user)
+    _http_db.commit()
+    return user
+
+
+@pytest.fixture
+def _http_cv(_http_db, _http_user):
+    """``/batch/add`` requires a CV — without it the route 400s before
+    we reach the source validation we want to exercise."""
+    cv = CVProfile(
+        id=uuid.uuid4(),
+        user_id=_http_user.id,
+        raw_text="Test CV with Python and Kubernetes experience " * 10,
+        name="Test User",
+    )
+    _http_db.add(cv)
+    _http_db.commit()
+    return cv
+
+
+@pytest.fixture
+def auth_client_with_cv(_http_db, _http_user, _http_cv):
+    """Authenticated TestClient backed by a real SQLite DB with a CV
+    already attached to the user — minimum prerequisites for the batch
+    routes to do anything useful."""
+    from src.main import create_app
+
+    @asynccontextmanager
+    async def _test_lifespan(app):
+        from src.integrations.cache import NullCacheService
+
+        app.state.cache = NullCacheService()
+        yield
+
+    def _db():
+        yield _http_db
+
+    with patch("src.main.lifespan", _test_lifespan), patch("src.main.settings") as s:
+        s.trusted_hosts_list = ["*"]
+        s.cors_origins_list = ["*"]
+        s.cors_allow_credentials = True
+        s.secret_key = "test-secret"
+        s.max_job_desc_size = 10000
+        s.max_batch_size = 10
+        s.rate_limit_analyze = "100/minute"
+        s.rate_limit_default = "100/minute"
+        app = create_app()
+        app.dependency_overrides[get_db] = _db
+        app.dependency_overrides[get_current_user] = lambda: _http_user
+        with TestClient(app, raise_server_exceptions=False) as client:
+            # Stash the DB session on the client so tests can inspect
+            # what the route persisted without spinning up a second one.
+            client._real_db = _http_db  # type: ignore[attr-defined]
+            yield client
 
 
 class TestBatchAddHardLimit:
@@ -190,3 +301,88 @@ class TestBatchClear:
         clear_completed(db_session)
         status = get_batch_status(db_session)
         assert status["status"] == "empty"
+
+
+class TestBatchSourcePropagation:
+    """Source set on the batch entry must reach the resulting JobAnalysis.
+
+    Until the fix, ``run_analysis`` always defaulted to ``manual`` when
+    invoked from the batch executor. The dashboard widget
+    "Da valutare — Cowork" filters on ``source=cowork``, so any
+    Cowork-driven batch silently disappeared from that widget.
+    """
+
+    def test_default_source_is_manual(self, db_session, test_cv):
+        """Direct UI submissions (no source param) must stay tagged manual."""
+        add_to_queue(db_session, test_cv.id, "Cloud Engineer at Acme", cv_text="cv")
+        db_session.commit()
+        item = db_session.query(BatchItem).filter(BatchItem.job_description == "Cloud Engineer at Acme").one()
+        assert item.source == "manual"
+
+    def test_explicit_cowork_source_is_persisted(self, db_session, test_cv):
+        """The MCP Cowork workflow passes ``source='cowork'`` — that must
+        round-trip onto the batch row, ready to flow through to
+        ``run_analysis`` later."""
+        add_to_queue(db_session, test_cv.id, "DevOps at Initech", cv_text="cv", source="cowork")
+        db_session.commit()
+        item = db_session.query(BatchItem).filter(BatchItem.job_description == "DevOps at Initech").one()
+        assert item.source == "cowork"
+
+    def test_arbitrary_source_string_is_stored_at_service_layer(self, db_session, test_cv):
+        """Service layer is permissive — the route-level whitelist is what
+        guards against arbitrary strings reaching the column. Document the
+        contract here so a future refactor doesn't accidentally tighten the
+        service signature without also updating the route."""
+        add_to_queue(db_session, test_cv.id, "Job from API", cv_text="cv", source="api")
+        db_session.commit()
+        item = db_session.query(BatchItem).filter(BatchItem.job_description == "Job from API").one()
+        assert item.source == "api"
+
+
+class TestBatchAddRouteSourceWhitelist:
+    """HTTP-level tests for ``POST /api/v1/batch/add`` source handling.
+
+    The route is the trust boundary: it accepts ``source`` from the
+    network and decides whether to forward to the service layer or
+    reject. Service-layer tests above cover persistence; these tests
+    cover the validation gate.
+    """
+
+    def test_default_source_when_omitted(self, auth_client_with_cv):
+        """When the caller omits ``source``, the route treats it as manual
+        and the resulting BatchItem reflects that."""
+        resp = auth_client_with_cv.post(
+            "/api/v1/batch/add",
+            data={"job_description": "Cloud Engineer at Acme Corp"},
+        )
+        assert resp.status_code == 200, resp.text
+        from src.batch.models import BatchItem as _BI
+
+        item = (
+            auth_client_with_cv._real_db.query(_BI).filter(_BI.job_description == "Cloud Engineer at Acme Corp").one()
+        )
+        assert item.source == "manual"
+
+    def test_explicit_cowork_source_accepted(self, auth_client_with_cv):
+        """The MCP path passes ``source=cowork`` — must be accepted."""
+        resp = auth_client_with_cv.post(
+            "/api/v1/batch/add",
+            data={"job_description": "DevOps at Initech", "source": "cowork"},
+        )
+        assert resp.status_code == 200, resp.text
+        from src.batch.models import BatchItem as _BI
+
+        item = auth_client_with_cv._real_db.query(_BI).filter(_BI.job_description == "DevOps at Initech").one()
+        assert item.source == "cowork"
+
+    def test_unknown_source_rejected(self, auth_client_with_cv):
+        """Anything outside the whitelist must be rejected with 400 so the
+        column never receives arbitrary strings from the network."""
+        resp = auth_client_with_cv.post(
+            "/api/v1/batch/add",
+            data={"job_description": "Job", "source": "extension"},
+        )
+        # 'extension' has its own dedicated path (/api/v1/inbox/...);
+        # the batch route is for manual + cowork only.
+        assert resp.status_code == 400
+        assert "source" in resp.text.lower()

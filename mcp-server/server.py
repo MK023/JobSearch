@@ -170,17 +170,32 @@ async def batch_clear() -> dict:
 
 
 @mcp.tool()
-async def batch_add(job_description: str, job_url: str = "", model: str = "haiku") -> dict:
+async def batch_add(
+    job_description: str,
+    job_url: str = "",
+    model: str = "haiku",
+    source: str = "cowork",
+) -> dict:
     """Aggiunge una job description alla coda batch per analisi.
 
     Args:
         job_description: Testo completo della job description.
         job_url: URL dell'offerta (opzionale, per riferimento).
         model: Modello AI da usare: "haiku" (economico) o "opus" (preciso).
+        source: Origine dell'inserimento. Default ``cowork`` perché il MCP
+            è il transport del workflow Cowork; il widget dashboard
+            "Da valutare — Cowork" filtra esattamente su questa source.
+            Override solo se sai cosa stai facendo (es. ``manual`` per
+            test isolati).
     """
     return await api_post(
         "/api/v1/batch/add",
-        data={"job_description": job_description, "job_url": job_url, "model": model},
+        data={
+            "job_description": job_description,
+            "job_url": job_url,
+            "model": model,
+            "source": source,
+        },
     )
 
 

@@ -53,6 +53,13 @@ class BatchItem(Base):
     # Preview (for status display without re-reading JD)
     preview = Column(String(100), default="")
 
+    # Origin of the batch entry — propagated end-to-end so that the
+    # resulting JobAnalysis row carries the caller's source. Without this,
+    # any non-manual batch ingestion (notably the Cowork MCP workflow)
+    # silently degraded to ``manual`` and the dashboard widgets that
+    # filter by source missed the rows.
+    source = Column(String(20), default="manual", nullable=False)
+
     # Timestamps
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
