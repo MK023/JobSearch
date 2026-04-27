@@ -205,6 +205,12 @@ def ingest(
         )
         db.add(item)
         db.flush()
+        # Dedup hits don't go through run_analysis — emit the SSE nudge
+        # ourselves so any open tab refreshes its sidebar counts (Storico
+        # gets +1 even though the analysis row already existed).
+        from ..notification_center.sse import broadcast_sync
+
+        broadcast_sync("inbox:dedup")
         return item, True
 
     item = InboxItem(
@@ -262,6 +268,9 @@ def process_pending(
             item.status = InboxStatus.DONE.value  # type: ignore[assignment]
             item.processed_at = datetime.now(UTC)  # type: ignore[assignment]
             db.commit()
+            from ..notification_center.sse import broadcast_sync
+
+            broadcast_sync("inbox:dedup")
             return
 
     item.status = InboxStatus.PROCESSING.value  # type: ignore[assignment]

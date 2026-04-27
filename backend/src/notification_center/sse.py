@@ -1,22 +1,21 @@
 """Server-Sent Events push for notification refresh signals.
 
-The client already polls `/api/v1/notifications` every 30s (see
-frontend/static/js/modules/notifications.js). This endpoint lets the
-server nudge the client to refetch *immediately* when something
-relevant happens (new analysis landed, inbox item processed, etc.)
-without raising polling frequency across the board.
+The client polls ``/api/v1/notifications`` and ``/sidebar-counts`` on a
+slow tick (60 s) as a safety net. This endpoint lets the server nudge
+every connected tab to refetch *immediately* when something relevant
+happens (new analysis landed, inbox dedup hit, etc.) without raising
+polling frequency across the board.
 
-Design choice — signals only, not state. The stream pushes tiny
-event names like "analysis:new"; the client reacts by calling its
-existing fetch function. Streaming full notification state would
-force JS/server to agree on a diff format and would diverge quickly
-from the polling-rendered DOM.
+Design choice — signals only, not state. The stream pushes tiny event
+names like ``analysis:new``; the client reacts by calling its existing
+fetch helpers. Streaming full state would force JS/server to agree on a
+diff format and would diverge quickly from the polling-rendered DOM.
 
-Single-worker assumption: the subscriber set lives in this process.
-On Render free tier JobSearch runs one Uvicorn worker, so a single
-broadcaster reaches every connected tab. Multi-worker deployments
-would need Redis pub/sub or Postgres LISTEN — not added here to keep
-the footprint minimal.
+Single-worker assumption: the subscriber set lives in this process. On
+Render free tier JobSearch runs one Uvicorn worker, so a single
+broadcaster reaches every connected tab. Multi-worker deployments would
+need Redis pub/sub or Postgres LISTEN — not added here to keep the
+footprint minimal.
 """
 
 from __future__ import annotations

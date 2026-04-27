@@ -1,24 +1,26 @@
 /**
- * Notification center: server-side dismiss via /api/v1/notifications/dismiss.
+ * Notification center client.
  *
- * Two dismiss paths — both persist in the DB so the sidebar badge stays in
- * sync across tabs and page reloads.
+ * Three responsibilities, one module:
  *
- * 1. Explicit × button on each card (wireDismissButtons).
- * 2. Implicit "seen" via action-link click (wireActionLinks): clicking the
- *    primary CTA of a dismissible notification fires a sendBeacon/fetch
- *    keepalive dismiss, then lets the browser navigate. The card is hidden
- *    instantly for visual feedback — important when target=_blank keeps
- *    the user on the current page.
+ * 1. Dismissal — explicit × button (wireDismissButtons) and implicit
+ *    "seen-on-click" of the action link (wireActionLinks). Both persist
+ *    in the DB so the sidebar badge stays in sync across tabs and reloads.
+ *    The action-link path uses sendBeacon (or fetch keepalive) so the
+ *    dismiss survives navigation, then hides the card instantly for
+ *    visual feedback — important when target=_blank keeps the user on
+ *    the current page.
  *
- * Plus a lightweight polling loop (startPolling):
+ * 2. Polling fallback (startPolling) — every POLL_INTERVAL_MS when the
+ *    tab is visible, refetch notifications + sidebar counts. Pauses when
+ *    the tab is hidden, resumes with an immediate fetch on visibilitychange.
+ *    On the /notifications page, surfaces a "N nuove" banner instead of
+ *    auto-reloading so the user is never disrupted mid-read.
  *
- * - Every POLL_INTERVAL_MS when the tab is visible, fetch /api/v1/notifications
- * - Update sidebar badge + pill count immediately
- * - On the /notifications page specifically, show a "N nuove" banner when
- *   new notification IDs appear — click to reload. Never auto-reload to
- *   avoid disrupting the user mid-read.
- * - Pause when the tab is hidden; resume + immediate poll on visibilityhange.
+ * 3. SSE push (startSsePush) — subscribes to /api/v1/notifications/sse and
+ *    refetches on every event (any name). Bursts are absorbed by a small
+ *    debounce so 50 broadcasts in 1 s collapse to ~1 fetch, capped further
+ *    by the server-side counts cache (5 s TTL).
  */
 
 (function () {
@@ -190,6 +192,64 @@
         });
     }
 
+    // --- Sidebar badge counts. One endpoint patches all four badges atomically. ---
+
+    const SIDEBAR_BADGE_SELECTORS = {
+        pending_count: '.sidebar-item[href="/history"]',
+        agenda_count: '.sidebar-item[href="/agenda"]',
+        interview_count: '.sidebar-item[href="/interviews"]',
+        notification_count: '.sidebar-item[href="/notifications"]',
+    };
+
+    function _setSidebarBadge(linkSelector, count) {
+        const link = document.querySelector(linkSelector);
+        if (!link) return;
+        let badge = link.querySelector('.sidebar-badge');
+        if (count > 0) {
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'sidebar-badge';
+                badge.setAttribute('aria-hidden', 'true');
+                link.appendChild(badge);
+            }
+            badge.textContent = count < 10 ? String(count) : '9+';
+        } else if (badge) {
+            badge.remove();
+        }
+    }
+
+    function _setAnalyticsDot(available) {
+        const link = document.querySelector('.sidebar-item[href="/analytics"]');
+        if (!link) return;
+        let dot = link.querySelector('.sidebar-badge');
+        if (available) {
+            if (!dot) {
+                dot = document.createElement('span');
+                dot.className = 'sidebar-badge';
+                dot.setAttribute('aria-label', 'Analytics sbloccata');
+                dot.textContent = '•';
+                link.appendChild(dot);
+            }
+        } else if (dot) {
+            dot.remove();
+        }
+    }
+
+    function fetchSidebarCounts() {
+        fetch('/api/v1/notifications/sidebar-counts', { credentials: 'same-origin' })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (data) {
+                if (!data) return;
+                Object.keys(SIDEBAR_BADGE_SELECTORS).forEach(function (key) {
+                    _setSidebarBadge(SIDEBAR_BADGE_SELECTORS[key], data[key] || 0);
+                });
+                _setAnalyticsDot(Boolean(data.analytics_available));
+            })
+            .catch(function (e) {
+                console.debug('fetchSidebarCounts failed, will retry on next tick:', e);
+            });
+    }
+
     // --- Polling: fresh notifications without manual reload. ---
 
     const POLL_INTERVAL_MS = 60000;
@@ -228,6 +288,7 @@
     }
 
     function pollNotifications() {
+        fetchSidebarCounts();
         fetch('/api/v1/notifications', { credentials: 'same-origin' })
             .then(function (r) { return r.ok ? r.json() : null; })
             .then(function (list) {
@@ -262,11 +323,25 @@
         });
     }
 
-    // SSE subscription: the server nudges connected tabs the moment a new
-    // analysis lands (or other notification-worthy events happen), so the
-    // user doesn't have to wait for the next 30s polling tick. Any event
-    // triggers a fetch — the endpoint multiplexes multiple event names
-    // over the same stream and all of them map to "refresh".
+    // Debounced refresh — burst-mode imports (e.g. Chrome extension sending
+    // 50 jobs in 2 s) emit one broadcast per item. Without debouncing the
+    // client would issue 50 concurrent fetches; this collapses them into
+    // ~1 fetch per debounce window. The server-side counts cache (5 s TTL)
+    // adds a second layer of protection for Neon DB capacity.
+    const REFRESH_DEBOUNCE_MS = 800;
+    let refreshTimer = null;
+    function scheduleRefresh() {
+        if (refreshTimer) return;
+        refreshTimer = setTimeout(function () {
+            refreshTimer = null;
+            pollNotifications();
+        }, REFRESH_DEBOUNCE_MS);
+    }
+
+    // SSE subscription. The server nudges every connected tab the moment an
+    // event of interest happens (analysis:new, inbox:dedup, …). Listening
+    // via onmessage catches every event name without the client having to
+    // enumerate them — useful as the server adds new event types.
     function startSsePush() {
         if (typeof EventSource === 'undefined') {
             console.debug('[notifications] EventSource unsupported — SSE push disabled');
@@ -283,10 +358,11 @@
                 console.debug('[notifications] EventSource ctor failed:', e);
                 return;
             }
-            source.onmessage = pollNotifications;
-            source.addEventListener('analysis:new', pollNotifications);
+            source.onmessage = scheduleRefresh;
+            source.addEventListener('analysis:new', scheduleRefresh);
+            source.addEventListener('inbox:dedup', scheduleRefresh);
             source.onerror = function () {
-                // Browser auto-retries after ~3s by default; on fatal errors
+                // Browser auto-retries after ~3 s by default; on fatal errors
                 // (tab backgrounded and closed) it stops — that's fine.
                 if (source && source.readyState === EventSource.CLOSED) {
                     setTimeout(connect, 5000);
