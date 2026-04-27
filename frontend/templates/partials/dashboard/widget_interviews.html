@@ -1,0 +1,26 @@
+<section class="card dash-widget" data-widget="interviews">
+  <h2 class="section-title">Colloqui prossimi</h2>
+  {% if upcoming_interviews %}
+    {% for iv in upcoming_interviews %}
+    <div class="dash-interview-card">
+      <div class="dash-widget-row-main">
+        <a href="/analysis/{{ iv.analysis_id }}" class="dash-widget-row-title">{{ iv.company }} &mdash; {{ iv.role }}</a>
+        <span class="dash-widget-row-sub">
+          {% if iv.interview_type %}{{ iv.interview_type }} &middot; {% endif %}
+          {% if iv.platform == 'teams' %}Teams{% elif iv.platform == 'google_meet' %}Google Meet{% elif iv.platform == 'zoom' %}Zoom{% elif iv.platform == 'phone' %}Telefonico{% elif iv.platform == 'in_person' %}In presenza{% elif iv.platform %}{{ iv.platform }}{% endif %}
+        </span>
+        {% if iv.meeting_link %}
+        <a href="{{ iv.meeting_link }}" target="_blank" rel="noopener" class="dash-meeting-link">Apri meeting &rarr;</a>
+        {% endif %}
+      </div>
+      <div class="dash-interview-meta">
+        <span class="dash-interview-date">{{ iv.date_display }}</span>
+        <span class="dash-interview-time">{{ iv.time_display }}</span>
+      </div>
+    </div>
+    {% endfor %}
+    <div style="margin-top: var(--space-md);"><a href="/interviews" class="link-cta">Gestisci colloqui</a></div>
+  {% else %}
+    <div class="empty-state" style="padding: var(--space-lg);">Nessun colloquio in programma</div>
+  {% endif %}
+</section>
