@@ -9,7 +9,7 @@ from fastapi.responses import HTMLResponse, Response
 from .analysis.models import AnalysisSource, AnalysisStatus
 from .analysis.service import get_recent_analyses
 from .cv.service import get_latest_cv
-from .dashboard.service import get_dashboard, get_db_usage, get_followup_alerts, get_spending, get_top_candidates
+from .dashboard.service import get_db_usage, get_followup_alerts, get_spending
 from .dependencies import CurrentUser, DbSession
 from .metrics.service import cleanup_old_metrics, get_metrics_summary
 from .notification_center.service import get_notifications, get_unread_count
@@ -85,85 +85,17 @@ def dashboard_page(
     user: CurrentUser,
 ) -> Response:
     """Render the main dashboard with stats, recent analyses, and alerts."""
+    from .dashboard.snapshot import build_dashboard_context
+
     templates = request.app.state.templates
     flash = _flash(request)
-
-    from .analysis.models import JobAnalysis
-    from .inbox.service import get_inbox_stats
-    from .integrations.news import get_cached_news
-    from .interview.service import get_upcoming_interviews
-
-    dashboard = get_dashboard(db)
-    spending = get_spending(db)
-    followup_alerts = get_followup_alerts(db)
-    top_candidates = get_top_candidates(db, limit=5)
-    db_usage = get_db_usage(db)
-    upcoming_interviews = get_upcoming_interviews(db, days=14)
-    inbox_stats = get_inbox_stats(db, cast(UUID, user.id))
-    pending_analyses = (
-        db.query(JobAnalysis)
-        .filter(
-            JobAnalysis.status == AnalysisStatus.PENDING.value,
-            JobAnalysis.source == AnalysisSource.COWORK.value,
-        )
-        .order_by(JobAnalysis.created_at.desc())
-        .limit(5)
-        .all()
-    )
-    pending_extension = (
-        db.query(JobAnalysis)
-        .filter(
-            JobAnalysis.status == AnalysisStatus.PENDING.value,
-            JobAnalysis.source == AnalysisSource.EXTENSION.value,
-        )
-        .order_by(JobAnalysis.created_at.desc())
-        .limit(5)
-        .all()
-    )
-
-    # News widget — latest cached news for active candidatures (cache-only, fast)
-    active_statuses = [AnalysisStatus.APPLIED.value, AnalysisStatus.INTERVIEW.value]
-    active_companies: list[str] = sorted(
-        {
-            r[0]
-            for r in db.query(JobAnalysis.company)
-            .filter(JobAnalysis.status.in_(active_statuses), JobAnalysis.company.isnot(None), JobAnalysis.company != "")
-            .distinct()
-            .all()
-        }
-    )
-    all_news = get_cached_news(active_companies, db)
-    # Flatten and take latest 5 articles across all companies
-    recent_news = sorted(
-        [{**a, "company": g["company"]} for g in all_news for a in g["articles"]],
-        key=lambda x: x.get("published_at", ""),
-        reverse=True,
-    )[:5]
-
-    # Agenda widget — next 3 items (interviews + todos)
-    from .agenda.models import TodoItem
-    from .agenda.service import get_virtual_triage_todos
-
-    agenda_todos = db.query(TodoItem).filter(TodoItem.done == False).order_by(TodoItem.created_at.desc()).limit(3).all()  # noqa: E712
-    agenda_triage_todos = get_virtual_triage_todos(db, cast(UUID, user.id))[:3]
-
+    widgets_ctx = build_dashboard_context(db, user)
     return templates.TemplateResponse(  # type: ignore[no-any-return]
         request,
         "dashboard.html",
         {
             **_base_ctx(db, user, "dashboard"),
-            "dashboard": dashboard,
-            "spending": spending,
-            "followup_alerts": followup_alerts,
-            "upcoming_interviews": upcoming_interviews,
-            "pending_analyses": pending_analyses,
-            "pending_extension": pending_extension,
-            "top_candidates": top_candidates,
-            "db_usage": db_usage,
-            "recent_news": recent_news,
-            "agenda_todos": agenda_todos,
-            "agenda_triage_todos": agenda_triage_todos,
-            "inbox_stats": inbox_stats,
+            **widgets_ctx,
             "error": flash["error"],
             "message": flash["message"],
         },
