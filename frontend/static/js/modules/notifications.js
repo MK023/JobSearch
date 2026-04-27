@@ -335,6 +335,10 @@
         refreshTimer = setTimeout(function () {
             refreshTimer = null;
             pollNotifications();
+            // Generic tick other realtime modules (dashboard widgets, …)
+            // can subscribe to. Keeps a single EventSource shared across
+            // the page instead of every module opening its own stream.
+            window.dispatchEvent(new CustomEvent('app:realtime-tick'));
         }, REFRESH_DEBOUNCE_MS);
     }
 

@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from ..dependencies import CurrentUser, DbSession
 from ..rate_limit import limiter
 from .service import get_dashboard, get_db_usage, get_spending, update_budget
+from .snapshot import get_dashboard_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,19 @@ def dashboard_api(
 ) -> JSONResponse:
     """Return dashboard statistics (counts, avg score, top match)."""
     return JSONResponse(get_dashboard(db))
+
+
+@router.get("/dashboard/snapshot")
+def dashboard_snapshot_endpoint(
+    request: Request,
+    db: DbSession,
+    user: CurrentUser,
+) -> JSONResponse:
+    """Return server-rendered widget HTML for live homepage updates.
+
+    Cached in-memory for 5 s — see ``dashboard.snapshot`` for the rationale.
+    """
+    return JSONResponse(get_dashboard_snapshot(request, db, user))
 
 
 @router.get("/db-usage")
