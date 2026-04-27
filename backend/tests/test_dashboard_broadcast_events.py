@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import uuid
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -181,35 +182,110 @@ class TestTodoBroadcast:
             mock.assert_called_with("todos:changed")
 
 
-class TestInterviewBroadcastWiring:
-    """The interview routes go through SQLAlchemy UUID lookups that the
-    in-memory SQLite fixture doesn't always serialise cleanly. Driving
-    them via TestClient drifts into fixture territory that has nothing
-    to do with the broadcast contract.
+class TestInterviewBroadcast:
+    """Verify each interview-mutating handler emits ``interviews:changed``.
 
-    Instead we assert the wiring statically: every mutating handler
-    references ``_INTERVIEWS_EVENT`` and the route module imports
-    ``broadcast_sync``. If someone removes a broadcast call by accident,
-    the source-level grep will fail and so will this test.
-
-    Functional coverage of the dashboard refresh is still solid because
-    every interview mutation also calls ``update_status`` (verified in
-    ``TestAnalysisStatusBroadcast``), which emits ``analysis:status`` —
-    so widgets refresh either way.
+    The in-memory SQLite fixture mishandles ``JobAnalysis.id`` UUID lookups
+    when driven through TestClient (a quirk unrelated to this PR), so we
+    call the route functions directly with mocked DB lookup helpers. The
+    rate-limit decorator wraps the handler but exposes the original via
+    ``__wrapped__`` — that's the path we hit, skipping middleware that
+    would otherwise need a full HTTP context.
     """
 
-    def test_interview_routes_import_broadcast_sync(self):
+    @staticmethod
+    def _mock_request():
+        from types import SimpleNamespace
+
+        return SimpleNamespace(
+            client=SimpleNamespace(host="127.0.0.1"),
+            headers={},
+            session={},
+            url=SimpleNamespace(path="/test"),
+            method="POST",
+        )
+
+    def test_upsert_interview_broadcasts(self, _real_db, _user, _analysis):
         from src.interview import routes
+        from src.interview.routes import InterviewPayload, upsert_interview
 
-        assert hasattr(routes, "broadcast_sync"), "broadcast_sync not imported"
-        assert routes._INTERVIEWS_EVENT == "interviews:changed"
+        scheduled = (datetime.now(UTC) + timedelta(days=2)).isoformat()
+        payload = InterviewPayload(scheduled_at=scheduled, interview_type="conoscitivo", platform="google_meet")
 
-    def test_every_mutating_handler_calls_broadcast(self):
-        from pathlib import Path
+        with (
+            patch.object(routes, "broadcast_sync") as mock_broadcast,
+            patch.object(routes, "get_analysis_by_id", return_value=_analysis),
+            patch.object(routes, "create_or_update_interview"),
+            patch.object(routes, "audit"),
+        ):
+            resp = upsert_interview.__wrapped__(  # type: ignore[attr-defined]
+                self._mock_request(), str(_analysis.id), payload, _real_db, _user
+            )
+            assert resp.status_code == 200, resp.body
+            mock_broadcast.assert_called_with("interviews:changed")
 
-        src = Path(__file__).resolve().parents[1] / "src" / "interview" / "routes.py"
-        body = src.read_text(encoding="utf-8")
-        # Every @router.post / @router.delete that commits should also
-        # broadcast — the four handlers we touched in PR 3.
-        broadcast_calls = body.count("broadcast_sync(_INTERVIEWS_EVENT)")
-        assert broadcast_calls >= 4, f"expected >=4 broadcast calls, found {broadcast_calls}"
+    def test_remove_interview_broadcasts(self, _real_db, _user, _analysis):
+        from src.interview import routes
+        from src.interview.routes import remove_interview
+
+        with (
+            patch.object(routes, "broadcast_sync") as mock_broadcast,
+            patch.object(routes, "get_analysis_by_id", return_value=_analysis),
+            patch.object(routes, "delete_interview", return_value=True),
+            patch.object(routes, "audit"),
+        ):
+            resp = remove_interview.__wrapped__(  # type: ignore[attr-defined]
+                self._mock_request(), str(_analysis.id), _real_db, _user
+            )
+            assert resp.status_code == 200, resp.body
+            mock_broadcast.assert_called_with("interviews:changed")
+
+    def test_set_round_outcome_broadcasts(self, _real_db, _user, _analysis):
+        from types import SimpleNamespace
+
+        from src.interview import routes
+        from src.interview.routes import OutcomePayload, set_round_outcome
+
+        # The handler queries Interview by id before doing anything else;
+        # we can't satisfy that under SQLite/UUID, so we patch the query
+        # chain to return a stand-in that matches the duck-type shape.
+        round_id = str(uuid.uuid4())
+        fake_interview = SimpleNamespace(id=round_id, analysis_id=_analysis.id)
+        fake_query = SimpleNamespace(filter=lambda *_a, **_kw: SimpleNamespace(first=lambda: fake_interview))
+
+        with (
+            patch.object(routes, "broadcast_sync") as mock_broadcast,
+            patch.object(_real_db, "query", return_value=fake_query),
+            patch.object(routes, "set_outcome", return_value=fake_interview),
+            patch.object(routes, "audit"),
+        ):
+            resp = set_round_outcome.__wrapped__(  # type: ignore[attr-defined]
+                self._mock_request(), round_id, OutcomePayload(outcome="passed"), _real_db, _user
+            )
+            assert resp.status_code == 200, resp.body
+            mock_broadcast.assert_called_with("interviews:changed")
+
+    def test_append_next_round_broadcasts(self, _real_db, _user, _analysis):
+        from types import SimpleNamespace
+
+        from src.interview import routes
+        from src.interview.routes import NextRoundPayload, append_next_round
+
+        scheduled = (datetime.now(UTC) + timedelta(days=3)).isoformat()
+        fake_round = SimpleNamespace(id=uuid.uuid4(), round_number=2)
+
+        with (
+            patch.object(routes, "broadcast_sync") as mock_broadcast,
+            patch.object(routes, "get_analysis_by_id", return_value=_analysis),
+            patch.object(routes, "create_next_round", return_value=fake_round),
+            patch.object(routes, "audit"),
+        ):
+            resp = append_next_round.__wrapped__(  # type: ignore[attr-defined]
+                self._mock_request(),
+                str(_analysis.id),
+                NextRoundPayload(scheduled_at=scheduled, interview_type="tecnico"),
+                _real_db,
+                _user,
+            )
+            assert resp.status_code == 200, resp.body
+            mock_broadcast.assert_called_with("interviews:changed")
