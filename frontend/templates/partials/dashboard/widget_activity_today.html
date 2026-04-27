@@ -1,0 +1,19 @@
+<section class="card dash-widget" data-widget="activity_today">
+  <h2 class="section-title">Attività oggi</h2>
+  <div class="dash-widget-row">
+    <span class="dash-widget-row-main">Nuove analisi</span>
+    <span class="dash-widget-kpi">{{ spending.today_analyses|default(0) }}</span>
+  </div>
+  <div class="dash-widget-row">
+    <span class="dash-widget-row-main">Candidature inviate</span>
+    <span class="dash-widget-kpi">{{ spending.today_applied|default(0) }}</span>
+  </div>
+  <div class="dash-widget-row">
+    <span class="dash-widget-row-main">Speso oggi</span>
+    <span class="dash-widget-kpi">${{ "%.3f"|format(spending.today_cost_usd|default(0)) }}</span>
+  </div>
+  <div class="dash-widget-row">
+    <span class="dash-widget-row-main">Token input / output</span>
+    <span class="meta-small">{{ spending.today_tokens_input|default(0) }} / {{ spending.today_tokens_output|default(0) }}</span>
+  </div>
+</section>

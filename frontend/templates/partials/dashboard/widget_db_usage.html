@@ -1,0 +1,21 @@
+<section class="card dash-widget mb-xl" data-widget="db_usage">
+  <h2 class="section-title">Database usage</h2>
+  <div class="grid-metrics">
+    <div class="dash-widget-row">
+      <span class="dash-widget-row-main">Analisi</span>
+      <span class="dash-widget-kpi">{{ db_usage.analyses_count|default(0) }}</span>
+    </div>
+    <div class="dash-widget-row">
+      <span class="dash-widget-row-main">Batch items</span>
+      <span class="dash-widget-kpi">{{ db_usage.batch_items_count|default(0) }}</span>
+    </div>
+    <div class="dash-widget-row">
+      <span class="dash-widget-row-main">Audit log</span>
+      <span class="dash-widget-kpi">{{ db_usage.audit_logs_count|default(0) }}</span>
+    </div>
+    <div class="dash-widget-row">
+      <span class="dash-widget-row-main">Dimensione</span>
+      <span class="dash-widget-kpi">{{ db_usage.estimated_size_mb|default(0) }} MB / 1 GB</span>
+    </div>
+  </div>
+</section>

@@ -37,255 +37,30 @@
 
   {# Follow-up pendenti + Colloqui prossimi — side by side (Cowork layout) #}
   <div class="grid-2col mb-xl">
-
-    {# Follow-up pendenti #}
-    <section class="card dash-widget">
-      <h2 class="section-title">Follow-up pendenti ({{ followup_alerts|length }})</h2>
-      {% if followup_alerts %}
-        {% for a in followup_alerts[:5] %}
-        <div class="dash-widget-row">
-          <div class="dash-widget-row-main">
-            <a href="/analysis/{{ a.id }}" class="dash-widget-row-title">{{ a.company or '—' }}</a>
-            <span class="dash-widget-row-sub">{{ a.role or '—' }}</span>
-          </div>
-          <span class="meta-small">{{ (a.applied_at|italytime).strftime('%d/%m') if a.applied_at else '' }}</span>
-        </div>
-        {% endfor %}
-        {% if followup_alerts|length > 5 %}
-        <div class="meta-small" style="margin-top: var(--space-sm);">+ {{ followup_alerts|length - 5 }} altri &middot; <a href="/notifications" class="link-subtle">vedi tutti</a></div>
-        {% endif %}
-      {% else %}
-        <div class="empty-state" style="padding: var(--space-lg);">Nessun follow-up pendente</div>
-      {% endif %}
-    </section>
-
-    {# Colloqui prossimi 14 giorni #}
-    <section class="card dash-widget">
-      <h2 class="section-title">Colloqui prossimi</h2>
-      {% if upcoming_interviews %}
-        {% for iv in upcoming_interviews %}
-        <div class="dash-interview-card">
-          <div class="dash-widget-row-main">
-            <a href="/analysis/{{ iv.analysis_id }}" class="dash-widget-row-title">{{ iv.company }} &mdash; {{ iv.role }}</a>
-            <span class="dash-widget-row-sub">
-              {% if iv.interview_type %}{{ iv.interview_type }} &middot; {% endif %}
-              {% if iv.platform == 'teams' %}Teams{% elif iv.platform == 'google_meet' %}Google Meet{% elif iv.platform == 'zoom' %}Zoom{% elif iv.platform == 'phone' %}Telefonico{% elif iv.platform == 'in_person' %}In presenza{% elif iv.platform %}{{ iv.platform }}{% endif %}
-            </span>
-            {% if iv.meeting_link %}
-            <a href="{{ iv.meeting_link }}" target="_blank" rel="noopener" class="dash-meeting-link">Apri meeting &rarr;</a>
-            {% endif %}
-          </div>
-          <div class="dash-interview-meta">
-            <span class="dash-interview-date">{{ iv.date_display }}</span>
-            <span class="dash-interview-time">{{ iv.time_display }}</span>
-          </div>
-        </div>
-        {% endfor %}
-        <div style="margin-top: var(--space-md);"><a href="/interviews" class="link-cta">Gestisci colloqui</a></div>
-      {% else %}
-        <div class="empty-state" style="padding: var(--space-lg);">Nessun colloquio in programma</div>
-      {% endif %}
-    </section>
-
+    {% include "partials/dashboard/widget_followup.html" %}
+    {% include "partials/dashboard/widget_interviews.html" %}
   </div>
 
   {# Da valutare (Cowork) + Attività oggi — side by side #}
   <div class="grid-2col mb-xl">
-
-    {# Da valutare — si riempie quando Cowork manda analisi, si svuota quando le rivedi #}
-    <section class="card dash-widget">
-      <h2 class="section-title">Da valutare &mdash; Cowork ({{ pending_analyses|length }})</h2>
-      {% if pending_analyses %}
-        {% for a in pending_analyses %}
-        <div class="dash-widget-row">
-          <div class="dash-widget-row-main">
-            <a href="/analysis/{{ a.id }}" class="dash-widget-row-title">{{ a.company or '—' }}</a>
-            <span class="dash-widget-row-sub">{{ a.role or '—' }}</span>
-          </div>
-          <span class="score-badge score-{{ 'high' if a.score >= 85 else ('mid' if a.score >= 70 else 'low') }}">{{ a.score or 0 }}</span>
-        </div>
-        {% endfor %}
-        {% if dashboard.pending|default(0)|int > 5 %}
-        <div class="meta-small" style="margin-top: var(--space-sm);">+ {{ dashboard.pending|default(0)|int - 5 }} altre &middot; <a href="/history" class="link-subtle">vedi tutte</a></div>
-        {% endif %}
-      {% else %}
-        <div class="empty-state" style="padding: var(--space-lg);">Tutto valutato</div>
-      {% endif %}
-    </section>
-
-    {# Attività oggi #}
-    <section class="card dash-widget">
-      <h2 class="section-title">Attività oggi</h2>
-      <div class="dash-widget-row">
-        <span class="dash-widget-row-main">Nuove analisi</span>
-        <span class="dash-widget-kpi">{{ spending.today_analyses|default(0) }}</span>
-      </div>
-      <div class="dash-widget-row">
-        <span class="dash-widget-row-main">Candidature inviate</span>
-        <span class="dash-widget-kpi">{{ spending.today_applied|default(0) }}</span>
-      </div>
-      <div class="dash-widget-row">
-        <span class="dash-widget-row-main">Speso oggi</span>
-        <span class="dash-widget-kpi">${{ "%.3f"|format(spending.today_cost_usd|default(0)) }}</span>
-      </div>
-      <div class="dash-widget-row">
-        <span class="dash-widget-row-main">Token input / output</span>
-        <span class="meta-small">{{ spending.today_tokens_input|default(0) }} / {{ spending.today_tokens_output|default(0) }}</span>
-      </div>
-    </section>
-
+    {% include "partials/dashboard/widget_pending_cowork.html" %}
+    {% include "partials/dashboard/widget_activity_today.html" %}
   </div>
 
   {# Top 5 candidature — full width #}
-  <section class="card dash-widget mb-xl">
-    <h2 class="section-title">Top 5 candidature</h2>
-    {% if top_candidates %}
-    <div class="dash-table-wrap">
-      <table class="dash-table">
-        <thead>
-          <tr>
-            <th>Score</th>
-            <th>Azienda</th>
-            <th>Ruolo</th>
-            <th>Location</th>
-            <th>Modalità</th>
-            <th>Stato</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for c in top_candidates %}
-          <tr>
-            <td><span class="score-badge score-{{ 'high' if c.score >= 85 else ('mid' if c.score >= 70 else 'low') }}">{{ c.score }}</span></td>
-            <td><a href="/analysis/{{ c.id }}" class="dash-widget-row-title">{{ c.company }}</a></td>
-            <td>{{ c.role }}</td>
-            <td class="meta-small">{{ c.location }}</td>
-            <td class="meta-small">{{ c.work_mode }}</td>
-            <td><span class="status-badge status-badge-{{ c.status }}">{{ c.status }}</span></td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% else %}
-      <div class="empty-state" style="padding: var(--space-lg);">Nessuna candidatura attiva</div>
-    {% endif %}
-  </section>
+  {% include "partials/dashboard/widget_top_candidates.html" %}
 
-  {# Inbox Chrome extension + (News + To-do below) #}
-  <section class="card dash-widget mb-xl">
-    <h2 class="section-title">Inbox Chrome extension</h2>
-    {% if inbox_stats.today_total or inbox_stats.pending_active or inbox_stats.done_total or inbox_stats.error_total %}
-    <div class="grid-metrics">
-      <div class="dash-widget-row">
-        <span class="dash-widget-row-main">Inviate oggi</span>
-        <span class="dash-widget-kpi">{{ inbox_stats.today_total }}</span>
-      </div>
-      <div class="dash-widget-row">
-        <span class="dash-widget-row-main">In attesa</span>
-        <span class="dash-widget-kpi">{{ inbox_stats.pending_active }}</span>
-      </div>
-      <div class="dash-widget-row">
-        <span class="dash-widget-row-main">Completate (30gg)</span>
-        <span class="dash-widget-kpi">{{ inbox_stats.done_total }}</span>
-      </div>
-      <div class="dash-widget-row">
-        <span class="dash-widget-row-main">Errori (30gg)</span>
-        <span class="dash-widget-kpi">{{ inbox_stats.error_total }}</span>
-      </div>
-    </div>
-    {% if inbox_stats.last_received_at %}
-    <div class="meta-small" style="margin-top: var(--space-sm);">
-      Ultima ricezione: {{ (inbox_stats.last_received_at|italytime).strftime('%d/%m %H:%M') }}
-    </div>
-    {% endif %}
-    {% else %}
-    <div class="empty-state" style="padding: var(--space-lg);">
-      Nessuna analisi dall'estensione. Installa <code>frontend/chrome-extension/</code> e configura la API key.
-    </div>
-    {% endif %}
-    {% if pending_extension %}
-    <div class="section-divider" style="margin: var(--space-md) 0;"></div>
-    <p class="meta-small" style="margin-bottom: var(--space-xs);">Da valutare</p>
-    {% for a in pending_extension %}
-    <div class="dash-widget-row">
-      <div class="dash-widget-row-main">
-        <a href="/history/{{ a.id }}" class="dash-widget-row-title">{{ a.company }}</a>
-        {% if a.role %}<span class="meta-small"> &mdash; {{ a.role|truncate(40) }}</span>{% endif %}
-      </div>
-      <span class="meta-small">{{ (a.created_at|italytime).strftime('%d/%m %H:%M') }}</span>
-    </div>
-    {% endfor %}
-    {% endif %}
-  </section>
+  {# Inbox Chrome extension — full width #}
+  {% include "partials/dashboard/widget_inbox.html" %}
 
   {# News recenti + To-do — side by side #}
   <div class="grid-2col mb-xl">
-
-    {# News recenti #}
-    <section class="card dash-widget">
-      <h2 class="section-title">News aziende</h2>
-      {% if recent_news %}
-        {% for n in recent_news %}
-        <div class="dash-widget-row">
-          <div class="dash-widget-row-main">
-            <a href="{{ n.link }}" target="_blank" rel="noopener noreferrer" class="dash-widget-row-title">{{ n.title|truncate(60) }}</a>
-            <span class="dash-widget-row-sub">{{ n.company }} &middot; {{ n.source_name }}</span>
-          </div>
-          <span class="meta-small">{{ n.published_at[:10] if n.published_at else '' }}</span>
-        </div>
-        {% endfor %}
-        <div style="margin-top: var(--space-md);"><a href="/news" class="link-cta">Tutte le news</a></div>
-      {% else %}
-        <div class="empty-state" style="padding: var(--space-lg);">Le news appariranno dopo l'analisi</div>
-      {% endif %}
-    </section>
-
-    {# To-do pendenti — include virtual triage items from Chrome extension first #}
-    <section class="card dash-widget">
-      <h2 class="section-title">To-do</h2>
-      {% if agenda_triage_todos or agenda_todos %}
-        {% for t in agenda_triage_todos %}
-        <div class="dash-widget-row">
-          <div class="dash-widget-row-main">
-            <a href="{{ t.action_url }}" class="dash-widget-row-title">&#x1F4DD; {{ t.text }}</a>
-          </div>
-        </div>
-        {% endfor %}
-        {% for t in agenda_todos %}
-        <div class="dash-widget-row">
-          <span class="dash-widget-row-main">{{ t.text }}</span>
-        </div>
-        {% endfor %}
-        <div style="margin-top: var(--space-md);"><a href="/agenda" class="link-cta">Apri agenda</a></div>
-      {% else %}
-        <div class="empty-state" style="padding: var(--space-lg);">Nessun to-do pendente</div>
-      {% endif %}
-    </section>
-
+    {% include "partials/dashboard/widget_news.html" %}
+    {% include "partials/dashboard/widget_todos.html" %}
   </div>
 
   {# DB Usage — compact full width #}
-  <section class="card dash-widget mb-xl">
-    <h2 class="section-title">Database usage</h2>
-    <div class="grid-metrics">
-      <div class="dash-widget-row">
-        <span class="dash-widget-row-main">Analisi</span>
-        <span class="dash-widget-kpi">{{ db_usage.analyses_count|default(0) }}</span>
-      </div>
-      <div class="dash-widget-row">
-        <span class="dash-widget-row-main">Batch items</span>
-        <span class="dash-widget-kpi">{{ db_usage.batch_items_count|default(0) }}</span>
-      </div>
-      <div class="dash-widget-row">
-        <span class="dash-widget-row-main">Audit log</span>
-        <span class="dash-widget-kpi">{{ db_usage.audit_logs_count|default(0) }}</span>
-      </div>
-      <div class="dash-widget-row">
-        <span class="dash-widget-row-main">Dimensione</span>
-        <span class="dash-widget-kpi">{{ db_usage.estimated_size_mb|default(0) }} MB / 1 GB</span>
-      </div>
-    </div>
-  </section>
+  {% include "partials/dashboard/widget_db_usage.html" %}
 {% endblock %}
 {% block scripts_extra %}
 <script src="{{ url_for('static', path='js/modules/spending.js') }}?v={{ asset_v }}"></script>

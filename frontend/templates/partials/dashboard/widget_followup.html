@@ -1,0 +1,19 @@
+<section class="card dash-widget" data-widget="followup">
+  <h2 class="section-title">Follow-up pendenti ({{ followup_alerts|length }})</h2>
+  {% if followup_alerts %}
+    {% for a in followup_alerts[:5] %}
+    <div class="dash-widget-row">
+      <div class="dash-widget-row-main">
+        <a href="/analysis/{{ a.id }}" class="dash-widget-row-title">{{ a.company or '—' }}</a>
+        <span class="dash-widget-row-sub">{{ a.role or '—' }}</span>
+      </div>
+      <span class="meta-small">{{ (a.applied_at|italytime).strftime('%d/%m') if a.applied_at else '' }}</span>
+    </div>
+    {% endfor %}
+    {% if followup_alerts|length > 5 %}
+    <div class="meta-small" style="margin-top: var(--space-sm);">+ {{ followup_alerts|length - 5 }} altri &middot; <a href="/notifications" class="link-subtle">vedi tutti</a></div>
+    {% endif %}
+  {% else %}
+    <div class="empty-state" style="padding: var(--space-lg);">Nessun follow-up pendente</div>
+  {% endif %}
+</section>
