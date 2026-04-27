@@ -190,3 +190,39 @@ class TestBatchClear:
         clear_completed(db_session)
         status = get_batch_status(db_session)
         assert status["status"] == "empty"
+
+
+class TestBatchSourcePropagation:
+    """Source set on the batch entry must reach the resulting JobAnalysis.
+
+    Until the fix, ``run_analysis`` always defaulted to ``manual`` when
+    invoked from the batch executor. The dashboard widget
+    "Da valutare — Cowork" filters on ``source=cowork``, so any
+    Cowork-driven batch silently disappeared from that widget.
+    """
+
+    def test_default_source_is_manual(self, db_session, test_cv):
+        """Direct UI submissions (no source param) must stay tagged manual."""
+        add_to_queue(db_session, test_cv.id, "Cloud Engineer at Acme", cv_text="cv")
+        db_session.commit()
+        item = db_session.query(BatchItem).filter(BatchItem.job_description == "Cloud Engineer at Acme").one()
+        assert item.source == "manual"
+
+    def test_explicit_cowork_source_is_persisted(self, db_session, test_cv):
+        """The MCP Cowork workflow passes ``source='cowork'`` — that must
+        round-trip onto the batch row, ready to flow through to
+        ``run_analysis`` later."""
+        add_to_queue(db_session, test_cv.id, "DevOps at Initech", cv_text="cv", source="cowork")
+        db_session.commit()
+        item = db_session.query(BatchItem).filter(BatchItem.job_description == "DevOps at Initech").one()
+        assert item.source == "cowork"
+
+    def test_arbitrary_source_string_is_stored_at_service_layer(self, db_session, test_cv):
+        """Service layer is permissive — the route-level whitelist is what
+        guards against arbitrary strings reaching the column. Document the
+        contract here so a future refactor doesn't accidentally tighten the
+        service signature without also updating the route."""
+        add_to_queue(db_session, test_cv.id, "Job from API", cv_text="cv", source="api")
+        db_session.commit()
+        item = db_session.query(BatchItem).filter(BatchItem.job_description == "Job from API").one()
+        assert item.source == "api"
