@@ -173,6 +173,12 @@ def update_status(db: Session, analysis: JobAnalysis, new_status: AnalysisStatus
     if new_status in (AnalysisStatus.APPLIED, AnalysisStatus.INTERVIEW) and not analysis.applied_at:
         analysis.applied_at = datetime.now(UTC)  # type: ignore[assignment]
     db.flush()
+    # A status change shifts the pending Cowork list, the top-5 ranking
+    # and the follow-up alerts widget all at once. Nudge the dashboard
+    # so the user sees the new state without a manual reload.
+    from ..notification_center.sse import broadcast_sync
+
+    broadcast_sync("analysis:status")
 
 
 def get_analysis_by_id(db: Session, analysis_id: str, user_id: UUID | None = None) -> JobAnalysis | None:
