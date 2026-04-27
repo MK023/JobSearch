@@ -8,10 +8,18 @@ from fastapi.responses import JSONResponse
 
 from ..config import settings
 from ..dependencies import CurrentUser, DbSession
+from ..notification_center.sse import broadcast_sync
 from ..rate_limit import limiter
 from .models import TodoItem
 
 router = APIRouter(tags=["agenda"])
+
+# Todo mutations move the dashboard "To-do" widget and the Agenda sidebar
+# badge. We broadcast a single ``todos:changed`` event after each commit
+# so connected tabs refresh both atomically — granular event names
+# (added/toggled/deleted) wouldn't help the client since the snapshot is
+# rebuilt regardless.
+_TODOS_EVENT = "todos:changed"
 
 
 @router.get("/todos")
@@ -49,6 +57,7 @@ def add_todo(
     item = TodoItem(text=text)
     db.add(item)
     db.commit()
+    broadcast_sync(_TODOS_EVENT)
     return JSONResponse({"ok": True, "id": item.id, "text": item.text})
 
 
@@ -67,6 +76,7 @@ def toggle_todo(
     item.done = not item.done  # type: ignore[assignment]
     item.completed_at = datetime.now(UTC) if item.done else None  # type: ignore[assignment]
     db.commit()
+    broadcast_sync(_TODOS_EVENT)
     return JSONResponse({"ok": True, "done": item.done})
 
 
@@ -84,6 +94,7 @@ def delete_todo(
         return JSONResponse({"error": "Not found"}, status_code=404)
     db.delete(item)
     db.commit()
+    broadcast_sync(_TODOS_EVENT)
     return JSONResponse({"ok": True})
 
 
@@ -97,4 +108,6 @@ def clear_completed_todos(
     """Delete all completed to-do items."""
     count = db.query(TodoItem).filter(TodoItem.done == True).delete()  # noqa: E712
     db.commit()
+    if count:
+        broadcast_sync(_TODOS_EVENT)
     return JSONResponse({"ok": True, "deleted": count})

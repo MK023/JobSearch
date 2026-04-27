@@ -363,8 +363,19 @@
                 return;
             }
             source.onmessage = scheduleRefresh;
-            source.addEventListener('analysis:new', scheduleRefresh);
-            source.addEventListener('inbox:dedup', scheduleRefresh);
+            // Named events emitted by broadcast_sync() — EventSource only
+            // delivers these via addEventListener, never onmessage. Keep
+            // this list in sync with the server-side event vocabulary.
+            const events = [
+                'analysis:new',
+                'analysis:status',
+                'inbox:dedup',
+                'todos:changed',
+                'interviews:changed',
+            ];
+            events.forEach(function (name) {
+                source.addEventListener(name, scheduleRefresh);
+            });
             source.onerror = function () {
                 // Browser auto-retries after ~3 s by default; on fatal errors
                 // (tab backgrounded and closed) it stops — that's fine.

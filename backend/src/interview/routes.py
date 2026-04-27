@@ -12,6 +12,7 @@ from ..analysis.service import get_analysis_by_id, update_status
 from ..audit.service import audit
 from ..config import settings
 from ..dependencies import CurrentUser, DbSession, validate_uuid
+from ..notification_center.sse import broadcast_sync
 from ..rate_limit import limiter
 from .models import Interview, InterviewOutcome
 from .service import (
@@ -25,6 +26,13 @@ from .service import (
 )
 
 router = APIRouter(tags=["interviews"])
+
+# Interview mutations move the dashboard "Colloqui prossimi" widget and
+# the Agenda/Interview sidebar badges. ``update_status`` already emits
+# ``analysis:status`` for transitions that change the analysis state,
+# but pure-interview edits (reschedule, link change, new round on a
+# passed round) need their own nudge or the widget would stay stale.
+_INTERVIEWS_EVENT = "interviews:changed"
 
 _ANALYSIS_NOT_FOUND_MSG = "Analysis not found"
 
@@ -145,6 +153,7 @@ def upsert_interview(
     update_status(db, analysis, AnalysisStatus.INTERVIEW)
     audit(db, request, "interview_upsert", f"id={analysis_id}")
     db.commit()
+    broadcast_sync(_INTERVIEWS_EVENT)
 
     return JSONResponse({"ok": True, "status": "colloquio"})
 
@@ -202,6 +211,7 @@ def remove_interview(
     update_status(db, analysis, AnalysisStatus.APPLIED)
     audit(db, request, "interview_delete", f"id={analysis_id}")
     db.commit()
+    broadcast_sync(_INTERVIEWS_EVENT)
 
     return JSONResponse({"ok": True, "status": "candidato"})
 
@@ -260,6 +270,7 @@ def set_round_outcome(
 
     audit(db, request, "interview_outcome", f"round={interview_id}, outcome={payload.outcome}")
     db.commit()
+    broadcast_sync(_INTERVIEWS_EVENT)
     return JSONResponse({"ok": True, "outcome": payload.outcome})
 
 
@@ -312,6 +323,7 @@ def append_next_round(
         f"analysis={analysis_id}, round={new_round.round_number}, type={payload.interview_type}",
     )
     db.commit()
+    broadcast_sync(_INTERVIEWS_EVENT)
     return JSONResponse(
         {
             "ok": True,
