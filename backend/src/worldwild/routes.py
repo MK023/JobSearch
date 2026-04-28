@@ -30,6 +30,8 @@ from .filters import has_remote_hint
 from .models import (
     ALL_DECISIONS,
     DECISION_PENDING,
+    DECISION_PROMOTE,
+    DECISION_SKIP,
     Decision,
     JobOffer,
 )
@@ -37,6 +39,15 @@ from .service_decide import DecideError, apply_decision
 from .services.ingest import run_adzuna_ingest
 
 _logger = logging.getLogger(__name__)
+
+# Hardcoded label map for safe logging — Sonar S5145 won't taint-track values
+# selected from a constant dict, even though the underlying field came from
+# user input. The fallback "unknown" is unreachable in practice (apply_decision
+# raises DecideError on invalid input) but keeps the lookup total.
+_SAFE_DECISION_LABELS: dict[str, str] = {
+    DECISION_SKIP: "skip",
+    DECISION_PROMOTE: "promote",
+}
 
 # -- Page (HTML) ---------------------------------------------------------------------
 page_router = APIRouter(tags=["worldwild-page"])
@@ -171,16 +182,15 @@ def decide_offer(
     )
     primary_db.commit()
     db.commit()
-    # Log from the persisted row, NOT from the raw query params: the row
-    # values are guaranteed to be a valid UUID + a whitelist-enforced enum
-    # value (DecideError raised earlier otherwise). Satisfies Sonar S5145
-    # (logging user-controlled data) by sourcing values from the validated
-    # ORM instance instead of suppressing the rule.
-    _logger.info(
-        "worldwild decide ok: offer=%s decision=%s",
-        decision_row.job_offer_id,
-        decision_row.decision,
-    )
+    # Sonar S5145 (logging user-controlled data) — log the decision as a
+    # hardcoded-dict-mapped label, not the raw field. Sonar correctly
+    # untaints values that come from a constant lookup. The offer id is
+    # dropped from the log line entirely; it lives in the audit row that
+    # we just committed and is reachable from there for diagnostics.
+    # cast() because SQLAlchemy mypy plugin reports decision_row.decision as
+    # Column[str] for the dict lookup; at runtime it's the bare string.
+    safe_label = _SAFE_DECISION_LABELS.get(cast(str, decision_row.decision), "unknown")
+    _logger.info("worldwild decide ok: decision=%s", safe_label)
     return JSONResponse(
         {
             "ok": True,
@@ -208,9 +218,14 @@ def trigger_adzuna_ingest(
         result = run_adzuna_ingest(db, run_type="manual")
         db.commit()
     except Exception as exc:  # noqa: BLE001 — surface adapter failure to caller
-        _logger.exception("worldwild ingest failed: %s", exc)
+        # Sonar S5145: log only the exception type (a class name, never
+        # user-controlled). The full traceback + message is captured by
+        # _logger.exception() automatically in the structured exc_info,
+        # which Sentry / log aggregators consume out-of-band — not via
+        # the format string interpolation.
+        _logger.exception("worldwild ingest failed (type=%s)", type(exc).__name__)
         db.rollback()
-        raise HTTPException(status_code=502, detail=f"Adzuna ingest failed: {exc}") from exc
+        raise HTTPException(status_code=502, detail="Adzuna ingest failed") from exc
 
     dual_audit(
         primary_db,
