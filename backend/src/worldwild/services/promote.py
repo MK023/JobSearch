@@ -1,41 +1,57 @@
-"""Promotion pipeline: pre-AI gate + (in PR #2 step 4+) Anthropic analyzer.
+"""Promotion pipeline: pre-AI gate + Anthropic analyzer + cross-DB JobAnalysis insert.
 
-This step (PR #2 step 3) implements only the gate. The actual analyzer call
-+ cross-DB JobAnalysis insert lands in subsequent commits. Keeping the gate
-isolated lets the rule-based filter ship and be observed in production
-before any AI cost is incurred.
-
-Flow:
+End-to-end flow:
 
     JobOffer (passed pre_filter, decision=promote)
         │
         ▼
-    extract_stack(offer)        ← regex + canonical vocabulary
+    extract_stack(offer)            ← regex + canonical vocabulary
         │
         ▼
-    score_match(stack)          ← against MARCO_CV_SKILLS
+    score_match(stack)              ← against MARCO_CV_SKILLS
         │
-        ├─ score < threshold ──► promotion_state = skipped_low_match
-        │                        promotion_score = score
-        │                        no AI call, no Neon write
+        ├─ score < threshold ──────► state = skipped_low_match  (terminal)
+        │                            no AI call, no Neon write
         │
-        └─ score >= threshold ─► promotion_state = pending
-                                 promotion_score = score
-                                 → continues into the analyzer (step 4)
+        ├─ budget exhausted ───────► state = failed  (retryable)
+        │                            no AI call, no Neon write
+        │
+        ├─ CV missing ─────────────► state = failed  (retryable after CV upload)
+        │                            no AI call, no Neon write
+        │
+        └─ score ≥ threshold ──────► state = pending → run_analysis on Neon ──► state = done
+                                     (uses analyze_job + add_spending pattern)
 
-The threshold is configurable via ``settings.promote_score_threshold``.
+DRY: this service is **glue**, not new logic. All heavy lifting reuses
+existing JobSearch primitives:
+
+- ``cv.service.get_latest_cv``        — fetch the active CV
+- ``analysis.service.run_analysis``   — calls analyze_job + persists JobAnalysis
+- ``dashboard.service.check_budget_available`` / ``add_spending`` — budget ledger
+- ``analysis.models.AnalysisSource.WORLDWILD`` — origin tag
+
+Cross-DB: the JobAnalysis row lives on Neon (primary), the Decision row on
+Supabase (secondary). The pointer ``Decision.promoted_to_neon_id`` is a bare
+UUID with no FK constraint — Postgres can't enforce FKs across databases.
 """
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from ...analysis.models import AnalysisSource
+from ...analysis.service import run_analysis
 from ...config import settings
+from ...cv.service import get_latest_cv
+from ...dashboard.service import add_spending, check_budget_available
 from ..models import (
+    PROMOTION_STATE_DONE,
+    PROMOTION_STATE_FAILED,
     PROMOTION_STATE_IDLE,
     PROMOTION_STATE_PENDING,
     PROMOTION_STATE_SKIPPED_LOW_MATCH,
@@ -44,6 +60,11 @@ from ..models import (
 )
 from ..stack_extract import extract_stack
 from ..stack_match import score_match
+
+if TYPE_CHECKING:
+    from ...integrations.cache import CacheService
+
+_logger = logging.getLogger(__name__)
 
 
 class PromotionGateResult(NamedTuple):
@@ -136,3 +157,117 @@ def reset_promotion_state(db: Session, *, offer_id: UUID) -> None:
     decision.promotion_started_at = None  # type: ignore[assignment]
     decision.promotion_error = ""  # type: ignore[assignment]
     db.flush()
+
+
+# ── End-to-end promotion (gate + AI analyzer + cross-DB write) ─────────────
+
+
+class PromotionResult(NamedTuple):
+    """Outcome of the full promotion pipeline. Caller renders to UI / API."""
+
+    state: str  # one of PROMOTION_STATE_*
+    score: int  # stack-match score 0-100 (gate output)
+    analysis_id: UUID | None  # JobAnalysis.id on Neon, when state == done
+    cost_usd: float  # AI cost incurred (0 when skipped/failed)
+    error: str  # short reason when state == failed
+
+
+def run_promotion_analysis(
+    primary_db: Session,
+    secondary_db: Session,
+    *,
+    offer_id: UUID,
+    user_id: UUID,
+    cache: CacheService | None = None,
+    model: str = "haiku",
+) -> PromotionResult:
+    """Promote a WorldWild offer into a full JobAnalysis on the primary DB.
+
+    Idempotent on the gate (re-running on a row already in
+    ``skipped_low_match`` re-evaluates from scratch). Not idempotent on the
+    AI call once it succeeds — a successful run flips the state to ``done``
+    and a re-run will issue a NEW Claude call. Caller (UI / cron) is
+    responsible for calling :func:`reset_promotion_state` first if a retry
+    from scratch is desired.
+
+    Caller owns the commits on both sessions: this function only flushes,
+    so partial failures roll back cleanly when the caller's transaction
+    rolls back. The two sessions commit independently (Neon + Supabase).
+    """
+    # 1. Gate (deterministic, no AI cost, persists promotion_state on secondary)
+    gate = evaluate_for_promotion(secondary_db, offer_id=offer_id)
+    if not gate.passed:
+        return PromotionResult(
+            state=PROMOTION_STATE_SKIPPED_LOW_MATCH,
+            score=gate.score,
+            analysis_id=None,
+            cost_usd=0.0,
+            error="",
+        )
+
+    decision = secondary_db.query(Decision).filter(Decision.job_offer_id == offer_id).one()
+    offer = secondary_db.get(JobOffer, offer_id)
+    if offer is None:  # pragma: no cover — gate would have raised first
+        raise PromotionGateError(f"JobOffer {offer_id} disappeared mid-promotion")
+
+    # 2. Budget gate (REUSE existing AppSettings ledger)
+    budget_ok, budget_msg = check_budget_available(primary_db)
+    if not budget_ok:
+        return _mark_failed(decision, reason=budget_msg or "budget_exhausted", score=gate.score)
+
+    # 3. Active CV (REUSE existing user CV pipeline)
+    cv = get_latest_cv(primary_db, user_id)
+    if cv is None:
+        return _mark_failed(decision, reason="no_active_cv", score=gate.score)
+
+    # 4. Run AI + persist JobAnalysis on Neon (REUSE run_analysis)
+    try:
+        analysis, result_dict = run_analysis(
+            primary_db,
+            cv_text=cv.raw_text,  # type: ignore[arg-type]
+            cv_id=cv.id,  # type: ignore[arg-type]
+            job_description=offer.description or "",  # type: ignore[arg-type]
+            job_url=offer.url or "",  # type: ignore[arg-type]
+            model=model,
+            cache=cache,
+            user_id=user_id,
+            source=AnalysisSource.WORLDWILD.value,
+        )
+    except Exception as exc:  # noqa: BLE001 — surface analyzer failures to caller
+        _logger.exception("worldwild promotion analyze failed (type=%s)", type(exc).__name__)
+        return _mark_failed(decision, reason=f"analyzer:{type(exc).__name__}", score=gate.score)
+
+    # 5. Spending tracking (REUSE existing AppSettings counters)
+    add_spending(
+        primary_db,
+        cost=float(result_dict.get("cost_usd", 0.0)),
+        tokens_in=int(result_dict.get("tokens", {}).get("input", 0)),
+        tokens_out=int(result_dict.get("tokens", {}).get("output", 0)),
+    )
+
+    # 6. Cross-DB pointer + state transition
+    decision.promoted_to_neon_id = analysis.id  # type: ignore[assignment]
+    decision.promotion_state = PROMOTION_STATE_DONE  # type: ignore[assignment]
+    decision.promotion_error = ""  # type: ignore[assignment]
+    secondary_db.flush()
+
+    return PromotionResult(
+        state=PROMOTION_STATE_DONE,
+        score=gate.score,
+        analysis_id=analysis.id,  # type: ignore[arg-type]
+        cost_usd=float(result_dict.get("cost_usd", 0.0)),
+        error="",
+    )
+
+
+def _mark_failed(decision: Decision, *, reason: str, score: int) -> PromotionResult:
+    """Set the decision to ``failed`` with a short reason; flush handled by caller."""
+    decision.promotion_state = PROMOTION_STATE_FAILED  # type: ignore[assignment]
+    decision.promotion_error = reason[:500]  # type: ignore[assignment]
+    return PromotionResult(
+        state=PROMOTION_STATE_FAILED,
+        score=score,
+        analysis_id=None,
+        cost_usd=0.0,
+        error=reason,
+    )

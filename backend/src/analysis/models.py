@@ -57,6 +57,7 @@ class AnalysisSource(enum.StrEnum):
     API = "api"  # direct JSON POST to /api/v1/analyze (programmatic)
     MCP = "mcp"  # MCP server pre-computed import via /api/v1/analysis/import
     MANUAL = "manual"  # fallback (legacy rows before this column existed)
+    WORLDWILD = "worldwild"  # promoted from /worldwild discovery (Adzuna et al.)
 
 
 class JobAnalysis(Base):
