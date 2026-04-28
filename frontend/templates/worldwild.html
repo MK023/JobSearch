@@ -83,6 +83,13 @@
                     title="Salva nello shortlist">
               Promote
             </button>
+            <button type="button"
+                    class="btn btn-secondary worldwild-promote-ai"
+                    data-offer-id="{{ o.id }}"
+                    title="Analizza con AI e crea JobAnalysis (richiede ~10s)">
+              Analyze with AI
+            </button>
+            <span class="worldwild-state-badge" data-state-for="{{ o.id }}" hidden></span>
             <a href="{{ o.url }}" target="_blank" rel="noopener noreferrer" class="btn btn-link ml-auto">
               Vedi su Adzuna ↗
             </a>
@@ -125,6 +132,32 @@
         btn.disabled = false;
         // eslint-disable-next-line no-alert
         alert('Errore decisione: ' + err.message);
+      });
+    });
+  });
+
+  // Analyze with AI — fire-and-forget background promotion
+  document.querySelectorAll('.worldwild-promote-ai').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var offerId = btn.getAttribute('data-offer-id');
+      var url = '/api/v1/worldwild/promote/' + encodeURIComponent(offerId);
+      var badge = document.querySelector('[data-state-for="' + offerId + '"]');
+      btn.disabled = true;
+      if (badge) {
+        badge.hidden = false;
+        badge.textContent = 'AI in corso…';
+        badge.className = 'worldwild-state-badge worldwild-state-pending';
+      }
+      postJson(url).then(function (data) {
+        if (badge) {
+          badge.textContent = 'Schedulato (' + data.state + ')';
+        }
+      }).catch(function (err) {
+        if (badge) {
+          badge.textContent = 'Errore: ' + err.message;
+          badge.className = 'worldwild-state-badge worldwild-state-failed';
+        }
+        btn.disabled = false;
       });
     });
   });
