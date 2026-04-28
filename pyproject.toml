@@ -53,7 +53,7 @@ ignore = [
 known-first-party = ["src"]
 
 [tool.bandit]
-exclude_dirs = ["backend/tests", "backend/alembic"]
+exclude_dirs = ["backend/tests", "backend/alembic", "backend/alembic_worldwild"]
 skips = ["B101"]  # allow assert
 
 [tool.mypy]

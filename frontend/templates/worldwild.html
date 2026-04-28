@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}WorldWild — Job Search{% endblock %}
+{% block content %}
+<div class="content-inner">
+
+  <div class="page-header">
+    <h1 class="page-title">WorldWild</h1>
+    <p class="page-subtitle">Discovery layer dalle API pubbliche (Adzuna, Remotive, Arbeitnow…) — pre-filtrato, pronto per skip o promote.</p>
+  </div>
+
+  {# Stats bar #}
+  <div class="agenda-stats mb-xl" role="status" aria-live="polite">
+    <div class="agenda-stat agenda-stat-purple">
+      <span class="agenda-stat-value">{{ counts.pending }}</span>
+      <span class="agenda-stat-label">Pending</span>
+    </div>
+    <div class="agenda-stat agenda-stat-green">
+      <span class="agenda-stat-value">{{ counts.total_passed }}</span>
+      <span class="agenda-stat-label">Pre-filter passed</span>
+    </div>
+    <div class="agenda-stat agenda-stat-orange">
+      <span class="agenda-stat-value">{{ counts.total_filtered_out }}</span>
+      <span class="agenda-stat-label">Filtered out</span>
+    </div>
+  </div>
+
+  {# Toolbar #}
+  <div class="worldwild-toolbar mb-l">
+    <button type="button"
+            id="worldwild-ingest-btn"
+            class="btn btn-primary"
+            data-endpoint="/api/v1/worldwild/ingest/adzuna">
+      Run Adzuna ingest
+    </button>
+    <span id="worldwild-ingest-status" class="text-muted ml-m"></span>
+    <a href="/worldwild?only_pending={{ 'false' if only_pending else 'true' }}"
+       class="btn btn-ghost ml-auto">
+      {{ 'Mostra tutti' if only_pending else 'Solo pending' }}
+    </a>
+  </div>
+
+  {# Offer list #}
+  {% if offers|length == 0 %}
+    <div class="empty-state">
+      <p>Nessuna offerta {{ 'pending' if only_pending else 'in lista' }}.</p>
+      <p class="text-muted">Premi <strong>Run Adzuna ingest</strong> per pescare nuove offerte dal mercato italiano.</p>
+    </div>
+  {% else %}
+    <ul class="worldwild-offer-list" id="worldwild-offer-list">
+      {% for o in offers %}
+        <li class="worldwild-offer-card" data-offer-id="{{ o.id }}">
+          <div class="worldwild-offer-head">
+            <h3 class="worldwild-offer-title">
+              <a href="{{ o.url }}" target="_blank" rel="noopener noreferrer">{{ o.title }}</a>
+            </h3>
+            <div class="worldwild-offer-badges">
+              <span class="badge badge-source">{{ o.source }}</span>
+              {% if o.remote_hint %}<span class="badge badge-remote">remote-hint</span>{% endif %}
+              {% if o.contract_type %}<span class="badge badge-neutral">{{ o.contract_type }}</span>{% endif %}
+              {% if o.contract_time %}<span class="badge badge-neutral">{{ o.contract_time }}</span>{% endif %}
+            </div>
+          </div>
+          <div class="worldwild-offer-meta">
+            <strong>{{ o.company }}</strong>
+            {% if o.location %} · {{ o.location }}{% endif %}
+            {% if o.posted_at %} · <time datetime="{{ o.posted_at.isoformat() }}">{{ o.posted_at|italytime|strftime('%d %b') }}</time>{% endif %}
+            {% if o.salary_min and o.salary_max %}
+              · <span class="worldwild-salary">{{ o.salary_min }}–{{ o.salary_max }} {{ o.salary_currency or '' }}</span>
+            {% endif %}
+          </div>
+          <div class="worldwild-offer-actions">
+            <button type="button"
+                    class="btn btn-ghost worldwild-decide"
+                    data-decision="skip"
+                    data-offer-id="{{ o.id }}"
+                    title="Scarta — non interessa">
+              Skip
+            </button>
+            <button type="button"
+                    class="btn btn-primary worldwild-decide"
+                    data-decision="promote"
+                    data-offer-id="{{ o.id }}"
+                    title="Salva nello shortlist">
+              Promote
+            </button>
+            <a href="{{ o.url }}" target="_blank" rel="noopener noreferrer" class="btn btn-link ml-auto">
+              Vedi su Adzuna ↗
+            </a>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+</div>
+
+<script nonce="{{ csp_nonce }}">
+(function () {
+  'use strict';
+
+  function postJson(url) {
+    return fetch(url, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Accept': 'application/json' },
+    }).then(function (r) {
+      if (!r.ok) { throw new Error('HTTP ' + r.status); }
+      return r.json();
+    });
+  }
+
+  // Decide buttons (skip / promote)
+  document.querySelectorAll('.worldwild-decide').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var offerId = btn.getAttribute('data-offer-id');
+      var decision = btn.getAttribute('data-decision');
+      var url = '/api/v1/worldwild/decide/' + encodeURIComponent(offerId)
+              + '?decision=' + encodeURIComponent(decision);
+      btn.disabled = true;
+      postJson(url).then(function () {
+        // Remove the card from the list once decided
+        var card = btn.closest('.worldwild-offer-card');
+        if (card) { card.remove(); }
+      }).catch(function (err) {
+        btn.disabled = false;
+        // eslint-disable-next-line no-alert
+        alert('Errore decisione: ' + err.message);
+      });
+    });
+  });
+
+  // Manual ingest trigger
+  var ingestBtn = document.getElementById('worldwild-ingest-btn');
+  var ingestStatus = document.getElementById('worldwild-ingest-status');
+  if (ingestBtn) {
+    ingestBtn.addEventListener('click', function () {
+      var endpoint = ingestBtn.getAttribute('data-endpoint');
+      ingestBtn.disabled = true;
+      ingestStatus.textContent = 'Ingest in corso… (può richiedere 10–20 s)';
+      postJson(endpoint).then(function (data) {
+        ingestStatus.textContent = 'Done — fetched ' + data.fetched
+          + ', new ' + data.new + ', filtered ' + data.filtered_out + '. Reload per vedere.';
+        ingestBtn.disabled = false;
+      }).catch(function (err) {
+        ingestStatus.textContent = 'Errore: ' + err.message;
+        ingestBtn.disabled = false;
+      });
+    });
+  }
+}());
+</script>
+{% endblock %}

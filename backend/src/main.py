@@ -84,6 +84,7 @@ from .integrations.cache import create_cache_service  # noqa: E402
 from .pages import router as pages_router  # noqa: E402
 from .preferences.routes import router as preferences_router  # noqa: E402
 from .rate_limit import limiter  # noqa: E402
+from .worldwild.routes import page_router as worldwild_page_router  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -359,6 +360,7 @@ def _register_routers(app: FastAPI) -> None:
     app.include_router(analysis_router)
     app.include_router(cover_letter_router)
     app.include_router(preferences_router)
+    app.include_router(worldwild_page_router)
     # API v1 (all JSON endpoints)
     app.include_router(api_v1_router)
     # SSE push for live notification refresh — registered separately so the
