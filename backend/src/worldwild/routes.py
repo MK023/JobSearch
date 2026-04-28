@@ -40,10 +40,21 @@ from .services.ingest import run_adzuna_ingest
 
 _logger = logging.getLogger(__name__)
 
-# Hardcoded label map for safe logging — Sonar S5145 won't taint-track values
-# selected from a constant dict, even though the underlying field came from
-# user input. The fallback "unknown" is unreachable in practice (apply_decision
-# raises DecideError on invalid input) but keeps the lookup total.
+# TODO(PR #2): replace this workaround with Pydantic Literal boundary
+# validation on the ``decision`` query param.
+#
+# This dict is a tactical workaround for Sonar S5145 (logging of
+# user-controlled data). The values are identical to the keys — there is
+# no real mapping happening, only an untainting trick: Sonar accepts
+# values selected from a constant dict as no-longer-tainted, even though
+# the underlying field originated from user input.
+#
+# The architecturally correct fix is a Literal type on the query
+# parameter, e.g. ``decision: Literal["skip", "promote"] = Query(...)``,
+# which makes Pydantic reject anything else with a 422 at the boundary
+# and removes the taint at the source. Once that lands in PR #2 (AI
+# analyzer + Pydantic schemas), this dict + the cast() at the call site
+# can be deleted entirely.
 _SAFE_DECISION_LABELS: dict[str, str] = {
     DECISION_SKIP: "skip",
     DECISION_PROMOTE: "promote",
