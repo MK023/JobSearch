@@ -5,6 +5,26 @@ import os as _os
 from pydantic_settings import BaseSettings
 
 
+def _normalize_postgres_url(url: str) -> str:
+    """Convert legacy ``postgres://`` to ``postgresql://`` and drop unsupported params.
+
+    Pass-through for empty strings and non-postgresql schemes (e.g. sqlite for CI).
+    """
+    if not url:
+        return url
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+    if not url.startswith("postgresql://"):
+        return url
+    from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
+
+    parsed = urlparse(url)
+    params = parse_qs(parsed.query, keep_blank_values=True)
+    params.pop("channel_binding", None)
+    clean_query = urlencode({k: v[0].strip() for k, v in params.items()})
+    return urlunparse(parsed._replace(query=clean_query))
+
+
 class Settings(BaseSettings):
     """Application settings loaded from environment variables / .env file."""
 
@@ -43,6 +63,15 @@ class Settings(BaseSettings):
     resend_from_email: str = "noreply@jobsearches.cc"
     document_reminder_email: str = "marco.bellingeri@gmail.com"
 
+    # WorldWild — secondary DB (Supabase) for external job-board ingestion.
+    # Empty string disables the WorldWild ingest layer entirely (graceful skip
+    # on routes + cron). Production deploys override via env var on Render.
+    worldwild_database_url: str = ""
+
+    # Adzuna API (worldwild ingest source #1)
+    adzuna_app_id: str = ""
+    adzuna_app_key: str = ""
+
     # Input limits
     max_cv_size: int = 100_000  # ~100KB chars
     max_job_desc_size: int = 50_000  # ~50KB chars
@@ -75,18 +104,16 @@ class Settings(BaseSettings):
         - Strips channel_binding param (unsupported by psycopg2)
         - Passes through non-postgresql URLs unchanged (e.g. sqlite for CI)
         """
-        url = self.database_url
-        if url.startswith("postgres://"):
-            url = url.replace("postgres://", "postgresql://", 1)
-        if not url.startswith("postgresql://"):
-            return url
-        from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
+        return _normalize_postgres_url(self.database_url)
 
-        parsed = urlparse(url)
-        params = parse_qs(parsed.query, keep_blank_values=True)
-        params.pop("channel_binding", None)
-        clean_query = urlencode({k: v[0].strip() for k, v in params.items()})
-        return urlunparse(parsed._replace(query=clean_query))
+    @property
+    def effective_worldwild_database_url(self) -> str:
+        """Normalize WORLDWILD_DATABASE_URL for SQLAlchemy compatibility.
+
+        Same normalization as the primary URL. Returns empty string when the
+        secondary DB is disabled, so callers can short-circuit cleanly.
+        """
+        return _normalize_postgres_url(self.worldwild_database_url)
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
