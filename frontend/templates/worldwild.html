@@ -63,7 +63,7 @@
           <div class="worldwild-offer-meta">
             <strong>{{ o.company }}</strong>
             {% if o.location %} · {{ o.location }}{% endif %}
-            {% if o.posted_at %} · <time datetime="{{ o.posted_at.isoformat() }}">{{ o.posted_at|italytime|strftime('%d %b') }}</time>{% endif %}
+            {% if o.posted_at %} · <time datetime="{{ o.posted_at.isoformat() }}">{{ (o.posted_at|italytime).strftime('%d %b') }}</time>{% endif %}
             {% if o.salary_min and o.salary_max %}
               · <span class="worldwild-salary">{{ o.salary_min }}–{{ o.salary_max }} {{ o.salary_currency or '' }}</span>
             {% endif %}
@@ -101,7 +101,7 @@
 
 </div>
 
-<script nonce="{{ csp_nonce }}">
+<script>
 (function () {
   'use strict';
 

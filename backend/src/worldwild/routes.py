@@ -28,6 +28,7 @@ from ..audit.service import dual_audit
 from ..database import SessionLocal as PrimarySessionLocal
 from ..database.worldwild_db import WorldwildSessionLocal
 from ..dependencies import CurrentUser, DbSession
+from ..pages import _base_ctx
 from .dependencies import WorldwildDbSession, WorldwildEnabledGuard
 from .filters import has_remote_hint
 from .models import (
@@ -51,6 +52,7 @@ def worldwild_page(
     request: Request,
     user: CurrentUser,
     db: WorldwildDbSession,
+    primary_db: DbSession,
     _guard: WorldwildEnabledGuard,
     only_pending: bool = Query(default=True),
     limit: int = Query(default=50, ge=1, le=200),
@@ -59,6 +61,9 @@ def worldwild_page(
 
     Default view: pre-filter-passed offers whose decision is still pending.
     Toggle ``only_pending=false`` to inspect rejected/promoted history too.
+
+    Context includes the standard sidebar/header keys via ``_base_ctx`` so
+    notification/interview/pending badges render consistently across pages.
     """
     offers = _query_offers(db, only_pending=only_pending, limit=limit)
     counts = _quick_counts(db)
@@ -95,7 +100,7 @@ def worldwild_page(
             request,
             "worldwild.html",
             {
-                "user": user,
+                **_base_ctx(primary_db, user, "worldwild"),
                 "offers": rows,
                 "counts": counts,
                 "only_pending": only_pending,

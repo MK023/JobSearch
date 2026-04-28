@@ -139,6 +139,50 @@ def auth_client(_primary_db: Any, _secondary_db: Any, _http_user: User) -> Any:
             yield client
 
 
+class TestWorldwildPage:
+    """GET /worldwild — Jinja2 SSR page render.
+
+    Closes the gap that let the ``strftime`` filter bug ship to prod (28/4):
+    we had route-level tests for /decide and /promote but no test that
+    actually rendered the template, so a Jinja exception only surfaced in
+    Render logs after deploy.
+    """
+
+    def test_page_renders_200_with_no_offers(self, auth_client: Any) -> None:
+        r = auth_client.get("/worldwild")
+        assert r.status_code == 200
+        assert "WorldWild" in r.text or "worldwild" in r.text.lower()
+
+    def test_page_renders_200_with_offer_having_posted_at(self, auth_client: Any, _secondary_db: Any) -> None:
+        # Exercise the strftime branch on posted_at — this is the exact
+        # code path that crashed in prod before the |strftime → .strftime fix.
+        from datetime import UTC
+        from datetime import datetime as _dt
+
+        offer = JobOffer(
+            source="adzuna",
+            external_id="ext-posted",
+            content_hash="hash-posted",
+            title="DevOps Engineer w/ timestamp",
+            company="DateCorp",
+            location="Roma",
+            url="https://example.com/job-posted",
+            description="Python, Kubernetes",
+            pre_filter_passed=True,
+            posted_at=_dt(2026, 4, 28, 10, 0, tzinfo=UTC),
+        )
+        _secondary_db.add(offer)
+        _secondary_db.flush()
+        _secondary_db.add(Decision(job_offer_id=offer.id, decision=DECISION_PENDING))
+        _secondary_db.commit()
+
+        r = auth_client.get("/worldwild")
+        assert r.status_code == 200
+        # The offer card should render with the formatted date — Jinja's
+        # `(o.posted_at|italytime).strftime('%d %b')` produces e.g. "28 Apr".
+        assert "DevOps Engineer w/ timestamp" in r.text
+
+
 class TestDecideEndpoint:
     """POST /api/v1/worldwild/decide/{offer_id} with Literal-validated decision."""
 
