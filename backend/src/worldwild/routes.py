@@ -171,7 +171,16 @@ def decide_offer(
     )
     primary_db.commit()
     db.commit()
-    _logger.info("worldwild decide: offer=%s decision=%s", offer_id, decision)
+    # Log from the persisted row, NOT from the raw query params: the row
+    # values are guaranteed to be a valid UUID + a whitelist-enforced enum
+    # value (DecideError raised earlier otherwise). Satisfies Sonar S5145
+    # (logging user-controlled data) by sourcing values from the validated
+    # ORM instance instead of suppressing the rule.
+    _logger.info(
+        "worldwild decide ok: offer=%s decision=%s",
+        decision_row.job_offer_id,
+        decision_row.decision,
+    )
     return JSONResponse(
         {
             "ok": True,
