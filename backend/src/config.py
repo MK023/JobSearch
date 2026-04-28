@@ -72,6 +72,14 @@ class Settings(BaseSettings):
     adzuna_app_id: str = ""
     adzuna_app_key: str = ""
 
+    # Pre-AI gate threshold for WorldWild promotion. When stack-match score
+    # against Marco's CV is BELOW this value (0-100), the promotion path
+    # skips the Anthropic analyzer call and marks the Decision as
+    # ``skipped_low_match``. 50 is a neutral default — half the offer's
+    # tech overlaps the CV. Tuned later from the ``decisions`` history
+    # in PR #5 once we have ~50 manual samples.
+    promote_score_threshold: int = 50
+
     # Input limits
     max_cv_size: int = 100_000  # ~100KB chars
     max_job_desc_size: int = 50_000  # ~50KB chars
