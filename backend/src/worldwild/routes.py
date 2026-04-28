@@ -4,7 +4,8 @@ Two routers exported:
 
 - ``page_router``: GET ``/worldwild`` — Jinja2-rendered offer list. Mounted at
   the application root in ``main.py``.
-- ``api_router``:  POST ``/worldwild/decide/{offer_id}`` and
+- ``api_router``:  POST ``/worldwild/decide/{offer_id}``,
+                   POST ``/worldwild/promote/{offer_id}`` (background task),
                    POST ``/worldwild/ingest/adzuna``. Mounted under
                    ``/api/v1`` in ``api_v1.py``.
 
@@ -18,47 +19,28 @@ import logging
 from typing import cast
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse
 from sqlalchemy import desc, func, select
 from sqlalchemy.orm import Session
 
 from ..audit.service import dual_audit
+from ..database import SessionLocal as PrimarySessionLocal
+from ..database.worldwild_db import WorldwildSessionLocal
 from ..dependencies import CurrentUser, DbSession
 from .dependencies import WorldwildDbSession, WorldwildEnabledGuard
 from .filters import has_remote_hint
 from .models import (
-    ALL_DECISIONS,
     DECISION_PENDING,
-    DECISION_PROMOTE,
-    DECISION_SKIP,
     Decision,
     JobOffer,
 )
+from .schemas import DecideResponse, DecisionLiteral, IngestResponse, PromoteResponse
 from .service_decide import DecideError, apply_decision
 from .services.ingest import run_adzuna_ingest
+from .services.promote import run_promotion_analysis
 
 _logger = logging.getLogger(__name__)
-
-# TODO(PR #2): replace this workaround with Pydantic Literal boundary
-# validation on the ``decision`` query param.
-#
-# This dict is a tactical workaround for Sonar S5145 (logging of
-# user-controlled data). The values are identical to the keys — there is
-# no real mapping happening, only an untainting trick: Sonar accepts
-# values selected from a constant dict as no-longer-tainted, even though
-# the underlying field originated from user input.
-#
-# The architecturally correct fix is a Literal type on the query
-# parameter, e.g. ``decision: Literal["skip", "promote"] = Query(...)``,
-# which makes Pydantic reject anything else with a 422 at the boundary
-# and removes the taint at the source. Once that lands in PR #2 (AI
-# analyzer + Pydantic schemas), this dict + the cast() at the call site
-# can be deleted entirely.
-_SAFE_DECISION_LABELS: dict[str, str] = {
-    DECISION_SKIP: "skip",
-    DECISION_PROMOTE: "promote",
-}
 
 # -- Page (HTML) ---------------------------------------------------------------------
 page_router = APIRouter(tags=["worldwild-page"])
@@ -156,7 +138,7 @@ def _quick_counts(db: Session) -> dict[str, int]:
 api_router = APIRouter(prefix="/worldwild", tags=["worldwild-api"])
 
 
-@api_router.post("/decide/{offer_id}")
+@api_router.post("/decide/{offer_id}", response_model=DecideResponse)
 def decide_offer(
     request: Request,
     offer_id: str,
@@ -164,14 +146,19 @@ def decide_offer(
     db: WorldwildDbSession,
     primary_db: DbSession,
     _guard: WorldwildEnabledGuard,
-    decision: str = Query(..., description=f"One of: {','.join(ALL_DECISIONS)}"),
-    reason: str = Query(default=""),
-) -> JSONResponse:
+    decision: DecisionLiteral = Query(..., description="One of: skip, promote"),
+    reason: str = Query(default="", max_length=500),
+) -> DecideResponse:
     """Mark a JobOffer as skip or promote. Idempotent.
 
-    Note: ``audit()`` writes to the AUDIT table on the PRIMARY DB (Neon), so we
-    need both sessions injected — secondary for the actual decision, primary
-    for the audit log row. Two separate commits, each on its own session.
+    ``decision`` is type-narrowed to ``Literal["skip","promote"]`` at the
+    boundary — Pydantic rejects anything else with a 422. This is the
+    architectural fix for Sonar S5145 that replaces the
+    ``_SAFE_DECISION_LABELS`` dict workaround used in PR #197.
+
+    Audit writes to the AUDIT table on the PRIMARY DB (Neon), so we need
+    both sessions injected — secondary for the decision, primary for the
+    audit log. Two separate commits, each on its own session.
     """
     try:
         offer_uuid = UUID(offer_id)
@@ -193,32 +180,108 @@ def decide_offer(
     )
     primary_db.commit()
     db.commit()
-    # Sonar S5145 (logging user-controlled data) — log the decision as a
-    # hardcoded-dict-mapped label, not the raw field. Sonar correctly
-    # untaints values that come from a constant lookup. The offer id is
-    # dropped from the log line entirely; it lives in the audit row that
-    # we just committed and is reachable from there for diagnostics.
-    # cast() because SQLAlchemy mypy plugin reports decision_row.decision as
-    # Column[str] for the dict lookup; at runtime it's the bare string.
-    safe_label = _SAFE_DECISION_LABELS.get(cast(str, decision_row.decision), "unknown")
-    _logger.info("worldwild decide ok: decision=%s", safe_label)
-    return JSONResponse(
-        {
-            "ok": True,
-            "offer_id": str(decision_row.job_offer_id),
-            "decision": decision_row.decision,
-        }
+    # ``decision`` is now Literal-typed → Sonar S5145 is satisfied at the
+    # source. No dict trick, no cast(), no NOSONAR shim.
+    _logger.info("worldwild decide ok: decision=%s", decision)
+    return DecideResponse(
+        ok=True,
+        offer_id=str(decision_row.job_offer_id),
+        decision=decision,
     )
 
 
-@api_router.post("/ingest/adzuna")
+def _run_promotion_in_background(offer_id: UUID, user_id: UUID) -> None:
+    """Background task body: opens fresh sessions on BOTH DBs and runs promotion.
+
+    Mirrors the ``inbox/routes.py`` pattern (fresh ``SessionLocal()`` instead
+    of reusing the request session) but with the cross-DB twist: the WorldWild
+    ingest layer needs both the primary (Neon) session for CV / JobAnalysis /
+    audit and the secondary (Supabase) session for the Decision update.
+
+    Errors are logged and swallowed — the route already returned 202 to the
+    client, so a re-raise here only pollutes the worker process logs without
+    informing the user. Sentry breadcrumb captures the exception.
+    """
+    primary_db = PrimarySessionLocal()
+    secondary_db = WorldwildSessionLocal() if WorldwildSessionLocal is not None else None
+    if secondary_db is None:  # pragma: no cover — guarded earlier in route
+        primary_db.close()
+        return
+    try:
+        run_promotion_analysis(
+            primary_db,
+            secondary_db,
+            offer_id=offer_id,
+            user_id=user_id,
+        )
+        primary_db.commit()
+        secondary_db.commit()
+    except Exception:
+        _logger.exception("worldwild promote background task failed (offer=%s)", offer_id)
+        primary_db.rollback()
+        secondary_db.rollback()
+    finally:
+        primary_db.close()
+        secondary_db.close()
+
+
+@api_router.post("/promote/{offer_id}", response_model=PromoteResponse, status_code=202)
+def promote_offer(
+    request: Request,
+    offer_id: str,
+    background_tasks: BackgroundTasks,
+    user: CurrentUser,
+    db: WorldwildDbSession,
+    primary_db: DbSession,
+    _guard: WorldwildEnabledGuard,
+) -> PromoteResponse:
+    """Schedule a full promotion pipeline run in the background.
+
+    Returns 202 Accepted immediately so the UI doesn't block on a 5-15s
+    Anthropic call. The actual gate + analyzer + cross-DB write runs in a
+    BackgroundTask spawned with fresh DB sessions — see
+    :func:`_run_promotion_in_background`. The UI polls or listens via SSE
+    for the terminal state on ``Decision.promotion_state``.
+    """
+    try:
+        offer_uuid = UUID(offer_id)
+    except (ValueError, AttributeError) as exc:
+        raise HTTPException(status_code=400, detail="Invalid offer_id") from exc
+
+    if db.get(JobOffer, offer_uuid) is None:
+        raise HTTPException(status_code=404, detail="JobOffer not found")
+
+    # Detach the user_id before passing to the background task — the
+    # task uses fresh sessions and shouldn't rely on the request user object.
+    user_id: UUID = user.id  # type: ignore[assignment]
+    background_tasks.add_task(_run_promotion_in_background, offer_uuid, user_id)
+
+    dual_audit(
+        primary_db,
+        db,
+        request,
+        "worldwild_promote_scheduled",
+        f"offer={offer_id}",
+    )
+    primary_db.commit()
+    db.commit()
+    _logger.info("worldwild promote scheduled (offer=%s)", offer_uuid)
+    return PromoteResponse(
+        accepted=True,
+        offer_id=str(offer_uuid),
+        state="pending",
+        message="Promotion scheduled — poll Decision.promotion_state for terminal status.",
+    )
+
+
+@api_router.post("/ingest/adzuna", response_model=IngestResponse)
 def trigger_adzuna_ingest(
     request: Request,
     user: CurrentUser,
     db: WorldwildDbSession,
     primary_db: DbSession,
     _guard: WorldwildEnabledGuard,
-) -> JSONResponse:
+) -> IngestResponse:
     """Manually trigger an Adzuna ingest run.
 
     Synchronous on purpose (PR #1): the run takes ~5–15 s for 4 queries × 50
@@ -247,12 +310,10 @@ def trigger_adzuna_ingest(
     )
     primary_db.commit()
     db.commit()
-    return JSONResponse(
-        {
-            "ok": True,
-            "run_id": result.run_id,
-            "fetched": result.fetched,
-            "new": result.new,
-            "filtered_out": result.filtered_out,
-        }
+    return IngestResponse(
+        ok=True,
+        run_id=result.run_id,
+        fetched=result.fetched,
+        new=result.new,
+        filtered_out=result.filtered_out,
     )

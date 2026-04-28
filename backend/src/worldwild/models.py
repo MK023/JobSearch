@@ -42,6 +42,25 @@ DECISION_SKIP = "skip"
 DECISION_PROMOTE = "promote"
 ALL_DECISIONS = (DECISION_PENDING, DECISION_SKIP, DECISION_PROMOTE)
 
+# State machine for the promotion background task that runs after Marco hits
+# "Promote". ``idle`` is the schema default and means "nothing started";
+# ``pending`` is the in-flight window between gate-pass and AI completion;
+# ``skipped_low_match`` is the cheap exit when stack-match score is below
+# the configurable threshold (no AI call, no Neon write); ``done`` and
+# ``failed`` are terminal.
+PROMOTION_STATE_IDLE = "idle"
+PROMOTION_STATE_PENDING = "pending"
+PROMOTION_STATE_SKIPPED_LOW_MATCH = "skipped_low_match"
+PROMOTION_STATE_DONE = "done"
+PROMOTION_STATE_FAILED = "failed"
+ALL_PROMOTION_STATES = (
+    PROMOTION_STATE_IDLE,
+    PROMOTION_STATE_PENDING,
+    PROMOTION_STATE_SKIPPED_LOW_MATCH,
+    PROMOTION_STATE_DONE,
+    PROMOTION_STATE_FAILED,
+)
+
 RUN_TYPE_CRON = "cron"
 RUN_TYPE_MANUAL = "manual"
 ALL_RUN_TYPES = (RUN_TYPE_CRON, RUN_TYPE_MANUAL)
@@ -123,6 +142,22 @@ class Decision(WorldwildBase):
     # When ``decision == 'promote'``, this points to the ``job_analyses.id`` row
     # created on the PRIMARY DB (Neon). No FK constraint — cross-DB pointer.
     promoted_to_neon_id = Column(UUID(as_uuid=True), nullable=True)
+
+    # Promotion state machine (added in migration 003).
+    # ``promotion_state``: idle / pending / skipped_low_match / done / failed.
+    # ``promotion_score``: stack-match score 0-100 from the pre-AI gate.
+    # ``promotion_started_at``: when the background task picked it up.
+    # ``promotion_error``: short string with last failure reason for retries.
+    promotion_state = Column(
+        String(32),
+        nullable=False,
+        default=PROMOTION_STATE_IDLE,
+        server_default=PROMOTION_STATE_IDLE,
+        index=True,
+    )
+    promotion_score = Column(Integer, nullable=True)
+    promotion_started_at = Column(DateTime(timezone=True), nullable=True)
+    promotion_error = Column(String(500), nullable=False, default="", server_default="")
 
 
 class AdapterRun(WorldwildBase):
