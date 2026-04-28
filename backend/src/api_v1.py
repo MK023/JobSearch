@@ -14,6 +14,7 @@ from .interview.file_routes import router as file_router
 from .interview.routes import router as interview_router
 from .notification_center.routes import router as notification_router
 from .read_routes import router as read_router
+from .worldwild.routes import api_router as worldwild_api_router
 
 api_v1_router = APIRouter(prefix="/api/v1", tags=["api-v1"])
 
@@ -29,3 +30,4 @@ api_v1_router.include_router(file_router)
 api_v1_router.include_router(notification_router)
 api_v1_router.include_router(agenda_router)
 api_v1_router.include_router(analytics_api_router)
+api_v1_router.include_router(worldwild_api_router)
