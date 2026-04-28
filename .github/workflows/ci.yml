@@ -168,11 +168,104 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
 
+  # ── Alembic migrations: both DBs in one job ────────────────────────
+  # Validates that the full migration chain applies cleanly on real Postgres
+  # (catches JSONB / expression-index / dialect-only breakage that SQLite
+  # tests can't see). Driven by user instruction after a past JobSearch
+  # DB-loss incident. One job + two services keeps setup cost low; step
+  # names make per-DB failure diagnosis still obvious in the Actions UI.
+  migrations:
+    name: Alembic migrations (primary + worldwild)
+    runs-on: ubuntu-latest
+    services:
+      pg-primary:
+        image: postgres:17
+        env:
+          POSTGRES_USER: jobsearch
+          POSTGRES_PASSWORD: jobsearch
+          POSTGRES_DB: jobsearch
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      pg-worldwild:
+        image: postgres:17
+        env:
+          POSTGRES_USER: worldwild
+          POSTGRES_PASSWORD: worldwild
+          POSTGRES_DB: worldwild
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5433:5432
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: pip install -r backend/requirements.txt
+      - name: Run primary alembic upgrade head
+        env:
+          DATABASE_URL: postgresql://jobsearch:jobsearch@localhost:5432/jobsearch
+        working-directory: backend
+        run: PYTHONPATH=. alembic upgrade head
+      - name: Smoke check primary tables exist
+        env:
+          DATABASE_URL: postgresql://jobsearch:jobsearch@localhost:5432/jobsearch
+        working-directory: backend
+        run: |
+          python3 - <<'PY'
+          import os, psycopg2
+          conn = psycopg2.connect(os.environ['DATABASE_URL'])
+          cur = conn.cursor()
+          cur.execute(
+              "SELECT table_name FROM information_schema.tables "
+              "WHERE table_schema='public' ORDER BY table_name"
+          )
+          tables = {r[0] for r in cur.fetchall()}
+          required = {'users', 'job_analyses', 'linkedin_applications', 'audit_logs', 'alembic_version'}
+          missing = required - tables
+          assert not missing, f"primary missing tables: {missing}"
+          print(f"OK primary — {len(tables)} tables, all required present.")
+          PY
+      - name: Run worldwild alembic upgrade head
+        env:
+          WORLDWILD_DATABASE_URL: postgresql://worldwild:worldwild@localhost:5433/worldwild
+        working-directory: backend
+        run: PYTHONPATH=. alembic --name worldwild upgrade head
+      - name: Smoke check worldwild tables exist
+        env:
+          WORLDWILD_DATABASE_URL: postgresql://worldwild:worldwild@localhost:5433/worldwild
+        working-directory: backend
+        run: |
+          python3 - <<'PY'
+          import os, psycopg2
+          conn = psycopg2.connect(os.environ['WORLDWILD_DATABASE_URL'])
+          cur = conn.cursor()
+          cur.execute(
+              "SELECT table_name FROM information_schema.tables "
+              "WHERE table_schema='public' ORDER BY table_name"
+          )
+          tables = {r[0] for r in cur.fetchall()}
+          required = {'job_offers', 'decisions', 'adapter_runs', 'audit_logs', 'alembic_version'}
+          missing = required - tables
+          assert not missing, f"worldwild missing tables: {missing}"
+          print(f"OK worldwild — {len(tables)} tables, all required present.")
+          PY
+
   # ── Docker Build ────────────────────────────────────────────────────
   docker:
     name: Docker Build
     runs-on: ubuntu-latest
-    needs: [test, security]
+    needs: [test, security, migrations]
     steps:
       - uses: actions/checkout@v6
       - name: Build containers
