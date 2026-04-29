@@ -279,17 +279,17 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Build containers (immutable, no cache for safety)
-        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml build
+        run: docker compose -f docker-compose.yml build
 
       - name: Spin up the full stack (detached)
-        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d
+        run: docker compose -f docker-compose.yml up -d
 
       - name: Wait for backend healthcheck to pass (timeout 90s)
         run: |
           set -uo pipefail
           for i in $(seq 1 18); do
             status=$(docker inspect --format='{{.State.Health.Status}}' \
-              "$(docker compose -f docker-compose.yml -f docker-compose.ci.yml ps -q backend)" 2>/dev/null || echo "starting")
+              "$(docker compose -f docker-compose.yml ps -q backend)" 2>/dev/null || echo "starting")
             echo "[$i/18] backend health: $status"
             if [ "$status" = "healthy" ]; then
               echo "::notice::backend healthy after ${i}0 seconds"
@@ -302,12 +302,12 @@ jobs:
 
       - name: Container status snapshot
         if: always()
-        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml ps
+        run: docker compose -f docker-compose.yml ps
 
       - name: Smoke test — GET /health via container network
         run: |
           set -euo pipefail
-          docker compose -f docker-compose.yml -f docker-compose.ci.yml \
+          docker compose -f docker-compose.yml \
             exec -T backend python3 -c "
           import urllib.request, sys
           r = urllib.request.urlopen('http://localhost:8000/health', timeout=5)
@@ -324,9 +324,9 @@ jobs:
         # last line of defence. Catch it here on every CI run instead.
         run: |
           set -euo pipefail
-          docker compose -f docker-compose.yml -f docker-compose.ci.yml \
+          docker compose -f docker-compose.yml \
             exec -T backend pg_dump --version
-          docker compose -f docker-compose.yml -f docker-compose.ci.yml \
+          docker compose -f docker-compose.yml \
             exec -T backend python3 -c "from src.integrations.db_dump import _resolve_pg_dump_binary; print('OK pg_dump path:', _resolve_pg_dump_binary())"
 
       - name: Spooler — dump per-service logs to CI output
@@ -336,12 +336,12 @@ jobs:
         run: |
           for svc in backend frontend db redis; do
             echo "::group::logs for $svc"
-            docker compose -f docker-compose.yml -f docker-compose.ci.yml logs --no-color --tail=200 $svc || true
+            docker compose -f docker-compose.yml logs --no-color --tail=200 $svc || true
             echo "::endgroup::"
           done
 
       - name: Tear down
         if: always()
-        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml down --volumes --remove-orphans
+        run: docker compose -f docker-compose.yml down --volumes --remove-orphans
 
   # Deploy is handled by Render auto-deploy on push to main
