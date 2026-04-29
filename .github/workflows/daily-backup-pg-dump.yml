@@ -1,23 +1,24 @@
-name: Weekly full pg_dump backup
+name: Daily full pg_dump backup
 
 # Calls the production /api/v1/backup/full endpoint to upload a full
 # pg_dump archive (schema + data + sequences + FKs + ENUMs) to R2.
 #
-# Pairs with daily-backup.yml (which only dumps 7 tables as JSON).
-# Weekly cadence is the cost/recovery sweet spot for a single-user app:
-# JSON daily for fast partial restore; pg_dump weekly for the rare
-# full-DB recovery that absolutely must include audit_logs, users,
-# linkedin_applications, alembic_version, etc.
+# Pairs with daily-backup.yml (which dumps 7 critical tables as JSON
+# at 03:30 UTC). The pg_dump runs at 03:00 UTC — 30 min ahead so the
+# two pipelines never overlap on the Render free-tier compute.
+#
+# Cadence: daily, retention 14 archives in db_dump.MAX_PG_DUMPS.
+# Sweet spot for single-user / low-write workload (~5-20 row/day):
+# RPO of 24h is well below the data-volume noise floor, retention
+# of 14 days gives 2 weeks of point-in-time recovery, total R2
+# storage stays around ~70 MB.
 #
 # Auth: X-API-Key header against settings.api_key (same path as the
-# daily backup). Set the GitHub Actions secret JOBSEARCH_API_KEY.
-#
-# Schedule: every Sunday at 04:00 UTC (30 min after daily backup at
-# 03:30 — avoids overlap on Sundays). Manual trigger via "Run workflow".
+# JSON daily backup). Set the GitHub Actions secret JOBSEARCH_API_KEY.
 
 on:
   schedule:
-    - cron: "0 4 * * 0"
+    - cron: "0 3 * * *"
   workflow_dispatch: {}
 
 permissions:
@@ -48,8 +49,8 @@ jobs:
             echo "::error::JOBSEARCH_API_KEY secret not configured"
             exit 1
           fi
-          # Longer timeout than daily JSON: pg_dump for a 100 MB DB +
-          # gzip + R2 upload can take several minutes. The endpoint
+          # Longer timeout than the JSON daily: pg_dump for a 100 MB DB
+          # + gzip + R2 upload can take several minutes. The endpoint
           # itself caps the dump at PG_DUMP_TIMEOUT_SECONDS (10 min).
           response=$(curl --silent --show-error --fail-with-body \
             --request POST \
