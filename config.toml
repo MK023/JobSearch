@@ -1,0 +1,24 @@
+# Multi-env switcher for backend/src/config.py
+#
+# Usage: set JOBSEARCH_ENV=<section-name> in the shell before launching
+# the app, and the loader (`_apply_toml_env_overrides`) will translate
+# every key in [env.<section-name>] into an UPPER-CASED env var,
+# overriding whatever was already in the OS env.
+#
+# In prod (Render) leave JOBSEARCH_ENV unset — the dashboard env vars
+# stay authoritative and this file is invisible to the runtime.
+#
+# Add new sections here for new dev/staging/dr scenarios. Avoid putting
+# secrets (API keys, passwords) in TOML — keep those in env vars only.
+# This file IS committed to git, so anything here is public.
+
+[env.local]
+# Offline dev against the docker-compose stack.
+database_url = "postgresql://jobsearch:jobsearch@localhost:5432/jobsearch"
+redis_url    = "redis://localhost:6379/0"
+
+[env.dr]
+# Disaster recovery: same docker-compose DB, but a separate Redis db
+# index so a parallel `local` env doesn't clash on caches/queues.
+database_url = "postgresql://jobsearch:jobsearch@localhost:5432/jobsearch"
+redis_url    = "redis://localhost:6379/1"

@@ -1,8 +1,60 @@
-"""Application configuration via environment variables."""
+"""Application configuration via environment variables.
+
+Optional multi-env switcher: setting ``JOBSEARCH_ENV=<name>`` makes the
+loader read ``config.toml`` at the repo root and apply the
+``[env.<name>]`` section as env-var overrides *before* Pydantic
+constructs ``Settings``. This lets a single var flip the entire wiring
+(DB / Redis / etc.) for offline dev or disaster recovery without
+manually exporting half a dozen variables.
+
+In prod (Render), ``JOBSEARCH_ENV`` is unset → the loader is a no-op
+and the dashboard env vars remain authoritative.
+"""
 
 import os as _os
+from pathlib import Path as _Path
 
 from pydantic_settings import BaseSettings
+
+
+def _resolve_toml_path() -> _Path:
+    """Repo-root ``config.toml``. Extracted for monkeypatching in tests."""
+    return _Path(__file__).resolve().parent.parent.parent / "config.toml"
+
+
+def _apply_toml_env_overrides() -> None:
+    """Apply ``[env.<JOBSEARCH_ENV>]`` overrides from ``config.toml``.
+
+    No-op when:
+    - ``JOBSEARCH_ENV`` is unset or empty (production path).
+    - ``config.toml`` is missing (e.g. in CI test runs that don't ship it).
+    - The selected section doesn't exist (typo/unknown env name).
+
+    TOML wins over pre-existing env vars on purpose: the whole point of
+    setting ``JOBSEARCH_ENV=local`` is to override the dev shell's
+    ``DATABASE_URL`` (which might still point at prod) without making
+    the user remember to ``unset`` it.
+    """
+    env_name = _os.environ.get("JOBSEARCH_ENV", "").strip()
+    if not env_name:
+        return
+    toml_path = _resolve_toml_path()
+    if not toml_path.exists():
+        return
+    try:
+        import tomllib  # stdlib in 3.11+
+    except ImportError:
+        return
+    with toml_path.open("rb") as f:
+        data = tomllib.load(f)
+    section = data.get("env", {}).get(env_name, {})
+    if not section:
+        return
+    for key, val in section.items():
+        _os.environ[key.upper()] = str(val)
+
+
+_apply_toml_env_overrides()
 
 
 def _normalize_postgres_url(url: str) -> str:
