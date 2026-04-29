@@ -315,6 +315,20 @@ jobs:
           print('OK /health =', r.status)
           "
 
+      - name: Smoke test — pg_dump binary inside backend container
+        # Disaster-recovery guard: the weekly pg_dump backup pipeline
+        # (src/integrations/db_dump.py) shells out to pg_dump. If a
+        # future Dockerfile change drops postgresql-client-17, the
+        # weekly backup would silently fail until the next R2 retention
+        # window — by which point the JSON-only backup would be the
+        # last line of defence. Catch it here on every CI run instead.
+        run: |
+          set -euo pipefail
+          docker compose -f docker-compose.yml -f docker-compose.ci.yml \
+            exec -T backend pg_dump --version
+          docker compose -f docker-compose.yml -f docker-compose.ci.yml \
+            exec -T backend python3 -c "from src.integrations.db_dump import _resolve_pg_dump_binary; print('OK pg_dump path:', _resolve_pg_dump_binary())"
+
       - name: Spooler — dump per-service logs to CI output
         # Always runs (success or failure) so any container crash leaves a
         # full forensic trail in the Actions run UI.
