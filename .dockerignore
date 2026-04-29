@@ -15,3 +15,12 @@ mcp-server/
 *.md
 !backend/README.md
 firebase-debug.log
+.claude/
+.vscode/
+.idea/
+.DS_Store
+node_modules/
+coverage.xml
+htmlcov/
+.coverage
+*.log
