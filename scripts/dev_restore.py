@@ -45,6 +45,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any
 
 
 def _resolve(cmd: str) -> str:
@@ -73,7 +74,7 @@ def _load_dotenv() -> None:
         os.environ.setdefault(key.strip(), val.strip().strip("'\""))
 
 
-def _r2_client():
+def _r2_client() -> Any:
     import boto3
     from botocore.config import Config
 
@@ -91,7 +92,7 @@ def _r2_client():
     )
 
 
-def _pick_latest_pg_dump(client, bucket: str) -> str:
+def _pick_latest_pg_dump(client: Any, bucket: str) -> str:
     response = client.list_objects_v2(Bucket=bucket, Prefix=R2_PREFIX)
     objects = response.get("Contents", [])
     sql_gz = sorted(
@@ -106,7 +107,7 @@ def _pick_latest_pg_dump(client, bucket: str) -> str:
     return str(latest["Key"])
 
 
-def _download_from_r2(client, bucket: str, key: str, dest: Path) -> None:
+def _download_from_r2(client: Any, bucket: str, key: str, dest: Path) -> None:
     print(f"Downloading {key} → {dest} ...")
     client.download_file(bucket, key, str(dest))
     size_kb = dest.stat().st_size / 1024
@@ -216,14 +217,19 @@ def main() -> int:
     _load_dotenv()
 
     with tempfile.TemporaryDirectory() as tmp:
-        archive = Path(tmp) / "restore.sql.gz"
-
+        archive: Path
         if args.from_r2:
+            archive = Path(tmp) / "restore.sql.gz"
             client = _r2_client()
             bucket = os.environ["R2_BUCKET_NAME"]
             key = _pick_latest_pg_dump(client, bucket)
             print(f"\n  Source: r2://{bucket}/{key}")
             print(f"  Target: docker compose db ({args.db_user}@{args.db_name})")
+
+            if not _confirmed(args.yes):
+                return 1
+
+            _download_from_r2(client, bucket, key, archive)
         else:
             if not args.from_file or not args.from_file.exists():
                 sys.exit(f"File not found: {args.from_file}")
@@ -231,18 +237,23 @@ def main() -> int:
             print(f"\n  Source: {archive} ({archive.stat().st_size / 1024:.1f} KB)")
             print(f"  Target: docker compose db ({args.db_user}@{args.db_name})")
 
-        if not args.yes:
-            answer = input("\nThis will OVERWRITE the local DB. Continue? [y/N] ").strip().lower()
-            if answer != "y":
-                print("Cancelled.")
+            if not _confirmed(args.yes):
                 return 1
-
-        if args.from_r2:
-            _download_from_r2(client, bucket, key, archive)
 
         _restore_to_docker(archive, args.db_user, args.db_name)
 
     return 0
+
+
+def _confirmed(skip_prompt: bool) -> bool:
+    """Return True if the user accepted the destructive prompt (or skipped it)."""
+    if skip_prompt:
+        return True
+    answer = input("\nThis will OVERWRITE the local DB. Continue? [y/N] ").strip().lower()
+    if answer != "y":
+        print("Cancelled.")
+        return False
+    return True
 
 
 if __name__ == "__main__":
