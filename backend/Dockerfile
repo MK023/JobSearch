@@ -86,8 +86,16 @@ COPY --chown=app:app frontend/ /app/frontend/
 #                            time, no log loss on SIGTERM.
 # - PYTHONDONTWRITEBYTECODE: no .pyc files written at runtime → smaller
 #                            writes, compatible with read-only root FS.
+# - PYTHONPATH=/app/backend: makes `import src.<...>` resolve from
+#                            anywhere in the container (alembic env.py,
+#                            scripts/ helpers, ad-hoc `docker exec`).
+#                            Mirrors what CI does with `PYTHONPATH=.`
+#                            in the migrations job — without it,
+#                            `alembic upgrade head` fails with
+#                            "ModuleNotFoundError: No module named 'src'".
 ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/app/backend
 
 USER app
 
