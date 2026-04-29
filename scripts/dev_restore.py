@@ -113,8 +113,47 @@ def _download_from_r2(client, bucket: str, key: str, dest: Path) -> None:
     print(f"Downloaded {size_kb:.1f} KB")
 
 
+def _reset_schema(db_user: str, db_name: str) -> None:
+    """Drop+recreate the public schema so the dump can recreate everything.
+
+    Without this, a dev-bootstrap that already applied alembic migrations
+    leaves CREATE TYPE / CREATE TABLE statements colliding with the
+    dump's own CREATE statements ("type X already exists"). Idempotent:
+    safe to call before every restore, no-op on a truly empty DB.
+    """
+    print(f"Resetting schema 'public' on {db_user}@{db_name} ...")
+    docker_bin = _resolve("docker")
+    reset_sql = (
+        "DROP SCHEMA IF EXISTS public CASCADE; "
+        "CREATE SCHEMA public; "
+        f'GRANT ALL ON SCHEMA public TO "{db_user}"; '
+        "GRANT ALL ON SCHEMA public TO public;"
+    )
+    proc = subprocess.run(  # noqa: S603 — absolute path via shutil.which, no shell
+        [
+            docker_bin,
+            "compose",
+            "exec",
+            "-T",
+            "db",
+            "psql",
+            "-U",
+            db_user,
+            "-d",
+            db_name,
+            "--quiet",
+            "-c",
+            reset_sql,
+        ],
+        check=False,
+    )
+    if proc.returncode != 0:
+        sys.exit(f"schema reset failed with exit {proc.returncode}")
+
+
 def _restore_to_docker(archive_gz: Path, db_user: str, db_name: str) -> None:
     """Stream `gunzip -c <file> | docker compose exec -T db psql ...`."""
+    _reset_schema(db_user, db_name)
     print(f"Restoring into Docker DB (user={db_user}, db={db_name}) ...")
     gunzip_bin = _resolve("gunzip")
     docker_bin = _resolve("docker")
