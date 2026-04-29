@@ -103,3 +103,45 @@ def list_backups_endpoint(
     from ..integrations.backup import list_backups
 
     return JSONResponse(list_backups())
+
+
+@router.post("/backup/full")
+@limiter.limit("2/hour")
+def create_pg_dump_backup_endpoint(
+    request: Request,
+    user: CurrentUser,
+) -> JSONResponse:
+    """Create a full pg_dump DB backup on R2. Rate-limited to 2/hour.
+
+    Counterpart to ``/backup`` (which only exports 7 critical tables as
+    JSON). The pg_dump archive is the disaster-recovery artifact —
+    captures schema, data, sequences, FKs, ENUMs, indexes.
+    """
+    from ..integrations.db_dump import create_pg_dump_backup
+
+    try:
+        result = create_pg_dump_backup()
+        return JSONResponse({"ok": True, **result})
+    except RuntimeError:
+        # Backup invariant breach (missing pg_dump binary, R2 not
+        # reachable, dump timeout, empty output). Logged with traceback
+        # server-side; the client gets a generic message to avoid
+        # leaking internals (CodeQL py/stack-trace-exposure).
+        logger.exception("pg_dump backup: RuntimeError")
+        return JSONResponse(
+            {"error": "Backup completo non disponibile: controlla pg_dump e R2."},
+            status_code=500,
+        )
+    except Exception:
+        logger.exception("pg_dump backup: unexpected error")
+        return JSONResponse({"error": "Full backup failed"}, status_code=500)
+
+
+@router.get("/backups/full")
+def list_pg_dumps_endpoint(
+    user: CurrentUser,
+) -> JSONResponse:
+    """List available full pg_dump backups on R2 (newest first)."""
+    from ..integrations.db_dump import list_pg_dumps
+
+    return JSONResponse(list_pg_dumps())
