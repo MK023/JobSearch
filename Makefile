@@ -78,15 +78,45 @@ format: ## Auto-format Python (ruff)
 
 check: lint test ## Lint + test (simula CI in locale)
 
-# ── Deploy ──────────────────────────────────────────────────────────
+# ── Shadow-prod replica (Docker locale 1:1) ─────────────────────────
+# Pattern: lavorare offline o in disaster-recovery con un DB locale
+# popolato dall'ultimo pg_dump in R2 (o da un archivio su disco).
+# Vedi scripts/dev_restore.py per i dettagli.
 
-.PHONY: deploy deploy-status
+.PHONY: dev-bootstrap dev-restore-from-r2 dev-restore-from-file
 
-deploy: ## Deploy su Fly.io
-	fly deploy
+dev-bootstrap: ## Up + alembic upgrade head: stack pronto, DB schema aggiornato (vuoto)
+	docker compose up -d
+	@echo "Waiting for DB to be healthy..."
+	@for i in $$(seq 1 18); do \
+		st=$$(docker inspect --format='{{.State.Health.Status}}' "$$(docker compose ps -q db)" 2>/dev/null || echo "starting"); \
+		[ "$$st" = "healthy" ] && break; \
+		sleep 5; \
+	done
+	docker compose exec -T backend alembic upgrade head
+	@echo "Bootstrap complete. Run 'make dev-restore-from-r2' to populate with prod data."
 
-deploy-status: ## Stato del deploy su Fly.io
-	fly status
+dev-restore-from-r2: ## Scarica l'ultimo pg_dump da R2 e ripristina nel DB locale
+	python3 scripts/dev_restore.py --from-r2 --yes
+
+dev-restore-from-file: ## Ripristina un archivio .sql.gz locale (FILE=path obbligatorio)
+	@if [ -z "$(FILE)" ]; then echo "Usage: make dev-restore-from-file FILE=<path>.sql.gz"; exit 1; fi
+	python3 scripts/dev_restore.py --from-file $(FILE) --yes
+
+# ── Render (deploy + observability) ─────────────────────────────────
+# Render fa auto-deploy su push to main — niente `deploy` manuale.
+# Questi target servono per logs e status su free tier (8GB RAM Mac:
+# meglio CLI che dashboard browser).
+
+.PHONY: render-logs render-status
+
+RENDER_SVC := srv-d7bp6o6a2pns73eouueg
+
+render-logs: ## Tail degli ultimi 50 log su Render
+	render logs -r $(RENDER_SVC) --limit 50 -o text
+
+render-status: ## Stato del service Render (e ultimo deploy)
+	render services -o json --confirm | python3 -c "import json,sys; svcs=[s for s in json.load(sys.stdin) if s.get('id')=='$(RENDER_SVC)']; import pprint; pprint.pprint(svcs[0] if svcs else 'service not found')"
 
 # ── Pre-commit ──────────────────────────────────────────────────────
 
@@ -104,5 +134,5 @@ hooks-run: ## Esegui pre-commit su tutti i file
 .PHONY: help
 
 help: ## Mostra questo help
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-16s\033[0m %s\n", $$1, $$2}'
