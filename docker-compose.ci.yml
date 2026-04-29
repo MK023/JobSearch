@@ -1,0 +1,30 @@
+# CI override — usato in `.github/workflows/ci.yml` come secondary compose file:
+#   docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d
+#
+# Differenze rispetto a docker-compose.yml (dev):
+# - Niente live-mount di ./backend e ./frontend (dev mode), build immutable
+# - DB locale Postgres test isolato (POSTGRES_USER/DB/PASSWORD hardcoded sicuri solo in CI)
+# - SECRET_KEY hardcoded (uso CI-only, NON sensibile)
+# - Niente volume persistente — ogni run di CI parte pulito
+#
+# Niente env vars di prod (Anthropic, Sentry, R2, Adzuna, WorldWild) — tutto
+# graceful via Pydantic Settings con default empty.
+
+services:
+  backend:
+    environment:
+      DATABASE_URL: postgresql://jobsearch:jobsearch@db:5432/jobsearch
+      SECRET_KEY: ci-only-fixture-secret-key-not-real
+      ADMIN_EMAIL: ci@jobsearch.local
+      ADMIN_PASSWORD: ci-fixture-password
+    volumes: []  # override: niente live-mount in CI
+
+  db:
+    environment:
+      POSTGRES_USER: jobsearch
+      POSTGRES_PASSWORD: jobsearch
+      POSTGRES_DB: jobsearch
+    volumes: []  # override: niente persistenza fra run CI
+
+  frontend:
+    volumes: []  # override: nginx config viene già copiato dall'image

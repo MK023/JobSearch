@@ -261,14 +261,73 @@ jobs:
           print(f"OK worldwild — {len(tables)} tables, all required present.")
           PY
 
-  # ── Docker Build ────────────────────────────────────────────────────
+  # ── Docker Build + Smoke ────────────────────────────────────────────
+  # Build all containers, spin up the full stack with the CI override
+  # (no live-mount, no persistent volumes, fixture secrets), wait until
+  # backend healthcheck passes, run a smoke HTTP check, dump container
+  # logs to the Actions output for diagnosability, then tear down.
+  #
+  # Driven by Marco's instruction: "non voglio cazzi mentre facciamo la
+  # build" + "uno spooler con permessi per monitorare tutto" — the
+  # log-dump step IS the spooler (collects per-service logs into the
+  # CI run for postmortem if any step fails).
   docker:
-    name: Docker Build
+    name: Docker Build & Smoke
     runs-on: ubuntu-latest
     needs: [test, security, migrations]
     steps:
       - uses: actions/checkout@v6
-      - name: Build containers
-        run: docker compose build
+
+      - name: Build containers (immutable, no cache for safety)
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml build
+
+      - name: Spin up the full stack (detached)
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d
+
+      - name: Wait for backend healthcheck to pass (timeout 90s)
+        run: |
+          set -uo pipefail
+          for i in $(seq 1 18); do
+            status=$(docker inspect --format='{{.State.Health.Status}}' \
+              "$(docker compose -f docker-compose.yml -f docker-compose.ci.yml ps -q backend)" 2>/dev/null || echo "starting")
+            echo "[$i/18] backend health: $status"
+            if [ "$status" = "healthy" ]; then
+              echo "::notice::backend healthy after ${i}0 seconds"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::backend never became healthy in 90s"
+          exit 1
+
+      - name: Container status snapshot
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml ps
+
+      - name: Smoke test — GET /health via container network
+        run: |
+          set -euo pipefail
+          docker compose -f docker-compose.yml -f docker-compose.ci.yml \
+            exec -T backend python3 -c "
+          import urllib.request, sys
+          r = urllib.request.urlopen('http://localhost:8000/health', timeout=5)
+          assert r.status == 200, r.status
+          print('OK /health =', r.status)
+          "
+
+      - name: Spooler — dump per-service logs to CI output
+        # Always runs (success or failure) so any container crash leaves a
+        # full forensic trail in the Actions run UI.
+        if: always()
+        run: |
+          for svc in backend frontend db redis; do
+            echo "::group::logs for $svc"
+            docker compose -f docker-compose.yml -f docker-compose.ci.yml logs --no-color --tail=200 $svc || true
+            echo "::endgroup::"
+          done
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml down --volumes --remove-orphans
 
   # Deploy is handled by Render auto-deploy on push to main
