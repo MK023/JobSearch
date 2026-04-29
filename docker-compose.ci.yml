@@ -4,11 +4,13 @@
 # Differenze rispetto a docker-compose.yml (dev):
 # - Niente live-mount di ./backend e ./frontend (dev mode), build immutable
 # - DB locale Postgres test isolato (POSTGRES_USER/DB/PASSWORD hardcoded sicuri solo in CI)
-# - SECRET_KEY hardcoded (uso CI-only, NON sensibile)
+# - SECRET_KEY + ANTHROPIC_API_KEY hardcoded come fixture CI-only (NON segreti reali)
 # - Niente volume persistente — ogni run di CI parte pulito
 #
-# Niente env vars di prod (Anthropic, Sentry, R2, Adzuna, WorldWild) — tutto
-# graceful via Pydantic Settings con default empty.
+# Pattern: tutte le env vars che il lifespan FastAPI valida come non-empty
+# (verifica in main.py startup) hanno qui un fixture esplicito. Il resto
+# (Sentry, R2, Adzuna, WorldWild, Resend) resta empty e i layer relativi
+# si auto-disattivano via i loro check in config.py / settings.
 
 services:
   backend:
@@ -17,6 +19,9 @@ services:
       SECRET_KEY: ci-only-fixture-secret-key-not-real
       ADMIN_EMAIL: ci@jobsearch.local
       ADMIN_PASSWORD: ci-fixture-password
+      # Fake key — backend lifespan rifiuta empty ma non valida il formato.
+      # CI non chiama mai Anthropic API, quindi un valore fittizio basta.
+      ANTHROPIC_API_KEY: ci-fixture-anthropic-key-not-real
     volumes: []  # override: niente live-mount in CI
 
   db:
