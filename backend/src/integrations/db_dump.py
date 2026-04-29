@@ -39,7 +39,13 @@ from ..config import settings
 
 logger = logging.getLogger(__name__)
 
-MAX_PG_DUMPS = 5
+# Retention: 14 archives = 2 weeks of point-in-time recovery on the
+# daily cadence (`.github/workflows/daily-backup-pg-dump.yml`). At
+# ~5 MB compressed per archive, R2 storage stays around 70 MB — well
+# under the free-tier 10 GB. Bumped from 5 when the cron moved from
+# weekly to daily; with retention 5 we'd have lost everything older
+# than 5 days, defeating the point of more frequent backups.
+MAX_PG_DUMPS = 14
 PG_DUMP_PREFIX = "backups-pg/"
 PG_DUMP_TIMEOUT_SECONDS = 600
 MIN_DUMP_BYTES = 100
