@@ -8,7 +8,7 @@ Two modes:
    into ``docker compose exec -T db psql ...``.
 
 2. ``--from-file PATH``: skip R2, use a local archive (e.g. the
-   pre-migration dump under ``~/Documents/JobSearch_backups/``).
+   pre-migration dump under ``./local-backups/``).
    Useful when R2 is unreachable, or for the disaster-recovery
    scenario where the only surviving copy is on disk.
 
@@ -28,7 +28,7 @@ Usage::
 
     # Specific local file (disaster-recovery)
     python scripts/dev_restore.py \\
-        --from-file ~/Documents/JobSearch_backups/neon-dump-20260429-pre-supabase-migration.sql.gz \\
+        --from-file ./local-backups/neon-dump-20260429-pre-supabase-migration.sql.gz \\
         --yes
 
 Env vars required (R2 mode): R2_ENDPOINT_URL, R2_ACCESS_KEY_ID,

@@ -26,6 +26,9 @@ pgdata/
 redis-data/
 docker-compose.override.yml
 
+# Local DB backups (production dumps + restore logs — never commit)
+local-backups/
+
 # IDE
 .vscode/
 .idea/
