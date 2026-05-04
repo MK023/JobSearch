@@ -21,7 +21,6 @@ Note Remotive specifiche:
 """
 
 import contextlib
-import re
 from datetime import UTC, datetime
 from typing import Any
 
@@ -31,12 +30,35 @@ REMOTIVE_BASE = "https://remotive.com/api/remote-jobs"
 DEFAULT_LIMIT = 200
 DEFAULT_TIMEOUT_SECONDS = 15.0
 
-# Parser salary range two-step (split + estrazione numeri) per evitare
-# regex con quantificatori nested (ReDoS-safe per Sonar S5852).
-# Approccio: split su trattino/en-dash, poi cerca primo gruppo numerico in
-# ognuno dei due segmenti — pattern lineare, no catastrophic backtracking.
-_DASH_SPLIT_RE = re.compile(r"\s*[–-]\s*")  # en-dash + ASCII dash
-_NUMBER_TOKEN_RE = re.compile(r"\d[\d,. ]*\d|\d")  # numero con eventuali separatori
+# Parser salary range completamente non-regex: split su dash/en-dash + scan
+# pure-python single-pass per estrarre il primo gruppo numerico da ogni
+# segmento. Garantito linear (no backtracking possibile per costruzione).
+_DASH_CHARS = ("–", "-")  # en-dash + ASCII dash
+
+
+def _split_on_dash(text: str) -> list[str]:
+    """Split lineare su dash/en-dash (singola passata, no regex)."""
+    for ch in _DASH_CHARS:
+        if ch in text:
+            return text.split(ch, 1)
+    return [text]
+
+
+def _extract_first_number(text: str) -> str | None:
+    """Single-pass scan per il primo gruppo digit+separatori. Return None se assente.
+
+    Pattern lineare in ``len(text)``: itera una volta, marca inizio sui digit,
+    interrompe sul primo carattere non numerico/non separatore. Zero rischio
+    ReDoS (pure-python, no regex engine).
+    """
+    start = -1
+    for i, c in enumerate(text):
+        is_digit_or_sep = c.isdigit() or c in (",", ".", " ")
+        if c.isdigit() and start < 0:
+            start = i
+        elif start >= 0 and not is_digit_or_sep:
+            return text[start:i]
+    return text[start:] if start >= 0 else None
 
 
 def fetch_remotive_jobs(
@@ -153,19 +175,19 @@ def _parse_salary(value: Any) -> tuple[int | None, int | None, str]:
         return (None, None, "")
     text = str(value)
 
-    # Split sul trattino/en-dash (lineare, no backtracking). Se il salary non
-    # è un range (es. "competitive", "100k starting"), ritorniamo subito.
-    parts = _DASH_SPLIT_RE.split(text, maxsplit=1)
+    # Split lineare su dash/en-dash. Se il salary non è un range
+    # (es. "competitive", "100k starting"), ritorniamo subito.
+    parts = _split_on_dash(text)
     if len(parts) < 2:
         return (None, None, "")
 
-    raw_min_match = _NUMBER_TOKEN_RE.search(parts[0])
-    raw_max_match = _NUMBER_TOKEN_RE.search(parts[1])
-    if raw_min_match is None or raw_max_match is None:
+    raw_min = _extract_first_number(parts[0])
+    raw_max = _extract_first_number(parts[1])
+    if raw_min is None or raw_max is None:
         return (None, None, "")
 
-    salary_min = _coerce_money(raw_min_match.group())
-    salary_max = _coerce_money(raw_max_match.group())
+    salary_min = _coerce_money(raw_min)
+    salary_max = _coerce_money(raw_max)
     if salary_min is None or salary_max is None:
         return (None, None, "")
 
