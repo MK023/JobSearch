@@ -31,12 +31,12 @@ REMOTIVE_BASE = "https://remotive.com/api/remote-jobs"
 DEFAULT_LIMIT = 200
 DEFAULT_TIMEOUT_SECONDS = 15.0
 
-# Regex per estrarre un range salariale tipo "$80,000 - $120,000" oppure
-# "80.000-120.000". Cattura due numeri separati da trattino o en-dash, con
-# separatori di migliaia (virgola o punto) opzionali.
-# Tra i due numeri ammettiamo simboli valuta intermedi tipo ``$``/``€``/``£``
-# perché Remotive serve spesso ``"$80,000-$120,000"`` con prefisso ripetuto.
-_SALARY_RANGE_RE = re.compile(r"(\d{1,3}(?:[,.]?\d{3})*)\s*[-–]\s*[$€£]?\s*(\d{1,3}(?:[,.]?\d{3})*)")
+# Parser salary range two-step (split + estrazione numeri) per evitare
+# regex con quantificatori nested (ReDoS-safe per Sonar S5852).
+# Approccio: split su trattino/en-dash, poi cerca primo gruppo numerico in
+# ognuno dei due segmenti — pattern lineare, no catastrophic backtracking.
+_DASH_SPLIT_RE = re.compile(r"\s*[–-]\s*")  # en-dash + ASCII dash
+_NUMBER_TOKEN_RE = re.compile(r"\d[\d,. ]*\d|\d")  # numero con eventuali separatori
 
 
 def fetch_remotive_jobs(
@@ -153,13 +153,19 @@ def _parse_salary(value: Any) -> tuple[int | None, int | None, str]:
         return (None, None, "")
     text = str(value)
 
-    match = _SALARY_RANGE_RE.search(text)
-    if match is None:
+    # Split sul trattino/en-dash (lineare, no backtracking). Se il salary non
+    # è un range (es. "competitive", "100k starting"), ritorniamo subito.
+    parts = _DASH_SPLIT_RE.split(text, maxsplit=1)
+    if len(parts) < 2:
         return (None, None, "")
 
-    raw_min, raw_max = match.group(1), match.group(2)
-    salary_min = _coerce_money(raw_min)
-    salary_max = _coerce_money(raw_max)
+    raw_min_match = _NUMBER_TOKEN_RE.search(parts[0])
+    raw_max_match = _NUMBER_TOKEN_RE.search(parts[1])
+    if raw_min_match is None or raw_max_match is None:
+        return (None, None, "")
+
+    salary_min = _coerce_money(raw_min_match.group())
+    salary_max = _coerce_money(raw_max_match.group())
     if salary_min is None or salary_max is None:
         return (None, None, "")
 

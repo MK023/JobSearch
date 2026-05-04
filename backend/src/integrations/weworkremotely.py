@@ -23,7 +23,6 @@ Note di mapping:
 """
 
 import contextlib
-import re
 from datetime import UTC, datetime
 from typing import Any
 
@@ -34,10 +33,8 @@ WWR_BASE = "https://weworkremotely.com/categories"
 DEFAULT_CATEGORY = "remote-devops-sysadmin-jobs"
 DEFAULT_TIMEOUT_SECONDS = 15.0
 
-# Pattern "COMPANY: ROLE" — non-greedy sul gruppo company, prende tutto il
-# resto come role. Ancorato sull'inizio per evitare match su ``:`` interni
-# al titolo (es. "Senior DevOps: K8s & Terraform" senza company prefix).
-_TITLE_SPLIT_RE = re.compile(r"^([^:]+):\s*(.+)$")
+# Pattern "COMPANY: ROLE" gestito con ``str.partition(":")`` invece di regex
+# (ReDoS-safe per Sonar S5852, lineare per costruzione).
 
 
 def fetch_weworkremotely_jobs(
@@ -111,13 +108,14 @@ def _normalize(entry: Any) -> dict[str, Any] | None:
     if not ext_id:
         return None
 
-    # Split "COMPANY: ROLE" — tipico pattern WWR. Se non matcha (titolo senza
-    # ``:`` o senza company prefix), lasciamo company vuoto e usiamo il titolo
-    # raw così com'è.
-    match = _TITLE_SPLIT_RE.match(raw_title)
-    if match:
-        company = match.group(1).strip()
-        title_clean = match.group(2).strip()
+    # Split "COMPANY: ROLE" — tipico pattern WWR. Usiamo ``str.partition(":")``
+    # invece di regex per zero rischio ReDoS su title con molti ``:`` (es.
+    # "Senior DevOps: K8s: Helm: Terraform"). Se non c'è ``:``, company resta
+    # vuota e teniamo il titolo raw così com'è.
+    if ":" in raw_title:
+        company_part, _sep, title_part = raw_title.partition(":")
+        company = company_part.strip()
+        title_clean = title_part.strip()
     else:
         company = ""
         title_clean = raw_title
