@@ -25,6 +25,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ...integrations.adzuna import fetch_adzuna_jobs
+from ..config import load_queries_config
 from ..filters import pre_filter
 from ..models import (
     DECISION_PENDING,
@@ -37,17 +38,22 @@ from ..models import (
     JobOffer,
 )
 
-# Default queries for the Italian Adzuna market. Picks both buckets that
-# Marco's funnel actually converts on (Dev 14.3% / Cloud 3.8% per career-kit
-# `linkedin_572_deep_dive.md`). We hit the API once per query — Adzuna's free
-# tier gives 1k calls/day, so 4 queries × 4 pages = 16 calls per cron run is
-# orders of magnitude under the cap.
-DEFAULT_ADZUNA_QUERIES = (
-    "devops",
-    "site reliability engineer",
-    "cloud engineer",
-    "python developer",
-)
+
+def _default_adzuna_queries() -> tuple[str, ...]:
+    """Resolve default Adzuna queries from ``config/queries.yaml`` (cached upstream).
+
+    Marco edita il YAML per cambiare cosa cercare, niente code push. Il bucket
+    iniziale (Dev 14.3% / Cloud 3.8% per career-kit `linkedin_572_deep_dive.md`)
+    sta in `adzuna.default_queries`. Adzuna IT free tier = 1k calls/giorno, quindi
+    4 query x 4 pagine = 16 chiamate per cron run, ordini di grandezza sotto cap.
+
+    Fallback hardcoded a tuple vuota: se il YAML manca, l'ingest semplicemente
+    non chiama Adzuna (fail-safe, no crash). La cron loggia 0 fetched -> Sentry
+    alerta.
+    """
+    cfg = load_queries_config().get("adzuna", {})
+    queries = cfg.get("default_queries") or []
+    return tuple(queries)
 
 
 class IngestResult:
@@ -83,7 +89,7 @@ def compute_content_hash(offer: dict[str, Any]) -> str:
 def run_adzuna_ingest(
     db: Session,
     *,
-    queries: tuple[str, ...] = DEFAULT_ADZUNA_QUERIES,
+    queries: tuple[str, ...] | None = None,
     run_type: str = "manual",
 ) -> IngestResult:
     """Execute one ingest run against Adzuna IT.
@@ -92,7 +98,14 @@ def run_adzuna_ingest(
     for dedup within the same run, but we do NOT ``commit`` — that's the
     caller's call (route / cron). On exception we re-raise after marking the
     run as failed so retries / Sentry get the full picture.
+
+    Args:
+        queries: tuple di query Adzuna. ``None`` (default) = leggi da
+            ``config/queries.yaml`` chiave ``adzuna.default_queries``.
+            Pass esplicito per override (es. test, query ad-hoc).
     """
+    if queries is None:
+        queries = _default_adzuna_queries()
     run = AdapterRun(
         source=SOURCE_ADZUNA,
         run_type=run_type,

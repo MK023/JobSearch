@@ -124,6 +124,12 @@ class Settings(BaseSettings):
     adzuna_app_id: str = ""
     adzuna_app_key: str = ""
 
+    # WorldWild pre-filter — salary floor in EUR (annual). Below this, offers are
+    # filtered out (only when the source advertises salary; missing salary is let
+    # through). Override via env var ``WORLDWILD_SALARY_FLOOR_EUR``. Default 25k
+    # corrisponde alla soglia sub-junior italiana del bucket di Marco.
+    worldwild_salary_floor_eur: int = 25_000
+
     # Pre-AI gate threshold for WorldWild promotion. When stack-match score
     # against Marco's CV is BELOW this value (0-100), the promotion path
     # skips the Anthropic analyzer call and marks the Decision as

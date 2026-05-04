@@ -1,0 +1,74 @@
+# Worldwild pre-filter rules (config-driven, no code push needed for tweaks).
+#
+# Marco edita questo file per cambiare regole, niente deploy.
+# Caricato al primo accesso da `filters.py` con cache singleton.
+#
+# Convenzioni:
+# - I pattern sono regex case-insensitive applicati al `title` (e per i remote_hints
+#   anche a description + location).
+# - Single-quote YAML: i backslash sono letterali (no escape), quindi `\b`, `\s`, `\.`
+#   restano cosi'.
+# - Tunato sui sample reali del mercato Adzuna IT (28 apr 2026): help desk, junior,
+#   legge 68, sales/marketing dominano il rumore; il segnale e' DevOps/SRE/Cloud/
+#   Platform/Python Engineer/Backend Senior.
+
+blacklist_title_patterns:
+  # Match = pre_filter_passed = false con reason="blacklist title: <pattern>"
+  - '\bhelp\s*desk\b'
+  - '\bhelpdesk\b'
+  - '\bjunior\b'
+  - '\bstage\b'
+  - '\bstagista\b'
+  - '\btirocini[oa]\b'           # tirocinio | tirocinia
+  - '\btirocinant[ei]\b'
+  - '\b(legge|l\.?)\s*68\b'      # categoria protetta
+  - '\bcat(\.|egoria)?\s*protett[ao]\b'
+  - '\baddett[oa]\b'
+  - '\boperai[oa]\b'
+  - '\bcommercial[ei]\b'
+  - '\bsales\b'
+  - '\bmarketing\b'
+  - '\b1[°ºo]\s*livello\b'
+  - '\b2[°ºo]\s*livello\b'
+  - '\bprim[oa]\s*livello\b'
+  - '\bsecond[oa]\s*livello\b'
+  - '\bapprendista\b'
+  - '\b(receptionist|impiegat[oa])\b'
+
+whitelist_title_patterns:
+  # Almeno UNO deve matchare per pre_filter_passed = true (oltre alle blacklist).
+  - '\bdev\s*ops?\b'
+  - '\bdevsecops\b'
+  - '\bsre\b'
+  - '\bsite\s*reliability\b'
+  - '\bplatform\s*(engineer|architect)\b'
+  - '\bcloud\s*(engineer|architect|specialist)\b'
+  - '\bkubernetes\b'
+  - '\bk8s\b'
+  - '\binfrastruct(?:ure|ur[ae])\b'
+  - '\bautomat(?:ion|izzazione)\b'
+  - '\bpython\s*(developer|engineer|backend)\b'
+  - '\bbackend\s*(developer|engineer|senior)\b'
+  - '\bsenior\s*(backend|python|developer)\b'
+  - '\bsoftware\s*(architect|engineer\s*senior)\b'
+  - '\bml\s*(infrastructure|ops|platform)\b'
+  - '\bmlops\b'
+  - '\bsecurity\s*(engineer|architect)\b'
+  - '\bsystem\s*engineer\b'
+  - '\bsistemista\b'              # sysadmin/system engineer (italiano)
+  - '\bobservability\b'
+
+remote_hints:
+  # Sostringhe lowercase cercate in title + description + location per has_remote_hint().
+  # Soft signal: NON usato come gate di rejection, solo per evidenziare candidati nell'UI.
+  - 'smart working'
+  - 'smartworking'
+  - 'remoto'
+  - 'remote'
+  - 'ibrido'
+  - 'hybrid'
+  - 'telelavoro'
+  - 'lavoro da remoto'
+  - 'work from home'
+  - 'full remote'
+  - 'fully remote'
