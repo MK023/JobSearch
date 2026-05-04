@@ -1,97 +1,52 @@
 """Rule-based pre-filter for WorldWild job offers.
 
-Runs BEFORE the AI analyzer to drop obvious noise cheaply. The blacklist /
-whitelist values are tuned on the patterns observed in the Italian market via
-Adzuna probe (28 Apr 2026): Help Desk, Junior, Legge 68 protected categories,
-sales / marketing roles dominate the volume; the signal is in DevOps, SRE,
-Cloud, Platform, Python Engineer, Backend Senior.
+Runs BEFORE the AI analyzer to drop obvious noise cheaply. Le regole
+(blacklist / whitelist title patterns, remote hints) sono caricate da
+``backend/src/worldwild/config/pre_filter_rules.yaml`` con cache singleton —
+Marco edita il YAML per cambiare comportamento, niente code push.
 
-These rules WILL produce false negatives (real candidates skipped) — the
-trade-off is intentional: cheap drop on volume noise so the AI analyzer
-budget is spent on the top-N. False negatives can be recovered later by
-loosening rules in PR #5 once the ``decisions`` table has signal.
+Il valore di soglia per il salary floor e' env-driven via ``settings.worldwild_salary_floor_eur``
+(default 25k EUR/anno). Override su Render con ``WORLDWILD_SALARY_FLOOR_EUR=<int>``.
+
+Tunato sui sample reali del mercato Adzuna IT (28 apr 2026): Help Desk, Junior,
+Legge 68, sales/marketing dominano il rumore; il segnale e' DevOps, SRE, Cloud,
+Platform, Python Engineer, Backend Senior. Le regole produrranno false negativi
+(candidati reali skipped) — trade-off intenzionale: drop cheap sul rumore di
+volume per risparmiare budget AI sul top-N. I falsi negativi si recuperano
+dopo allentando le regole nel YAML quando la tabella ``decisions`` ha segnale.
 """
 
 from __future__ import annotations
 
+import functools
 import re
 from typing import Any
 
-# Hard salary floor: anything advertised below this on a yearly basis is below
-# Marco's bucket (sub-junior IT roles). When salary is not advertised we let
-# it pass — Adzuna often omits the salary field even on senior postings.
-HARD_SALARY_FLOOR_EUR = 25_000
+from ..config import settings
+from .config import load_pre_filter_rules
 
-# Title patterns that immediately disqualify an offer.
-# Lowercase comparison; word boundaries where ambiguity is high.
-_BLACKLIST_TITLE_PATTERNS = [
-    r"\bhelp\s*desk\b",
-    r"\bhelpdesk\b",
-    r"\bjunior\b",
-    r"\bstage\b",
-    r"\bstagista\b",
-    r"\btirocini[oa]\b",  # tirocinio | tirocinia
-    r"\btirocinant[ei]\b",
-    r"\b(legge|l\.?)\s*68\b",  # categoria protetta
-    r"\bcat(\.|egoria)?\s*protett[ao]\b",
-    r"\baddett[oa]\b",
-    r"\boperai[oa]\b",
-    r"\bcommercial[ei]\b",
-    r"\bsales\b",
-    r"\bmarketing\b",
-    r"\b1[°ºo]\s*livello\b",
-    r"\b2[°ºo]\s*livello\b",
-    r"\bprim[oa]\s*livello\b",
-    r"\bsecond[oa]\s*livello\b",
-    r"\bapprendista\b",
-    r"\b(receptionist|impiegat[oa])\b",
-]
 
-# Title patterns that signal a real match for the Cloud/DevOps/Python target.
-# At least ONE must match for the offer to pass the whitelist.
-_WHITELIST_TITLE_PATTERNS = [
-    r"\bdev\s*ops?\b",
-    r"\bdevsecops\b",
-    r"\bsre\b",
-    r"\bsite\s*reliability\b",
-    r"\bplatform\s*(engineer|architect)\b",
-    r"\bcloud\s*(engineer|architect|specialist)\b",
-    r"\bkubernetes\b",
-    r"\bk8s\b",
-    r"\binfrastruct(?:ure|ur[ae])\b",
-    r"\bautomat(?:ion|izzazione)\b",
-    r"\bpython\s*(developer|engineer|backend)\b",
-    r"\bbackend\s*(developer|engineer|senior)\b",
-    r"\bsenior\s*(backend|python|developer)\b",
-    r"\bsoftware\s*(architect|engineer\s*senior)\b",
-    r"\bml\s*(infrastructure|ops|platform)\b",
-    r"\bmlops\b",
-    r"\bsecurity\s*(engineer|architect)\b",
-    r"\bsystem\s*engineer\b",
-    r"\bsistemista\b",  # Italian sysadmin/system engineer
-    r"\bobservability\b",
-]
+@functools.lru_cache(maxsize=1)
+def _compiled_blacklist() -> list[re.Pattern[str]]:
+    """Pre-compiled blacklist regex (cached). Reset con ``.cache_clear()`` per hot-reload."""
+    return [re.compile(p, re.IGNORECASE) for p in load_pre_filter_rules()["blacklist_title_patterns"]]
 
-# Description hints suggesting remote-first or remote-friendly arrangement.
-# Used as a soft signal: an offer that doesn't mention any of these is flagged
-# (not auto-rejected) since Italian job boards often omit remote info from
-# the title.
-_REMOTE_HINTS = [
-    "smart working",
-    "smartworking",
-    "remoto",
-    "remote",
-    "ibrido",
-    "hybrid",
-    "telelavoro",
-    "lavoro da remoto",
-    "work from home",
-    "full remote",
-    "fully remote",
-]
 
-_blacklist_re = [re.compile(p, re.IGNORECASE) for p in _BLACKLIST_TITLE_PATTERNS]
-_whitelist_re = [re.compile(p, re.IGNORECASE) for p in _WHITELIST_TITLE_PATTERNS]
+@functools.lru_cache(maxsize=1)
+def _compiled_whitelist() -> list[re.Pattern[str]]:
+    """Pre-compiled whitelist regex (cached). Reset con ``.cache_clear()`` per hot-reload."""
+    return [re.compile(p, re.IGNORECASE) for p in load_pre_filter_rules()["whitelist_title_patterns"]]
+
+
+def _remote_hints() -> list[str]:
+    """Lista lowercase di sostringhe di hint remoti (rilettura dal cache YAML)."""
+    return load_pre_filter_rules()["remote_hints"]
+
+
+# Backward-compat alias: alcuni test importano direttamente il floor come costante
+# top-level. Lo esponiamo come property-like int leggendo settings al import time.
+# Per override runtime usa direttamente ``settings.worldwild_salary_floor_eur``.
+HARD_SALARY_FLOOR_EUR: int = settings.worldwild_salary_floor_eur
 
 
 def pre_filter(offer: dict[str, Any]) -> tuple[bool, str]:
@@ -107,18 +62,19 @@ def pre_filter(offer: dict[str, Any]) -> tuple[bool, str]:
         return False, "empty title"
 
     # 1. Hard blacklist on title
-    for rgx in _blacklist_re:
+    for rgx in _compiled_blacklist():
         if rgx.search(title):
             return False, f"blacklist title: {rgx.pattern}"
 
     # 2. Whitelist must match (at least one)
-    if not any(rgx.search(title) for rgx in _whitelist_re):
+    if not any(rgx.search(title) for rgx in _compiled_whitelist()):
         return False, "no whitelist title match"
 
     # 3. Hard salary floor (only enforced when advertised)
+    salary_floor = settings.worldwild_salary_floor_eur
     salary_min = offer.get("salary_min")
-    if isinstance(salary_min, int) and salary_min > 0 and salary_min < HARD_SALARY_FLOOR_EUR:
-        return False, f"salary_min < {HARD_SALARY_FLOOR_EUR} EUR"
+    if isinstance(salary_min, int) and salary_min > 0 and salary_min < salary_floor:
+        return False, f"salary_min < {salary_floor} EUR"
 
     # 4. Soft remote check on description (warns but doesn't reject)
     # Implementation note: we do NOT reject on this — too many real Italian
@@ -140,4 +96,4 @@ def has_remote_hint(offer: dict[str, Any]) -> bool:
             str(offer.get("title") or ""),
         ]
     ).lower()
-    return any(hint in haystack for hint in _REMOTE_HINTS)
+    return any(hint in haystack for hint in _remote_hints())
