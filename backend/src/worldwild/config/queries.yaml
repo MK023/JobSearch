@@ -2,10 +2,16 @@
 # Convenzione: chiave = source_name (lowercase), valore = dict con almeno
 # `default_queries` (lista di stringhe).
 #
-# Adzuna IT free tier: 1k chiamate/giorno. 4 query x 4 pagine = 16 chiamate per
-# cron run, ordini di grandezza sotto il cap. Buckets scelti sui dati reali del
-# funnel di Marco (Dev 14.3% / Cloud 3.8% per career-kit `linkedin_572_deep_dive.md`).
+# Buckets scelti sui dati reali del funnel di Marco (Dev 14.3% / Cloud 3.8%
+# per career-kit `linkedin_572_deep_dive.md`).
+#
+# `default_queries: []` blocca silenziosamente l'adapter (nessuna query =
+# nessuna chiamata API): kill-switch runtime senza code push.
 
+# ============================================================================
+# Adzuna IT free tier: 1k chiamate/giorno. 4 query x 4 pagine = 16 chiamate
+# per cron run.
+# ============================================================================
 adzuna:
   default_queries:
     - 'devops'
@@ -15,22 +21,73 @@ adzuna:
   country: 'it'
   max_pages: 4
 
-# Predisposto per 8 nuovi adapter — verranno popolati dai sub-agent dedicati.
-# Lasciare `default_queries: []` blocca silenziosamente l'adapter (nessuna query
-# = nessuna chiamata API), utile come kill-switch runtime senza code push.
+# ============================================================================
+# Remotive: search-based, fetch fino a 200 risultati per query (no pagination).
+# Una call per query, raccomandato max 1 call/sec.
+# ============================================================================
 remotive:
-  default_queries: []
+  default_queries:
+    - 'devops'
+    - 'sre'
+    - 'cloud'
+    - 'python'
+
+# ============================================================================
+# Arbeitnow: page-based, no query (single fetch paginato). Filtro remote-only
+# applicato lato client. Niente queries.
+# ============================================================================
 arbeitnow:
   default_queries: []
+
+# ============================================================================
+# Jobicy: single fetch con count fino a 50, filtri industry/geo/tag opzionali.
+# Niente queries — `default_queries: []` significa una sola call con default
+# settings.
+# ============================================================================
 jobicy:
   default_queries: []
+
+# ============================================================================
+# Remote OK: single fetch con tags filter opzionale. User-Agent custom
+# obbligatorio (gestito client-side). Niente queries — il fetcher passa tags
+# come parametro keyword.
+# ============================================================================
 remoteok:
   default_queries: []
+
+# ============================================================================
+# The Muse: page-based, queries usate come `category` (es. "Engineering",
+# "Software Engineer"). 60 req/h senza API key, può essere alzato con
+# `THEMUSE_API_KEY` env var (free).
+# ============================================================================
 themuse:
-  default_queries: []
+  default_queries:
+    - 'Software Engineer'
+    - 'Engineering'
+
+# ============================================================================
+# Findwork.dev: search-based, auth obbligatoria via `FINDWORK_API_KEY` env var.
+# Senza key il fetcher ritorna [] graceful (loggato Sentry breadcrumb). Marco
+# crea l'account su findwork.dev/dev/, copia il token, lo mette in env.
+# ============================================================================
 findwork:
-  default_queries: []
+  default_queries:
+    - 'devops'
+    - 'sre'
+    - 'cloud'
+    - 'python'
+
+# ============================================================================
+# Working Nomads: single fetch (no pagination, ~few hundred results).
+# Filtro `category_filter` substring-match client-side. Niente queries.
+# ============================================================================
 workingnomads:
   default_queries: []
+
+# ============================================================================
+# We Work Remotely: RSS feed per category. La category default è
+# `remote-devops-sysadmin-jobs` (allineato target Marco). Niente queries —
+# il fetcher prende `category` come parametro keyword.
+# ============================================================================
 weworkremotely:
   default_queries: []

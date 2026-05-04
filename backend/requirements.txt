@@ -22,3 +22,4 @@ sentry-sdk[fastapi]>=2.44.0
 openpyxl==3.1.5
 bleach==6.3.0
 pyyaml==6.0.3
+feedparser==6.0.11
