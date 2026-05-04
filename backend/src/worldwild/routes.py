@@ -16,7 +16,7 @@ returns 503 with a clear message when it isn't.
 from __future__ import annotations
 
 import logging
-from typing import cast
+from typing import Any, cast
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request
@@ -38,7 +38,17 @@ from .models import (
 )
 from .schemas import DecideResponse, DecisionLiteral, IngestResponse, PromoteResponse
 from .service_decide import DecideError, apply_decision
-from .services.ingest import run_adzuna_ingest
+from .services.ingest import (
+    run_adzuna_ingest,
+    run_arbeitnow_ingest,
+    run_findwork_ingest,
+    run_jobicy_ingest,
+    run_remoteok_ingest,
+    run_remotive_ingest,
+    run_themuse_ingest,
+    run_weworkremotely_ingest,
+    run_workingnomads_ingest,
+)
 from .services.promote import run_promotion_analysis
 
 _logger = logging.getLogger(__name__)
@@ -321,4 +331,194 @@ def trigger_adzuna_ingest(
         fetched=result.fetched,
         new=result.new,
         filtered_out=result.filtered_out,
+    )
+
+
+# =============================================================================
+# 8 nuove route ingest — una per adapter, no factory generica per scelta Marco.
+# Ogni route delega alla propria run_<source>_ingest del modulo services.ingest,
+# poi audit dual + commit. Stesso pattern di /ingest/adzuna sopra.
+# =============================================================================
+
+
+def _run_and_audit(
+    request: Request,
+    db: WorldwildDbSession,
+    primary_db: DbSession,
+    *,
+    source: str,
+    run_callable: Any,
+) -> IngestResponse:
+    """Helper privato: esegue ``run_callable(db)`` + audit dual + commit.
+
+    Centralizza il try/except + dual_audit + commit ripetuto in 9 route.
+    Niente factory esposta esternamente: le 9 route restano endpoint distinti.
+    """
+    try:
+        result = run_callable(db)
+        db.commit()
+    except Exception as exc:  # noqa: BLE001 — surface adapter failure to caller
+        _logger.exception("worldwild ingest failed source=%s (type=%s)", source, type(exc).__name__)
+        db.rollback()
+        raise HTTPException(status_code=502, detail=f"{source} ingest failed") from exc
+
+    dual_audit(
+        primary_db,
+        db,
+        request,
+        "worldwild_ingest",
+        f"source={source} run={result.run_id} new={result.new}",
+    )
+    primary_db.commit()
+    db.commit()
+    return IngestResponse(
+        ok=True,
+        run_id=result.run_id,
+        fetched=result.fetched,
+        new=result.new,
+        filtered_out=result.filtered_out,
+    )
+
+
+@api_router.post("/ingest/remotive", response_model=IngestResponse)
+def trigger_remotive_ingest(
+    request: Request,
+    user: CurrentUser,
+    db: WorldwildDbSession,
+    primary_db: DbSession,
+    _guard: WorldwildEnabledGuard,
+) -> IngestResponse:
+    """Trigger manuale ingest run su Remotive (search-based, no auth)."""
+    return _run_and_audit(
+        request,
+        db,
+        primary_db,
+        source="remotive",
+        run_callable=lambda d: run_remotive_ingest(d, run_type="manual"),
+    )
+
+
+@api_router.post("/ingest/arbeitnow", response_model=IngestResponse)
+def trigger_arbeitnow_ingest(
+    request: Request,
+    user: CurrentUser,
+    db: WorldwildDbSession,
+    primary_db: DbSession,
+    _guard: WorldwildEnabledGuard,
+) -> IngestResponse:
+    """Trigger manuale ingest run su Arbeitnow (page-based, remote-only filter)."""
+    return _run_and_audit(
+        request,
+        db,
+        primary_db,
+        source="arbeitnow",
+        run_callable=lambda d: run_arbeitnow_ingest(d, run_type="manual"),
+    )
+
+
+@api_router.post("/ingest/jobicy", response_model=IngestResponse)
+def trigger_jobicy_ingest(
+    request: Request,
+    user: CurrentUser,
+    db: WorldwildDbSession,
+    primary_db: DbSession,
+    _guard: WorldwildEnabledGuard,
+) -> IngestResponse:
+    """Trigger manuale ingest run su Jobicy (single fetch, filtri industry/geo/tag)."""
+    return _run_and_audit(
+        request,
+        db,
+        primary_db,
+        source="jobicy",
+        run_callable=lambda d: run_jobicy_ingest(d, run_type="manual"),
+    )
+
+
+@api_router.post("/ingest/remoteok", response_model=IngestResponse)
+def trigger_remoteok_ingest(
+    request: Request,
+    user: CurrentUser,
+    db: WorldwildDbSession,
+    primary_db: DbSession,
+    _guard: WorldwildEnabledGuard,
+) -> IngestResponse:
+    """Trigger manuale ingest run su Remote OK (single fetch con tags filter)."""
+    return _run_and_audit(
+        request,
+        db,
+        primary_db,
+        source="remoteok",
+        run_callable=lambda d: run_remoteok_ingest(d, run_type="manual"),
+    )
+
+
+@api_router.post("/ingest/themuse", response_model=IngestResponse)
+def trigger_themuse_ingest(
+    request: Request,
+    user: CurrentUser,
+    db: WorldwildDbSession,
+    primary_db: DbSession,
+    _guard: WorldwildEnabledGuard,
+) -> IngestResponse:
+    """Trigger manuale ingest run su The Muse (page-based, queries come category)."""
+    return _run_and_audit(
+        request,
+        db,
+        primary_db,
+        source="themuse",
+        run_callable=lambda d: run_themuse_ingest(d, run_type="manual"),
+    )
+
+
+@api_router.post("/ingest/findwork", response_model=IngestResponse)
+def trigger_findwork_ingest(
+    request: Request,
+    user: CurrentUser,
+    db: WorldwildDbSession,
+    primary_db: DbSession,
+    _guard: WorldwildEnabledGuard,
+) -> IngestResponse:
+    """Trigger manuale ingest run su Findwork (search-based, auth via FINDWORK_API_KEY)."""
+    return _run_and_audit(
+        request,
+        db,
+        primary_db,
+        source="findwork",
+        run_callable=lambda d: run_findwork_ingest(d, run_type="manual"),
+    )
+
+
+@api_router.post("/ingest/workingnomads", response_model=IngestResponse)
+def trigger_workingnomads_ingest(
+    request: Request,
+    user: CurrentUser,
+    db: WorldwildDbSession,
+    primary_db: DbSession,
+    _guard: WorldwildEnabledGuard,
+) -> IngestResponse:
+    """Trigger manuale ingest run su Working Nomads (single fetch, no auth)."""
+    return _run_and_audit(
+        request,
+        db,
+        primary_db,
+        source="workingnomads",
+        run_callable=lambda d: run_workingnomads_ingest(d, run_type="manual"),
+    )
+
+
+@api_router.post("/ingest/weworkremotely", response_model=IngestResponse)
+def trigger_weworkremotely_ingest(
+    request: Request,
+    user: CurrentUser,
+    db: WorldwildDbSession,
+    primary_db: DbSession,
+    _guard: WorldwildEnabledGuard,
+) -> IngestResponse:
+    """Trigger manuale ingest run su We Work Remotely (RSS feed)."""
+    return _run_and_audit(
+        request,
+        db,
+        primary_db,
+        source="weworkremotely",
+        run_callable=lambda d: run_weworkremotely_ingest(d, run_type="manual"),
     )

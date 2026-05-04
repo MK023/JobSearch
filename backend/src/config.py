@@ -124,6 +124,9 @@ class Settings(BaseSettings):
     adzuna_app_id: str = ""
     adzuna_app_key: str = ""
 
+    # Findwork.dev API key (worldwild ingest source). Leave empty to disable.
+    findwork_api_key: str = ""
+
     # WorldWild pre-filter — salary floor in EUR (annual). Below this, offers are
     # filtered out (only when the source advertises salary; missing salary is let
     # through). Override via env var ``WORLDWILD_SALARY_FLOOR_EUR``. Default 25k
