@@ -226,3 +226,15 @@ class TestListPgDumps:
     def test_returns_empty_on_error(self, mock_get_client):
         mock_get_client.side_effect = RuntimeError("R2 unconfigured")
         assert list_pg_dumps() == []
+
+    def test_returns_empty_when_r2_unconfigured(self, mock_get_client):
+        """Guard short-circuits before touching R2 client (Sentry JOBSEARCH-15)."""
+        with patch("src.integrations.db_dump.settings") as mock_settings:
+            mock_settings.r2_access_key_id = ""
+            mock_settings.r2_secret_access_key = ""
+            mock_settings.r2_bucket_name = ""
+            mock_settings.r2_endpoint_url = ""
+            assert list_pg_dumps() == []
+        # Client must NOT be created when env vars are missing — that's
+        # the point of the guard, otherwise r2.py raises RuntimeError.
+        mock_get_client.assert_not_called()

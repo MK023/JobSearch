@@ -169,9 +169,9 @@ def _record_error(exc: Exception) -> None:
     with contextlib.suppress(Exception):
         import sentry_sdk
 
+        # Solo breadcrumb (no capture_exception): errori upstream graceful, già gestiti con return [] graceful. Niente issue spam su Sentry per degraded service vendor.
         sentry_sdk.add_breadcrumb(
             category="jobicy",
             message=f"jobicy fetch failed: {type(exc).__name__}",
             level="warning",
         )
-        sentry_sdk.capture_exception(exc)
