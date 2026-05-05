@@ -34,9 +34,12 @@ from src.worldwild.models import (
     DECISION_PENDING,
     DECISION_PROMOTE,
     DECISION_SKIP,
+    PROMOTION_STATE_DONE,
+    PROMOTION_STATE_FAILED,
     Decision,
     JobOffer,
 )
+from src.worldwild.routes import _query_offers, _quick_counts
 
 # Ensure all models are registered with Base.metadata.
 from tests.conftest import _ALL_MODELS  # noqa: F401
@@ -257,3 +260,101 @@ class TestPromoteEndpoint:
     def test_promote_invalid_offer_id_returns_400(self, auth_client: Any) -> None:
         r = auth_client.post("/api/v1/worldwild/analizza/not-a-uuid")
         assert r.status_code == 400
+
+
+def _seed_offer_with_state(
+    db: Any,
+    *,
+    source: str = "adzuna",
+    cv_match_score: int | None = 80,
+    promotion_state: str = "idle",
+    decision: str = DECISION_PENDING,
+) -> uuid.UUID:
+    """Test helper: insert a JobOffer + matching Decision with explicit state.
+
+    Centralizza la creazione di fixture per i test di filtering/counts: il
+    seeding manuale ripetuto con kwargs dispersi rende i test illeggibili.
+    """
+    offer = JobOffer(
+        source=source,
+        external_id=f"ext-{uuid.uuid4().hex[:8]}",
+        content_hash=f"hash-{uuid.uuid4().hex[:8]}",
+        title="Test Offer",
+        company="Co",
+        location="Milano",
+        url="https://example.com/job",
+        description="Python",
+        pre_filter_passed=True,
+        cv_match_score=cv_match_score,
+    )
+    db.add(offer)
+    db.flush()
+    db.add(Decision(job_offer_id=offer.id, decision=decision, promotion_state=promotion_state))
+    db.commit()
+    return cast(uuid.UUID, offer.id)
+
+
+class TestQueryOffersAutoHide:
+    """``_query_offers`` esclude offers con ``promotion_state='done'`` (auto-hide)."""
+
+    def test_done_offer_is_hidden(self, _secondary_db: Any) -> None:
+        idle_id = _seed_offer_with_state(_secondary_db, promotion_state="idle")
+        _seed_offer_with_state(_secondary_db, promotion_state=PROMOTION_STATE_DONE)
+        offers = _query_offers(_secondary_db, only_pending=True, limit=50)
+        ids = [cast(uuid.UUID, o.id) for o in offers]
+        assert idle_id in ids
+        assert len(offers) == 1
+
+    def test_failed_offer_remains_visible_for_retry(self, _secondary_db: Any) -> None:
+        # ``failed`` deve restare in lista — Marco vuole poterla ri-tentare.
+        failed_id = _seed_offer_with_state(_secondary_db, promotion_state=PROMOTION_STATE_FAILED)
+        offers = _query_offers(_secondary_db, only_pending=True, limit=50)
+        assert failed_id in [cast(uuid.UUID, o.id) for o in offers]
+
+    def test_idle_and_pending_states_visible(self, _secondary_db: Any) -> None:
+        idle_id = _seed_offer_with_state(_secondary_db, promotion_state="idle")
+        pending_id = _seed_offer_with_state(_secondary_db, promotion_state="pending")
+        offers = _query_offers(_secondary_db, only_pending=True, limit=50)
+        ids = [cast(uuid.UUID, o.id) for o in offers]
+        assert idle_id in ids
+        assert pending_id in ids
+
+
+class TestQuickCountsKPIs:
+    """``_quick_counts`` ritorna le 4 KPI dell'hero coerenti con la lista."""
+
+    def test_returns_all_four_keys(self, _secondary_db: Any) -> None:
+        counts = _quick_counts(_secondary_db)
+        for key in ("pending", "score_ok", "score_na", "analyzed_total", "per_source"):
+            assert key in counts
+
+    def test_pending_excludes_done(self, _secondary_db: Any) -> None:
+        _seed_offer_with_state(_secondary_db, cv_match_score=80, promotion_state="idle")
+        _seed_offer_with_state(_secondary_db, cv_match_score=80, promotion_state=PROMOTION_STATE_DONE)
+        counts = _quick_counts(_secondary_db)
+        assert counts["pending"] == 1
+        assert counts["analyzed_total"] == 1
+
+    def test_score_ok_and_na_partition_pending(self, _secondary_db: Any) -> None:
+        # 1 offer score>=threshold (ok), 1 offer score=None (n/d), 1 score sotto soglia
+        _seed_offer_with_state(_secondary_db, cv_match_score=80)
+        _seed_offer_with_state(_secondary_db, cv_match_score=None)
+        _seed_offer_with_state(_secondary_db, cv_match_score=10)
+        counts = _quick_counts(_secondary_db)
+        assert counts["pending"] == 3
+        assert counts["score_ok"] == 1
+        assert counts["score_na"] == 1
+        # Invariante: score_ok e score_na sono sotto-insiemi disgiunti di pending,
+        # ma non lo coprono interamente (score basso-ma-non-null sta in pending senza
+        # rientrare in nessuno dei due).
+        assert counts["score_ok"] + counts["score_na"] <= counts["pending"]
+
+    def test_analyzed_total_counts_done_decisions_unfiltered(self, _secondary_db: Any) -> None:
+        # `analyzed_total` è cumulativo: deve contare anche done offer non più
+        # in lista pending (è il funnel storico /worldwild → Pulse).
+        _seed_offer_with_state(_secondary_db, promotion_state=PROMOTION_STATE_DONE, decision="promote")
+        _seed_offer_with_state(_secondary_db, promotion_state=PROMOTION_STATE_DONE, decision="promote")
+        _seed_offer_with_state(_secondary_db, promotion_state="idle")
+        counts = _quick_counts(_secondary_db)
+        assert counts["analyzed_total"] == 2
+        assert counts["pending"] == 1

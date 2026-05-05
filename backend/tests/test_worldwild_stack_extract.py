@@ -179,3 +179,145 @@ class TestMissingFieldsTolerance:
 
     def test_none_values_are_treated_as_empty(self) -> None:
         assert extract_stack({"title": None, "description": None, "category": None}) == set()
+
+
+class TestItalianRoles:
+    """Italian IT job-role labels common in body-rental enterprise postings."""
+
+    def test_sistemista_with_ms_admin_stack(self) -> None:
+        offer = {
+            "title": "Sistemista junior per gestione AD",
+            "description": (
+                "Cerchiamo amministratore di sistema per Active Directory, "
+                "Exchange Server e Office 365 in azienda manifatturiera."
+            ),
+            "category": "IT Jobs",
+        }
+        stack = extract_stack(offer)
+        assert "sistemista" in stack
+        assert "active_directory" in stack
+        assert "exchange" in stack
+        assert "m365" in stack
+
+    def test_sviluppatore_programmatore_csharp(self) -> None:
+        offer = {
+            "title": "Programmatore C# .NET",
+            "description": "Sviluppatore senior per progetto enterprise. Analista programmatore con esperienza .NET.",
+            "category": "Software Development",
+        }
+        stack = extract_stack(offer)
+        assert "programmatore" in stack
+        assert "sviluppatore" in stack
+        assert "analista_programmatore" in stack
+        assert "csharp" in stack
+
+    def test_helpdesk_operations(self) -> None:
+        offer = {
+            "title": "Operations Specialist - Service Desk",
+            "description": "Gestione ticket help desk, supporto operations L1/L2.",
+        }
+        stack = extract_stack(offer)
+        assert "operations" in stack
+        assert "helpdesk" in stack
+
+
+class TestMicrosoftEnterpriseStack:
+    """Microsoft enterprise stack — frequent on Reply / Capgemini / Hays postings."""
+
+    def test_powershell_sccm_intune(self) -> None:
+        offer = {
+            "title": "Endpoint Engineer",
+            "description": "PowerShell scripting, SCCM/ConfigMgr, Microsoft Intune deployment.",
+        }
+        stack = extract_stack(offer)
+        assert "powershell" in stack
+        assert "sccm" in stack
+        assert "intune" in stack
+
+    def test_iis_exchange_server(self) -> None:
+        offer = {
+            "title": "Windows Infrastructure",
+            "description": "Manutenzione IIS server e Exchange Server in datacenter on-prem.",
+        }
+        stack = extract_stack(offer)
+        assert "iis" in stack
+        assert "exchange" in stack
+        assert "windows_server" not in stack  # "Windows Infrastructure" is not "Windows Server"
+
+    def test_ldap_standalone_does_not_match_active_directory(self) -> None:
+        # LDAP alone (without "Active Directory") must NOT pull active_directory.
+        offer = {"title": "Backend", "description": "OpenLDAP integration for auth."}
+        stack = extract_stack(offer)
+        assert "ldap" in stack
+        assert "active_directory" not in stack
+
+    def test_m365_aliases(self) -> None:
+        a = extract_stack({"title": "Admin", "description": "Office 365 tenant admin."})
+        b = extract_stack({"title": "Admin", "description": "Microsoft 365 tenant admin."})
+        c = extract_stack({"title": "Admin", "description": "O365 tenant admin."})
+        assert "m365" in a and "m365" in b and "m365" in c
+
+
+class TestVirtualization:
+    def test_vmware_vsphere_hyperv(self) -> None:
+        offer = {
+            "title": "Virtualization Engineer",
+            "description": "VMware vSphere + ESXi cluster, vCenter management. Hyper-V on Windows Server.",
+        }
+        stack = extract_stack(offer)
+        assert "vmware" in stack
+        assert "vsphere" in stack
+        assert "hyperv" in stack
+
+    def test_proxmox(self) -> None:
+        stack = extract_stack({"title": "Sysadmin", "description": "Proxmox VE cluster management."})
+        assert "proxmox" in stack
+
+
+class TestNetworkingEnterprise:
+    def test_cisco_juniper_firewall(self) -> None:
+        offer = {
+            "title": "Network Engineer",
+            "description": "Cisco CCNA certified. Juniper switches, FortiGate firewall, Palo Alto NGFW.",
+        }
+        stack = extract_stack(offer)
+        assert "cisco" in stack
+        assert "juniper" in stack
+        assert "firewall" in stack
+
+    def test_vpn_dns_dhcp(self) -> None:
+        offer = {
+            "title": "Network Specialist",
+            "description": "IPSec VPN tunnels, DNS BIND9, DHCP scopes management.",
+        }
+        stack = extract_stack(offer)
+        assert "vpn" in stack
+        assert "dns" in stack
+        assert "dhcp" in stack
+
+
+class TestItsm:
+    def test_servicenow_itil(self) -> None:
+        offer = {
+            "title": "ITSM Analyst",
+            "description": "ServiceNow ITSM platform admin, ITIL v4 Foundation certified.",
+        }
+        stack = extract_stack(offer)
+        assert "servicenow" in stack
+        assert "itil" in stack
+
+
+class TestDevopsCloudRoles:
+    def test_mlops(self) -> None:
+        stack = extract_stack({"title": "MLOps Engineer", "description": "ML pipeline ops."})
+        assert "mlops" in stack
+
+    def test_cloud_engineer_italian(self) -> None:
+        a = extract_stack({"title": "Cloud Engineer", "description": "AWS infra."})
+        b = extract_stack({"title": "Ingegnere Cloud", "description": "AWS infra."})
+        assert "cloud_engineer" in a
+        assert "cloud_engineer" in b
+
+    def test_platform_engineer(self) -> None:
+        stack = extract_stack({"title": "Platform Engineer", "description": "Internal developer platform."})
+        assert "platform_engineer" in stack

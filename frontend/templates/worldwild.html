@@ -26,13 +26,26 @@
     Discovery layer da 9 API job board pre-matched con il tuo CV.
   </p>
 
-  {# Stats — count di lista visibile (pattern Pulse). Single counter:
-     pre_filter_passed=True AND cv_match_score>=threshold AND decision=pending.
-     Breakdown per source nel chip-bar sotto. #}
+  {# Stats — 4 KPI hero (pattern /agenda). Tutti calcolati su lista visibile
+     (pre_filter_passed=True AND decision=pending AND promotion_state!=done),
+     tranne `Analizzate` che è il contatore vita cumulativo del funnel
+     /worldwild → Pulse. Vedi `_quick_counts()` per definizioni complete. #}
   <div class="agenda-stats mb-xl" role="status" aria-live="polite">
-    <div class="agenda-stat agenda-stat-purple">
+    <div class="agenda-stat agenda-stat-purple" title="Offer in attesa di decisione (pending, non ancora analizzate)">
       <span class="agenda-stat-value">{{ counts.pending }}</span>
-      <span class="agenda-stat-label">Pending CV-matched</span>
+      <span class="agenda-stat-label">Pending</span>
+    </div>
+    <div class="agenda-stat agenda-stat-green" title="Pending con CV match score sopra la soglia di promozione: meritevoli di analisi AI">
+      <span class="agenda-stat-value">{{ counts.score_ok }}</span>
+      <span class="agenda-stat-label">Score OK</span>
+    </div>
+    <div class="agenda-stat agenda-stat-orange" title="Pending senza CV match score (vocabolario non ha mappato tech tokens)">
+      <span class="agenda-stat-value">{{ counts.score_na }}</span>
+      <span class="agenda-stat-label">n/d</span>
+    </div>
+    <div class="agenda-stat agenda-stat-blue" title="Totale offer già analizzate e spedite a Pulse (contatore vita del funnel)">
+      <span class="agenda-stat-value">{{ counts.analyzed_total }}</span>
+      <span class="agenda-stat-label">Analizzate</span>
     </div>
   </div>
 
@@ -44,7 +57,7 @@
               class="filter-chip"
               :class="{ active: activeSource === '' }"
               @click="setSource('')">
-        Tutti <span class="worldwild-chip-count">{{ counts.pending }}</span>
+        Tutti <span class="worldwild-chip-count">{{ counts.score_ok }}</span>
       </button>
       {% for src, cnt in counts.per_source.items() %}
         <button type="button"
