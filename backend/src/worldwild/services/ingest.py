@@ -128,92 +128,14 @@ def run_adzuna_ingest(
     """
     if queries is None:
         queries = _default_adzuna_queries()
-    run = AdapterRun(
-        source=SOURCE_ADZUNA,
-        run_type=run_type,
-        status=RUN_STATUS_RUNNING,
-    )
-    db.add(run)
-    db.flush()  # populate run.id
-    started = datetime.now(UTC)
 
-    fetched = 0
-    new_count = 0
-    filtered_out = 0
+    def _fetch() -> list[dict[str, Any]]:
+        results: list[dict[str, Any]] = []
+        for query in queries or ():
+            results.extend(fetch_adzuna_jobs(what=query))
+        return results
 
-    try:
-        for query in queries:
-            results = fetch_adzuna_jobs(what=query)
-            fetched += len(results)
-            for offer in results:
-                content_hash = compute_content_hash(offer)
-                if _exists(db, content_hash=content_hash, source=offer["source"], external_id=offer["external_id"]):
-                    continue
-                passed, reason = pre_filter(offer)
-                # Stack-match score at-ingest contro Marco's CV (deterministico,
-                # no AI cost). Se la score è sotto threshold OPPURE pre_filter
-                # è fallito, NON inseriamo la riga: drop totale per ridurre
-                # noise nel raw layer (osservabilità ridotta a contatore +
-                # row su AdapterRun, dettaglio in Sentry per debugging).
-                cv_match_score = _compute_cv_match_score(offer)
-                if not passed or _below_match_threshold(cv_match_score):
-                    filtered_out += 1
-                    continue
-                job_offer = JobOffer(
-                    source=offer["source"],
-                    external_id=offer["external_id"],
-                    content_hash=content_hash,
-                    title=offer["title"],
-                    company=offer.get("company", ""),
-                    location=offer.get("location", ""),
-                    url=offer.get("url", ""),
-                    description=offer.get("description", ""),
-                    salary_min=offer.get("salary_min"),
-                    salary_max=offer.get("salary_max"),
-                    salary_currency=offer.get("salary_currency", ""),
-                    contract_type=offer.get("contract_type", ""),
-                    contract_time=offer.get("contract_time", ""),
-                    category=offer.get("category", ""),
-                    posted_at=offer.get("posted_at"),
-                    pre_filter_passed=passed,
-                    pre_filter_reason=reason,
-                    cv_match_score=cv_match_score,
-                    raw_payload=offer.get("raw_payload"),
-                )
-                db.add(job_offer)
-                db.flush()  # populate job_offer.id for the Decision FK-by-value
-                db.add(Decision(job_offer_id=job_offer.id, decision=DECISION_PENDING))
-                new_count += 1
-        # SQLAlchemy mypy plugin reports Column[X] for descriptors here even
-        # though runtime assignment to an instance attribute correctly receives
-        # the bare value type. Same pattern is used across the codebase
-        # (see ``inbox/service.py``, ``batch/service.py``).
-        run.status = RUN_STATUS_SUCCESS  # type: ignore[assignment]
-    except Exception as exc:
-        run.status = RUN_STATUS_FAILED  # type: ignore[assignment]
-        run.error_message = f"{type(exc).__name__}: {exc}"[:4000]  # type: ignore[assignment]
-        run.completed_at = datetime.now(UTC)  # type: ignore[assignment]
-        run.duration_ms = int((datetime.now(UTC) - started).total_seconds() * 1000)  # type: ignore[assignment]
-        run.offers_fetched = fetched  # type: ignore[assignment]
-        run.offers_new = new_count  # type: ignore[assignment]
-        run.offers_pre_filtered_out = filtered_out  # type: ignore[assignment]
-        db.flush()
-        raise
-    finally:
-        if run.status != RUN_STATUS_FAILED:
-            run.completed_at = datetime.now(UTC)  # type: ignore[assignment]
-            run.duration_ms = int((datetime.now(UTC) - started).total_seconds() * 1000)  # type: ignore[assignment]
-            run.offers_fetched = fetched  # type: ignore[assignment]
-            run.offers_new = new_count  # type: ignore[assignment]
-            run.offers_pre_filtered_out = filtered_out  # type: ignore[assignment]
-            db.flush()
-
-    return IngestResult(
-        run_id=str(run.id),
-        fetched=fetched,
-        new=new_count,
-        filtered_out=filtered_out,
-    )
+    return _execute_ingest(db, SOURCE_ADZUNA, fetch_offers=_fetch, run_type=run_type)
 
 
 def _compute_cv_match_score(offer: dict[str, Any]) -> int | None:
