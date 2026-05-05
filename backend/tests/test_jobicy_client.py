@@ -153,6 +153,47 @@ class TestFetchJobicyJobs:
         assert len(result) == 1
         assert result[0]["external_id"] == "99"
 
+    def test_fetch_jobicy_default_invocation_never_raises(self) -> None:
+        # Guard contro 502 in produzione su /api/v1/worldwild/ingest/jobicy.
+        # ``run_jobicy_ingest`` chiama ``fetch_jobicy_jobs(industry="", geo="",
+        # tag="", count=50)``: una qualsiasi ``Exception`` non gestita qui
+        # propaga in ``_execute_ingest`` → route handler → ``HTTPException 502``.
+        # Verifica che gli errori comuni (timeout, 5xx, JSON malformato,
+        # payload non-dict, payload con ``jobs`` non lista) restino assorbiti
+        # dal contract "ritorna lista vuota su errore".
+        scenarios: list[Any] = [
+            httpx.Response(
+                500,
+                text="upstream",
+                request=httpx.Request("GET", jobicy.JOBICY_BASE),
+            ),
+            httpx.Response(
+                200,
+                text="<html>not json</html>",
+                request=httpx.Request("GET", jobicy.JOBICY_BASE),
+            ),
+            httpx.Response(
+                200,
+                text=json.dumps([1, 2, 3]),  # payload top-level list, non dict
+                request=httpx.Request("GET", jobicy.JOBICY_BASE),
+            ),
+            httpx.Response(
+                200,
+                text=json.dumps({"jobs": "not-a-list"}),  # ``jobs`` shape rotta
+                request=httpx.Request("GET", jobicy.JOBICY_BASE),
+            ),
+        ]
+        for resp in scenarios:
+            with patch("httpx.Client.get", return_value=resp):
+                result = jobicy.fetch_jobicy_jobs()  # tutti i default
+            assert isinstance(result, list)
+            assert result == []
+
+        # Network error path (httpx.HTTPError sottoclassi).
+        with patch("httpx.Client.get", side_effect=httpx.ConnectError("dns")):
+            result = jobicy.fetch_jobicy_jobs()
+        assert result == []
+
 
 class TestParsing:
     def test_parse_pub_date_naive_string_assumes_utc(self) -> None:

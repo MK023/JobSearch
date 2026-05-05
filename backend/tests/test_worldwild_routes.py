@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import uuid
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Any, cast
 from unittest.mock import patch
 
 import pytest
@@ -84,7 +84,11 @@ def _http_user(_primary_db: Any) -> User:
 
 @pytest.fixture
 def _seed_offer(_secondary_db: Any) -> uuid.UUID:
-    """Insert a JobOffer + sibling pending Decision; return offer_id."""
+    """Insert a JobOffer + sibling pending Decision; return offer_id.
+
+    ``cv_match_score`` impostato sopra la default threshold (50) così l'offer
+    è visibile nei nuovi count by-source di ``_quick_counts``.
+    """
     offer = JobOffer(
         source="adzuna",
         external_id="ext-test",
@@ -95,12 +99,15 @@ def _seed_offer(_secondary_db: Any) -> uuid.UUID:
         url="https://example.com/job",
         description="Python, Kubernetes, AWS",
         pre_filter_passed=True,
+        cv_match_score=80,
     )
     _secondary_db.add(offer)
     _secondary_db.flush()
     _secondary_db.add(Decision(job_offer_id=offer.id, decision=DECISION_PENDING))
     _secondary_db.commit()
-    return offer.id  # type: ignore[no-any-return]
+    # cast: SQLAlchemy mypy plugin tipizza l'attributo come Column[UUID],
+    # ma a runtime è un UUID Python (instance attribute post-flush).
+    return cast(uuid.UUID, offer.id)
 
 
 @pytest.fixture
@@ -169,6 +176,7 @@ class TestWorldwildPage:
             url="https://example.com/job-posted",
             description="Python, Kubernetes",
             pre_filter_passed=True,
+            cv_match_score=75,
             posted_at=_dt(2026, 4, 28, 10, 0, tzinfo=UTC),
         )
         _secondary_db.add(offer)
@@ -220,13 +228,13 @@ class TestDecideEndpoint:
 
 
 class TestPromoteEndpoint:
-    """POST /api/v1/worldwild/promote/{offer_id} schedules a BackgroundTask."""
+    """POST /api/v1/worldwild/send-to-pulse/{offer_id} schedules a BackgroundTask."""
 
     def test_promote_returns_202_and_schedules_task(self, auth_client: Any, _seed_offer: uuid.UUID) -> None:
         # Patch the actual background body so we don't run the real
-        # promotion (which would try to talk to Anthropic).
-        with patch("src.worldwild.routes._run_promotion_in_background") as mock_run:
-            r = auth_client.post(f"/api/v1/worldwild/promote/{_seed_offer}")
+        # send-to-pulse cross-DB write.
+        with patch("src.worldwild.routes._run_send_to_pulse_in_background") as mock_run:
+            r = auth_client.post(f"/api/v1/worldwild/send-to-pulse/{_seed_offer}")
         assert r.status_code == 202
         body = r.json()
         assert body["accepted"] is True
@@ -241,11 +249,11 @@ class TestPromoteEndpoint:
 
     def test_promote_unknown_offer_returns_404(self, auth_client: Any) -> None:
         ghost = uuid.uuid4()
-        with patch("src.worldwild.routes._run_promotion_in_background") as mock_run:
-            r = auth_client.post(f"/api/v1/worldwild/promote/{ghost}")
+        with patch("src.worldwild.routes._run_send_to_pulse_in_background") as mock_run:
+            r = auth_client.post(f"/api/v1/worldwild/send-to-pulse/{ghost}")
         assert r.status_code == 404
         mock_run.assert_not_called()
 
     def test_promote_invalid_offer_id_returns_400(self, auth_client: Any) -> None:
-        r = auth_client.post("/api/v1/worldwild/promote/not-a-uuid")
+        r = auth_client.post("/api/v1/worldwild/send-to-pulse/not-a-uuid")
         assert r.status_code == 400

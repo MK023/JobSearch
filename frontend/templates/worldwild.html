@@ -1,18 +1,38 @@
 {% extends "base.html" %}
 {% block title %}WorldWild — Job Search{% endblock %}
 {% block content %}
-<div class="content-inner">
+{# WorldWild discovery page — visual clone of /history + /agenda.
+
+   Design rules (see project memory `feedback_pattern_consistency_default`):
+   - Stats row uses .agenda-stats / .agenda-stat-* (same as /agenda).
+   - Offer rows use .history-item layout (same as /history listing).
+   - Source filter uses .filter-chip (same as /history secondary bar).
+   - Score badge uses .score-badge .score-{high,mid,low} from sections.css.
+   No bespoke "card-head/card-meta" — those classes don't exist in this codebase.
+
+   Backend contract (graceful when partially shipped, see PR follow-up #21):
+   - counts: { pending: int, total_passed: int, total_filtered_out: int,
+               per_source?: dict[str, int] }            # per_source pending PR
+   - offers[*].cv_match_score: int | None                # pending PR
+   - decide endpoint: status enum Pulse (scartato, ...)  # pending PR (other agent)
+   - send-to-pulse endpoint                              # pending PR (other agent)
+#}
+<div class="content-inner" x-data="worldwildPage()" x-init="init()">
 
   <div class="page-header">
     <h1 class="page-title">WorldWild</h1>
-    <p class="page-subtitle">Discovery layer dalle API pubbliche (Adzuna, Remotive, Arbeitnow…) — pre-filtrato, pronto per skip o promote.</p>
   </div>
+  <p class="worldwild-subtitle">
+    Discovery layer da 9 API job board pre-matched con il tuo CV.
+  </p>
 
-  {# Stats bar #}
+  {# Stats — single source of truth: lista visibile sotto.
+     Pending = numero offerte attualmente in `offers`. Mantengo total_passed /
+     total_filtered_out come contesto operativo (bilancio del pre-filter). #}
   <div class="agenda-stats mb-xl" role="status" aria-live="polite">
     <div class="agenda-stat agenda-stat-purple">
       <span class="agenda-stat-value">{{ counts.pending }}</span>
-      <span class="agenda-stat-label">Pending</span>
+      <span class="agenda-stat-label">Pending CV-matched</span>
     </div>
     <div class="agenda-stat agenda-stat-green">
       <span class="agenda-stat-value">{{ counts.total_passed }}</span>
@@ -24,9 +44,33 @@
     </div>
   </div>
 
-  {# Toolbar #}
-  <div class="worldwild-toolbar mb-l">
-    <label for="worldwild-source" class="visually-hidden">Source ingest</label>
+  {# Source breakdown chips — riusano .filter-chip esistente di /history.
+     Render solo se backend espone counts.per_source (graceful no-op until then). #}
+  {% if counts.per_source %}
+    <div class="filter-bar worldwild-source-bar" role="group" aria-label="Filtra per source">
+      <button type="button"
+              class="filter-chip"
+              :class="{ active: activeSource === '' }"
+              @click="setSource('')">
+        Tutti <span class="worldwild-chip-count">{{ counts.pending }}</span>
+      </button>
+      {% for src, cnt in counts.per_source.items() %}
+        <button type="button"
+                class="filter-chip"
+                :class="{ active: activeSource === '{{ src }}' }"
+                @click="setSource('{{ src }}')">
+          {{ src }} <span class="worldwild-chip-count">{{ cnt }}</span>
+        </button>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {# Toolbar: run-all + manual single-source ingest + show-all toggle #}
+  <div class="worldwild-toolbar mb-xl">
+    <button type="button" id="worldwild-run-all-btn" class="btn btn-primary">
+      Esegui tutti i 9 source
+    </button>
+    <label for="worldwild-source" class="sr-only">Source ingest singolo</label>
     <select id="worldwild-source" class="worldwild-source-select">
       <option value="adzuna" selected>Adzuna</option>
       <option value="remotive">Remotive</option>
@@ -38,77 +82,128 @@
       <option value="workingnomads">Working Nomads</option>
       <option value="weworkremotely">We Work Remotely</option>
     </select>
-    <button type="button" id="worldwild-ingest-btn" class="btn btn-primary">
-      Run ingest
+    <button type="button" id="worldwild-ingest-btn" class="btn btn-ghost">
+      Solo questo
     </button>
-    <span id="worldwild-ingest-status" class="text-muted ml-m"></span>
-    <a href="/worldwild?only_pending={{ 'false' if only_pending else 'true' }}" class="btn btn-ghost ml-auto">
+    <span id="worldwild-ingest-status" class="worldwild-ingest-status" aria-live="polite"></span>
+    <a href="/worldwild?only_pending={{ 'false' if only_pending else 'true' }}" class="btn btn-ghost worldwild-toggle-pending">
       {{ 'Mostra tutti' if only_pending else 'Solo pending' }}
     </a>
   </div>
 
-  {# Offer list #}
+  {# Offer list — pattern .history-list + .history-item (cline /history) #}
   {% if offers|length == 0 %}
     <div class="empty-state">
       <p>Nessuna offerta {{ 'pending' if only_pending else 'in lista' }}.</p>
-      <p class="text-muted">Premi <strong>Run Adzuna ingest</strong> per pescare nuove offerte dal mercato italiano.</p>
+      <p class="text-muted">Premi <strong>Esegui tutti i 9 source</strong> per pescare nuove offerte.</p>
     </div>
   {% else %}
-    <ul class="worldwild-offer-list" id="worldwild-offer-list">
-      {% for o in offers %}
-        <li class="worldwild-offer-card" data-offer-id="{{ o.id }}">
-          <div class="worldwild-offer-head">
-            <h3 class="worldwild-offer-title">
-              <a href="{{ o.url }}" target="_blank" rel="noopener noreferrer">{{ o.title }}</a>
-            </h3>
-            <div class="worldwild-offer-badges">
-              <span class="badge badge-source">{{ o.source }}</span>
-              {% if o.remote_hint %}<span class="badge badge-remote">remote-hint</span>{% endif %}
-              {% if o.contract_type %}<span class="badge badge-neutral">{{ o.contract_type }}</span>{% endif %}
-              {% if o.contract_time %}<span class="badge badge-neutral">{{ o.contract_time }}</span>{% endif %}
+    <div class="history-section">
+      <div class="history-list" id="worldwild-offer-list">
+        {% for o in offers %}
+          {% set score = o.cv_match_score|default(0) %}
+          {% set score_class = 'score-high' if score >= 70 else ('score-mid' if score >= 50 else 'score-low') %}
+          <div class="history-item worldwild-offer"
+               data-offer-id="{{ o.id }}"
+               data-source="{{ o.source }}">
+            <div class="worldwild-offer-main">
+              <div class="worldwild-offer-head">
+                <a href="{{ o.url }}" target="_blank" rel="noopener noreferrer" class="worldwild-offer-title">
+                  {{ o.title }}
+                </a>
+                <span class="score-badge {{ score_class }}" title="CV match score">{{ score }}</span>
+              </div>
+              <div class="worldwild-offer-meta">
+                <strong>{{ o.company }}</strong>
+                {% if o.location %} &middot; {{ o.location }}{% endif %}
+                &middot; <span class="worldwild-source-tag">{{ o.source }}</span>
+                {% if o.posted_at %}
+                  &middot; <time datetime="{{ o.posted_at.isoformat() }}">{{ (o.posted_at|italytime).strftime('%d %b') }}</time>
+                {% endif %}
+                {% if o.salary_min and o.salary_max %}
+                  &middot; {{ o.salary_min }}–{{ o.salary_max }} {{ o.salary_currency or '' }}
+                {% endif %}
+                {% if o.remote_hint %} &middot; <span class="worldwild-remote-hint">remote-hint</span>{% endif %}
+              </div>
+            </div>
+            <div class="worldwild-offer-actions">
+              <button type="button"
+                      class="btn btn-ghost btn-sm worldwild-decide"
+                      data-decision="skip"
+                      data-offer-id="{{ o.id }}"
+                      title="Scarta — non interessa">
+                Scarta
+              </button>
+              <button type="button"
+                      class="btn btn-primary btn-sm worldwild-send-to-pulse"
+                      data-offer-id="{{ o.id }}"
+                      title="Invia a Pulse per analisi AI completa">
+                Spedisci a Pulse
+              </button>
+              <span class="worldwild-state-badge" data-state-for="{{ o.id }}" hidden></span>
             </div>
           </div>
-          <div class="worldwild-offer-meta">
-            <strong>{{ o.company }}</strong>
-            {% if o.location %} · {{ o.location }}{% endif %}
-            {% if o.posted_at %} · <time datetime="{{ o.posted_at.isoformat() }}">{{ (o.posted_at|italytime).strftime('%d %b') }}</time>{% endif %}
-            {% if o.salary_min and o.salary_max %}
-              · <span class="worldwild-salary">{{ o.salary_min }}–{{ o.salary_max }} {{ o.salary_currency or '' }}</span>
-            {% endif %}
-          </div>
-          <div class="worldwild-offer-actions">
-            <button type="button"
-                    class="btn btn-ghost worldwild-decide"
-                    data-decision="skip"
-                    data-offer-id="{{ o.id }}"
-                    title="Scarta — non interessa">
-              Skip
-            </button>
-            <button type="button"
-                    class="btn btn-primary worldwild-decide"
-                    data-decision="promote"
-                    data-offer-id="{{ o.id }}"
-                    title="Salva nello shortlist">
-              Promote
-            </button>
-            <button type="button"
-                    class="btn btn-secondary worldwild-promote-ai"
-                    data-offer-id="{{ o.id }}"
-                    title="Analizza con AI e crea JobAnalysis (richiede ~10s)">
-              Analyze with AI
-            </button>
-            <span class="worldwild-state-badge" data-state-for="{{ o.id }}" hidden></span>
-            <a href="{{ o.url }}" target="_blank" rel="noopener noreferrer" class="btn btn-link ml-auto">
-              Vedi su Adzuna ↗
-            </a>
-          </div>
-        </li>
-      {% endfor %}
-    </ul>
+        {% endfor %}
+      </div>
+    </div>
   {% endif %}
 
 </div>
+{% endblock %}
 
+{% block scripts_extra %}
+<script>
+  // Alpine component — tiene activeSource per il filtro chips.
+  // Le azioni offer (decide / send-to-pulse / ingest) restano in vanilla JS
+  // sotto, perché operano su DOM mutati e non hanno bisogno di reattività.
+  function worldwildPage() {
+    return {
+      activeSource: '',
+
+      init() {
+        this.wireSSE();
+      },
+
+      setSource(src) {
+        this.activeSource = src;
+        this.applyFilter();
+      },
+
+      applyFilter() {
+        const src = this.activeSource;
+        document.querySelectorAll('.worldwild-offer').forEach(card => {
+          const match = !src || card.dataset.source === src;
+          card.style.display = match ? '' : 'none';
+        });
+      },
+
+      wireSSE() {
+        if (typeof EventSource === 'undefined') return;
+        try {
+          const sse = new EventSource('/api/v1/notifications/sse', { withCredentials: true });
+          // promotion_state aggiorna lo stato live di una offer in send-to-pulse
+          sse.addEventListener('worldwild:promotion_state', (ev) => {
+            const parts = (ev.data || '').split(':');
+            if (parts.length < 2) return;
+            const offerId = parts[0];
+            const state = parts.slice(1).join(':');
+            const badge = document.querySelector('[data-state-for="' + offerId + '"]');
+            if (!badge) return;
+            badge.hidden = false;
+            badge.textContent = state;
+            badge.className = 'worldwild-state-badge worldwild-state-' + state;
+          });
+          // ingest_done: ricarico per riflettere counts + nuove offers
+          sse.addEventListener('worldwild:ingest_done', () => {
+            window.location.reload();
+          });
+        } catch (e) {
+          // EventSource ctor failure: degrade silenzioso
+        }
+      },
+    };
+  }
+</script>
 <script>
 (function () {
   'use strict';
@@ -124,7 +219,10 @@
     });
   }
 
-  // Decide buttons (skip / promote)
+  // Decide buttons (scartato / colloquio / candidato …) — mappato sull'enum Pulse.
+  // Il backend `/api/v1/worldwild/decide/{id}?decision=…` accetta lo stesso
+  // vocabolario di JobAnalysis.status (vedi PR follow-up #21 per il rename
+  // server-side da skip/promote → enum Pulse).
   document.querySelectorAll('.worldwild-decide').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var offerId = btn.getAttribute('data-offer-id');
@@ -133,8 +231,7 @@
               + '?decision=' + encodeURIComponent(decision);
       btn.disabled = true;
       postJson(url).then(function () {
-        // Remove the card from the list once decided
-        var card = btn.closest('.worldwild-offer-card');
+        var card = btn.closest('.worldwild-offer');
         if (card) { card.remove(); }
       }).catch(function (err) {
         btn.disabled = false;
@@ -144,43 +241,48 @@
     });
   });
 
-  // Analyze with AI — fire-and-forget background promotion
-  document.querySelectorAll('.worldwild-promote-ai').forEach(function (btn) {
+  // Send-to-Pulse: rinominato da `promote` per coerenza UI (Pulse = JobSearch
+  // primary). Backend espone POST /api/v1/worldwild/send-to-pulse/{id} che
+  // crea una JobAnalysis sul primary DB. Stato live arriva via SSE
+  // worldwild:promotion_state (vedi wireSSE in worldwildPage()).
+  document.querySelectorAll('.worldwild-send-to-pulse').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var offerId = btn.getAttribute('data-offer-id');
-      var url = '/api/v1/worldwild/promote/' + encodeURIComponent(offerId);
+      var url = '/api/v1/worldwild/send-to-pulse/' + encodeURIComponent(offerId);
       var badge = document.querySelector('[data-state-for="' + offerId + '"]');
       btn.disabled = true;
+      btn.textContent = 'Spedizione…';
       if (badge) {
         badge.hidden = false;
-        badge.textContent = 'AI in corso…';
+        badge.textContent = 'In invio…';
         badge.className = 'worldwild-state-badge worldwild-state-pending';
       }
       postJson(url).then(function (data) {
+        btn.textContent = 'Spedito a Pulse';
         if (badge) {
-          badge.textContent = 'Schedulato (' + data.state + ')';
+          badge.textContent = 'Schedulato (' + (data.state || 'queued') + ')';
         }
       }).catch(function (err) {
+        btn.disabled = false;
+        btn.textContent = 'Spedisci a Pulse';
         if (badge) {
           badge.textContent = 'Errore: ' + err.message;
           badge.className = 'worldwild-state-badge worldwild-state-failed';
         }
-        btn.disabled = false;
       });
     });
   });
 
-  // Manual ingest trigger
+  // Manual single-source ingest (legacy controllo, utile per debug per-source)
   var ingestBtn = document.getElementById('worldwild-ingest-btn');
   var ingestStatus = document.getElementById('worldwild-ingest-status');
   var sourceSelect = document.getElementById('worldwild-source');
   if (ingestBtn) {
     ingestBtn.addEventListener('click', function () {
       var source = sourceSelect ? sourceSelect.value : 'adzuna';
-      var endpoint = '/api/v1/worldwild/ingest/' + source;
       ingestBtn.disabled = true;
-      ingestStatus.textContent = 'Ingest in corso… (può richiedere 10–20 s)';
-      postJson(endpoint).then(function (data) {
+      ingestStatus.textContent = 'Ingest ' + source + '… (10–20 s)';
+      postJson('/api/v1/worldwild/ingest/' + source).then(function (data) {
         ingestStatus.textContent = 'Done — fetched ' + data.fetched
           + ', new ' + data.new + ', filtered ' + data.filtered_out + '. Reload per vedere.';
         ingestBtn.disabled = false;
@@ -191,30 +293,27 @@
     });
   }
 
-  // SSE: ricevi update live di promotion_state per ogni offer
-  if (typeof EventSource !== 'undefined') {
-    try {
-      var sseSource = new EventSource('/api/v1/notifications/sse', { withCredentials: true });
-      sseSource.addEventListener('worldwild:promotion_state', function (ev) {
-        // Payload format: "<offer_id>:<state>" (vedi promote.py broadcast_sync)
-        var data = (ev.data || '').split(':');
-        if (data.length < 2) { return; }
-        var offerId = data[0];
-        var state = data.slice(1).join(':');  // tollerante a ":" futuri
-        var badge = document.querySelector('[data-state-for="' + offerId + '"]');
-        if (!badge) { return; }
-        badge.hidden = false;
-        badge.textContent = state;
-        badge.className = 'worldwild-state-badge worldwild-state-' + state;
+  // Run-all 9 sources — Promise.allSettled, no early-fail. Status finale
+  // riporta quanti dei 9 hanno risposto 2xx; reload automatico dopo 2 s
+  // per riflettere counts + nuove offers nella lista.
+  var SOURCES = ['adzuna', 'remotive', 'arbeitnow', 'jobicy', 'remoteok',
+                 'themuse', 'findwork', 'workingnomads', 'weworkremotely'];
+  var runAllBtn = document.getElementById('worldwild-run-all-btn');
+  if (runAllBtn) {
+    runAllBtn.addEventListener('click', function () {
+      runAllBtn.disabled = true;
+      ingestStatus.textContent = 'Ingest su tutti i 9 source… (1–2 min)';
+      Promise.allSettled(
+        SOURCES.map(function (s) {
+          return postJson('/api/v1/worldwild/ingest/' + s);
+        })
+      ).then(function (results) {
+        var ok = results.filter(function (r) { return r.status === 'fulfilled'; }).length;
+        ingestStatus.textContent = 'Done: ' + ok + '/9 source ok. Reload in corso…';
+        runAllBtn.disabled = false;
+        setTimeout(function () { window.location.reload(); }, 2000);
       });
-      sseSource.onerror = function () {
-        if (sseSource.readyState === EventSource.CLOSED) {
-          // Browser non auto-retry: lascia stare, prossimo refresh ricarica state da DB
-        }
-      };
-    } catch (e) {
-      // EventSource ctor failure: degrade silenzioso, page reload mostra state via DB
-    }
+    });
   }
 }());
 </script>

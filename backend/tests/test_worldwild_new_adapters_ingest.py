@@ -168,7 +168,59 @@ def test_run_remotive_ingest_handles_empty_fetch(worldwild_db_session: Any) -> N
 # =============================================================================
 
 
-def test_run_jobicy_ingest_records_pre_filter_failure(worldwild_db_session: Any) -> None:
+def test_run_ingest_drops_offer_with_low_cv_match_score(worldwild_db_session: Any) -> None:
+    """Post-feature: stack-match score < threshold → drop totale.
+
+    Mockiamo ``score_match`` per ritornare uno score sotto threshold
+    (settings.promote_score_threshold default 50). Il pre_filter passa,
+    ma la match-score blocca l'insert.
+    """
+    import src.worldwild.services.ingest as ingest_mod
+    from src.worldwild.stack_match import StackMatchResult
+
+    low_match = StackMatchResult(score=10, matched=frozenset(), missing=frozenset({"cobol"}), coverage_ratio=0.1)
+
+    offers = [_offer("remoteok", 1)]
+    with (
+        patch.object(ingest_mod, "fetch_remoteok_jobs", return_value=offers),
+        patch.object(ingest_mod, "score_match", return_value=low_match),
+    ):
+        result = ingest_mod.run_remoteok_ingest(worldwild_db_session)
+        worldwild_db_session.commit()
+
+    # Drop totale: nessuna riga
+    assert list(worldwild_db_session.execute(select(JobOffer)).scalars()) == []
+    assert result.fetched == 1
+    assert result.new == 0
+    assert result.filtered_out == 1
+
+
+def test_run_ingest_persists_cv_match_score_when_above_threshold(worldwild_db_session: Any) -> None:
+    """Score >= threshold → row inserita, ``cv_match_score`` popolato."""
+    import src.worldwild.services.ingest as ingest_mod
+    from src.worldwild.stack_match import StackMatchResult
+
+    high_match = StackMatchResult(
+        score=80, matched=frozenset({"python", "kubernetes"}), missing=frozenset(), coverage_ratio=1.0
+    )
+
+    offers = [_offer("remoteok", 1)]
+    with (
+        patch.object(ingest_mod, "fetch_remoteok_jobs", return_value=offers),
+        patch.object(ingest_mod, "score_match", return_value=high_match),
+    ):
+        result = ingest_mod.run_remoteok_ingest(worldwild_db_session)
+        worldwild_db_session.commit()
+
+    rows = list(worldwild_db_session.execute(select(JobOffer)).scalars())
+    assert len(rows) == 1
+    assert rows[0].cv_match_score == 80
+    assert result.new == 1
+    assert result.filtered_out == 0
+
+
+def test_run_jobicy_ingest_drops_pre_filter_failure(worldwild_db_session: Any) -> None:
+    """Post-feature: pre_filter fail → drop totale (no JobOffer row)."""
     import src.worldwild.services.ingest as ingest_mod
 
     bad_offer = _offer("jobicy", 1, title="Help Desk Junior livello 1")  # blacklist
@@ -176,14 +228,16 @@ def test_run_jobicy_ingest_records_pre_filter_failure(worldwild_db_session: Any)
         result = ingest_mod.run_jobicy_ingest(worldwild_db_session)
         worldwild_db_session.commit()
 
+    # Drop totale: nessuna riga creata né per JobOffer né per Decision.
+    # Osservabilità ridotta a counters su AdapterRun + IngestResult.
     job_offers = list(worldwild_db_session.execute(select(JobOffer)).scalars())
-    assert len(job_offers) == 1
-    assert job_offers[0].pre_filter_passed is False
-    assert job_offers[0].pre_filter_reason  # reason populated
+    assert len(job_offers) == 0
+    decisions = list(worldwild_db_session.execute(select(Decision)).scalars())
+    assert len(decisions) == 0
 
-    # Counters: fetched=1, new=1 (riga creata comunque), filtered_out=1
+    # Counters: fetched=1, new=0 (drop), filtered_out=1
     assert result.fetched == 1
-    assert result.new == 1
+    assert result.new == 0
     assert result.filtered_out == 1
 
 

@@ -28,6 +28,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ...config import settings
 from ...integrations.adzuna import fetch_adzuna_jobs
 from ...integrations.arbeitnow import fetch_arbeitnow_jobs
 from ...integrations.findwork import fetch_findwork_jobs
@@ -57,6 +58,8 @@ from ..models import (
     Decision,
     JobOffer,
 )
+from ..stack_extract import extract_stack
+from ..stack_match import score_match
 
 
 def _default_queries(source_key: str) -> tuple[str, ...]:
@@ -147,8 +150,15 @@ def run_adzuna_ingest(
                 if _exists(db, content_hash=content_hash, source=offer["source"], external_id=offer["external_id"]):
                     continue
                 passed, reason = pre_filter(offer)
-                if not passed:
+                # Stack-match score at-ingest contro Marco's CV (deterministico,
+                # no AI cost). Se la score è sotto threshold OPPURE pre_filter
+                # è fallito, NON inseriamo la riga: drop totale per ridurre
+                # noise nel raw layer (osservabilità ridotta a contatore +
+                # row su AdapterRun, dettaglio in Sentry per debugging).
+                cv_match_score = _compute_cv_match_score(offer)
+                if not passed or _below_match_threshold(cv_match_score):
                     filtered_out += 1
+                    continue
                 job_offer = JobOffer(
                     source=offer["source"],
                     external_id=offer["external_id"],
@@ -167,6 +177,7 @@ def run_adzuna_ingest(
                     posted_at=offer["posted_at"],
                     pre_filter_passed=passed,
                     pre_filter_reason=reason,
+                    cv_match_score=cv_match_score,
                     raw_payload=offer["raw_payload"],
                 )
                 db.add(job_offer)
@@ -203,6 +214,34 @@ def run_adzuna_ingest(
         new=new_count,
         filtered_out=filtered_out,
     )
+
+
+def _compute_cv_match_score(offer: dict[str, Any]) -> int | None:
+    """Stack-match at-ingest contro ``MARCO_CV_SKILLS`` (deterministico, no AI).
+
+    Riusa ``extract_stack`` + ``score_match`` (vedi ``services/promote.py`` per
+    lo stesso pattern in fase di promozione). Ritorna ``None`` quando l'offer
+    non ha tech tokens estraibili: in quel caso lo score non è semanticamente
+    "0" (il match è indeterminabile, non basso) e lasciamo la decisione di
+    inserimento al solo pre_filter (la threshold non si applica).
+    """
+    extracted = extract_stack(offer)
+    if not extracted:
+        return None
+    return score_match(extracted).score
+
+
+def _below_match_threshold(cv_match_score: int | None) -> bool:
+    """True quando la score esiste ed è sotto ``settings.promote_score_threshold``.
+
+    ``None`` (offer non scoreable) NON è considerato sotto-threshold: in quel
+    caso non blocchiamo l'insert, l'offer passa avanti col solo verdetto del
+    pre_filter (default safety, evita di perdere segnali quando il vocabolario
+    di stack-extract non copre il dominio dell'offer).
+    """
+    if cv_match_score is None:
+        return False
+    return cv_match_score < settings.promote_score_threshold
 
 
 def _exists(db: Session, *, content_hash: str, source: str, external_id: str) -> bool:
@@ -267,8 +306,15 @@ def _execute_ingest(
             ):
                 continue
             passed, reason = pre_filter(offer)
-            if not passed:
+            # Stack-match score at-ingest contro Marco's CV (deterministico,
+            # no AI cost). Se la score è sotto threshold OPPURE pre_filter
+            # è fallito, NON inseriamo la riga: drop totale per ridurre
+            # noise nel raw layer (osservabilità ridotta a contatore +
+            # row su AdapterRun, dettaglio in Sentry per debugging).
+            cv_match_score = _compute_cv_match_score(offer)
+            if not passed or _below_match_threshold(cv_match_score):
                 filtered_out += 1
+                continue
             job_offer = JobOffer(
                 source=offer["source"],
                 external_id=offer["external_id"],
@@ -287,6 +333,7 @@ def _execute_ingest(
                 posted_at=offer["posted_at"],
                 pre_filter_passed=passed,
                 pre_filter_reason=reason,
+                cv_match_score=cv_match_score,
                 raw_payload=offer["raw_payload"],
             )
             db.add(job_offer)
