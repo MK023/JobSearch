@@ -228,13 +228,13 @@ class TestDecideEndpoint:
 
 
 class TestPromoteEndpoint:
-    """POST /api/v1/worldwild/send-to-pulse/{offer_id} schedules a BackgroundTask."""
+    """POST /api/v1/worldwild/analizza/{offer_id} schedules a BackgroundTask."""
 
     def test_promote_returns_202_and_schedules_task(self, auth_client: Any, _seed_offer: uuid.UUID) -> None:
         # Patch the actual background body so we don't run the real
         # send-to-pulse cross-DB write.
         with patch("src.worldwild.routes._run_send_to_pulse_in_background") as mock_run:
-            r = auth_client.post(f"/api/v1/worldwild/send-to-pulse/{_seed_offer}")
+            r = auth_client.post(f"/api/v1/worldwild/analizza/{_seed_offer}")
         assert r.status_code == 202
         body = r.json()
         assert body["accepted"] is True
@@ -250,10 +250,10 @@ class TestPromoteEndpoint:
     def test_promote_unknown_offer_returns_404(self, auth_client: Any) -> None:
         ghost = uuid.uuid4()
         with patch("src.worldwild.routes._run_send_to_pulse_in_background") as mock_run:
-            r = auth_client.post(f"/api/v1/worldwild/send-to-pulse/{ghost}")
+            r = auth_client.post(f"/api/v1/worldwild/analizza/{ghost}")
         assert r.status_code == 404
         mock_run.assert_not_called()
 
     def test_promote_invalid_offer_id_returns_400(self, auth_client: Any) -> None:
-        r = auth_client.post("/api/v1/worldwild/send-to-pulse/not-a-uuid")
+        r = auth_client.post("/api/v1/worldwild/analizza/not-a-uuid")
         assert r.status_code == 400

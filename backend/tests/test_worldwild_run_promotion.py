@@ -121,7 +121,7 @@ class TestSendToPulse:
         assert analysis.role == "Senior DevOps Engineer"
         assert analysis.location == "Milano"
         assert analysis.job_url == "https://example.com/job/1"
-        assert analysis.status == AnalysisStatus.INTERVIEW.value
+        assert analysis.status == AnalysisStatus.PENDING.value
         assert analysis.source == AnalysisSource.WORLDWILD.value
         # Nessuno score AI: la promozione NON chiama Claude
         assert analysis.score == 0

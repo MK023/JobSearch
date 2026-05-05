@@ -5,7 +5,7 @@ Two routers exported:
 - ``page_router``: GET ``/worldwild`` — Jinja2-rendered offer list. Mounted at
   the application root in ``main.py``.
 - ``api_router``:  POST ``/worldwild/decide/{offer_id}``,
-                   POST ``/worldwild/send-to-pulse/{offer_id}`` (background task),
+                   POST ``/worldwild/analizza/{offer_id}`` (background task),
                    POST ``/worldwild/ingest/adzuna``. Mounted under
                    ``/api/v1`` in ``api_v1.py``.
 
@@ -268,7 +268,7 @@ def _run_send_to_pulse_in_background(offer_id: UUID, user_id: UUID) -> None:
         secondary_db.close()
 
 
-@api_router.post("/send-to-pulse/{offer_id}", response_model=PromoteResponse, status_code=202)
+@api_router.post("/analizza/{offer_id}", response_model=PromoteResponse, status_code=202)
 def send_offer_to_pulse(
     request: Request,
     offer_id: str,

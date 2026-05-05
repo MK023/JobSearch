@@ -26,21 +26,13 @@
     Discovery layer da 9 API job board pre-matched con il tuo CV.
   </p>
 
-  {# Stats — single source of truth: lista visibile sotto.
-     Pending = numero offerte attualmente in `offers`. Mantengo total_passed /
-     total_filtered_out come contesto operativo (bilancio del pre-filter). #}
+  {# Stats — count di lista visibile (pattern Pulse). Single counter:
+     pre_filter_passed=True AND cv_match_score>=threshold AND decision=pending.
+     Breakdown per source nel chip-bar sotto. #}
   <div class="agenda-stats mb-xl" role="status" aria-live="polite">
     <div class="agenda-stat agenda-stat-purple">
       <span class="agenda-stat-value">{{ counts.pending }}</span>
       <span class="agenda-stat-label">Pending CV-matched</span>
-    </div>
-    <div class="agenda-stat agenda-stat-green">
-      <span class="agenda-stat-value">{{ counts.total_passed }}</span>
-      <span class="agenda-stat-label">Pre-filter passed</span>
-    </div>
-    <div class="agenda-stat agenda-stat-orange">
-      <span class="agenda-stat-value">{{ counts.total_filtered_out }}</span>
-      <span class="agenda-stat-label">Filtered out</span>
     </div>
   </div>
 
@@ -83,7 +75,7 @@
       <option value="weworkremotely">We Work Remotely</option>
     </select>
     <button type="button" id="worldwild-ingest-btn" class="btn btn-ghost">
-      Solo questo
+      Esegui
     </button>
     <span id="worldwild-ingest-status" class="worldwild-ingest-status" aria-live="polite"></span>
     <a href="/worldwild?only_pending={{ 'false' if only_pending else 'true' }}" class="btn btn-ghost worldwild-toggle-pending">
@@ -138,7 +130,7 @@
                       class="btn btn-primary btn-sm worldwild-send-to-pulse"
                       data-offer-id="{{ o.id }}"
                       title="Invia a Pulse per analisi AI completa">
-                Spedisci a Pulse
+                Analizza
               </button>
               <span class="worldwild-state-badge" data-state-for="{{ o.id }}" hidden></span>
             </div>
@@ -181,17 +173,13 @@
         if (typeof EventSource === 'undefined') return;
         try {
           const sse = new EventSource('/api/v1/notifications/sse', { withCredentials: true });
-          // promotion_state aggiorna lo stato live di una offer in send-to-pulse
-          sse.addEventListener('worldwild:promotion_state', (ev) => {
-            const parts = (ev.data || '').split(':');
-            if (parts.length < 2) return;
-            const offerId = parts[0];
-            const state = parts.slice(1).join(':');
-            const badge = document.querySelector('[data-state-for="' + offerId + '"]');
-            if (!badge) return;
-            badge.hidden = false;
-            badge.textContent = state;
-            badge.className = 'worldwild-state-badge worldwild-state-' + state;
+          // promotion_state: signal-only event (no payload). Reload page debounced
+          // per riflettere lo state DB aggiornato (Decision.promotion_state +
+          // remove offer dal listing se ora è done).
+          let reloadTimer = null;
+          sse.addEventListener('worldwild:promotion_state', () => {
+            if (reloadTimer) clearTimeout(reloadTimer);
+            reloadTimer = setTimeout(() => window.location.reload(), 1500);
           });
           // ingest_done: ricarico per riflettere counts + nuove offers
           sse.addEventListener('worldwild:ingest_done', () => {
@@ -242,29 +230,29 @@
   });
 
   // Send-to-Pulse: rinominato da `promote` per coerenza UI (Pulse = JobSearch
-  // primary). Backend espone POST /api/v1/worldwild/send-to-pulse/{id} che
+  // primary). Backend espone POST /api/v1/worldwild/analizza/{id} che
   // crea una JobAnalysis sul primary DB. Stato live arriva via SSE
   // worldwild:promotion_state (vedi wireSSE in worldwildPage()).
   document.querySelectorAll('.worldwild-send-to-pulse').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var offerId = btn.getAttribute('data-offer-id');
-      var url = '/api/v1/worldwild/send-to-pulse/' + encodeURIComponent(offerId);
+      var url = '/api/v1/worldwild/analizza/' + encodeURIComponent(offerId);
       var badge = document.querySelector('[data-state-for="' + offerId + '"]');
       btn.disabled = true;
-      btn.textContent = 'Spedizione…';
+      btn.textContent = 'Invio analisi…';
       if (badge) {
         badge.hidden = false;
         badge.textContent = 'In invio…';
         badge.className = 'worldwild-state-badge worldwild-state-pending';
       }
       postJson(url).then(function (data) {
-        btn.textContent = 'Spedito a Pulse';
+        btn.textContent = 'Analisi inviata';
         if (badge) {
           badge.textContent = 'Schedulato (' + (data.state || 'queued') + ')';
         }
       }).catch(function (err) {
         btn.disabled = false;
-        btn.textContent = 'Spedisci a Pulse';
+        btn.textContent = 'Analizza';
         if (badge) {
           badge.textContent = 'Errore: ' + err.message;
           badge.className = 'worldwild-state-badge worldwild-state-failed';
