@@ -5,7 +5,7 @@ Two routers exported:
 - ``page_router``: GET ``/worldwild`` — Jinja2-rendered offer list. Mounted at
   the application root in ``main.py``.
 - ``api_router``:  POST ``/worldwild/decide/{offer_id}``,
-                   POST ``/worldwild/promote/{offer_id}`` (background task),
+                   POST ``/worldwild/send-to-pulse/{offer_id}`` (background task),
                    POST ``/worldwild/ingest/adzuna``. Mounted under
                    ``/api/v1`` in ``api_v1.py``.
 
@@ -25,6 +25,7 @@ from sqlalchemy import desc, func, select
 from sqlalchemy.orm import Session
 
 from ..audit.service import dual_audit
+from ..config import settings
 from ..database import SessionLocal as PrimarySessionLocal
 from ..database.worldwild_db import WorldwildSessionLocal
 from ..dependencies import CurrentUser, DbSession
@@ -32,6 +33,7 @@ from ..pages import _base_ctx
 from .dependencies import WorldwildDbSession, WorldwildEnabledGuard
 from .filters import has_remote_hint
 from .models import (
+    ALL_SOURCES,
     DECISION_PENDING,
     Decision,
     JobOffer,
@@ -49,7 +51,7 @@ from .services.ingest import (
     run_weworkremotely_ingest,
     run_workingnomads_ingest,
 )
-from .services.promote import run_promotion_analysis
+from .services.promote import send_to_pulse
 
 _logger = logging.getLogger(__name__)
 
@@ -135,17 +137,43 @@ def _query_offers(db: Session, *, only_pending: bool, limit: int) -> list[JobOff
     return list(db.execute(stmt).scalars())
 
 
-def _quick_counts(db: Session) -> dict[str, int]:
-    """Counts surfaced as small badges in the page header."""
-    total_passed = db.execute(select(func.count(JobOffer.id)).where(JobOffer.pre_filter_passed.is_(True))).scalar_one()
-    total_filtered_out = db.execute(
-        select(func.count(JobOffer.id)).where(JobOffer.pre_filter_passed.is_(False))
+def _quick_counts(db: Session) -> dict[str, Any]:
+    """Counts coerenti con le liste visibili a Marco + breakdown per source.
+
+    Pattern allineato a /agenda (vedi ``feedback_pattern_consistency_default``):
+    le badges in page header devono contare le righe che Marco vede a schermo,
+    non i totali raw del DB. La lista visibile è filtrata da:
+
+    - ``pre_filter_passed = TRUE`` (regole rule-based pre-AI)
+    - ``cv_match_score >= settings.promote_score_threshold`` (gate at-ingest)
+    - ``Decision.decision = 'pending'`` (non ancora skip/promote)
+
+    Restituisce:
+
+    - ``pending``: int — totale offer pending in vista
+    - ``per_source``: dict[str, int] — breakdown per sorgente (adzuna/remotive/...).
+      Le chiavi sono fisse (vedi ``ALL_SOURCES``), così il template ha layout
+      stabile anche quando una source non ha offers (mostra ``0``).
+    """
+    visible_filter = (
+        JobOffer.pre_filter_passed.is_(True)
+        & (JobOffer.cv_match_score >= settings.promote_score_threshold)
+        & (Decision.decision == DECISION_PENDING)
+    )
+    pending = db.execute(
+        select(func.count(JobOffer.id)).join(Decision, Decision.job_offer_id == JobOffer.id).where(visible_filter)
     ).scalar_one()
-    pending = db.execute(select(func.count(Decision.id)).where(Decision.decision == DECISION_PENDING)).scalar_one()
+    per_source: dict[str, int] = {}
+    for source in ALL_SOURCES:
+        cnt = db.execute(
+            select(func.count(JobOffer.id))
+            .join(Decision, Decision.job_offer_id == JobOffer.id)
+            .where(visible_filter & (JobOffer.source == source))
+        ).scalar_one()
+        per_source[source] = int(cnt)
     return {
-        "total_passed": int(total_passed),
-        "total_filtered_out": int(total_filtered_out),
         "pending": int(pending),
+        "per_source": per_source,
     }
 
 
@@ -205,25 +233,25 @@ def decide_offer(
     )
 
 
-def _run_promotion_in_background(offer_id: UUID, user_id: UUID) -> None:
-    """Background task body: opens fresh sessions on BOTH DBs and runs promotion.
+def _run_send_to_pulse_in_background(offer_id: UUID, user_id: UUID) -> None:
+    """Background task body: apre sessioni fresche su entrambi i DB e spedisce a Pulse.
 
-    Mirrors the ``inbox/routes.py`` pattern (fresh ``SessionLocal()`` instead
-    of reusing the request session) but with the cross-DB twist: the WorldWild
-    ingest layer needs both the primary (Neon) session for CV / JobAnalysis /
-    audit and the secondary (Supabase) session for the Decision update.
+    Mirror del pattern di ``inbox/routes.py`` (``SessionLocal()`` fresh invece
+    di riusare la session della request), col twist cross-DB: la spedizione
+    a Pulse necessita la primary (Neon) per leggere il CV + creare JobAnalysis,
+    e la secondary (Supabase) per aggiornare la Decision.
 
-    Errors are logged and swallowed — the route already returned 202 to the
-    client, so a re-raise here only pollutes the worker process logs without
-    informing the user. Sentry breadcrumb captures the exception.
+    Errori loggati e swallowed — la route ha già ritornato 202 al client,
+    re-raise qui inquina solo i log del worker senza informare l'utente.
+    Sentry breadcrumb cattura comunque l'eccezione.
     """
     primary_db = PrimarySessionLocal()
     secondary_db = WorldwildSessionLocal() if WorldwildSessionLocal is not None else None
-    if secondary_db is None:  # pragma: no cover — guarded earlier in route
+    if secondary_db is None:  # pragma: no cover — gestito prima nella route
         primary_db.close()
         return
     try:
-        run_promotion_analysis(
+        send_to_pulse(
             primary_db,
             secondary_db,
             offer_id=offer_id,
@@ -232,7 +260,7 @@ def _run_promotion_in_background(offer_id: UUID, user_id: UUID) -> None:
         primary_db.commit()
         secondary_db.commit()
     except Exception:
-        _logger.exception("worldwild promote background task failed (offer=%s)", offer_id)
+        _logger.exception("worldwild send-to-pulse background task failed (offer=%s)", offer_id)
         primary_db.rollback()
         secondary_db.rollback()
     finally:
@@ -240,8 +268,8 @@ def _run_promotion_in_background(offer_id: UUID, user_id: UUID) -> None:
         secondary_db.close()
 
 
-@api_router.post("/promote/{offer_id}", response_model=PromoteResponse, status_code=202)
-def promote_offer(
+@api_router.post("/send-to-pulse/{offer_id}", response_model=PromoteResponse, status_code=202)
+def send_offer_to_pulse(
     request: Request,
     offer_id: str,
     background_tasks: BackgroundTasks,
@@ -250,13 +278,16 @@ def promote_offer(
     primary_db: DbSession,
     _guard: WorldwildEnabledGuard,
 ) -> PromoteResponse:
-    """Schedule a full promotion pipeline run in the background.
+    """Schedula la spedizione a Pulse in background.
 
-    Returns 202 Accepted immediately so the UI doesn't block on a 5-15s
-    Anthropic call. The actual gate + analyzer + cross-DB write runs in a
-    BackgroundTask spawned with fresh DB sessions — see
-    :func:`_run_promotion_in_background`. The UI polls or listens via SSE
-    for the terminal state on ``Decision.promotion_state``.
+    Ritorna 202 Accepted subito perché il task gira in BackgroundTask con
+    sessioni DB fresh — vedi :func:`_run_send_to_pulse_in_background`. L'UI
+    pollia o ascolta via SSE per lo stato terminale su ``Decision.promotion_state``.
+
+    **Niente Claude call qui** (al contrario del vecchio ``/promote``):
+    la promozione è una spedizione cross-DB minimal, l'analisi AI gira poi
+    su Pulse nel suo flow normale. Vedi docstring di
+    :func:`services.promote.send_to_pulse`.
     """
     try:
         offer_uuid = UUID(offer_id)
@@ -266,26 +297,26 @@ def promote_offer(
     if db.get(JobOffer, offer_uuid) is None:
         raise HTTPException(status_code=404, detail="JobOffer not found")
 
-    # Detach the user_id before passing to the background task — the
-    # task uses fresh sessions and shouldn't rely on the request user object.
+    # Detach lo user_id prima di passarlo al background task — il task usa
+    # sessioni fresh e non deve dipendere dall'oggetto user della request.
     user_id: UUID = user.id  # type: ignore[assignment]
-    background_tasks.add_task(_run_promotion_in_background, offer_uuid, user_id)
+    background_tasks.add_task(_run_send_to_pulse_in_background, offer_uuid, user_id)
 
     dual_audit(
         primary_db,
         db,
         request,
-        "worldwild_promote_scheduled",
+        "worldwild_send_to_pulse_scheduled",
         f"offer={offer_id}",
     )
     primary_db.commit()
     db.commit()
-    _logger.info("worldwild promote scheduled (offer=%s)", offer_uuid)
+    _logger.info("worldwild send-to-pulse scheduled (offer=%s)", offer_uuid)
     return PromoteResponse(
         accepted=True,
         offer_id=str(offer_uuid),
         state="pending",
-        message="Promotion scheduled — poll Decision.promotion_state for terminal status.",
+        message="Send-to-Pulse scheduled — poll Decision.promotion_state for terminal status.",
     )
 
 

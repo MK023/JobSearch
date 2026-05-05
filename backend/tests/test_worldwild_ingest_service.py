@@ -92,21 +92,26 @@ class TestComputeContentHash:
 
 class TestRunAdzunaIngest:
     def test_inserts_offers_with_pre_filter_outcome(self, worldwild_db_session: Any) -> None:
+        # Post-feature stack-match at-ingest: gli offer che falliscono pre_filter
+        # OPPURE che hanno score < threshold vengono droppati totalmente (no
+        # JobOffer row) per ridurre noise nel raw layer. ``filtered_out`` riflette
+        # quel drop. Il "Help Desk" qui fallisce pre_filter quindi non entra.
         offers = [_good_offer(1), _noisy_offer(2), _good_offer(3)]
         with patch("src.worldwild.services.ingest.fetch_adzuna_jobs", return_value=offers):
             result = run_adzuna_ingest(worldwild_db_session, queries=("devops",))
             worldwild_db_session.commit()
 
         assert result.fetched == 3
-        assert result.new == 3  # all 3 inserted, even noisy one (passed=False stored)
+        assert result.new == 2  # solo i 2 good_offer entrano; il noisy è droppato
         assert result.filtered_out == 1
 
         rows = list(worldwild_db_session.execute(select(JobOffer)).scalars())
-        assert len(rows) == 3
-        passed_titles = {r.title for r in rows if r.pre_filter_passed}
-        rejected_titles = {r.title for r in rows if not r.pre_filter_passed}
-        assert any("DevOps" in t for t in passed_titles)
-        assert any("Help Desk" in t for t in rejected_titles)
+        assert len(rows) == 2
+        # tutti gli inseriti hanno pre_filter_passed=True (gli scartati non entrano)
+        assert all(r.pre_filter_passed for r in rows)
+        assert all("DevOps" in r.title for r in rows)
+        # cv_match_score popolato (>= threshold) per ogni inserito
+        assert all(r.cv_match_score is not None and r.cv_match_score >= 50 for r in rows)
 
     def test_creates_pending_decision_for_each_offer(self, worldwild_db_session: Any) -> None:
         with patch(
@@ -149,7 +154,8 @@ class TestRunAdzunaIngest:
         assert run.status == RUN_STATUS_SUCCESS
         assert run.source == SOURCE_ADZUNA
         assert run.offers_fetched == 2
-        assert run.offers_new == 2
+        # Post-feature: noisy offer (pre_filter rejected) viene droppato → solo 1 inserito
+        assert run.offers_new == 1
         assert run.offers_pre_filtered_out == 1
         assert run.completed_at is not None
         assert run.duration_ms is not None and run.duration_ms >= 0

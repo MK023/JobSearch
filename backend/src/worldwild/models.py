@@ -122,6 +122,14 @@ class JobOffer(WorldwildBase):
     pre_filter_passed = Column(Boolean, default=False, nullable=False, index=True)
     pre_filter_reason = Column(String(255), default="")
 
+    # Stack-match score (0-100) calcolato at-ingest contro Marco's CV skills.
+    # ``None`` = score non calcolabile (offer privo di tech tokens estraibili,
+    # oppure CV non disponibile al momento dell'ingest → safety fallback).
+    # Un valore basso non droppa di per sé l'insert: è il filtro at-ingest
+    # in ``services/ingest._execute_ingest`` che applica la threshold prima
+    # di persistere. Indicizzato per future query "show offers with high match".
+    cv_match_score = Column(Integer, nullable=True, index=True)
+
     # Full original payload for reparsing / new field extraction.
     # Postgres prod uses JSONB; SQLite test fixtures fall back to plain JSON
     # (text-based) — the with_variant keeps both dialects portable so we don't

@@ -1,27 +1,21 @@
-"""Test idempotenza ``run_promotion_analysis`` sugli stati della state-machine.
+"""Test idempotenza ``send_to_pulse`` sugli stati della state-machine.
 
 Obiettivo: documentare/asserire il comportamento di re-run su una ``Decision``
-già lavorata, evitando double-spend involontari della API Claude.
+già lavorata, evitando insert duplicati di JobAnalysis su Pulse.
 
 State machine (vedi ``models.PROMOTION_STATE_*``):
 
-- ``idle`` → primo run, gate parte da zero, Claude chiamato se score ≥ threshold.
-- ``pending`` → gate riparte (overwrite stato), Claude chiamato di nuovo
-  (NB: il gate è deterministico → reset score senza side-effect dannosi).
-- ``skipped_low_match`` → terminal ma re-runnabile: il gate ricalcola lo
-  stesso score, niente Claude (no double-spend). Comportamento atteso e
-  asserito qui.
-- ``failed`` → retry permesso: il gate ripassa, Claude tentato di nuovo.
-  Coerente con il design (failure è retryable).
+- ``idle`` → primo run, JobAnalysis creata su Pulse, transizione a ``done``.
+- ``failed`` → retry permesso: il flow ripassa, nuovo tentativo. Coerente
+  con il design (failure è retryable, es. CV mancante poi caricato).
 - ``done`` → **idempotente**. Il service ha un guard early-return (step 0
-  in ``run_promotion_analysis``) che ritorna ``PromotionResult`` con
-  ``skipped_reason='already_done'`` senza chiamare il gate né Claude.
-  Per forzare un retry pulito, il caller deve invocare
-  ``reset_promotion_state()`` che riporta lo state a ``idle``.
+  in ``send_to_pulse``) che ritorna ``PromotionResult`` con
+  ``skipped_reason='already_done'`` senza creare duplicati. Per forzare
+  un retry pulito, il caller deve invocare ``reset_promotion_state()``
+  che riporta lo state a ``idle``.
 
-Pattern fixture: in-memory SQLite + ``WorldwildBase`` + sample offer/decision,
-mock di ``run_analysis`` / ``check_budget_available`` / ``get_latest_cv`` /
-``add_spending`` (replica fedele di ``test_worldwild_run_promotion.py``).
+Niente Claude in questi test: il vecchio path AI è stato rimosso (l'analisi
+AI è di Pulse, non di WorldWild).
 """
 
 from __future__ import annotations
@@ -35,6 +29,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from src.analysis.models import JobAnalysis
+from src.database.base import Base
 from src.database.worldwild_db import WorldwildBase
 from src.worldwild import audit_models, models  # noqa: F401  -- register tables
 from src.worldwild.models import (
@@ -42,22 +38,40 @@ from src.worldwild.models import (
     PROMOTION_STATE_DONE,
     PROMOTION_STATE_FAILED,
     PROMOTION_STATE_IDLE,
-    PROMOTION_STATE_PENDING,
-    PROMOTION_STATE_SKIPPED_LOW_MATCH,
     Decision,
     JobOffer,
 )
 from src.worldwild.services.promote import (
     reset_promotion_state,
-    run_promotion_analysis,
+    send_to_pulse,
 )
 
-# ── Fixtures (replica del pattern in test_worldwild_run_promotion.py) ──────
+# Importa i modelli Base per registrarli prima di create_all sul primary.
+from tests.conftest import _ALL_MODELS  # noqa: F401
+
+# ── Fixtures ───────────────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def primary_db() -> Any:
+    """Primary in-memory SQLite (Pulse / Neon-equivalent)."""
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(bind=engine)
+    SessionLocal = sessionmaker(bind=engine)
+    session = SessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
 
 
 @pytest.fixture
 def secondary_db() -> Any:
-    """Secondary (Supabase-style) in-memory SQLite, bound a WorldwildBase."""
+    """Secondary in-memory SQLite (WorldWild / Supabase-equivalent)."""
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
@@ -72,17 +86,11 @@ def secondary_db() -> Any:
         session.close()
 
 
-@pytest.fixture
-def primary_db_mock() -> MagicMock:
-    """Stand-in del primary (Neon) — non viene mai toccato sui path skip."""
-    return MagicMock(name="primary_db")
-
-
 # ── Helpers ────────────────────────────────────────────────────────────────
 
 
-def _seed_high_match_offer(secondary_db: Any) -> UUID:
-    """Inserisce JobOffer + Decision in stato pending con stack ad alto match."""
+def _seed_offer(secondary_db: Any) -> UUID:
+    """Inserisce JobOffer + Decision in stato pending."""
     offer = JobOffer(
         source="adzuna",
         external_id=f"ext-{uuid4().hex[:8]}",
@@ -98,41 +106,7 @@ def _seed_high_match_offer(secondary_db: Any) -> UUID:
     secondary_db.flush()
     secondary_db.add(Decision(job_offer_id=offer.id, decision=DECISION_PENDING))
     secondary_db.flush()
-    # cast: SQLAlchemy mypy plugin tipizza l'attributo come Column[UUID],
-    # ma a runtime è un UUID Python (instance attribute post-flush).
     return cast(UUID, offer.id)
-
-
-def _seed_low_match_offer(secondary_db: Any) -> UUID:
-    """Stack che il gate scarta (sotto threshold)."""
-    offer = JobOffer(
-        source="adzuna",
-        external_id=f"ext-{uuid4().hex[:8]}",
-        content_hash=f"hash-{uuid4().hex[:16]}",
-        title="Mainframe Specialist",
-        company="LegacyCo",
-        location="Milano",
-        url="https://example.com/job/legacy",
-        description="OpenShift Vault OAuth — old stack.",
-        pre_filter_passed=True,
-    )
-    secondary_db.add(offer)
-    secondary_db.flush()
-    secondary_db.add(Decision(job_offer_id=offer.id, decision=DECISION_PENDING))
-    secondary_db.flush()
-    return cast(UUID, offer.id)
-
-
-def _fake_analysis_result() -> dict[str, Any]:
-    return {
-        "score": 82,
-        "recommendation": "candidati",
-        "company": "TestCorp",
-        "role": "Senior DevOps Engineer",
-        "tokens": {"input": 1234, "output": 567},
-        "cost_usd": 0.0123,
-        "model_used": "claude-haiku-4-5-20251001",
-    }
 
 
 def _set_decision_state(
@@ -149,126 +123,85 @@ def _set_decision_state(
 # ── Test class ─────────────────────────────────────────────────────────────
 
 
-class TestPromotionIdempotency:
-    """Re-run di run_promotion_analysis su Decision già lavorate."""
+class TestSendToPulseIdempotency:
+    """Re-run di send_to_pulse su Decision già lavorate."""
 
-    def test_skipped_low_match_rerun_does_not_call_claude(self, secondary_db: Any, primary_db_mock: MagicMock) -> None:
-        """Re-run su skipped_low_match: gate ricalcola, Claude NON chiamato.
+    def test_done_state_rerun_short_circuits_no_duplicate_insert(self, primary_db: Any, secondary_db: Any) -> None:
+        """Re-run su ``done``: short-circuit, niente JobAnalysis duplicata.
 
-        Idempotenza reale (no double-spend): l'offer ha stack a basso match,
-        il gate la scarta deterministicamente sia al primo che al secondo run.
+        Caso critico anti-duplicazione: il service ha un guard early-return
+        che, se la decision è già ``done``, ritorna immediatamente
+        ``PromotionResult`` con ``skipped_reason='already_done'`` preservando
+        ``promoted_to_neon_id``. Né get_latest_cv né l'insert vengono toccati.
         """
-        offer_id = _seed_low_match_offer(secondary_db)
-        # Primo run → state diventa skipped_low_match
-        first = run_promotion_analysis(
-            primary_db_mock,
+        offer_id = _seed_offer(secondary_db)
+        old_neon_id = uuid4()
+        _set_decision_state(
             secondary_db,
-            offer_id=offer_id,
-            user_id=uuid4(),
+            offer_id,
+            state=PROMOTION_STATE_DONE,
+            promoted_to_neon_id=old_neon_id,
         )
-        assert first.state == PROMOTION_STATE_SKIPPED_LOW_MATCH
 
-        # Secondo run con run_analysis spiato: NON deve essere chiamato
-        with patch("src.worldwild.services.promote.run_analysis") as mock_run:
-            second = run_promotion_analysis(
-                primary_db_mock,
+        with patch("src.worldwild.services.promote.get_latest_cv") as mock_cv:
+            result = send_to_pulse(
+                primary_db,
                 secondary_db,
                 offer_id=offer_id,
                 user_id=uuid4(),
             )
-        assert second.state == PROMOTION_STATE_SKIPPED_LOW_MATCH
-        assert second.cost_usd == 0.0
-        mock_run.assert_not_called()
+        # Invariante anti-duplicazione: CV pipeline non toccato
+        mock_cv.assert_not_called()
 
-    def test_failed_state_allows_retry_with_new_claude_call(
-        self, secondary_db: Any, primary_db_mock: MagicMock
-    ) -> None:
-        """Re-run su failed: retry esplicito, gate ripassa, Claude chiamato.
+        # Risultato esposto al caller
+        assert result.state == PROMOTION_STATE_DONE
+        assert result.error == ""
+        assert result.skipped_reason == "already_done"
+        assert result.analysis_id == old_neon_id
+
+        # State persistito non viene modificato dal short-circuit
+        decision_after = secondary_db.query(Decision).filter(Decision.job_offer_id == offer_id).one()
+        assert decision_after.promotion_state == PROMOTION_STATE_DONE
+        assert decision_after.promoted_to_neon_id == old_neon_id
+
+        # Nessuna JobAnalysis inserita su primary (short-circuit ha evitato l'insert)
+        assert primary_db.query(JobAnalysis).count() == 0
+
+    def test_failed_state_allows_retry_with_new_insert(self, primary_db: Any, secondary_db: Any) -> None:
+        """Re-run su failed: retry esplicito, nuovo tentativo di insert.
 
         ``failed`` NON è terminal — il design ammette retry diretto. Il
-        secondo run incontra ora budget OK + CV OK e completa con successo.
+        secondo run incontra ora CV OK e completa con successo.
         """
-        offer_id = _seed_high_match_offer(secondary_db)
-        # Forziamo lo stato come se un run precedente fosse fallito
+        offer_id = _seed_offer(secondary_db)
+        # Forziamo lo stato come se un run precedente fosse fallito (no CV)
         _set_decision_state(secondary_db, offer_id, state=PROMOTION_STATE_FAILED)
         decision = secondary_db.query(Decision).filter(Decision.job_offer_id == offer_id).one()
-        decision.promotion_error = "analyzer:RuntimeError"
+        decision.promotion_error = "no_active_cv"
         secondary_db.flush()
 
-        fake_cv = MagicMock(raw_text="Marco CV", id=uuid4())
-        fake_analysis = MagicMock(id=uuid4())
-        with (
-            patch(
-                "src.worldwild.services.promote.check_budget_available",
-                return_value=(True, ""),
-            ),
-            patch(
-                "src.worldwild.services.promote.get_latest_cv",
-                return_value=fake_cv,
-            ),
-            patch(
-                "src.worldwild.services.promote.run_analysis",
-                return_value=(fake_analysis, _fake_analysis_result()),
-            ) as mock_run,
-            patch("src.worldwild.services.promote.add_spending"),
-        ):
-            result = run_promotion_analysis(
-                primary_db_mock,
+        fake_cv = MagicMock(id=uuid4())
+        with patch("src.worldwild.services.promote.get_latest_cv", return_value=fake_cv):
+            result = send_to_pulse(
+                primary_db,
                 secondary_db,
                 offer_id=offer_id,
                 user_id=uuid4(),
             )
         assert result.state == PROMOTION_STATE_DONE
-        # Il retry HA chiamato Claude (1 volta) — coerente con design
-        assert mock_run.call_count == 1
         # Errore precedente ripulito
         decision = secondary_db.query(Decision).filter(Decision.job_offer_id == offer_id).one()
         assert decision.promotion_error == ""
+        # JobAnalysis inserita stavolta
+        assert primary_db.query(JobAnalysis).count() == 1
 
-    def test_pending_state_rerun_proceeds_normally(self, secondary_db: Any, primary_db_mock: MagicMock) -> None:
-        """Re-run su pending: gate sovrascrive lo stato, Claude chiamato.
+    def test_reset_then_run_proceeds_with_new_insert(self, primary_db: Any, secondary_db: Any) -> None:
+        """``reset_promotion_state`` + run: state torna idle, insert procede.
 
-        ``pending`` significa "in flight" — non c'è guard contro double-run
-        concorrenti. Documentazione del comportamento attuale: il secondo
-        run procede e issue una nuova Claude call. Mitigation reale: lock
-        a livello UI/cron, non nel service.
+        È il path "ufficiale" per forzare il retry pulito dopo un done:
+        caller chiama reset, poi send_to_pulse.
         """
-        offer_id = _seed_high_match_offer(secondary_db)
-        _set_decision_state(secondary_db, offer_id, state=PROMOTION_STATE_PENDING)
-
-        fake_cv = MagicMock(raw_text="Marco CV", id=uuid4())
-        fake_analysis = MagicMock(id=uuid4())
-        with (
-            patch(
-                "src.worldwild.services.promote.check_budget_available",
-                return_value=(True, ""),
-            ),
-            patch(
-                "src.worldwild.services.promote.get_latest_cv",
-                return_value=fake_cv,
-            ),
-            patch(
-                "src.worldwild.services.promote.run_analysis",
-                return_value=(fake_analysis, _fake_analysis_result()),
-            ) as mock_run,
-            patch("src.worldwild.services.promote.add_spending"),
-        ):
-            result = run_promotion_analysis(
-                primary_db_mock,
-                secondary_db,
-                offer_id=offer_id,
-                user_id=uuid4(),
-            )
-        assert result.state == PROMOTION_STATE_DONE
-        assert mock_run.call_count == 1
-
-    def test_reset_then_run_proceeds_with_ai_call(self, secondary_db: Any, primary_db_mock: MagicMock) -> None:
-        """``reset_promotion_state`` + run: state torna idle e Claude parte.
-
-        È il path "ufficiale" del docstring per forzare il retry pulito
-        dopo un done: caller chiama reset, poi run_promotion_analysis.
-        """
-        offer_id = _seed_high_match_offer(secondary_db)
+        offer_id = _seed_offer(secondary_db)
         # Simula uno stato done arrivato da un run precedente
         old_neon_id = uuid4()
         _set_decision_state(
@@ -284,114 +217,16 @@ class TestPromotionIdempotency:
         assert decision.promotion_state == PROMOTION_STATE_IDLE
         assert decision.promotion_score is None
 
-        # Re-run dopo reset → Claude chiamato esattamente 1 volta
-        fake_cv = MagicMock(raw_text="Marco CV", id=uuid4())
-        fake_analysis = MagicMock(id=uuid4())
-        with (
-            patch(
-                "src.worldwild.services.promote.check_budget_available",
-                return_value=(True, ""),
-            ),
-            patch(
-                "src.worldwild.services.promote.get_latest_cv",
-                return_value=fake_cv,
-            ),
-            patch(
-                "src.worldwild.services.promote.run_analysis",
-                return_value=(fake_analysis, _fake_analysis_result()),
-            ) as mock_run,
-            patch("src.worldwild.services.promote.add_spending"),
-        ):
-            result = run_promotion_analysis(
-                primary_db_mock,
+        # Re-run dopo reset → nuovo insert su Pulse
+        fake_cv = MagicMock(id=uuid4())
+        with patch("src.worldwild.services.promote.get_latest_cv", return_value=fake_cv):
+            result = send_to_pulse(
+                primary_db,
                 secondary_db,
                 offer_id=offer_id,
                 user_id=uuid4(),
             )
         assert result.state == PROMOTION_STATE_DONE
-        assert mock_run.call_count == 1
-
-    def test_skipped_low_match_rerun_preserves_score_no_neon_writes(
-        self, secondary_db: Any, primary_db_mock: MagicMock
-    ) -> None:
-        """Re-run skipped: invariante secondaria — primary_db mai toccato.
-
-        Difesa-in-profondità: anche se in futuro qualcuno cambia il flow,
-        un offer sotto threshold non deve mai produrre side-effect sul
-        primary (no JobAnalysis, no budget ledger update).
-        """
-        offer_id = _seed_low_match_offer(secondary_db)
-        run_promotion_analysis(
-            primary_db_mock,
-            secondary_db,
-            offer_id=offer_id,
-            user_id=uuid4(),
-        )
-        # Reset dei contatori del mock prima del secondo giro
-        primary_db_mock.reset_mock()
-
-        run_promotion_analysis(
-            primary_db_mock,
-            secondary_db,
-            offer_id=offer_id,
-            user_id=uuid4(),
-        )
-        primary_db_mock.query.assert_not_called()
-        primary_db_mock.add.assert_not_called()
-        primary_db_mock.commit.assert_not_called()
-
-    def test_done_state_rerun_short_circuits_no_claude_call(
-        self, secondary_db: Any, primary_db_mock: MagicMock
-    ) -> None:
-        """Re-run su ``done``: short-circuit, Claude NON chiamato.
-
-        Caso critico anti double-spend: il service ha un guard early-return
-        (step 0 in ``run_promotion_analysis``) che, se la decision è già
-        ``done``, ritorna immediatamente ``PromotionResult`` con
-        ``skipped_reason='already_done'`` e ``cost_usd=0.0``, preservando
-        ``promoted_to_neon_id``. Né il gate né Claude vengono toccati.
-        """
-        offer_id = _seed_high_match_offer(secondary_db)
-        old_neon_id = uuid4()
-        _set_decision_state(
-            secondary_db,
-            offer_id,
-            state=PROMOTION_STATE_DONE,
-            promoted_to_neon_id=old_neon_id,
-        )
-        # Forziamo anche uno score precedente per verificare che il
-        # short-circuit lo rispedisca al chiamante invariato.
-        decision_before = secondary_db.query(Decision).filter(Decision.job_offer_id == offer_id).one()
-        decision_before.promotion_score = 87
-        secondary_db.flush()
-
-        with (
-            patch("src.worldwild.services.promote.run_analysis") as mock_run,
-            patch("src.worldwild.services.promote.evaluate_for_promotion") as mock_gate,
-            patch("src.worldwild.services.promote.check_budget_available") as mock_budget,
-        ):
-            result = run_promotion_analysis(
-                primary_db_mock,
-                secondary_db,
-                offer_id=offer_id,
-                user_id=uuid4(),
-            )
-        # Invariante anti double-spend:
-        mock_run.assert_not_called()
-        # Anche il gate viene saltato (short-circuit precoce)
-        mock_gate.assert_not_called()
-        # Né viene letto il budget ledger
-        mock_budget.assert_not_called()
-
-        # Risultato esposto al caller
-        assert result.state == PROMOTION_STATE_DONE
-        assert result.cost_usd == 0.0
-        assert result.error == ""
-        assert result.skipped_reason == "already_done"
-        assert result.score == 87
-        assert result.analysis_id == old_neon_id
-
-        # State persistito non viene modificato dal short-circuit
-        decision_after = secondary_db.query(Decision).filter(Decision.job_offer_id == offer_id).one()
-        assert decision_after.promotion_state == PROMOTION_STATE_DONE
-        assert decision_after.promoted_to_neon_id == old_neon_id
+        assert result.analysis_id != old_neon_id  # nuovo UUID
+        # JobAnalysis presente su Pulse (nuova, dato che reset non cancella la vecchia)
+        assert primary_db.query(JobAnalysis).count() == 1

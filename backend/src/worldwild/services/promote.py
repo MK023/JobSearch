@@ -1,154 +1,81 @@
-"""Promotion pipeline: pre-AI gate + Anthropic analyzer + cross-DB JobAnalysis insert.
+"""Promotion pipeline: cross-DB JobAnalysis insert su Pulse (primary).
 
-End-to-end flow:
+Flusso semplificato (post audit 4/5):
 
-    JobOffer (passed pre_filter, decision=promote)
+    JobOffer (visible su /worldwild)
+        │
+        ▼  Marco preme "Promote" sull'UI
         │
         ▼
-    extract_stack(offer)            ← regex + canonical vocabulary
+    send_to_pulse(offer_id)            ← NESSUNA AI call qui
         │
-        ▼
-    score_match(stack)              ← against MARCO_CV_SKILLS
+        ├─ already_done ───────────────► state = done (idempotenza)
+        │                                 nessun insert duplicato
         │
-        ├─ score < threshold ──────► state = skipped_low_match  (terminal)
-        │                            no AI call, no Neon write
+        ├─ no active CV ───────────────► state = failed  (retryable)
         │
-        ├─ budget exhausted ───────► state = failed  (retryable)
-        │                            no AI call, no Neon write
-        │
-        ├─ CV missing ─────────────► state = failed  (retryable after CV upload)
-        │                            no AI call, no Neon write
-        │
-        └─ score ≥ threshold ──────► state = pending → run_analysis on Neon ──► state = done
-                                     (uses analyze_job + add_spending pattern)
+        └─ insert JobAnalysis su Pulse ► state = done
+                                         (status='colloquio',
+                                          source='worldwild',
+                                          ready-for-review da Marco)
 
-DRY: this service is **glue**, not new logic. All heavy lifting reuses
-existing JobSearch primitives:
+**Nota architetturale:** lo stack-match score è ora calcolato at-ingest
+(``JobOffer.cv_match_score``, vedi ``services/ingest.py``), quindi qui non
+serve più riapplicare il gate. Pulse esegue la sua analisi AI Anthropic
+nel suo flow normale (``/history``, ``/agenda`` Pulse-side) quando Marco
+visiona la candidatura promossa: la promozione è una **spedizione**, non
+un'analisi.
 
-- ``cv.service.get_latest_cv``        — fetch the active CV
-- ``analysis.service.run_analysis``   — calls analyze_job + persists JobAnalysis
-- ``dashboard.service.check_budget_available`` / ``add_spending`` — budget ledger
-- ``analysis.models.AnalysisSource.WORLDWILD`` — origin tag
-
-Cross-DB: the JobAnalysis row lives on Neon (primary), the Decision row on
-Supabase (secondary). The pointer ``Decision.promoted_to_neon_id`` is a bare
-UUID with no FK constraint — Postgres can't enforce FKs across databases.
+Cross-DB: la riga ``JobAnalysis`` vive su Pulse (primary, Neon), la riga
+``Decision`` vive su WorldWild (secondary, Supabase). Il puntatore
+``Decision.promoted_to_neon_id`` è un UUID nudo senza vincolo FK —
+Postgres non può enforce FK cross-database. Il caller possiede i commit
+su entrambe le sessioni: questa funzione fa solo flush, così un fallimento
+parziale rolla back pulito quando il caller rolla back.
 """
 
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
-from typing import TYPE_CHECKING, NamedTuple
+from typing import NamedTuple
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from ...analysis.models import AnalysisSource
-from ...analysis.service import run_analysis
-from ...config import settings
+from ...analysis.models import AnalysisSource, AnalysisStatus, JobAnalysis
 from ...cv.service import get_latest_cv
-from ...dashboard.service import add_spending, check_budget_available
 from ...notification_center.sse import broadcast_sync
 from ..models import (
     PROMOTION_STATE_DONE,
     PROMOTION_STATE_FAILED,
     PROMOTION_STATE_IDLE,
-    PROMOTION_STATE_PENDING,
-    PROMOTION_STATE_SKIPPED_LOW_MATCH,
     Decision,
     JobOffer,
 )
-from ..stack_extract import extract_stack
-from ..stack_match import score_match
-
-if TYPE_CHECKING:
-    from ...integrations.cache import CacheService
 
 _logger = logging.getLogger(__name__)
 
 
-class PromotionGateResult(NamedTuple):
-    """Outcome of the pre-AI gate for a single offer."""
-
-    passed: bool  # True → continue to AI analyzer; False → skipped
-    score: int  # stack-match score 0-100
-    promotion_state: str  # value written to Decision.promotion_state
-    matched: frozenset[str]
-    missing: frozenset[str]
-
-
 class PromotionGateError(Exception):
-    """Raised when the offer or its decision row can't be loaded."""
+    """Sollevato quando l'offer o la sua Decision row non sono caricabili."""
 
 
-def evaluate_for_promotion(
-    db: Session,
-    *,
-    offer_id: UUID,
-    threshold: int | None = None,
-) -> PromotionGateResult:
-    """Run the pre-AI gate on a single offer and persist the gate outcome.
+class PromotionResult(NamedTuple):
+    """Esito della spedizione a Pulse. Il caller la rende su UI / API."""
 
-    Loads the offer + its sibling decision, computes the stack-match score,
-    and updates ``decision.promotion_state`` + ``decision.promotion_score``
-    inline. Caller owns the commit.
-
-    The actual AI analyzer call (PR #2 step 4) reads these fields and
-    proceeds only when ``promotion_state == 'pending'``.
-    """
-    if threshold is None:
-        threshold = settings.promote_score_threshold
-
-    offer = db.get(JobOffer, offer_id)
-    if offer is None:
-        raise PromotionGateError(f"JobOffer {offer_id} not found")
-
-    decision = db.query(Decision).filter(Decision.job_offer_id == offer_id).one_or_none()
-    if decision is None:
-        raise PromotionGateError(
-            f"Decision row for offer {offer_id} not found — expected one to be created at ingest time"
-        )
-
-    # Build the dict shape that extract_stack expects (mirrors the Adzuna
-    # adapter's normalized output, so the function works on either ingestion
-    # path or replay).
-    offer_dict = {
-        "title": offer.title,
-        "description": offer.description or "",
-        "category": offer.category or "",
-    }
-    extracted = extract_stack(offer_dict)
-    match = score_match(extracted)
-
-    decision.promotion_score = match.score  # type: ignore[assignment]
-    if match.score < threshold:
-        decision.promotion_state = PROMOTION_STATE_SKIPPED_LOW_MATCH  # type: ignore[assignment]
-        decision.promotion_started_at = None  # type: ignore[assignment]
-        passed = False
-        new_state = PROMOTION_STATE_SKIPPED_LOW_MATCH
-    else:
-        decision.promotion_state = PROMOTION_STATE_PENDING  # type: ignore[assignment]
-        decision.promotion_started_at = datetime.now(UTC)  # type: ignore[assignment]
-        passed = True
-        new_state = PROMOTION_STATE_PENDING
-    decision.promotion_error = ""  # type: ignore[assignment]
-    db.flush()
-
-    return PromotionGateResult(
-        passed=passed,
-        score=match.score,
-        promotion_state=new_state,
-        matched=match.matched,
-        missing=match.missing,
-    )
+    state: str  # uno fra PROMOTION_STATE_* (DONE / FAILED in questo flow)
+    analysis_id: UUID | None  # JobAnalysis.id su Pulse, quando state == done
+    error: str  # ragione corta quando state == failed
+    # Motivo no-op quando saltiamo la spedizione senza errori (es.
+    # "already_done" per idempotenza). Vuoto in tutti gli altri casi.
+    skipped_reason: str = ""
 
 
 def reset_promotion_state(db: Session, *, offer_id: UUID) -> None:
-    """Reset a decision's promotion fields back to idle.
+    """Reset dei campi di promozione di una Decision back to idle.
 
-    Useful when Marco changes his mind and re-clicks Promote: we want a
-    clean slate (no stale ``skipped_low_match`` blocking the retry).
+    Utile quando Marco cambia idea e re-clicca Promote: vogliamo lavagna
+    pulita. Il caller possiede il commit.
     """
     decision = db.query(Decision).filter(Decision.job_offer_id == offer_id).one_or_none()
     if decision is None:
@@ -160,144 +87,122 @@ def reset_promotion_state(db: Session, *, offer_id: UUID) -> None:
     db.flush()
 
 
-# ── End-to-end promotion (gate + AI analyzer + cross-DB write) ─────────────
-
-
-class PromotionResult(NamedTuple):
-    """Outcome of the full promotion pipeline. Caller renders to UI / API."""
-
-    state: str  # one of PROMOTION_STATE_*
-    score: int  # stack-match score 0-100 (gate output)
-    analysis_id: UUID | None  # JobAnalysis.id on Neon, when state == done
-    cost_usd: float  # AI cost incurred (0 when skipped/failed)
-    error: str  # short reason when state == failed
-    # Motivo no-op quando saltiamo l'analisi senza errori (es. "already_done"
-    # per idempotenza). Vuoto in tutti gli altri casi. Default per
-    # backward-compat con i test esistenti che costruiscono PromotionResult
-    # senza questo campo.
-    skipped_reason: str = ""
-
-
-def run_promotion_analysis(
+def send_to_pulse(
     primary_db: Session,
     secondary_db: Session,
     *,
     offer_id: UUID,
     user_id: UUID,
-    cache: CacheService | None = None,
-    model: str = "haiku",
 ) -> PromotionResult:
-    """Promote a WorldWild offer into a full JobAnalysis on the primary DB.
+    """Spedisce una WorldWild offer su Pulse come ``JobAnalysis`` minimal.
 
-    Idempotent on the gate (re-running on a row already in
-    ``skipped_low_match`` re-evaluates from scratch). Not idempotent on the
-    AI call once it succeeds — a successful run flips the state to ``done``
-    and a re-run will issue a NEW Claude call. Caller (UI / cron) is
-    responsible for calling :func:`reset_promotion_state` first if a retry
-    from scratch is desired.
+    Idempotente: re-run su una Decision già in stato ``done`` ritorna
+    immediatamente senza creare duplicati. Per forzare una nuova spedizione
+    (es. JobAnalysis cancellata su Pulse), il caller deve invocare
+    :func:`reset_promotion_state` prima.
 
-    Caller owns the commits on both sessions: this function only flushes,
-    so partial failures roll back cleanly when the caller's transaction
-    rolls back. The two sessions commit independently (Neon + Supabase).
+    Differenze chiave vs il vecchio ``run_promotion_analysis``:
+
+    - **Niente Claude call**: l'analisi AI è di Pulse, non di WorldWild.
+    - **Niente budget gate**: nessun costo da gatekeepare qui.
+    - **Niente score gate**: già applicato at-ingest tramite
+      ``JobOffer.cv_match_score``.
+    - **Niente add_spending**: nessun token consumato in questo step.
+
+    La JobAnalysis inserita ha:
+
+    - ``status='colloquio'`` — Marco l'ha promossa esplicitamente, la marca
+      come "stiamo seguendo" sul funnel Pulse.
+    - ``source='worldwild'`` — origine tracciabile per analytics.
+    - ``cv_id`` del CV attivo dell'utente.
+    - ``job_description``, ``job_url``, ``company``, ``role``, ``location``
+      copiati dalla JobOffer; campi AI (score/strengths/gaps/...) vuoti
+      finché Pulse non runna la sua analisi.
     """
-    # 0. Idempotenza: se la decision è già in stato terminal "done",
-    # short-circuit per evitare un nuovo Claude call (double-charge).
-    # Per forzare un retry, il caller deve invocare reset_promotion_state()
-    # che riporta a "idle".
-    existing = secondary_db.query(Decision).filter(Decision.job_offer_id == offer_id).one_or_none()
-    if existing is not None and existing.promotion_state == PROMOTION_STATE_DONE:
+    # 0. Idempotenza: se la Decision è già "done", short-circuit.
+    decision = secondary_db.query(Decision).filter(Decision.job_offer_id == offer_id).one_or_none()
+    if decision is None:
+        raise PromotionGateError(
+            f"Decision row for offer {offer_id} not found — expected one to be created at ingest time"
+        )
+    if decision.promotion_state == PROMOTION_STATE_DONE:
         return PromotionResult(
             state=PROMOTION_STATE_DONE,
-            score=int(existing.promotion_score or 0),
-            analysis_id=existing.promoted_to_neon_id,  # type: ignore[arg-type]
-            cost_usd=0.0,
+            analysis_id=decision.promoted_to_neon_id,  # type: ignore[arg-type]
             error="",
             skipped_reason="already_done",
         )
 
-    # 1. Gate (deterministic, no AI cost, persists promotion_state on secondary)
-    gate = evaluate_for_promotion(secondary_db, offer_id=offer_id)
-    # Notifica clienti SSE: lo state machine ha appena fatto una transizione
-    # (idle → pending oppure idle → skipped_low_match). Il client ricarica
-    # lo state via fetch su ricezione dell'evento.
-    broadcast_sync("worldwild:promotion_state")
-    if not gate.passed:
-        return PromotionResult(
-            state=PROMOTION_STATE_SKIPPED_LOW_MATCH,
-            score=gate.score,
-            analysis_id=None,
-            cost_usd=0.0,
-            error="",
-        )
-
-    decision = secondary_db.query(Decision).filter(Decision.job_offer_id == offer_id).one()
+    # 1. Carica la JobOffer source-of-truth per i campi minimal.
     offer = secondary_db.get(JobOffer, offer_id)
-    if offer is None:  # pragma: no cover — gate would have raised first
-        raise PromotionGateError(f"JobOffer {offer_id} disappeared mid-promotion")
+    if offer is None:
+        raise PromotionGateError(f"JobOffer {offer_id} not found")
 
-    # 2. Budget gate (REUSE existing AppSettings ledger)
-    budget_ok, budget_msg = check_budget_available(primary_db)
-    if not budget_ok:
-        return _mark_failed(decision, reason=budget_msg or "budget_exhausted", score=gate.score)
-
-    # 3. Active CV (REUSE existing user CV pipeline)
+    # 2. Active CV su Pulse: la JobAnalysis ha FK a cv_profiles.id.
     cv = get_latest_cv(primary_db, user_id)
     if cv is None:
-        return _mark_failed(decision, reason="no_active_cv", score=gate.score)
+        return _mark_failed(decision, reason="no_active_cv")
 
-    # 4. Run AI + persist JobAnalysis on Neon (REUSE run_analysis)
-    try:
-        analysis, result_dict = run_analysis(
-            primary_db,
-            cv_text=cv.raw_text,  # type: ignore[arg-type]
-            cv_id=cv.id,  # type: ignore[arg-type]
-            job_description=offer.description or "",  # type: ignore[arg-type]
-            job_url=offer.url or "",  # type: ignore[arg-type]
-            model=model,
-            cache=cache,
-            user_id=user_id,
-            source=AnalysisSource.WORLDWILD.value,
-        )
-    except Exception as exc:  # noqa: BLE001 — surface analyzer failures to caller
-        _logger.exception("worldwild promotion analyze failed (type=%s)", type(exc).__name__)
-        return _mark_failed(decision, reason=f"analyzer:{type(exc).__name__}", score=gate.score)
-
-    # 5. Spending tracking (REUSE existing AppSettings counters)
-    add_spending(
-        primary_db,
-        cost=float(result_dict.get("cost_usd", 0.0)),
-        tokens_in=int(result_dict.get("tokens", {}).get("input", 0)),
-        tokens_out=int(result_dict.get("tokens", {}).get("output", 0)),
+    # 3. Insert minimal JobAnalysis su Pulse. Tutti i campi AI restano
+    # vuoti/default: Pulse li popolerà alla prima visione di Marco via
+    # /history o /agenda Pulse-side, dove gira analyze_job nel flow standard.
+    analysis = JobAnalysis(
+        cv_id=cv.id,
+        job_description=offer.description or "",
+        job_url=offer.url or "",
+        company=offer.company or "",
+        role=offer.title or "",
+        location=offer.location or "",
+        salary_info=_format_salary(offer),
+        status=AnalysisStatus.INTERVIEW.value,  # 'colloquio': Marco la sta seguendo
+        source=AnalysisSource.WORLDWILD.value,
     )
+    primary_db.add(analysis)
+    primary_db.flush()
 
-    # 6. Cross-DB pointer + state transition
+    # 4. Aggiorna la Decision con il pointer cross-DB + state done.
     decision.promoted_to_neon_id = analysis.id  # type: ignore[assignment]
     decision.promotion_state = PROMOTION_STATE_DONE  # type: ignore[assignment]
     decision.promotion_error = ""  # type: ignore[assignment]
     secondary_db.flush()
 
-    # Notifica SSE: pending → done (Claude call completato, JobAnalysis su Neon)
+    # Notifica clienti SSE: la state machine ha appena fatto la transizione
+    # idle → done (niente più stati intermedi pending/skipped). Il client
+    # ricarica lo state via fetch su ricezione dell'evento.
     broadcast_sync("worldwild:promotion_state")
 
     return PromotionResult(
         state=PROMOTION_STATE_DONE,
-        score=gate.score,
         analysis_id=analysis.id,  # type: ignore[arg-type]
-        cost_usd=float(result_dict.get("cost_usd", 0.0)),
         error="",
     )
 
 
-def _mark_failed(decision: Decision, *, reason: str, score: int) -> PromotionResult:
-    """Set the decision to ``failed`` with a short reason; flush handled by caller."""
+def _format_salary(offer: JobOffer) -> str:
+    """Formatta salary range in stringa human-readable per JobAnalysis.salary_info.
+
+    Best-effort: se mancano i campi, ritorna stringa vuota (Pulse mostrerà
+    "n/d" in UI, coerente con il pattern delle altre source).
+    """
+    smin = offer.salary_min
+    smax = offer.salary_max
+    cur = offer.salary_currency or ""
+    if smin is None and smax is None:
+        return ""
+    if smin is not None and smax is not None:
+        return f"{smin}-{smax} {cur}".strip()
+    only = smin if smin is not None else smax
+    return f"{only} {cur}".strip()
+
+
+def _mark_failed(decision: Decision, *, reason: str) -> PromotionResult:
+    """Imposta la decision a ``failed`` con ragione corta; flush al caller."""
     decision.promotion_state = PROMOTION_STATE_FAILED  # type: ignore[assignment]
     decision.promotion_error = reason[:500]  # type: ignore[assignment]
-    # Notifica SSE: transizione → failed (budget/CV/analyzer error)
+    # Notifica SSE: transizione → failed (no active CV)
     broadcast_sync("worldwild:promotion_state")
     return PromotionResult(
         state=PROMOTION_STATE_FAILED,
-        score=score,
         analysis_id=None,
-        cost_usd=0.0,
         error=reason,
     )
