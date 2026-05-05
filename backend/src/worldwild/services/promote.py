@@ -154,7 +154,7 @@ def send_to_pulse(
         role=offer.title or "",
         location=offer.location or "",
         salary_info=_format_salary(offer),
-        status=AnalysisStatus.INTERVIEW.value,  # 'colloquio': Marco la sta seguendo
+        status=AnalysisStatus.PENDING.value,  # 'da_valutare': arriva su Pulse pronta per AI analyze
         source=AnalysisSource.WORLDWILD.value,
     )
     primary_db.add(analysis)

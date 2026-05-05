@@ -106,14 +106,30 @@ _startup_time: float = 0.0
 
 
 def _run_migrations() -> None:
-    """Run Alembic migrations (upgrade head) on startup."""
+    """Run Alembic migrations (upgrade head) on startup per ENTRAMBI i DB.
+
+    Primary (Pulse) sempre. Secondary (Worldwild) solo se configurato — gli
+    ambienti dev senza secondary DB skippano silenziosamente. Idempotente:
+    `alembic upgrade head` no-op se schema già a head revision.
+    """
     from alembic import command
     from alembic.config import Config
 
-    alembic_cfg = Config()
-    alembic_cfg.set_main_option("script_location", str(Path(__file__).parent.parent / "alembic"))
-    alembic_cfg.set_main_option("sqlalchemy.url", settings.effective_database_url)
-    command.upgrade(alembic_cfg, "head")
+    base_dir = Path(__file__).parent.parent
+
+    # Primary DB (Pulse: cowork / Chrome ext / LinkedIn / manual)
+    primary_cfg = Config()
+    primary_cfg.set_main_option("script_location", str(base_dir / "alembic"))
+    primary_cfg.set_main_option("sqlalchemy.url", settings.effective_database_url)
+    command.upgrade(primary_cfg, "head")
+
+    # Secondary DB (Worldwild: 9 API adapter). Skip se non configurato.
+    worldwild_url = settings.effective_worldwild_database_url
+    if worldwild_url:
+        worldwild_cfg = Config()
+        worldwild_cfg.set_main_option("script_location", str(base_dir / "alembic_worldwild"))
+        worldwild_cfg.set_main_option("sqlalchemy.url", worldwild_url)
+        command.upgrade(worldwild_cfg, "head")
 
 
 @asynccontextmanager
