@@ -41,7 +41,7 @@ parziale rolla back pulito quando il caller rolla back.
 from __future__ import annotations
 
 import logging
-from typing import NamedTuple
+from typing import NamedTuple, cast
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -157,8 +157,11 @@ def send_to_pulse(
     if not budget_ok:
         return _mark_failed(decision, reason=f"no_budget: {budget_msg}")
 
-    job_description = offer.description or ""
-    job_url = offer.url or ""
+    # cast espliciti: SQLAlchemy 2.x tipizza Column come ``Column[str] | str``,
+    # ma a runtime sono str dopo il flush — vedi readability-first preferenza
+    # vs ``# type: ignore`` (best-practice).
+    job_description: str = str(offer.description or "")
+    job_url: str = str(offer.url or "")
 
     # 4. URL dedup: se un'altra source ha già analizzato lo stesso URL,
     # riusa la JobAnalysis esistente — niente Claude call duplicata.
@@ -184,8 +187,8 @@ def send_to_pulse(
     try:
         analysis, result = run_analysis(
             primary_db,
-            cv.raw_text,  # type: ignore[arg-type]
-            cv.id,  # type: ignore[arg-type]
+            cast(str, cv.raw_text),
+            cast(UUID, cv.id),
             job_description,
             job_url,
             model,

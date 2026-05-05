@@ -40,10 +40,19 @@ target_metadata = WorldwildBase.metadata
 
 # In dev locale (singolo Postgres condiviso fra Pulse e Worldwild), entrambi
 # gli env Alembic puntano alla stessa DB. Senza un version_table dedicato,
-# il default ``alembic_version`` collide e una upgrade rovescia l'altra.
-# In prod (Supabase Pulse + Supabase Worldwild distinti) la separazione è
-# innocua: la tabella esiste su un solo DB, no-op sull'altro.
-_VERSION_TABLE = "alembic_version_worldwild"
+# il default ``alembic_version`` collide: il primary applica le sue
+# migrations, poi il worldwild parte e trova un version_table popolato con
+# revisions sconosciute → boom.
+#
+# In prod (Supabase Pulse + Supabase Worldwild distinti) la tabella
+# ``alembic_version`` esiste già con la storia worldwild applicata. Se la
+# rinominassimo qui, il prossimo upgrade non troverebbe più la storia e
+# tenterebbe di ri-applicare le migrazioni → boom (CI smoke #216 catch).
+#
+# Decisione: usa ``alembic_version_worldwild`` SOLO quando primary e
+# secondary URL coincidono (single-DB Docker locale). Altrimenti default
+# ``alembic_version`` per preservare la storia prod esistente.
+_VERSION_TABLE = "alembic_version_worldwild" if settings.effective_database_url == _url else "alembic_version"
 
 
 def run_migrations_offline() -> None:
