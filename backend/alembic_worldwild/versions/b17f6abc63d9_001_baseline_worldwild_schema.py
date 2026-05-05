@@ -35,19 +35,27 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_adapter_runs_source"), "adapter_runs", ["source"], unique=False)
-    op.create_table(
-        "audit_logs",
-        sa.Column("id", sa.UUID(), nullable=False),
-        sa.Column("user_id", sa.UUID(), nullable=True),
-        sa.Column("action", sa.String(length=50), nullable=False),
-        sa.Column("detail", sa.Text(), nullable=True),
-        sa.Column("ip_address", sa.String(length=45), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=True),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_index(op.f("ix_audit_logs_action"), "audit_logs", ["action"], unique=False)
-    op.create_index(op.f("ix_audit_logs_created_at"), "audit_logs", ["created_at"], unique=False)
-    op.create_index(op.f("ix_audit_logs_user_id"), "audit_logs", ["user_id"], unique=False)
+
+    # ``audit_logs`` esiste anche nel primary DB (Pulse). In prod i due
+    # backend sono Supabase distinti → la tabella manca sull'altro lato e
+    # questa CREATE deve girare. In dev Docker (singolo Postgres condiviso),
+    # la tabella è già stata creata dal primary migration → skippa, niente
+    # DuplicateTable. Inspect è O(1) sulla connessione corrente.
+    bind = op.get_bind()
+    if "audit_logs" not in sa.inspect(bind).get_table_names():
+        op.create_table(
+            "audit_logs",
+            sa.Column("id", sa.UUID(), nullable=False),
+            sa.Column("user_id", sa.UUID(), nullable=True),
+            sa.Column("action", sa.String(length=50), nullable=False),
+            sa.Column("detail", sa.Text(), nullable=True),
+            sa.Column("ip_address", sa.String(length=45), nullable=True),
+            sa.Column("created_at", sa.DateTime(timezone=True), nullable=True),
+            sa.PrimaryKeyConstraint("id"),
+        )
+        op.create_index(op.f("ix_audit_logs_action"), "audit_logs", ["action"], unique=False)
+        op.create_index(op.f("ix_audit_logs_created_at"), "audit_logs", ["created_at"], unique=False)
+        op.create_index(op.f("ix_audit_logs_user_id"), "audit_logs", ["user_id"], unique=False)
     op.create_table(
         "decisions",
         sa.Column("id", sa.UUID(), nullable=False),
@@ -103,10 +111,16 @@ def downgrade() -> None:
     op.drop_table("job_offers")
     op.drop_index(op.f("ix_decisions_job_offer_id"), table_name="decisions")
     op.drop_table("decisions")
-    op.drop_index(op.f("ix_audit_logs_user_id"), table_name="audit_logs")
-    op.drop_index(op.f("ix_audit_logs_created_at"), table_name="audit_logs")
-    op.drop_index(op.f("ix_audit_logs_action"), table_name="audit_logs")
-    op.drop_table("audit_logs")
+    # ``audit_logs`` è cross-DB: il primary downgrade lo droppa solo se gira
+    # qui per primo. In single-DB Docker, droppare 2 volte spara
+    # ``UndefinedTable`` → meglio guardare. In dual-DB prod la tabella è
+    # locale al worldwild backend → branch true sempre.
+    bind = op.get_bind()
+    if "audit_logs" in sa.inspect(bind).get_table_names():
+        op.drop_index(op.f("ix_audit_logs_user_id"), table_name="audit_logs")
+        op.drop_index(op.f("ix_audit_logs_created_at"), table_name="audit_logs")
+        op.drop_index(op.f("ix_audit_logs_action"), table_name="audit_logs")
+        op.drop_table("audit_logs")
     op.drop_index(op.f("ix_adapter_runs_source"), table_name="adapter_runs")
     op.drop_table("adapter_runs")
     # ### end Alembic commands ###

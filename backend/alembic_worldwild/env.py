@@ -38,10 +38,23 @@ if config.config_file_name is not None:
 target_metadata = WorldwildBase.metadata
 
 
+# In dev locale (singolo Postgres condiviso fra Pulse e Worldwild), entrambi
+# gli env Alembic puntano alla stessa DB. Senza un version_table dedicato,
+# il default ``alembic_version`` collide e una upgrade rovescia l'altra.
+# In prod (Supabase Pulse + Supabase Worldwild distinti) la separazione è
+# innocua: la tabella esiste su un solo DB, no-op sull'altro.
+_VERSION_TABLE = "alembic_version_worldwild"
+
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
     url = config.get_main_option("sqlalchemy.url")
-    context.configure(url=url, target_metadata=target_metadata, literal_binds=True)
+    context.configure(
+        url=url,
+        target_metadata=target_metadata,
+        literal_binds=True,
+        version_table=_VERSION_TABLE,
+    )
     with context.begin_transaction():
         context.run_migrations()
 
@@ -54,7 +67,11 @@ def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            version_table=_VERSION_TABLE,
+        )
         with context.begin_transaction():
             context.run_migrations()
 

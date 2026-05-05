@@ -14,8 +14,9 @@ State machine (vedi ``models.PROMOTION_STATE_*``):
   un retry pulito, il caller deve invocare ``reset_promotion_state()``
   che riporta lo state a ``idle``.
 
-Niente Claude in questi test: il vecchio path AI è stato rimosso (l'analisi
-AI è di Pulse, non di WorldWild).
+``run_analysis`` (chiamata Anthropic) è mockata: la firma + l'effetto
+collaterale di insert su primary_db sono identici al flow reale, ma niente
+HTTP call.
 """
 
 from __future__ import annotations
@@ -120,6 +121,36 @@ def _set_decision_state(
     secondary_db.flush()
 
 
+def _fake_run_analysis_factory(primary_db: Any, cv_id: UUID) -> Any:
+    """Mocka ``run_analysis`` riproducendo l'effetto di insert + return."""
+
+    def _fake(
+        db: Any,
+        cv_text: str,
+        cv_id_arg: UUID,
+        job_description: str,
+        job_url: str,
+        model: str,
+        cache: Any = None,
+        user_id: Any = None,
+        source: str = "manual",
+    ) -> tuple[JobAnalysis, dict[str, Any]]:
+        analysis = JobAnalysis(
+            cv_id=cv_id_arg,
+            job_description=job_description or "stub",
+            job_url=job_url,
+            company="TestCorp",
+            role="Senior DevOps Engineer",
+            score=80,
+            source=source,
+        )
+        primary_db.add(analysis)
+        primary_db.flush()
+        return analysis, {"cost_usd": 0.01, "tokens": {"input": 100, "output": 50}}
+
+    return _fake
+
+
 # ── Test class ─────────────────────────────────────────────────────────────
 
 
@@ -180,8 +211,17 @@ class TestSendToPulseIdempotency:
         decision.promotion_error = "no_active_cv"
         secondary_db.flush()
 
-        fake_cv = MagicMock(id=uuid4())
-        with patch("src.worldwild.services.promote.get_latest_cv", return_value=fake_cv):
+        cv_id = uuid4()
+        fake_cv = MagicMock(id=cv_id, raw_text="cv body")
+        with (
+            patch("src.worldwild.services.promote.get_latest_cv", return_value=fake_cv),
+            patch("src.worldwild.services.promote.check_budget_available", return_value=(True, "")),
+            patch(
+                "src.worldwild.services.promote.run_analysis",
+                side_effect=_fake_run_analysis_factory(primary_db, cv_id),
+            ),
+            patch("src.worldwild.services.promote.add_spending"),
+        ):
             result = send_to_pulse(
                 primary_db,
                 secondary_db,
@@ -218,8 +258,17 @@ class TestSendToPulseIdempotency:
         assert decision.promotion_score is None
 
         # Re-run dopo reset → nuovo insert su Pulse
-        fake_cv = MagicMock(id=uuid4())
-        with patch("src.worldwild.services.promote.get_latest_cv", return_value=fake_cv):
+        cv_id = uuid4()
+        fake_cv = MagicMock(id=cv_id, raw_text="cv body")
+        with (
+            patch("src.worldwild.services.promote.get_latest_cv", return_value=fake_cv),
+            patch("src.worldwild.services.promote.check_budget_available", return_value=(True, "")),
+            patch(
+                "src.worldwild.services.promote.run_analysis",
+                side_effect=_fake_run_analysis_factory(primary_db, cv_id),
+            ),
+            patch("src.worldwild.services.promote.add_spending"),
+        ):
             result = send_to_pulse(
                 primary_db,
                 secondary_db,

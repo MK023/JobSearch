@@ -278,16 +278,16 @@ def send_offer_to_pulse(
     primary_db: DbSession,
     _guard: WorldwildEnabledGuard,
 ) -> PromoteResponse:
-    """Schedula la spedizione a Pulse in background.
+    """Schedula l'analisi AI di una WorldWild offer su Pulse in background.
 
-    Ritorna 202 Accepted subito perché il task gira in BackgroundTask con
-    sessioni DB fresh — vedi :func:`_run_send_to_pulse_in_background`. L'UI
-    pollia o ascolta via SSE per lo stato terminale su ``Decision.promotion_state``.
+    Ritorna 202 Accepted subito: il task gira in BackgroundTask con sessioni
+    DB fresh — vedi :func:`_run_send_to_pulse_in_background` — perché
+    ``run_analysis`` (Anthropic call) è long-running. L'UI pollia o ascolta
+    SSE per lo stato terminale su ``Decision.promotion_state``.
 
-    **Niente Claude call qui** (al contrario del vecchio ``/promote``):
-    la promozione è una spedizione cross-DB minimal, l'analisi AI gira poi
-    su Pulse nel suo flow normale. Vedi docstring di
-    :func:`services.promote.send_to_pulse`.
+    Il task crea una ``JobAnalysis`` su Pulse con i campi AI già popolati
+    (score, strengths, gaps, …) e source=``worldwild``. Vedi docstring di
+    :func:`services.promote.send_to_pulse` per failure modes / idempotenza.
     """
     try:
         offer_uuid = UUID(offer_id)
