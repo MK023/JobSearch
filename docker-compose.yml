@@ -44,8 +44,12 @@ services:
       R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
       R2_ENDPOINT_URL: ${R2_ENDPOINT_URL:-}
       R2_BUCKET_NAME: ${R2_BUCKET_NAME:-jobsearch-files}
-      # WorldWild secondary DB + Adzuna ingest (graceful empty → layer disabled)
-      WORLDWILD_DATABASE_URL: ${WORLDWILD_DATABASE_URL:-}
+      # WorldWild secondary DB + Adzuna ingest.
+      # Default locale: stesso Postgres del primary (singolo container in dev),
+      # con tabelle Worldwild che convivono accanto a quelle Pulse — no
+      # conflitto perché alembic_worldwild usa ``alembic_version_worldwild``
+      # come version_table dedicato. In prod Render imposta un URL separato.
+      WORLDWILD_DATABASE_URL: ${WORLDWILD_DATABASE_URL:-postgresql://jobsearch:jobsearch@db:5432/jobsearch}
       ADZUNA_APP_ID: ${ADZUNA_APP_ID:-}
       ADZUNA_APP_KEY: ${ADZUNA_APP_KEY:-}
       # Networking

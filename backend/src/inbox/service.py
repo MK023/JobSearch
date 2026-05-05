@@ -20,7 +20,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..analysis.models import AnalysisSource, JobAnalysis
-from ..analysis.service import find_by_url, find_existing_analysis, run_analysis
+from ..analysis.service import analyze_and_charge, find_by_url, find_existing_analysis
 from ..cv.service import get_latest_cv
 from ..integrations.anthropic_client import MODELS
 from ..integrations.cache import CacheService
@@ -277,28 +277,19 @@ def process_pending(
     db.commit()
 
     try:
-        analysis, result = run_analysis(
-            db=db,
-            cv_text=cast(str, cv.raw_text),
-            cv_id=cast(UUID, cv.id),
-            job_description=cast(str, item.raw_text),
-            job_url=cast(str, item.source_url),
-            model=model,
-            cache=cache,
-            user_id=user_id,
-            source=AnalysisSource.EXTENSION.value,  # inbox ingestion = Chrome extension flow
-        )
-        # Keep the budget ledger in sync regardless of ingestion source.
-        # Without this, extension-triggered analyses would silently skip
-        # cost tracking and leave today_analyses / today_cost_usd frozen
-        # on the dashboard (user bug report: 20 extension analyses → $0).
-        from ..dashboard.service import add_spending
-
-        add_spending(
+        # Helper centralizzato: AI call + ledger sync. Indispensabile qui
+        # per non ripetere il bug storico in cui il flow extension non
+        # propagava il costo (today_cost_usd a zero con 20 analisi reali).
+        analysis, _result = analyze_and_charge(
             db,
-            float(result.get("cost_usd", 0.0) or 0),
-            int(result.get("tokens", {}).get("input", 0) or 0),
-            int(result.get("tokens", {}).get("output", 0) or 0),
+            cast(str, cv.raw_text),
+            cast(UUID, cv.id),
+            cast(str, item.raw_text),
+            cast(str, item.source_url),
+            model,
+            cache,
+            user_id=user_id,
+            source=AnalysisSource.EXTENSION.value,
         )
         item.analysis_id = cast(UUID, analysis.id)  # type: ignore[assignment]
         item.status = InboxStatus.DONE.value  # type: ignore[assignment]

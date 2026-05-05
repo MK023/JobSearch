@@ -1,33 +1,37 @@
 """Promotion pipeline: cross-DB JobAnalysis insert su Pulse (primary).
 
-Flusso semplificato (post audit 4/5):
+Flusso (post sessione 5/5):
 
     JobOffer (visible su /worldwild)
         │
-        ▼  Marco preme "Promote" sull'UI
+        ▼  Marco preme "Analizza" sull'UI
         │
         ▼
-    send_to_pulse(offer_id)            ← NESSUNA AI call qui
+    send_to_pulse(offer_id)
         │
         ├─ already_done ───────────────► state = done (idempotenza)
         │                                 nessun insert duplicato
         │
         ├─ no active CV ───────────────► state = failed  (retryable)
         │
-        └─ insert JobAnalysis su Pulse ► state = done
-                                         (status='colloquio',
-                                          source='worldwild',
-                                          ready-for-review da Marco)
+        ├─ no_budget ─────────────────► state = failed  (retryable)
+        │
+        ├─ ai_error ──────────────────► state = failed  (retryable)
+        │
+        └─ run_analysis (Claude) ─────► state = done
+                                         JobAnalysis su Pulse popolata
+                                         (score/strengths/gaps/...),
+                                         status='da_valutare',
+                                         source='worldwild'
 
-**Nota architetturale:** lo stack-match score è ora calcolato at-ingest
-(``JobOffer.cv_match_score``, vedi ``services/ingest.py``), quindi qui non
-serve più riapplicare il gate. Pulse esegue la sua analisi AI Anthropic
-nel suo flow normale (``/history``, ``/agenda`` Pulse-side) quando Marco
-visiona la candidatura promossa: la promozione è una **spedizione**, non
-un'analisi.
+**Nota architetturale:** lo stack-match score è già calcolato at-ingest
+(``JobOffer.cv_match_score``, vedi ``services/ingest.py``) come pre-filtro
+gratuito; serve a evitare di chiamare Claude su offerte sotto-soglia. Qui
+runniamo l'analisi Anthropic completa: la "spedizione a Pulse" è
+un'**analisi end-to-end**, non un placeholder vuoto.
 
-Cross-DB: la riga ``JobAnalysis`` vive su Pulse (primary, Neon), la riga
-``Decision`` vive su WorldWild (secondary, Supabase). Il puntatore
+Cross-DB: la riga ``JobAnalysis`` vive su Pulse (primary), la riga
+``Decision`` vive su WorldWild (secondary). Il puntatore
 ``Decision.promoted_to_neon_id`` è un UUID nudo senza vincolo FK —
 Postgres non può enforce FK cross-database. Il caller possiede i commit
 su entrambe le sessioni: questa funzione fa solo flush, così un fallimento
@@ -37,13 +41,16 @@ parziale rolla back pulito quando il caller rolla back.
 from __future__ import annotations
 
 import logging
-from typing import NamedTuple
+from typing import NamedTuple, cast
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from ...analysis.models import AnalysisSource, AnalysisStatus, JobAnalysis
+from ...analysis.models import AnalysisSource
+from ...analysis.service import analyze_and_charge, find_by_url
 from ...cv.service import get_latest_cv
+from ...dashboard.service import check_budget_available
+from ...integrations.cache import CacheService
 from ...notification_center.sse import broadcast_sync
 from ..models import (
     PROMOTION_STATE_DONE,
@@ -54,6 +61,8 @@ from ..models import (
 )
 
 _logger = logging.getLogger(__name__)
+
+_DEFAULT_MODEL = "haiku"  # cost-efficient: stessa scelta del flow extension/cowork
 
 
 class PromotionGateError(Exception):
@@ -93,31 +102,31 @@ def send_to_pulse(
     *,
     offer_id: UUID,
     user_id: UUID,
+    cache: CacheService | None = None,
+    model: str = _DEFAULT_MODEL,
 ) -> PromotionResult:
-    """Spedisce una WorldWild offer su Pulse come ``JobAnalysis`` minimal.
+    """Analizza una WorldWild offer e ne crea la ``JobAnalysis`` su Pulse.
 
     Idempotente: re-run su una Decision già in stato ``done`` ritorna
-    immediatamente senza creare duplicati. Per forzare una nuova spedizione
-    (es. JobAnalysis cancellata su Pulse), il caller deve invocare
+    immediatamente senza ri-pagare la chiamata Claude. Per forzare una nuova
+    analisi (es. JobAnalysis cancellata su Pulse), il caller deve invocare
     :func:`reset_promotion_state` prima.
 
-    Differenze chiave vs il vecchio ``run_promotion_analysis``:
+    La JobAnalysis prodotta ha:
 
-    - **Niente Claude call**: l'analisi AI è di Pulse, non di WorldWild.
-    - **Niente budget gate**: nessun costo da gatekeepare qui.
-    - **Niente score gate**: già applicato at-ingest tramite
-      ``JobOffer.cv_match_score``.
-    - **Niente add_spending**: nessun token consumato in questo step.
-
-    La JobAnalysis inserita ha:
-
-    - ``status='colloquio'`` — Marco l'ha promossa esplicitamente, la marca
-      come "stiamo seguendo" sul funnel Pulse.
+    - **AI fields popolati**: ``score``, ``strengths``, ``gaps``,
+      ``recommendation``, ``career_track``, ecc., calcolati da Anthropic
+      tramite :func:`analysis.service.run_analysis` come per il flow
+      cowork/extension.
     - ``source='worldwild'`` — origine tracciabile per analytics.
-    - ``cv_id`` del CV attivo dell'utente.
-    - ``job_description``, ``job_url``, ``company``, ``role``, ``location``
-      copiati dalla JobOffer; campi AI (score/strengths/gaps/...) vuoti
-      finché Pulse non runna la sua analisi.
+    - ``status`` default (``'da_valutare'``) settato da
+      ``run_analysis`` → Marco decide manualmente promozione/scarto.
+
+    Failure modes (state transition → ``failed``, retryable via reset):
+
+    - ``no_active_cv``: l'utente non ha un CV su Pulse.
+    - ``no_budget``: budget mensile esaurito (vedi ``check_budget_available``).
+    - ``ai_error``: eccezione durante la chiamata Anthropic.
     """
     # 0. Idempotenza: se la Decision è già "done", short-circuit.
     decision = secondary_db.query(Decision).filter(Decision.job_offer_id == offer_id).one_or_none()
@@ -133,7 +142,7 @@ def send_to_pulse(
             skipped_reason="already_done",
         )
 
-    # 1. Carica la JobOffer source-of-truth per i campi minimal.
+    # 1. Carica la JobOffer source-of-truth.
     offer = secondary_db.get(JobOffer, offer_id)
     if offer is None:
         raise PromotionGateError(f"JobOffer {offer_id} not found")
@@ -143,32 +152,62 @@ def send_to_pulse(
     if cv is None:
         return _mark_failed(decision, reason="no_active_cv")
 
-    # 3. Insert minimal JobAnalysis su Pulse. Tutti i campi AI restano
-    # vuoti/default: Pulse li popolerà alla prima visione di Marco via
-    # /history o /agenda Pulse-side, dove gira analyze_job nel flow standard.
-    analysis = JobAnalysis(
-        cv_id=cv.id,
-        job_description=offer.description or "",
-        job_url=offer.url or "",
-        company=offer.company or "",
-        role=offer.title or "",
-        location=offer.location or "",
-        salary_info=_format_salary(offer),
-        status=AnalysisStatus.PENDING.value,  # 'da_valutare': arriva su Pulse pronta per AI analyze
-        source=AnalysisSource.WORLDWILD.value,
-    )
-    primary_db.add(analysis)
-    primary_db.flush()
+    # 3. Budget gate (stesso check che applicano /analyze e inbox).
+    budget_ok, budget_msg = check_budget_available(primary_db)
+    if not budget_ok:
+        return _mark_failed(decision, reason=f"no_budget: {budget_msg}")
 
-    # 4. Aggiorna la Decision con il pointer cross-DB + state done.
+    # cast espliciti: SQLAlchemy 2.x tipizza Column come ``Column[str] | str``,
+    # ma a runtime sono str dopo il flush — vedi readability-first preferenza
+    # vs ``# type: ignore`` (best-practice).
+    job_description: str = str(offer.description or "")
+    job_url: str = str(offer.url or "")
+
+    # 4. URL dedup: se un'altra source ha già analizzato lo stesso URL,
+    # riusa la JobAnalysis esistente — niente Claude call duplicata.
+    if job_url:
+        existing = find_by_url(primary_db, job_url)
+        if existing is not None:
+            decision.promoted_to_neon_id = existing.id  # type: ignore[assignment]
+            decision.promotion_state = PROMOTION_STATE_DONE  # type: ignore[assignment]
+            decision.promotion_error = ""  # type: ignore[assignment]
+            secondary_db.flush()
+            broadcast_sync("worldwild:promotion_state")
+            return PromotionResult(
+                state=PROMOTION_STATE_DONE,
+                analysis_id=existing.id,  # type: ignore[arg-type]
+                error="",
+                skipped_reason="url_dedup",
+            )
+
+    # 5. Run AI analysis + ledger sync via helper centralizzato (vedi
+    # ``analysis.service.analyze_and_charge``). Wrap in try/except così un
+    # timeout / quota error non lascia la Decision pendente — la marchiamo
+    # failed e Marco può riprovare dopo.
+    try:
+        analysis, _result = analyze_and_charge(
+            primary_db,
+            cast(str, cv.raw_text),
+            cast(UUID, cv.id),
+            job_description,
+            job_url,
+            model,
+            cache,
+            user_id=user_id,
+            source=AnalysisSource.WORLDWILD.value,
+        )
+    except Exception as exc:  # noqa: BLE001 — graceful failure, error finisce sulla decision
+        _logger.warning("send_to_pulse AI call failed for offer %s: %s", offer_id, exc)
+        return _mark_failed(decision, reason=f"ai_error: {exc}"[:500])
+
+    # 6. Aggiorna la Decision con il pointer cross-DB + state done.
     decision.promoted_to_neon_id = analysis.id  # type: ignore[assignment]
     decision.promotion_state = PROMOTION_STATE_DONE  # type: ignore[assignment]
     decision.promotion_error = ""  # type: ignore[assignment]
     secondary_db.flush()
 
-    # Notifica clienti SSE: la state machine ha appena fatto la transizione
-    # idle → done (niente più stati intermedi pending/skipped). Il client
-    # ricarica lo state via fetch su ricezione dell'evento.
+    # Notifica clienti SSE: la state machine ha fatto idle → done; il client
+    # ricarica lo state e i count della sidebar via fetch sull'evento.
     broadcast_sync("worldwild:promotion_state")
 
     return PromotionResult(
@@ -176,23 +215,6 @@ def send_to_pulse(
         analysis_id=analysis.id,  # type: ignore[arg-type]
         error="",
     )
-
-
-def _format_salary(offer: JobOffer) -> str:
-    """Formatta salary range in stringa human-readable per JobAnalysis.salary_info.
-
-    Best-effort: se mancano i campi, ritorna stringa vuota (Pulse mostrerà
-    "n/d" in UI, coerente con il pattern delle altre source).
-    """
-    smin = offer.salary_min
-    smax = offer.salary_max
-    cur = offer.salary_currency or ""
-    if smin is None and smax is None:
-        return ""
-    if smin is not None and smax is not None:
-        return f"{smin}-{smax} {cur}".strip()
-    only = smin if smin is not None else smax
-    return f"{only} {cur}".strip()
 
 
 def _mark_failed(decision: Decision, *, reason: str) -> PromotionResult:
