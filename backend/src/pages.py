@@ -205,7 +205,19 @@ def interviews_page(
         for i, a in upcoming_rows
     ]
 
-    past_rows = db.query(Interview).filter(Interview.scheduled_at <= now).order_by(Interview.scheduled_at.desc()).all()
+    # selectinload(Interview.analysis) evita N+1: il template ``interviews.html``
+    # accede a ``iv.analysis.role/company/status`` per ogni riga past, quindi
+    # senza eager-load SQLAlchemy fa una SELECT per pk a ogni iterazione
+    # (Sentry JOBSEARCH-Q: N+1 query pattern).
+    from sqlalchemy.orm import selectinload
+
+    past_rows = (
+        db.query(Interview)
+        .options(selectinload(Interview.analysis))
+        .filter(Interview.scheduled_at <= now)
+        .order_by(Interview.scheduled_at.desc())
+        .all()
+    )
 
     return templates.TemplateResponse(  # type: ignore[no-any-return]
         request,
