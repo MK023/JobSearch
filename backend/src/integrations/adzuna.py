@@ -202,9 +202,9 @@ def _record_error(exc: Exception, *, page: int) -> None:
     with contextlib.suppress(Exception):
         import sentry_sdk
 
+        # Solo breadcrumb (no capture_exception): errori upstream graceful, già gestiti con return [] graceful. Niente issue spam su Sentry per degraded service vendor.
         sentry_sdk.add_breadcrumb(
             category="adzuna",
             message=f"adzuna fetch failed page={page}: {type(exc).__name__}",
             level="warning",
         )
-        sentry_sdk.capture_exception(exc)

@@ -2,6 +2,7 @@
 
 import logging
 import os as _os
+import sys as _sys
 import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -40,9 +41,17 @@ logging.basicConfig(
 
 # Sentry — initialize before app creation so FastAPI integration auto-activates
 # Skip Sentry during pytest runs — otherwise test-induced errors (mocked
-# R2 failures, broken PDFs, etc.) pollute the production dashboard with
-# alerts from the developer's local machine.
-_is_pytest = _os.environ.get("PYTEST_CURRENT_TEST") or "pytest" in _os.environ.get("_", "")
+# R2 failures, broken PDFs, ConnectTimeout, etc.) pollute the production
+# dashboard with alerts from the developer's local machine or CI.
+#
+# Detection strategy (most → least authoritative):
+#   1. ``sys.modules`` contains ``pytest`` — pytest imports itself before any
+#      application code is collected, so this flag is set well before
+#      ``main.py`` is imported by a test. This is robust regardless of how
+#      pytest was launched (``pytest``, ``python -m pytest``, IDE runner).
+#   2. ``PYTEST_CURRENT_TEST`` env var — only set during the *execution* of
+#      a test (not during collection/import), kept as belt-and-suspenders.
+_is_pytest = "pytest" in _sys.modules or bool(_os.environ.get("PYTEST_CURRENT_TEST"))
 
 if settings.sentry_dsn and not _is_pytest:
     import logging as _logging

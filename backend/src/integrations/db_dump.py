@@ -152,8 +152,32 @@ def create_pg_dump_backup(database_url: str | None = None) -> dict[str, Any]:
     }
 
 
+def _r2_configured() -> bool:
+    """True when all four R2 env vars are set — guards calls that would
+    otherwise raise ``RuntimeError("R2 unconfigured")`` from ``r2.py``.
+
+    Used to short-circuit read-only listings (e.g. backup index pages) when
+    the env hasn't been provisioned yet, so the UI sees an empty list
+    instead of a 500 + Sentry noise (issue JOBSEARCH-15).
+    """
+    return bool(
+        settings.r2_access_key_id
+        and settings.r2_secret_access_key
+        and settings.r2_bucket_name
+        and settings.r2_endpoint_url
+    )
+
+
 def list_pg_dumps() -> list[dict[str, Any]]:
-    """List existing full pg_dump backups in R2 (newest first)."""
+    """List existing full pg_dump backups in R2 (newest first).
+
+    Returns an empty list — without raising — when R2 is unconfigured or
+    when the listing call fails for any other reason. Keeps backup index
+    pages renderable on fresh deploys before R2 secrets are wired.
+    """
+    if not _r2_configured():
+        logger.warning("R2 unconfigured — list_pg_dumps returning empty list")
+        return []
     try:
         from .r2 import _get_r2_client
 
