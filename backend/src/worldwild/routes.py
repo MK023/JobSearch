@@ -35,6 +35,7 @@ from .filters import has_remote_hint
 from .models import (
     ALL_SOURCES,
     DECISION_PENDING,
+    PROMOTION_STATE_DONE,
     Decision,
     JobOffer,
 )
@@ -128,10 +129,17 @@ def _query_offers(db: Session, *, only_pending: bool, limit: int) -> list[JobOff
     Pending-only filter is implemented via a NOT EXISTS / left-outer-join on
     ``decisions``: an offer counts as pending when its sole decision row has
     ``decision='pending'``.
+
+    Auto-hide post-Analizza: offers la cui ``Decision.promotion_state`` è
+    ``done`` vengono escluse — sono già state spedite a Pulse e non
+    appartengono più alla vista "lista da decidere". Le altre (idle/pending/
+    failed) restano visibili così che ``failed`` possa essere ri-tentato.
     """
     stmt = (
         select(JobOffer).where(JobOffer.pre_filter_passed.is_(True)).order_by(desc(JobOffer.ingested_at)).limit(limit)
     )
+    not_done_ids = select(Decision.job_offer_id).where(Decision.promotion_state != PROMOTION_STATE_DONE)
+    stmt = stmt.where(JobOffer.id.in_(not_done_ids))
     if only_pending:
         pending_ids = select(Decision.job_offer_id).where(Decision.decision == DECISION_PENDING)
         stmt = stmt.where(JobOffer.id.in_(pending_ids))
@@ -139,41 +147,68 @@ def _query_offers(db: Session, *, only_pending: bool, limit: int) -> list[JobOff
 
 
 def _quick_counts(db: Session) -> dict[str, Any]:
-    """Counts coerenti con le liste visibili a Marco + breakdown per source.
+    """KPI hero + breakdown per source, coerenti con la lista visibile a Marco.
 
-    Pattern allineato a /agenda (vedi ``feedback_pattern_consistency_default``):
-    le badges in page header devono contare le righe che Marco vede a schermo,
-    non i totali raw del DB. La lista visibile è filtrata da:
+    Pattern allineato a /agenda (``feedback_pattern_consistency_default``): le
+    badge dell'header contano righe a schermo, non totali raw del DB. La lista
+    visibile è definita da:
 
     - ``pre_filter_passed = TRUE`` (regole rule-based pre-AI)
-    - ``cv_match_score >= settings.promote_score_threshold`` (gate at-ingest)
     - ``Decision.decision = 'pending'`` (non ancora skip/promote)
+    - ``Decision.promotion_state != 'done'`` (auto-hide post-Analizza)
 
-    Restituisce:
+    Restituisce 4 KPI + breakdown:
 
-    - ``pending``: int — totale offer pending in vista
-    - ``per_source``: dict[str, int] — breakdown per sorgente (adzuna/remotive/...).
-      Le chiavi sono fisse (vedi ``ALL_SOURCES``), così il template ha layout
-      stabile anche quando una source non ha offers (mostra ``0``).
+    - ``pending``: int — offer pending visibili (passano tutti i filtri sopra).
+    - ``score_ok``: int — sotto-insieme di ``pending`` con
+      ``cv_match_score >= settings.promote_score_threshold``: i meritevoli di
+      analisi AI (gate at-ingest passato).
+    - ``score_na``: int — sotto-insieme di ``pending`` con ``cv_match_score
+      IS NULL`` (vocabolario CV non ha mappato → score non determinabile).
+    - ``analyzed_total``: int — contatore vita cumulativo di tutte le offer
+      con ``promotion_state = 'done'`` (NON filtrato per pending, è il funnel
+      storico /worldwild → Pulse). Non è quindi un sotto-insieme di ``pending``.
+    - ``per_source``: dict[str, int] — breakdown ``score_ok`` per sorgente
+      (adzuna/remotive/…). Chiavi fisse via ``ALL_SOURCES`` per layout stabile.
     """
-    visible_filter = (
+    visible_pending = (
         JobOffer.pre_filter_passed.is_(True)
-        & (JobOffer.cv_match_score >= settings.promote_score_threshold)
         & (Decision.decision == DECISION_PENDING)
+        & (Decision.promotion_state != PROMOTION_STATE_DONE)
     )
     pending = db.execute(
-        select(func.count(JobOffer.id)).join(Decision, Decision.job_offer_id == JobOffer.id).where(visible_filter)
+        select(func.count(JobOffer.id)).join(Decision, Decision.job_offer_id == JobOffer.id).where(visible_pending)
+    ).scalar_one()
+    score_ok = db.execute(
+        select(func.count(JobOffer.id))
+        .join(Decision, Decision.job_offer_id == JobOffer.id)
+        .where(visible_pending & (JobOffer.cv_match_score >= settings.promote_score_threshold))
+    ).scalar_one()
+    score_na = db.execute(
+        select(func.count(JobOffer.id))
+        .join(Decision, Decision.job_offer_id == JobOffer.id)
+        .where(visible_pending & JobOffer.cv_match_score.is_(None))
+    ).scalar_one()
+    analyzed_total = db.execute(
+        select(func.count(Decision.id)).where(Decision.promotion_state == PROMOTION_STATE_DONE)
     ).scalar_one()
     per_source: dict[str, int] = {}
     for source in ALL_SOURCES:
         cnt = db.execute(
             select(func.count(JobOffer.id))
             .join(Decision, Decision.job_offer_id == JobOffer.id)
-            .where(visible_filter & (JobOffer.source == source))
+            .where(
+                visible_pending
+                & (JobOffer.cv_match_score >= settings.promote_score_threshold)
+                & (JobOffer.source == source)
+            )
         ).scalar_one()
         per_source[source] = int(cnt)
     return {
         "pending": int(pending),
+        "score_ok": int(score_ok),
+        "score_na": int(score_na),
+        "analyzed_total": int(analyzed_total),
         "per_source": per_source,
     }
 
