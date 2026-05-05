@@ -192,18 +192,18 @@ def _quick_counts(db: Session) -> dict[str, Any]:
     analyzed_total = db.execute(
         select(func.count(Decision.id)).where(Decision.promotion_state == PROMOTION_STATE_DONE)
     ).scalar_one()
-    per_source: dict[str, int] = {}
-    for source in ALL_SOURCES:
-        cnt = db.execute(
-            select(func.count(JobOffer.id))
-            .join(Decision, Decision.job_offer_id == JobOffer.id)
-            .where(
-                visible_pending
-                & (JobOffer.cv_match_score >= settings.promote_score_threshold)
-                & (JobOffer.source == source)
-            )
-        ).scalar_one()
-        per_source[source] = int(cnt)
+    # GROUP BY source in unica query: prima implementazione era loop su
+    # ALL_SOURCES con N query separate (Sentry JOBSEARCH-1A: N+1 query
+    # pattern, 6 db spans di 27ms = ~160ms overhead per page render).
+    # Le source non presenti nel result set vengono completate a 0 sotto.
+    per_source_rows = db.execute(
+        select(JobOffer.source, func.count(JobOffer.id))
+        .join(Decision, Decision.job_offer_id == JobOffer.id)
+        .where(visible_pending & (JobOffer.cv_match_score >= settings.promote_score_threshold))
+        .group_by(JobOffer.source)
+    ).all()
+    per_source_counts = {str(row[0]): int(row[1]) for row in per_source_rows}
+    per_source: dict[str, int] = {source: per_source_counts.get(source, 0) for source in ALL_SOURCES}
     return {
         "pending": int(pending),
         "score_ok": int(score_ok),
