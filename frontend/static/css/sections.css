@@ -232,6 +232,15 @@
   color: var(--accent-orange);
 }
 
+/* Score indeterminabile: stack-extract non ha trovato tech tokens
+ * sull'offer. Visivamente neutro (text-muted) per non confonderlo con
+ * un low-score "vero". */
+.score-badge.score-na {
+  background: rgb(142 142 147 / 15%);
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 .text-danger {
   color: var(--accent-red);
 }

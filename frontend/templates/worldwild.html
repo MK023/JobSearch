@@ -93,8 +93,16 @@
     <div class="history-section">
       <div class="history-list" id="worldwild-offer-list">
         {% for o in offers %}
-          {% set score = o.cv_match_score|default(0) %}
-          {% set score_class = 'score-high' if score >= 70 else ('score-mid' if score >= 50 else 'score-low') %}
+          {% set score = o.cv_match_score %}
+          {% if score is none %}
+            {% set score_class = 'score-na' %}
+            {% set score_label = 'n/d' %}
+            {% set score_title = 'CV match non determinabile (nessun tech token estratto)' %}
+          {% else %}
+            {% set score_class = 'score-high' if score >= 70 else ('score-mid' if score >= 50 else 'score-low') %}
+            {% set score_label = score %}
+            {% set score_title = 'CV match score' %}
+          {% endif %}
           <div class="history-item worldwild-offer"
                data-offer-id="{{ o.id }}"
                data-source="{{ o.source }}">
@@ -103,7 +111,7 @@
                 <a href="{{ o.url }}" target="_blank" rel="noopener noreferrer" class="worldwild-offer-title">
                   {{ o.title }}
                 </a>
-                <span class="score-badge {{ score_class }}" title="CV match score">{{ score }}</span>
+                <span class="score-badge {{ score_class }}" title="{{ score_title }}">{{ score_label }}</span>
               </div>
               <div class="worldwild-offer-meta">
                 <strong>{{ o.company }}</strong>
