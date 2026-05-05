@@ -18,7 +18,7 @@ from ..integrations.anthropic_client import MODELS, content_hash
 from ..rate_limit import limiter
 from .models import AnalysisSource, AnalysisStatus, JobAnalysis
 from .schemas import AnalysisImportRequest, AnalyzeRequest
-from .service import find_existing_analysis, get_analysis_by_id, run_analysis, update_status
+from .service import analyze_and_charge, find_existing_analysis, get_analysis_by_id, update_status
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ def analyze_api(
         return JSONResponse({"ok": True, "redirect": f"/analysis/{existing.id}", "cached": True})
 
     try:
-        analysis, result = run_analysis(
+        analysis, _result = analyze_and_charge(
             db,
             cast(str, cv.raw_text),
             cast(UUID, cv.id),
@@ -68,13 +68,7 @@ def analyze_api(
             body.model,
             cache,
             user_id=cast(UUID, user.id),
-            source=AnalysisSource.API.value,  # /api/v1/analyze JSON = programmatic caller
-        )
-        add_spending(
-            db,
-            result.get("cost_usd", 0.0),
-            result.get("tokens", {}).get("input", 0),
-            result.get("tokens", {}).get("output", 0),
+            source=AnalysisSource.API.value,
         )
         audit(db, request, "analyze", f"id={analysis.id}, company={analysis.company}, score={analysis.score}")
         db.commit()

@@ -9,18 +9,18 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from ..audit.service import audit
 from ..config import settings
 from ..cv.service import get_latest_cv
-from ..dashboard.service import add_spending, check_budget_available
+from ..dashboard.service import check_budget_available
 from ..dependencies import Cache, CurrentUser, DbSession
 from ..integrations.anthropic_client import MODELS, content_hash
 from ..rate_limit import limiter
 from .models import AnalysisSource
 from .service import (
+    analyze_and_charge,
     find_by_company,
     find_by_url,
     find_existing_analysis,
     get_analysis_by_id,
     rebuild_result,
-    run_analysis,
 )
 
 router = APIRouter(tags=["analysis"])
@@ -77,7 +77,7 @@ def analyze(
         return RedirectResponse(url=f"/analysis/{existing.id}", status_code=303)
 
     try:
-        analysis, result = run_analysis(
+        analysis, _result = analyze_and_charge(
             db,
             cast(str, cv.raw_text),
             cast(UUID, cv.id),
@@ -87,12 +87,6 @@ def analyze(
             cache,
             user_id=cast(UUID, user.id),
             source=AnalysisSource.COWORK.value,  # HTML form from /analyze = cowork paste flow
-        )
-        add_spending(
-            db,
-            result.get("cost_usd", 0.0),
-            result.get("tokens", {}).get("input", 0),
-            result.get("tokens", {}).get("output", 0),
         )
         audit(db, request, "analyze", f"id={analysis.id}, company={analysis.company}, score={analysis.score}")
         db.commit()

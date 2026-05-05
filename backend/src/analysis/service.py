@@ -109,6 +109,53 @@ def run_analysis(
     return analysis, result
 
 
+def analyze_and_charge(
+    db: Session,
+    cv_text: str,
+    cv_id: UUID,
+    job_description: str,
+    job_url: str,
+    model: str,
+    cache: "CacheService | None" = None,
+    user_id: UUID | None = None,
+    source: str = AnalysisSource.MANUAL.value,
+) -> tuple[JobAnalysis, dict[str, Any]]:
+    """Run a new analysis and update the spending ledger atomically.
+
+    Combina :func:`run_analysis` (Anthropic call + JobAnalysis insert) con
+    :func:`dashboard.service.add_spending` (cost ledger). Il pattern era
+    duplicato in tre flow (HTML form ``/analyze``, inbox extension worker,
+    Worldwild send-to-pulse) e Sonar lo flaggava su CPD; centralizzando si
+    elimina la duplicazione e si garantisce che ogni AI call propaghi il
+    costo nel ledger (l'inbox flow lo aveva dimenticato in passato → 20
+    analisi extension reali con today_cost_usd a zero).
+
+    Caller responsability: budget gate, dedup (URL/content_hash), session
+    commit/rollback, audit logging — questo helper è puramente l'execution
+    + ledger sync.
+    """
+    analysis, result = run_analysis(
+        db,
+        cv_text,
+        cv_id,
+        job_description,
+        job_url,
+        model,
+        cache,
+        user_id=user_id,
+        source=source,
+    )
+    from ..dashboard.service import add_spending
+
+    add_spending(
+        db,
+        float(result.get("cost_usd", 0.0) or 0),
+        int(result.get("tokens", {}).get("input", 0) or 0),
+        int(result.get("tokens", {}).get("output", 0) or 0),
+    )
+    return analysis, result
+
+
 _REBUILD_EXTRA_KEYS = (
     "score_label",
     "potential_score",

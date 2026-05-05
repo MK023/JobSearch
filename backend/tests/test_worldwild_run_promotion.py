@@ -143,10 +143,9 @@ class TestSendToPulse:
             patch("src.worldwild.services.promote.get_latest_cv", return_value=fake_cv),
             patch("src.worldwild.services.promote.check_budget_available", return_value=(True, "")),
             patch(
-                "src.worldwild.services.promote.run_analysis",
+                "src.worldwild.services.promote.analyze_and_charge",
                 side_effect=_fake_run_analysis_factory(primary_db, cv_id),
             ) as mock_run,
-            patch("src.worldwild.services.promote.add_spending") as mock_spend,
         ):
             result = send_to_pulse(
                 primary_db,
@@ -159,15 +158,9 @@ class TestSendToPulse:
         assert result.analysis_id is not None
         assert result.error == ""
 
-        # run_analysis è stata chiamata col source corretto
+        # analyze_and_charge è stata chiamata col source corretto
         kwargs = mock_run.call_args.kwargs
         assert kwargs["source"] == AnalysisSource.WORLDWILD.value
-
-        # add_spending è stato registrato col cost reale
-        mock_spend.assert_called_once()
-        spend_args = mock_spend.call_args.args
-        assert spend_args[0] is primary_db
-        assert spend_args[1] == 0.012
 
         # JobAnalysis presente su primary con campi AI popolati
         analysis = primary_db.query(JobAnalysis).filter(JobAnalysis.id == result.analysis_id).one()
@@ -184,7 +177,7 @@ class TestSendToPulse:
         offer_id = _seed_offer(secondary_db)
         with (
             patch("src.worldwild.services.promote.get_latest_cv", return_value=None),
-            patch("src.worldwild.services.promote.run_analysis") as mock_run,
+            patch("src.worldwild.services.promote.analyze_and_charge") as mock_run,
         ):
             result = send_to_pulse(
                 primary_db,
@@ -212,7 +205,7 @@ class TestSendToPulse:
                 "src.worldwild.services.promote.check_budget_available",
                 return_value=(False, "monthly cap reached"),
             ),
-            patch("src.worldwild.services.promote.run_analysis") as mock_run,
+            patch("src.worldwild.services.promote.analyze_and_charge") as mock_run,
         ):
             result = send_to_pulse(
                 primary_db,
@@ -231,7 +224,7 @@ class TestSendToPulse:
         with (
             patch("src.worldwild.services.promote.get_latest_cv", return_value=fake_cv),
             patch("src.worldwild.services.promote.check_budget_available", return_value=(True, "")),
-            patch("src.worldwild.services.promote.run_analysis", side_effect=RuntimeError("anthropic 503")),
+            patch("src.worldwild.services.promote.analyze_and_charge", side_effect=RuntimeError("anthropic 503")),
         ):
             result = send_to_pulse(
                 primary_db,
@@ -254,10 +247,9 @@ class TestSendToPulse:
             patch("src.worldwild.services.promote.get_latest_cv", return_value=fake_cv),
             patch("src.worldwild.services.promote.check_budget_available", return_value=(True, "")),
             patch(
-                "src.worldwild.services.promote.run_analysis",
+                "src.worldwild.services.promote.analyze_and_charge",
                 side_effect=_fake_run_analysis_factory(primary_db, cv_id),
             ),
-            patch("src.worldwild.services.promote.add_spending"),
         ):
             first = send_to_pulse(
                 primary_db,
@@ -271,7 +263,7 @@ class TestSendToPulse:
         # Re-run: short-circuit precoce, no AI call
         with (
             patch("src.worldwild.services.promote.get_latest_cv") as mock_cv,
-            patch("src.worldwild.services.promote.run_analysis") as mock_run,
+            patch("src.worldwild.services.promote.analyze_and_charge") as mock_run,
         ):
             second = send_to_pulse(
                 primary_db,
@@ -309,7 +301,7 @@ class TestSendToPulse:
         with (
             patch("src.worldwild.services.promote.get_latest_cv", return_value=fake_cv),
             patch("src.worldwild.services.promote.check_budget_available", return_value=(True, "")),
-            patch("src.worldwild.services.promote.run_analysis") as mock_run,
+            patch("src.worldwild.services.promote.analyze_and_charge") as mock_run,
         ):
             result = send_to_pulse(
                 primary_db,

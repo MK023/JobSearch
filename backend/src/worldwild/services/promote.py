@@ -47,9 +47,9 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from ...analysis.models import AnalysisSource
-from ...analysis.service import find_by_url, run_analysis
+from ...analysis.service import analyze_and_charge, find_by_url
 from ...cv.service import get_latest_cv
-from ...dashboard.service import add_spending, check_budget_available
+from ...dashboard.service import check_budget_available
 from ...integrations.cache import CacheService
 from ...notification_center.sse import broadcast_sync
 from ..models import (
@@ -180,12 +180,12 @@ def send_to_pulse(
                 skipped_reason="url_dedup",
             )
 
-    # 5. Run AI analysis (Anthropic). Wrap in try/except così un timeout o
-    # quota error non lascia la Decision pendente — la marchiamo failed e
-    # Marco può riprovare dopo. ``run_analysis`` fa già flush sulla
-    # primary_db.
+    # 5. Run AI analysis + ledger sync via helper centralizzato (vedi
+    # ``analysis.service.analyze_and_charge``). Wrap in try/except così un
+    # timeout / quota error non lascia la Decision pendente — la marchiamo
+    # failed e Marco può riprovare dopo.
     try:
-        analysis, result = run_analysis(
+        analysis, _result = analyze_and_charge(
             primary_db,
             cast(str, cv.raw_text),
             cast(UUID, cv.id),
@@ -200,16 +200,7 @@ def send_to_pulse(
         _logger.warning("send_to_pulse AI call failed for offer %s: %s", offer_id, exc)
         return _mark_failed(decision, reason=f"ai_error: {exc}"[:500])
 
-    # 6. Spending ledger sync (extension flow lo aveva dimenticato in passato
-    # → today_cost_usd a zero con 20 analisi reali. Replicato anche qui).
-    add_spending(
-        primary_db,
-        float(result.get("cost_usd", 0.0) or 0),
-        int(result.get("tokens", {}).get("input", 0) or 0),
-        int(result.get("tokens", {}).get("output", 0) or 0),
-    )
-
-    # 7. Aggiorna la Decision con il pointer cross-DB + state done.
+    # 6. Aggiorna la Decision con il pointer cross-DB + state done.
     decision.promoted_to_neon_id = analysis.id  # type: ignore[assignment]
     decision.promotion_state = PROMOTION_STATE_DONE  # type: ignore[assignment]
     decision.promotion_error = ""  # type: ignore[assignment]

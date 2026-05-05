@@ -217,10 +217,9 @@ class TestSendToPulseIdempotency:
             patch("src.worldwild.services.promote.get_latest_cv", return_value=fake_cv),
             patch("src.worldwild.services.promote.check_budget_available", return_value=(True, "")),
             patch(
-                "src.worldwild.services.promote.run_analysis",
+                "src.worldwild.services.promote.analyze_and_charge",
                 side_effect=_fake_run_analysis_factory(primary_db, cv_id),
             ),
-            patch("src.worldwild.services.promote.add_spending"),
         ):
             result = send_to_pulse(
                 primary_db,
@@ -264,10 +263,9 @@ class TestSendToPulseIdempotency:
             patch("src.worldwild.services.promote.get_latest_cv", return_value=fake_cv),
             patch("src.worldwild.services.promote.check_budget_available", return_value=(True, "")),
             patch(
-                "src.worldwild.services.promote.run_analysis",
+                "src.worldwild.services.promote.analyze_and_charge",
                 side_effect=_fake_run_analysis_factory(primary_db, cv_id),
             ),
-            patch("src.worldwild.services.promote.add_spending"),
         ):
             result = send_to_pulse(
                 primary_db,
