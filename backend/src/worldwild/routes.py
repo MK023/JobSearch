@@ -94,6 +94,7 @@ def worldwild_page(
             "category": o.category,
             "posted_at": o.posted_at,
             "ingested_at": o.ingested_at,
+            "cv_match_score": o.cv_match_score,
             "remote_hint": has_remote_hint(
                 {
                     "title": o.title,
