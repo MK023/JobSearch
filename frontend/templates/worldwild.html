@@ -26,15 +26,23 @@
 
   {# Toolbar #}
   <div class="worldwild-toolbar mb-l">
-    <button type="button"
-            id="worldwild-ingest-btn"
-            class="btn btn-primary"
-            data-endpoint="/api/v1/worldwild/ingest/adzuna">
-      Run Adzuna ingest
+    <label for="worldwild-source" class="visually-hidden">Source ingest</label>
+    <select id="worldwild-source" class="worldwild-source-select">
+      <option value="adzuna" selected>Adzuna</option>
+      <option value="remotive">Remotive</option>
+      <option value="arbeitnow">Arbeitnow</option>
+      <option value="jobicy">Jobicy</option>
+      <option value="remoteok">Remote OK</option>
+      <option value="themuse">The Muse</option>
+      <option value="findwork">Findwork.dev</option>
+      <option value="workingnomads">Working Nomads</option>
+      <option value="weworkremotely">We Work Remotely</option>
+    </select>
+    <button type="button" id="worldwild-ingest-btn" class="btn btn-primary">
+      Run ingest
     </button>
     <span id="worldwild-ingest-status" class="text-muted ml-m"></span>
-    <a href="/worldwild?only_pending={{ 'false' if only_pending else 'true' }}"
-       class="btn btn-ghost ml-auto">
+    <a href="/worldwild?only_pending={{ 'false' if only_pending else 'true' }}" class="btn btn-ghost ml-auto">
       {{ 'Mostra tutti' if only_pending else 'Solo pending' }}
     </a>
   </div>
@@ -165,9 +173,11 @@
   // Manual ingest trigger
   var ingestBtn = document.getElementById('worldwild-ingest-btn');
   var ingestStatus = document.getElementById('worldwild-ingest-status');
+  var sourceSelect = document.getElementById('worldwild-source');
   if (ingestBtn) {
     ingestBtn.addEventListener('click', function () {
-      var endpoint = ingestBtn.getAttribute('data-endpoint');
+      var source = sourceSelect ? sourceSelect.value : 'adzuna';
+      var endpoint = '/api/v1/worldwild/ingest/' + source;
       ingestBtn.disabled = true;
       ingestStatus.textContent = 'Ingest in corso… (può richiedere 10–20 s)';
       postJson(endpoint).then(function (data) {
@@ -179,6 +189,32 @@
         ingestBtn.disabled = false;
       });
     });
+  }
+
+  // SSE: ricevi update live di promotion_state per ogni offer
+  if (typeof EventSource !== 'undefined') {
+    try {
+      var sseSource = new EventSource('/api/v1/notifications/sse', { withCredentials: true });
+      sseSource.addEventListener('worldwild:promotion_state', function (ev) {
+        // Payload format: "<offer_id>:<state>" (vedi promote.py broadcast_sync)
+        var data = (ev.data || '').split(':');
+        if (data.length < 2) { return; }
+        var offerId = data[0];
+        var state = data.slice(1).join(':');  // tollerante a ":" futuri
+        var badge = document.querySelector('[data-state-for="' + offerId + '"]');
+        if (!badge) { return; }
+        badge.hidden = false;
+        badge.textContent = state;
+        badge.className = 'worldwild-state-badge worldwild-state-' + state;
+      });
+      sseSource.onerror = function () {
+        if (sseSource.readyState === EventSource.CLOSED) {
+          // Browser non auto-retry: lascia stare, prossimo refresh ricarica state da DB
+        }
+      };
+    } catch (e) {
+      // EventSource ctor failure: degrade silenzioso, page reload mostra state via DB
+    }
   }
 }());
 </script>

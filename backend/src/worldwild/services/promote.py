@@ -49,6 +49,7 @@ from ...analysis.service import run_analysis
 from ...config import settings
 from ...cv.service import get_latest_cv
 from ...dashboard.service import add_spending, check_budget_available
+from ...notification_center.sse import broadcast_sync
 from ..models import (
     PROMOTION_STATE_DONE,
     PROMOTION_STATE_FAILED,
@@ -170,6 +171,11 @@ class PromotionResult(NamedTuple):
     analysis_id: UUID | None  # JobAnalysis.id on Neon, when state == done
     cost_usd: float  # AI cost incurred (0 when skipped/failed)
     error: str  # short reason when state == failed
+    # Motivo no-op quando saltiamo l'analisi senza errori (es. "already_done"
+    # per idempotenza). Vuoto in tutti gli altri casi. Default per
+    # backward-compat con i test esistenti che costruiscono PromotionResult
+    # senza questo campo.
+    skipped_reason: str = ""
 
 
 def run_promotion_analysis(
@@ -194,8 +200,27 @@ def run_promotion_analysis(
     so partial failures roll back cleanly when the caller's transaction
     rolls back. The two sessions commit independently (Neon + Supabase).
     """
+    # 0. Idempotenza: se la decision è già in stato terminal "done",
+    # short-circuit per evitare un nuovo Claude call (double-charge).
+    # Per forzare un retry, il caller deve invocare reset_promotion_state()
+    # che riporta a "idle".
+    existing = secondary_db.query(Decision).filter(Decision.job_offer_id == offer_id).one_or_none()
+    if existing is not None and existing.promotion_state == PROMOTION_STATE_DONE:
+        return PromotionResult(
+            state=PROMOTION_STATE_DONE,
+            score=int(existing.promotion_score or 0),
+            analysis_id=existing.promoted_to_neon_id,  # type: ignore[arg-type]
+            cost_usd=0.0,
+            error="",
+            skipped_reason="already_done",
+        )
+
     # 1. Gate (deterministic, no AI cost, persists promotion_state on secondary)
     gate = evaluate_for_promotion(secondary_db, offer_id=offer_id)
+    # Notifica clienti SSE: lo state machine ha appena fatto una transizione
+    # (idle → pending oppure idle → skipped_low_match). Il client ricarica
+    # lo state via fetch su ricezione dell'evento.
+    broadcast_sync("worldwild:promotion_state")
     if not gate.passed:
         return PromotionResult(
             state=PROMOTION_STATE_SKIPPED_LOW_MATCH,
@@ -251,6 +276,9 @@ def run_promotion_analysis(
     decision.promotion_error = ""  # type: ignore[assignment]
     secondary_db.flush()
 
+    # Notifica SSE: pending → done (Claude call completato, JobAnalysis su Neon)
+    broadcast_sync("worldwild:promotion_state")
+
     return PromotionResult(
         state=PROMOTION_STATE_DONE,
         score=gate.score,
@@ -264,6 +292,8 @@ def _mark_failed(decision: Decision, *, reason: str, score: int) -> PromotionRes
     """Set the decision to ``failed`` with a short reason; flush handled by caller."""
     decision.promotion_state = PROMOTION_STATE_FAILED  # type: ignore[assignment]
     decision.promotion_error = reason[:500]  # type: ignore[assignment]
+    # Notifica SSE: transizione → failed (budget/CV/analyzer error)
+    broadcast_sync("worldwild:promotion_state")
     return PromotionResult(
         state=PROMOTION_STATE_FAILED,
         score=score,
