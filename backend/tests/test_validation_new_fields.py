@@ -285,3 +285,31 @@ class TestCompareCefrLevels:
 
         assert compare_cefr_levels("C2", "Native") == "match"
         assert compare_cefr_levels("Native", "C2") == "gap"
+
+
+class TestRunAnalysisWiringEnglishLevel:
+    """Anti-regression: ``run_analysis`` deve passare ``english_level_required``
+    dal result dict al costruttore JobAnalysis. Bug 6/5: il mapping era stato
+    dimenticato in PR1 e per 2-3h le analisi salvavano il campo a "" invece
+    del valore estratto dall'AI.
+    """
+
+    def test_run_analysis_includes_english_level_in_constructor(self):
+        # Lettura statica: il sorgente di run_analysis deve costruire
+        # JobAnalysis(english_level_required=result.get("english_level_required", ...)).
+        from pathlib import Path
+
+        src = Path(__file__).resolve().parent.parent / "src" / "analysis" / "service.py"
+        text = src.read_text()
+        assert "english_level_required=result.get" in text, (
+            "run_analysis() non sta passando english_level_required al costruttore JobAnalysis"
+        )
+
+    def test_rebuild_result_exposes_english_level(self):
+        from pathlib import Path
+
+        src = Path(__file__).resolve().parent.parent / "src" / "analysis" / "service.py"
+        text = src.read_text()
+        assert '"english_level_required": analysis.english_level_required' in text, (
+            "_base_result/rebuild_result non sta esponendo english_level_required nel dict"
+        )
