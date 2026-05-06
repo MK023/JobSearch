@@ -1,8 +1,24 @@
-{# Analysis badges — red flags, freelance, body rental, recruiter, english match.
+{# Analysis badges — quick at-a-glance signal sulla card history.
    Inline tags rendered identically in /history list and any partials/job_card.html consumer.
-   Expects: `analysis` in scope with `red_flags` and `recruiter_info` attributes,
-   plus `user_english_level` (provided by `_base_ctx`) for the English CEFR badge.
+   Expects: `analysis` in scope with `red_flags`, `recruiter_info`, `recommendation`,
+   `career_track`, `salary_info`, `english_level_required`. Plus `user_english_level`
+   (provided by `_base_ctx`) per il badge CEFR.
+
+   Ordering scelto per priorità decisionale (sx → dx):
+   1. recommendation (verdetto AI: APPLY/CONSIDER/SKIP)
+   2. career_track (è in target?)
+   3. salary bracket (vale economicamente?)
+   4. red_flags (warning sulla qualità dell'annuncio)
+   5. freelance / body_rental / recruiter (struttura contrattuale)
+   6. english match (gap linguistico)
 #}
+{% set _rec = (analysis.recommendation or '') | recommendation_badge %}
+<span class="tag tag-{{ _rec.css }}" title="Verdetto AI: {{ _rec.label }}">{{ _rec.icon }} {{ _rec.label }}</span>
+{% set _track = (analysis.career_track or '') | career_track_label %}
+<span class="tag tag-{{ _track.css }}" title="Target carriera: {{ _track.label }}">{{ _track.icon }} {{ _track.label }}</span>
+{% set _is_freelance = analysis.recruiter_info and analysis.recruiter_info.is_freelance %}
+{% set _salary = (analysis.salary_info or '') | salary_bracket(_is_freelance) %}
+<span class="tag tag-{{ _salary.css }}" title="Range salariale stimato">{{ _salary.label }}</span>
 {% if analysis.red_flags %}<span class="tag tag-warning" title="{{ analysis.red_flags | join(' &middot; ') }}">&#x1F6A9; {{ analysis.red_flags | length }}</span> {% endif %}
 {% if analysis.recruiter_info and analysis.recruiter_info.is_freelance %}<span class="tag tag-danger" title="Richiesta P.IVA: {{ analysis.recruiter_info.freelance_reason | default('libera professione') }}">freelance</span> {% endif %}
 {% if analysis.recruiter_info and analysis.recruiter_info.is_body_rental %}<span class="tag tag-danger" title="Body rental: {{ analysis.recruiter_info.body_rental_company | default('staff augmentation') }}">body rental</span> {% endif %}

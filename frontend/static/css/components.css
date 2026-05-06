@@ -997,6 +997,64 @@
   font-style: italic;
 }
 
+/* ---- Quick decision badges (history at-a-glance) ---- */
+
+/* Recommendation AI verdict */
+.tag-rec-apply {
+  background: rgb(48 209 88 / 18%);
+  color: var(--accent-green);
+  font-weight: 600;
+}
+
+.tag-rec-consider {
+  background: rgb(255 159 10 / 15%);
+  color: var(--accent-orange);
+}
+
+.tag-rec-skip {
+  background: rgb(142 142 147 / 15%);
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+/* Career track classification */
+.tag-track-primary {
+  background: rgb(48 209 88 / 12%);
+  color: var(--accent-green);
+}
+
+.tag-track-secondary {
+  background: rgb(10 132 255 / 12%);
+  color: var(--accent-blue);
+}
+
+.tag-track-off {
+  background: rgb(255 69 58 / 12%);
+  color: var(--accent-red);
+}
+
+/* Salary bracket */
+.tag-salary-high {
+  background: rgb(48 209 88 / 15%);
+  color: var(--accent-green);
+}
+
+.tag-salary-mid {
+  background: rgb(255 204 0 / 15%);
+  color: var(--accent-orange);
+}
+
+.tag-salary-low {
+  background: rgb(255 69 58 / 15%);
+  color: var(--accent-red);
+}
+
+.tag-salary-unknown {
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 /* ---- Links ---- */
 
 .link-subtle {

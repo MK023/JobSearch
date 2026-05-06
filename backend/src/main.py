@@ -375,6 +375,14 @@ def _register_templates_and_static(app: FastAPI) -> None:
     from .integrations.validation import compare_cefr_levels
 
     app.state.templates.env.filters["cefr_match"] = compare_cefr_levels
+    # Filter di badge derivati per la card history (recommendation, career_track,
+    # salary bracket). Pure functions in ``analysis.badges`` per separation of
+    # concerns: il template chiama il filter, niente logica nel partial.
+    from .analysis.badges import career_track_label, recommendation_badge, salary_bracket
+
+    app.state.templates.env.filters["recommendation_badge"] = recommendation_badge
+    app.state.templates.env.filters["career_track_label"] = career_track_label
+    app.state.templates.env.filters["salary_bracket"] = salary_bracket
     app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
 
