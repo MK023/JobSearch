@@ -24,6 +24,11 @@ class TestPromptVersion:
         major = int(ANALYSIS_PROMPT_VERSION.lstrip("v").split(".")[0])
         assert major >= 6, f"ANALYSIS_PROMPT_VERSION regressed below v6: {ANALYSIS_PROMPT_VERSION}"
 
+    def test_version_is_at_least_v8(self):
+        # v8 introduced english_level_required extraction — never downgrade.
+        major = int(ANALYSIS_PROMPT_VERSION.lstrip("v").split(".")[0])
+        assert major >= 8, f"ANALYSIS_PROMPT_VERSION regressed below v8: {ANALYSIS_PROMPT_VERSION}"
+
 
 class TestFreelanceDetectionRules:
     """The is_freelance rule must cover daily/hourly salary triggers.
@@ -183,3 +188,44 @@ class TestCoverLetterPromptHardening:
         lower = COVER_LETTER_SYSTEM_PROMPT.lower()
         assert "500" in COVER_LETTER_SYSTEM_PROMPT or "350" in COVER_LETTER_SYSTEM_PROMPT
         assert "parole" in lower or "words" in lower
+
+
+class TestEnglishLevelExtractionRules:
+    """v8 added english_level_required extraction.
+
+    The prompt must keep the rigid rules: only emit canonical CEFR tokens
+    (or empty), never infer from vague context like "azienda internazionale".
+    """
+
+    def test_field_present_in_schema(self):
+        # JSON schema must declare the field with allowed tokens.
+        assert "english_level_required" in ANALYSIS_SYSTEM_PROMPT
+        # Canonical CEFR set documented
+        for token in ("A1", "A2", "B1", "B2", "C1", "C2"):
+            assert token in ANALYSIS_SYSTEM_PROMPT, f"CEFR token {token} missing"
+        assert "Native" in ANALYSIS_SYSTEM_PROMPT
+
+    def test_no_inference_from_vague_context(self):
+        # The prompt must explicitly forbid inference from "azienda internazionale".
+        lower = ANALYSIS_SYSTEM_PROMPT.lower()
+        assert "azienda internazionale" in lower
+        assert "non implicano" in lower or "mai inferire" in lower
+
+    def test_synonym_mapping_documented(self):
+        # Common Italian synonyms must be documented as mappable.
+        lower = ANALYSIS_SYSTEM_PROMPT.lower()
+        assert "madrelingua" in lower
+        assert "fluente" in lower
+        assert "intermedio" in lower or "intermediate" in lower
+
+    def test_empty_default_documented(self):
+        # The "no mention -> empty" rule must be explicit.
+        lower = ANALYSIS_SYSTEM_PROMPT.lower()
+        assert 'ritorna ""' in lower or 'ritorna ""' in lower
+        # The english_level_required block must mention CEFR
+        assert "cefr" in lower
+
+    def test_range_floor_rule_documented(self):
+        # Range "B2-C1" must take the floor.
+        lower = ANALYSIS_SYSTEM_PROMPT.lower()
+        assert "b2-c1" in lower or "floor" in lower
