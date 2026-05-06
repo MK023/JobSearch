@@ -46,6 +46,9 @@ class AnalysisAIResponse(BaseModel):
     red_flags: list[Any] = Field(default_factory=list)
     career_track: str = "hybrid_a_b"  # plan_a_devops, plan_b_dev, hybrid_a_b, cybersec_junior_ok, out_of_scope
     track_reason: str = ""
+    # CEFR level richiesto dal JD per l'inglese — vuoto se non menzionato.
+    # Tokens permessi: "" / A1 / A2 / B1 / B2 / C1 / C2 / Native.
+    english_level_required: str = ""
     full_response: str = ""
 
     @field_validator("score", mode="before")
@@ -194,6 +197,49 @@ class AnalysisAIResponse(BaseModel):
             v["is_freelance"] = bool(v.get("is_freelance"))
             return v
         return {}
+
+    @field_validator("english_level_required", mode="before")
+    @classmethod
+    def normalize_english_level(cls, v: object) -> str:
+        """Normalize a CEFR token, mapping common synonyms.
+
+        Accepts ``""`` (not specified) o uno fra ``A1/A2/B1/B2/C1/C2/Native``.
+        Tutto il resto viene degradato a ``""`` per evitare di propagare
+        valori non confrontabili nel comparatore (es. ``"fluent"`` ambiguo).
+        Sinonimi noti vengono mappati per non scartare info utile.
+        """
+        if v is None:
+            return ""
+        s = str(v).strip()
+        if not s:
+            return ""
+        upper = s.upper()
+        cefr = {"A1", "A2", "B1", "B2", "C1", "C2"}
+        if upper in cefr:
+            return upper
+        # Synonym mapping per livelli "umani" comuni nelle JD italiane/EN.
+        synonyms = {
+            "NATIVE": "Native",
+            "MADRELINGUA": "Native",
+            "MOTHER TONGUE": "Native",
+            "BILINGUAL": "Native",
+            "BILINGUE": "Native",
+            "FLUENT": "C1",
+            "FLUENTE": "C1",
+            "PROFESSIONAL": "C1",
+            "PROFICIENT": "C1",
+            "ADVANCED": "C1",
+            "AVANZATO": "C1",
+            "UPPER INTERMEDIATE": "B2",
+            "UPPER-INTERMEDIATE": "B2",
+            "INTERMEDIATE": "B1",
+            "INTERMEDIO": "B1",
+            "BASIC": "A2",
+            "BASE": "A2",
+            "BEGINNER": "A1",
+            "PRINCIPIANTE": "A1",
+        }
+        return synonyms.get(upper, "")
 
     @field_validator("experience_required", mode="before")
     @classmethod
@@ -395,6 +441,7 @@ def _apply_analysis_defaults(raw: dict[str, Any]) -> dict[str, Any]:
         "recruiter_info": {},
         "experience_required": {},
         "red_flags": [],
+        "english_level_required": "",
         "full_response": "",
     }
     result = {**defaults, **raw}

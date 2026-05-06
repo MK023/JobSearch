@@ -163,3 +163,67 @@ class TestRedFlags:
         raw = {"red_flags": ["valido", "", "  ", "altro"]}
         result = validate_analysis(raw)
         assert result["red_flags"] == ["valido", "altro"]
+
+
+class TestEnglishLevelRequired:
+    """``english_level_required`` normalizza CEFR + sinonimi comuni in JD italiane/inglesi.
+
+    Il campo è additive: vuoto se la JD non menziona inglese, altrimenti uno fra
+    A1/A2/B1/B2/C1/C2/Native. Sinonimi noti vengono mappati per non perdere info.
+    """
+
+    def test_empty_default_when_missing(self):
+        result = validate_analysis({})
+        assert result["english_level_required"] == ""
+
+    def test_none_becomes_empty(self):
+        result = validate_analysis({"english_level_required": None})
+        assert result["english_level_required"] == ""
+
+    def test_blank_string_becomes_empty(self):
+        result = validate_analysis({"english_level_required": "   "})
+        assert result["english_level_required"] == ""
+
+    def test_valid_cefr_uppercase_preserved(self):
+        for token in ("A1", "A2", "B1", "B2", "C1", "C2"):
+            result = validate_analysis({"english_level_required": token})
+            assert result["english_level_required"] == token
+
+    def test_valid_cefr_lowercase_normalized(self):
+        result = validate_analysis({"english_level_required": "b2"})
+        assert result["english_level_required"] == "B2"
+
+    def test_synonym_native_variants(self):
+        for syn in ("Native", "native", "Madrelingua", "Mother tongue", "Bilingual", "Bilingue"):
+            result = validate_analysis({"english_level_required": syn})
+            assert result["english_level_required"] == "Native"
+
+    def test_synonym_fluent_maps_to_c1(self):
+        for syn in ("fluent", "Fluente", "professional", "Proficient", "advanced", "Avanzato"):
+            result = validate_analysis({"english_level_required": syn})
+            assert result["english_level_required"] == "C1"
+
+    def test_synonym_intermediate_maps_to_b1(self):
+        for syn in ("intermediate", "Intermedio"):
+            result = validate_analysis({"english_level_required": syn})
+            assert result["english_level_required"] == "B1"
+
+    def test_synonym_upper_intermediate_maps_to_b2(self):
+        for syn in ("upper intermediate", "Upper-Intermediate"):
+            result = validate_analysis({"english_level_required": syn})
+            assert result["english_level_required"] == "B2"
+
+    def test_synonym_basic_maps_to_a2(self):
+        for syn in ("basic", "Base"):
+            result = validate_analysis({"english_level_required": syn})
+            assert result["english_level_required"] == "A2"
+
+    def test_synonym_beginner_maps_to_a1(self):
+        for syn in ("beginner", "Principiante"):
+            result = validate_analysis({"english_level_required": syn})
+            assert result["english_level_required"] == "A1"
+
+    def test_unknown_token_degraded_to_empty(self):
+        for trash in ("dunno", "lol", "B7", "Z9", "fluentish"):
+            result = validate_analysis({"english_level_required": trash})
+            assert result["english_level_required"] == ""

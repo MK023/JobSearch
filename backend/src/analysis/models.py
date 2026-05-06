@@ -82,6 +82,10 @@ class JobAnalysis(Base):
     location = Column(String(255), default="")
     work_mode = Column(String(50), default="")
     salary_info = Column(String(255), default="")
+    # Compact CEFR string (A1/A2/B1/B2/C1/C2/Native) extracted by AI dal JD;
+    # ``""`` quando l'annuncio non menziona inglese. Confrontabile come ordinal
+    # in Python: rule pre-defined in ``analysis.cefr.compare`` (PR successiva).
+    english_level_required = Column(String(8), nullable=True, default="")
 
     # Analysis results
     score = Column(Integer, default=0)
