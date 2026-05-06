@@ -22,6 +22,46 @@ class TestSaveCV:
         assert cv.name == "V2"
 
 
+class TestSaveCVEnglishLevel:
+    """``english_level`` viene salvato normalizzato via ``normalize_cefr_token``.
+
+    Token validi (A1..C2/Native, anche lowercase) sono persistiti come canonici;
+    sinonimi mappati al CEFR; tutto il resto degrada a "" senza errori.
+    """
+
+    def test_default_empty_when_omitted(self, db_session, test_user):
+        cv = save_cv(db_session, test_user.id, "CV text content here.", "John")
+        db_session.commit()
+        assert cv.english_level == ""
+
+    def test_canonical_cefr_preserved(self, db_session, test_user):
+        cv = save_cv(db_session, test_user.id, "CV text body for B2 user.", "John", english_level="B2")
+        db_session.commit()
+        assert cv.english_level == "B2"
+
+    def test_lowercase_normalized(self, db_session, test_user):
+        cv = save_cv(db_session, test_user.id, "CV text body lowercase.", "John", english_level="c1")
+        db_session.commit()
+        assert cv.english_level == "C1"
+
+    def test_synonym_madrelingua_to_native(self, db_session, test_user):
+        cv = save_cv(db_session, test_user.id, "CV text body native.", "John", english_level="madrelingua")
+        db_session.commit()
+        assert cv.english_level == "Native"
+
+    def test_unknown_token_degraded_to_empty(self, db_session, test_user):
+        cv = save_cv(db_session, test_user.id, "CV text body.", "John", english_level="banana")
+        db_session.commit()
+        assert cv.english_level == ""
+
+    def test_update_overwrites_english_level(self, db_session, test_user):
+        save_cv(db_session, test_user.id, "First CV body content here.", "V1", english_level="B1")
+        db_session.commit()
+        cv = save_cv(db_session, test_user.id, "Second CV body content here.", "V2", english_level="C1")
+        db_session.commit()
+        assert cv.english_level == "C1"
+
+
 class TestGetLatestCV:
     def test_returns_cv_for_user(self, db_session, test_user, test_cv):
         result = get_latest_cv(db_session, test_user.id)

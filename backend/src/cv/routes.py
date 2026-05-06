@@ -25,6 +25,7 @@ async def save_cv_route(
     user: CurrentUser,
     cv_text: Annotated[str, Form()] = "",
     cv_name: Annotated[str, Form()] = "",
+    english_level: Annotated[str, Form()] = "",
     cv_file: Annotated[UploadFile | None, File()] = None,
 ) -> Response:
     """Validate and save the user's CV text or uploaded file."""
@@ -44,8 +45,8 @@ async def save_cv_route(
         request.session["flash_error"] = f"CV troppo lungo (max {settings.max_cv_size} caratteri)"
         return RedirectResponse(url=_SETTINGS_PATH, status_code=303)
 
-    save_cv(db, cast(UUID, user.id), cv_text, cv_name)
-    audit(db, request, "cv_save", f"name={cv_name}, len={len(cv_text)}")
+    save_cv(db, cast(UUID, user.id), cv_text, cv_name, english_level)
+    audit(db, request, "cv_save", f"name={cv_name}, len={len(cv_text)}, english={english_level or 'unset'}")
     db.commit()
     request.session["flash_message"] = "CV salvato con successo!"
     return RedirectResponse(url=_SETTINGS_PATH, status_code=303)
