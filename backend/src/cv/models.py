@@ -24,6 +24,11 @@ class CVProfile(Base):
     )
     raw_text = Column(Text, nullable=False)
     name = Column(String(255), default="")
+    # Livello CEFR di inglese dichiarato dall'utente (A1..C2/Native, vuoto se
+    # non specificato). Normalizzato via ``normalize_cefr_token`` lato service
+    # — il DB tiene la stringa raw così evitiamo CHECK constraint che
+    # bloccherebbero le migrazioni storiche.
+    english_level = Column(String(8), nullable=True, default="")
     created_at = Column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),

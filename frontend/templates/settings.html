@@ -54,6 +54,20 @@
                value="{{ cv.name|default('') if cv else '' }}" placeholder="Il tuo nome (opzionale)">
       </div>
       <div class="form-group">
+        <label for="english_level" class="form-label">Livello inglese (CEFR)</label>
+        {% set current_english = cv.english_level|default('') if cv else '' %}
+        <select id="english_level" name="english_level" class="input">
+          <option value=""        {% if current_english == ''       %}selected{% endif %}>Non specificato</option>
+          <option value="A1"      {% if current_english == 'A1'     %}selected{% endif %}>A1 — principiante</option>
+          <option value="A2"      {% if current_english == 'A2'     %}selected{% endif %}>A2 — base</option>
+          <option value="B1"      {% if current_english == 'B1'     %}selected{% endif %}>B1 — intermedio</option>
+          <option value="B2"      {% if current_english == 'B2'     %}selected{% endif %}>B2 — intermedio-alto</option>
+          <option value="C1"      {% if current_english == 'C1'     %}selected{% endif %}>C1 — avanzato</option>
+          <option value="C2"      {% if current_english == 'C2'     %}selected{% endif %}>C2 — proficient</option>
+          <option value="Native"  {% if current_english == 'Native' %}selected{% endif %}>Native — madrelingua</option>
+        </select>
+      </div>
+      <div class="form-group">
         <label for="cv-text" class="form-label">Testo CV</label>
         <textarea id="cv-text" name="cv_text" class="textarea" rows="12" required
                   placeholder="Incolla il testo del tuo CV...">{{ cv.raw_text|default('') if cv else '' }}</textarea>

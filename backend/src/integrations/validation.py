@@ -14,6 +14,56 @@ from pydantic import BaseModel, Field, field_validator
 logger = logging.getLogger(__name__)
 
 
+# ── CEFR normalization (riusato da AnalysisAIResponse e cv.service) ───
+
+_CEFR_CANONICAL = frozenset({"A1", "A2", "B1", "B2", "C1", "C2"})
+
+_CEFR_SYNONYMS: dict[str, str] = {
+    "NATIVE": "Native",
+    "MADRELINGUA": "Native",
+    "MOTHER TONGUE": "Native",
+    "BILINGUAL": "Native",
+    "BILINGUE": "Native",
+    "FLUENT": "C1",
+    "FLUENTE": "C1",
+    "PROFESSIONAL": "C1",
+    "PROFICIENT": "C1",
+    "ADVANCED": "C1",
+    "AVANZATO": "C1",
+    "UPPER INTERMEDIATE": "B2",
+    "UPPER-INTERMEDIATE": "B2",
+    "INTERMEDIATE": "B1",
+    "INTERMEDIO": "B1",
+    "BASIC": "A2",
+    "BASE": "A2",
+    "BEGINNER": "A1",
+    "PRINCIPIANTE": "A1",
+}
+
+
+def normalize_cefr_token(value: object) -> str:
+    """Normalize a CEFR proficiency token to one of the allowed strings.
+
+    Accepted output: ``""`` (unknown / not specified), uppercase canonical
+    levels (``A1`` … ``C2``), or ``"Native"``. Tokens that don't match are
+    degraded to ``""`` rather than raising — same graceful policy used
+    elsewhere in the validation layer.
+
+    Synonyms (italian + english common variants) are mapped to the closest
+    canonical level so user input via free-text or AI extraction stays
+    usable instead of being thrown away.
+    """
+    if value is None:
+        return ""
+    s = str(value).strip()
+    if not s:
+        return ""
+    upper = s.upper()
+    if upper in _CEFR_CANONICAL:
+        return upper
+    return _CEFR_SYNONYMS.get(upper, "")
+
+
 # ── Analysis response ─────────────────────────────────────────────────
 
 
@@ -201,45 +251,8 @@ class AnalysisAIResponse(BaseModel):
     @field_validator("english_level_required", mode="before")
     @classmethod
     def normalize_english_level(cls, v: object) -> str:
-        """Normalize a CEFR token, mapping common synonyms.
-
-        Accepts ``""`` (not specified) o uno fra ``A1/A2/B1/B2/C1/C2/Native``.
-        Tutto il resto viene degradato a ``""`` per evitare di propagare
-        valori non confrontabili nel comparatore (es. ``"fluent"`` ambiguo).
-        Sinonimi noti vengono mappati per non scartare info utile.
-        """
-        if v is None:
-            return ""
-        s = str(v).strip()
-        if not s:
-            return ""
-        upper = s.upper()
-        cefr = {"A1", "A2", "B1", "B2", "C1", "C2"}
-        if upper in cefr:
-            return upper
-        # Synonym mapping per livelli "umani" comuni nelle JD italiane/EN.
-        synonyms = {
-            "NATIVE": "Native",
-            "MADRELINGUA": "Native",
-            "MOTHER TONGUE": "Native",
-            "BILINGUAL": "Native",
-            "BILINGUE": "Native",
-            "FLUENT": "C1",
-            "FLUENTE": "C1",
-            "PROFESSIONAL": "C1",
-            "PROFICIENT": "C1",
-            "ADVANCED": "C1",
-            "AVANZATO": "C1",
-            "UPPER INTERMEDIATE": "B2",
-            "UPPER-INTERMEDIATE": "B2",
-            "INTERMEDIATE": "B1",
-            "INTERMEDIO": "B1",
-            "BASIC": "A2",
-            "BASE": "A2",
-            "BEGINNER": "A1",
-            "PRINCIPIANTE": "A1",
-        }
-        return synonyms.get(upper, "")
+        """Normalize via shared :func:`normalize_cefr_token` helper."""
+        return normalize_cefr_token(v)
 
     @field_validator("experience_required", mode="before")
     @classmethod
