@@ -67,6 +67,13 @@ def _base_ctx(db: DbSession, user: CurrentUser, active_page: str) -> dict[str, A
     # card appear and disappear together.
     analytics_lock = get_lock_state(db)
     analytics_available = bool(not analytics_lock.get("locked", True))
+    # Livello CEFR utente per il filter Jinja ``cefr_match`` — letto dal
+    # CV attivo (vuoto se nessun CV salvato o se l'utente non ha dichiarato
+    # il livello su Settings). 1 query indicizzata per render.
+    from .cv.service import get_latest_cv
+
+    cv = get_latest_cv(db, user.id)  # type: ignore[arg-type]
+    user_english_level = (cv.english_level or "") if cv else ""
     return {
         "user": user,
         "active_page": active_page,
@@ -75,6 +82,7 @@ def _base_ctx(db: DbSession, user: CurrentUser, active_page: str) -> dict[str, A
         "pending_count": pending_count,
         "agenda_count": agenda_count,
         "analytics_available": analytics_available,
+        "user_english_level": user_english_level,
     }
 
 

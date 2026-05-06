@@ -1,8 +1,20 @@
-{# Analysis badges — red flags, freelance, body rental, recruiter.
+{# Analysis badges — red flags, freelance, body rental, recruiter, english match.
    Inline tags rendered identically in /history list and any partials/job_card.html consumer.
-   Expects: `analysis` in scope with `red_flags` and `recruiter_info` attributes.
+   Expects: `analysis` in scope with `red_flags` and `recruiter_info` attributes,
+   plus `user_english_level` (provided by `_base_ctx`) for the English CEFR badge.
 #}
 {% if analysis.red_flags %}<span class="tag tag-warning" title="{{ analysis.red_flags | join(' &middot; ') }}">&#x1F6A9; {{ analysis.red_flags | length }}</span> {% endif %}
 {% if analysis.recruiter_info and analysis.recruiter_info.is_freelance %}<span class="tag tag-danger" title="Richiesta P.IVA: {{ analysis.recruiter_info.freelance_reason | default('libera professione') }}">freelance</span> {% endif %}
 {% if analysis.recruiter_info and analysis.recruiter_info.is_body_rental %}<span class="tag tag-danger" title="Body rental: {{ analysis.recruiter_info.body_rental_company | default('staff augmentation') }}">body rental</span> {% endif %}
 {% if analysis.recruiter_info and analysis.recruiter_info.is_recruiter %}<span title="Annuncio gestito da {{ analysis.recruiter_info.agency | default('agenzia') }}" aria-label="recruiter">&#x1F3E2;</span> {% endif %}
+{% set _english_required = analysis.english_level_required|default('') %}
+{% if _english_required %}
+  {% set _english_match = _english_required | cefr_match(user_english_level|default('')) %}
+  {% if _english_match == 'match' %}
+    <span class="tag tag-english tag-english-match" title="Inglese richiesto {{ _english_required }} · tuo livello {{ user_english_level }}">&#x1F1EC;&#x1F1E7; {{ _english_required }} &check;</span>
+  {% elif _english_match == 'gap' %}
+    <span class="tag tag-english tag-english-gap" title="Inglese richiesto {{ _english_required }} · tuo livello {{ user_english_level }} (gap)">&#x1F1EC;&#x1F1E7; {{ _english_required }} &#x26A0;</span>
+  {% else %}
+    <span class="tag tag-english tag-english-unknown" title="Inglese richiesto {{ _english_required }} · imposta il tuo livello su Settings">&#x1F1EC;&#x1F1E7; {{ _english_required }} ?</span>
+  {% endif %}
+{% endif %}

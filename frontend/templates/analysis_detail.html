@@ -287,6 +287,26 @@
       </div>
       {% endif %}
 
+      {% set _english_required = current.english_level_required|default('') if current else '' %}
+      {% if _english_required %}
+      {% set _english_match = _english_required | cefr_match(user_english_level|default('')) %}
+      <div class="detail-row">
+        <span class="detail-key">Inglese</span>
+        <span class="detail-val">
+          <strong>{{ _english_required }}</strong> richiesto
+          {% if _english_match == 'match' %}
+            &middot; tuo livello <strong>{{ user_english_level }}</strong>
+            <span class="hero-tag hero-tag-green">&check; sufficiente</span>
+          {% elif _english_match == 'gap' %}
+            &middot; tuo livello <strong>{{ user_english_level }}</strong>
+            <span class="hero-tag hero-tag-orange">&#x26A0; gap</span>
+          {% else %}
+            &middot; <span class="detail-note">imposta il tuo livello su <a href="/settings">Settings</a> per vedere il match</span>
+          {% endif %}
+        </span>
+      </div>
+      {% endif %}
+
       {% if result.benefits %}
       <div class="detail-row">
         <span class="detail-key">Benefits</span>

@@ -368,6 +368,13 @@ def _register_templates_and_static(app: FastAPI) -> None:
     # the value the user expects on their wall clock (CET/CEST).
     app.state.templates.env.filters["italytime"] = _to_italy
     app.state.templates.env.filters["job_summary_items"] = _parse_job_summary
+    # Filter ``cefr_match``: in template Jinja consente di scrivere
+    # ``{{ analysis.english_level_required | cefr_match(user_english_level) }}``
+    # ottenendo "not_required"/"unknown"/"match"/"gap" senza re-calcolare lato
+    # route per ogni riga della history list.
+    from .integrations.validation import compare_cefr_levels
+
+    app.state.templates.env.filters["cefr_match"] = compare_cefr_levels
     app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
 

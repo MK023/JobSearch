@@ -973,6 +973,30 @@
   color: var(--text-secondary);
 }
 
+/* English CEFR match badges (PR4 english_level_required).
+   Riusa palette token già definita: green per match, orange per gap,
+   neutro per unknown (utente non ha settato il livello). Compatibili
+   con .tag base sopra: dimensione + radius identici. */
+.tag-english {
+  font-variant-numeric: tabular-nums;
+}
+
+.tag-english-match {
+  background: rgb(48 209 88 / 15%);
+  color: var(--accent-green);
+}
+
+.tag-english-gap {
+  background: rgb(255 159 10 / 15%);
+  color: var(--accent-orange);
+}
+
+.tag-english-unknown {
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 /* ---- Links ---- */
 
 .link-subtle {
