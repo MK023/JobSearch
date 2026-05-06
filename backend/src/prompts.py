@@ -15,7 +15,7 @@ Token-optimized: compact JSON schemas, tabular rules, zero redundancy.
 #          | v6 = candidate profile section (target DevOps/Cloud, salary range, P.IVA hard-no,
 #                 body rental case-by-case tone); soft-skill cap lowered 10→5;
 #                 Bachelor gap text removed (candidate holds L-31 Informatica); real cert list.
-ANALYSIS_PROMPT_VERSION = "v7"
+ANALYSIS_PROMPT_VERSION = "v8"
 
 # Bump when COVER_LETTER_SYSTEM_PROMPT changes in a way that should invalidate
 # the cover letter cache. Included in cache_key by generate_cover_letter().
@@ -81,7 +81,8 @@ Struttura JSON (tutti i campi obbligatori):
   "experience_required": {"years_min": int or null, "years_max": int or null, "level": "junior|mid|senior|lead|principal|unspecified", "raw_text": "citazione esatta dall'annuncio sugli anni di esperienza, vuoto se non specificato"},
   "red_flags": ["array di alert sull'annuncio stesso (NON sul match col CV): salary mancante, responsabilita' vaghe, stack troppo eterogeneo per un solo ruolo, multipli livelli di seniority nel titolo, JD molto generico, requisiti contraddittori, elenco infinito di must-have, presenza di buzzword senza sostanza, deadline irrealistica. Max 5 elementi, max 12 parole ciascuno. Lista vuota se l'annuncio e' chiaro e ben scritto."],
   "career_track": "plan_a_devops|plan_b_dev|hybrid_a_b|cybersec_junior_ok|out_of_scope",
-  "track_reason": "1 frase max 25 parole: perche' questo annuncio rientra in questo track. Cita le skill dominanti trovate (es: '70% IaC/K8s/CI-CD, 30% scripting Python' = plan_a_devops; 'Richiede 8 anni pentest Red Team senior' = out_of_scope)"
+  "track_reason": "1 frase max 25 parole: perche' questo annuncio rientra in questo track. Cita le skill dominanti trovate (es: '70% IaC/K8s/CI-CD, 30% scripting Python' = plan_a_devops; 'Richiede 8 anni pentest Red Team senior' = out_of_scope)",
+  "english_level_required": "vuoto | A1 | A2 | B1 | B2 | C1 | C2 | Native — vedi regole sotto"
 }
 
 Score: 80-100=APPLY | 60-79=CONSIDER | 40-59=CONSIDER/SKIP | 0-39=SKIP
@@ -105,6 +106,20 @@ Freelance: l'annuncio richiede che il candidato fatturi come libero professionis
 Experience: estrai anni richiesti dall'annuncio. "3+ anni" -> years_min=3, years_max=null. "3-5 anni" -> years_min=3, years_max=5. "almeno 5" -> years_min=5. Level: junior=0-2 | mid=3-5 | senior=6-10 | lead/principal=10+. Se non specificato, years_min/max=null e level="unspecified".
 Advice: APPLY=perche' e su cosa puntare | CONSIDER=cosa fare per colmare gap | SKIP=perche' no e ruoli piu' adatti (suggerisci ruoli IN TARGET: Cloud/DevOps/DevSecOps/Platform, NON backend generico o fullstack). Cita esperienze reali dal CV del candidato con nome progetto e numeri. Se il ruolo richiede P.IVA o e' body rental segui le linee-guida di tono sopra: segnala i trigger ma NON emettere verdetti tipo "escludi/evita"; invita a verificare condizioni specifiche.
 Red flags: estrai SOLO segnali sull'annuncio in se' (qualita' della scrittura, coerenza dei requisiti, completezza), NON sul match col CV. Esempi: "salary non specificato" | "stack troppo lungo per un solo ruolo" | "responsabilita' vaghe" | "JD generico, niente dettagli sul team" | "richiesta seniority ambigua" | "lista must-have irrealistica". Max 5. Lista vuota se annuncio chiaro.
+
+English level: estrai il livello CEFR di inglese richiesto dall'annuncio in ``english_level_required``. Output canonico SOLO uno fra: "" (vuoto, NESSUNA menzione di inglese nel testo) | "A1" | "A2" | "B1" | "B2" | "C1" | "C2" | "Native".
+  - REGOLA RIGIDA: se l'annuncio NON menziona esplicitamente inglese / English / livello CEFR / sinonimi sotto -> ritorna "". MAI inferire da contesto vago tipo "azienda internazionale", "team distribuiti", "documentazione tecnica": questi NON implicano un livello specifico.
+  - Trigger CEFR diretti: "B2", "B2 minimo", "C1 required", "Inglese B2", "English C1+", "livello B2", "almeno B1" -> usa il livello CEFR esatto. Se range tipo "B2-C1" usa il floor (B2).
+  - Sinonimi italiani -> mappa al CEFR canonico:
+    * "madrelingua", "bilingue", "mother tongue" -> "Native"
+    * "fluente", "ottimo", "professionale", "avanzato", "proficient", "advanced", "fluent" -> "C1"
+    * "buono", "upper intermediate" -> "B2"
+    * "intermedio", "discreto", "intermediate" -> "B1"
+    * "base", "basico", "basic" -> "A2"
+    * "principiante", "elementare", "beginner" -> "A1"
+  - Se il livello e' menzionato ma non quantificabile univocamente (es. "buona conoscenza dell'inglese" senza cifra/CEFR) -> usa "B2" come stima media (italiano body rental tipico).
+  - Se l'annuncio richiede SOLO italiano e dichiara "inglese non richiesto" / "non e' richiesto" -> ritorna "" (zero richiesta).
+  - PRIORITA': scritto+parlato sopra solo lettura. Se la JD dice "English B2 written, B1 spoken" prendi il PIU' BASSO dei due (B1).
 
 JSON valido: doppi apici, no trailing comma, no commenti, \\n per newline nelle stringhe."""
 
