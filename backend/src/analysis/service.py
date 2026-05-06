@@ -89,6 +89,7 @@ def run_analysis(
         company_news=result.get("company_news") or None,
         career_track=result.get("career_track") or None,
         track_reason=result.get("track_reason") or None,
+        english_level_required=result.get("english_level_required", ""),
         benefits=result.get("benefits") or None,
         recruiter_info=result.get("recruiter_info") or None,
         experience_required=result.get("experience_required") or None,
@@ -167,19 +168,31 @@ _REBUILD_EXTRA_KEYS = (
 )
 
 
-def _base_result(analysis: JobAnalysis, from_cache: bool) -> dict[str, Any]:
-    """Build the always-present fields of the result dict (pre-extra merge)."""
-    tokens_input = analysis.tokens_input or 0
-    tokens_output = analysis.tokens_output or 0
+def _tokens_payload(analysis: JobAnalysis) -> dict[str, int]:
+    """Estrai input/output/total tokens come dict (helper anti cognitive-complexity).
+
+    Estratto da ``_base_result`` per tenere quest'ultimo sotto il threshold
+    Sonar (cognitive complexity 15). Logica banale ma riduce la funzione
+    chiamante di 4 punti.
+    """
+    tokens_input = cast(int, analysis.tokens_input) or 0
+    tokens_output = cast(int, analysis.tokens_output) or 0
     return {
-        "company": analysis.company,
-        "role": analysis.role,
-        "location": analysis.location,
-        "work_mode": analysis.work_mode,
-        "salary_info": analysis.salary_info,
-        "score": analysis.score,
-        "recommendation": analysis.recommendation,
-        "job_summary": analysis.job_summary,
+        "input": tokens_input,
+        "output": tokens_output,
+        "total": tokens_input + tokens_output,
+    }
+
+
+def _ai_fields_payload(analysis: JobAnalysis) -> dict[str, Any]:
+    """Sotto-dict dei campi AI con fallback default safe per row legacy.
+
+    Estratto da ``_base_result`` per portare la complexity sotto Sonar
+    threshold. I default ``or [list/dict/empty]`` proteggono da row pre-PR
+    in cui i Column JSON erano stati salvati come ``NULL`` invece del
+    default ORM atteso.
+    """
+    return {
         "strengths": analysis.strengths or [],
         "gaps": analysis.gaps or [],
         "interview_scripts": analysis.interview_scripts or [],
@@ -189,16 +202,28 @@ def _base_result(analysis: JobAnalysis, from_cache: bool) -> dict[str, Any]:
         "company_news": analysis.company_news or [],
         "career_track": analysis.career_track or "hybrid_a_b",
         "track_reason": analysis.track_reason or "",
+        "english_level_required": analysis.english_level_required or "",
         "benefits": analysis.benefits or [],
         "recruiter_info": analysis.recruiter_info or {},
         "experience_required": analysis.experience_required or {},
+    }
+
+
+def _base_result(analysis: JobAnalysis, from_cache: bool) -> dict[str, Any]:
+    """Build the always-present fields of the result dict (pre-extra merge)."""
+    return {
+        "company": analysis.company,
+        "role": analysis.role,
+        "location": analysis.location,
+        "work_mode": analysis.work_mode,
+        "salary_info": analysis.salary_info,
+        "score": analysis.score,
+        "recommendation": analysis.recommendation,
+        "job_summary": analysis.job_summary,
+        **_ai_fields_payload(analysis),
         "summary": "",
         "model_used": analysis.model_used,
-        "tokens": {
-            "input": tokens_input,
-            "output": tokens_output,
-            "total": tokens_input + tokens_output,
-        },
+        "tokens": _tokens_payload(analysis),
         "cost_usd": analysis.cost_usd or 0.0,
         "from_cache": from_cache,
     }
