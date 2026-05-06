@@ -41,6 +41,43 @@ _CEFR_SYNONYMS: dict[str, str] = {
 }
 
 
+_CEFR_ORDINAL: dict[str, int] = {
+    "A1": 1,
+    "A2": 2,
+    "B1": 3,
+    "B2": 4,
+    "C1": 5,
+    "C2": 6,
+    "Native": 7,
+}
+
+
+def compare_cefr_levels(required: str, owned: str) -> str:
+    """Confronta livello CEFR richiesto vs posseduto.
+
+    Output:
+
+    - ``"not_required"`` — la JD non specifica inglese (free pass)
+    - ``"unknown"`` — JD specifica un livello ma l'utente non ha CEFR set
+      (impossibile calcolare match)
+    - ``"match"`` — utente ``>=`` richiesto (sufficiente o sopra)
+    - ``"gap"`` — utente ``<`` richiesto (mancano livelli)
+
+    L'ordinamento ``Native > C2 > C1 > … > A1`` è quello standard CEFR/Common
+    European Framework. ``Native`` è trattato come superiore a C2 perché
+    "madrelingua" implica fluency superiore al massimo accademico.
+    """
+    if not required:
+        return "not_required"
+    if not owned:
+        return "unknown"
+    req = _CEFR_ORDINAL.get(required, 0)
+    own = _CEFR_ORDINAL.get(owned, 0)
+    if not req or not own:
+        return "unknown"
+    return "match" if own >= req else "gap"
+
+
 def normalize_cefr_token(value: object) -> str:
     """Normalize a CEFR proficiency token to one of the allowed strings.
 

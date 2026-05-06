@@ -227,3 +227,61 @@ class TestEnglishLevelRequired:
         for trash in ("dunno", "lol", "B7", "Z9", "fluentish"):
             result = validate_analysis({"english_level_required": trash})
             assert result["english_level_required"] == ""
+
+
+class TestCompareCefrLevels:
+    """``compare_cefr_levels(required, owned)`` ritorna match/gap/unknown/not_required.
+
+    Ordering CEFR canonico: A1 < A2 < B1 < B2 < C1 < C2 < Native.
+    ``Native`` superiore a C2 perché madrelingua implica fluency oltre l'esame.
+    """
+
+    def test_not_required_when_no_jd_request(self):
+        from src.integrations.validation import compare_cefr_levels
+
+        assert compare_cefr_levels("", "B2") == "not_required"
+        assert compare_cefr_levels("", "") == "not_required"
+
+    def test_unknown_when_user_level_missing(self):
+        from src.integrations.validation import compare_cefr_levels
+
+        assert compare_cefr_levels("B2", "") == "unknown"
+
+    def test_unknown_when_token_unrecognized(self):
+        from src.integrations.validation import compare_cefr_levels
+
+        # Garbage tokens fall back to unknown rather than raising.
+        assert compare_cefr_levels("XX", "B2") == "unknown"
+        assert compare_cefr_levels("B2", "ZZ") == "unknown"
+
+    def test_match_when_owned_equals_required(self):
+        from src.integrations.validation import compare_cefr_levels
+
+        for level in ("A1", "A2", "B1", "B2", "C1", "C2", "Native"):
+            assert compare_cefr_levels(level, level) == "match"
+
+    def test_match_when_owned_above_required(self):
+        from src.integrations.validation import compare_cefr_levels
+
+        # Marco scenario: B2 user su B1 JD (sufficient).
+        assert compare_cefr_levels("B1", "B2") == "match"
+        # Native su C1 JD.
+        assert compare_cefr_levels("C1", "Native") == "match"
+        # Edge: A1 JD, anyone qualifies.
+        assert compare_cefr_levels("A1", "C2") == "match"
+
+    def test_gap_when_owned_below_required(self):
+        from src.integrations.validation import compare_cefr_levels
+
+        # Marco scenario: B2 user su C1 JD (gap di 1).
+        assert compare_cefr_levels("C1", "B2") == "gap"
+        # Big gap: A2 user su C2 JD.
+        assert compare_cefr_levels("C2", "A2") == "gap"
+        # Adjacent: B2 user su C1.
+        assert compare_cefr_levels("C2", "C1") == "gap"
+
+    def test_native_outranks_c2(self):
+        from src.integrations.validation import compare_cefr_levels
+
+        assert compare_cefr_levels("C2", "Native") == "match"
+        assert compare_cefr_levels("Native", "C2") == "gap"
