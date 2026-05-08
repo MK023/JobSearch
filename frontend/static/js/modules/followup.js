@@ -69,6 +69,7 @@ function genFollowup(id) {
     fetch('/api/v1/followup-email', { method: 'POST', body: fd })
         .then(function(r) {
             if (handleRateLimit(r, 'Troppe richieste')) return null;
+            if (!r.ok) throw new Error('followup-email HTTP ' + r.status);
             return r.json();
         })
         .then(function(data) {
@@ -122,6 +123,7 @@ function genLinkedin(id) {
     fetch('/api/v1/linkedin-message', { method: 'POST', body: fd })
         .then(function(r) {
             if (handleRateLimit(r, 'Troppe richieste')) return null;
+            if (!r.ok) throw new Error('linkedin-message HTTP ' + r.status);
             return r.json();
         })
         .then(function(data) {
@@ -181,8 +183,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 function markFollowupDone(id) {
-    fetch('/api/v1/followup-done/' + id, { method: 'POST' })
-        .then(function(r) { return r.json(); })
+    fetchJSON('/api/v1/followup-done/' + id, { method: 'POST' })
         .then(function(data) {
             if (data.ok) {
                 const el = document.getElementById('followup-' + id);

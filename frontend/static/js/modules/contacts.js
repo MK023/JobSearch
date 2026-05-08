@@ -15,8 +15,7 @@ function toggleContacts(id) {
 }
 
 function loadContacts(id) {
-    fetch('/api/v1/contacts/' + id)
-        .then(function(r) { return r.json(); })
+    fetchJSON('/api/v1/contacts/' + id)
         .then(function(data) {
             const list = document.getElementById('contacts-list-' + id);
             if (!list) return;
@@ -76,8 +75,7 @@ function saveContact(analysisId) {
     fd.append('linkedin_url', document.getElementById('ct-linkedin-' + analysisId).value);
     fd.append('notes', document.getElementById('ct-notes-' + analysisId).value);
 
-    fetch('/api/v1/contacts', { method: 'POST', body: fd })
-        .then(function(r) { return r.json(); })
+    fetchJSON('/api/v1/contacts', { method: 'POST', body: fd })
         .then(function(data) {
             if (data.ok) {
                 loadContacts(analysisId);
@@ -95,8 +93,7 @@ function saveContact(analysisId) {
 }
 
 function deleteContact(contactId, analysisId) {
-    fetch('/api/v1/contacts/' + contactId, { method: 'DELETE' })
-        .then(function(r) { return r.json(); })
+    fetchJSON('/api/v1/contacts/' + contactId, { method: 'DELETE' })
         .then(function(data) {
             if (data.ok) {
                 loadContacts(analysisId);
