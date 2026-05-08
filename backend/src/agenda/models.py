@@ -2,7 +2,8 @@
 
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, Column, DateTime, Integer, String
+from sqlalchemy import Boolean, DateTime, String
+from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database.base import Base
 
@@ -12,8 +13,12 @@ class TodoItem(Base):
 
     __tablename__ = "todo_items"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    text = Column(String(500), nullable=False)
-    done = Column(Boolean, nullable=False, default=False)
-    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
-    completed_at = Column(DateTime(timezone=True), nullable=True)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    text: Mapped[str] = mapped_column(String(500), nullable=False)
+    done: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

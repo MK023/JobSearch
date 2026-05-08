@@ -15,7 +15,8 @@ from datetime import UTC, datetime
 from enum import StrEnum
 
 from pydantic import BaseModel, Field
-from sqlalchemy import Column, DateTime, Integer, String
+from sqlalchemy import DateTime, String
+from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database.base import Base
 
@@ -54,9 +55,9 @@ class NotificationDismissal(Base):
 
     __tablename__ = "notification_dismissals"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    notification_id = Column(String(200), nullable=False, unique=True, index=True)
-    dismissed_at = Column(
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    notification_id: Mapped[str] = mapped_column(String(200), nullable=False, unique=True, index=True)
+    dismissed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         default=lambda: datetime.now(UTC),

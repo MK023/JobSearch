@@ -14,8 +14,9 @@ the user-facing action on failure.
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import Column, DateTime, String, Text
+from sqlalchemy import DateTime, String, Text
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database.worldwild_db import WorldwildBase
 
@@ -25,13 +26,13 @@ class WorldwildAuditLog(WorldwildBase):
 
     __tablename__ = "audit_logs"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     # No FK on user_id — primary DB owns the users table.
-    user_id = Column(UUID(as_uuid=True), nullable=True, index=True)
-    action = Column(String(50), nullable=False, index=True)
-    detail = Column(Text, default="")
-    ip_address = Column(String(45), default="")
-    created_at = Column(
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+    action: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    detail: Mapped[str | None] = mapped_column(Text, default="")
+    ip_address: Mapped[str | None] = mapped_column(String(45), default="")
+    created_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
         index=True,
