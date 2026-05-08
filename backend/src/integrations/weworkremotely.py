@@ -22,12 +22,13 @@ Note di mapping:
   via ``dict()`` per serializzabilità JSON sicura).
 """
 
-import contextlib
 from datetime import UTC, datetime
 from typing import Any
 
 import feedparser  # type: ignore[import-untyped]
 import httpx
+
+from ._common import record_error
 
 WWR_BASE = "https://weworkremotely.com/categories"
 DEFAULT_CATEGORY = "remote-devops-sysadmin-jobs"
@@ -60,7 +61,7 @@ def fetch_weworkremotely_jobs(
             resp = client.get(url)
         resp.raise_for_status()
     except httpx.HTTPError as exc:
-        _record_error(exc, category=category)
+        record_error(exc, source="weworkremotely", category=category)
         return []
 
     # feedparser è permissivo: su XML malformato ritorna comunque un feed con
@@ -212,21 +213,3 @@ def _serializable(value: Any) -> Any:
     if isinstance(value, (list, tuple)):
         return [_serializable(v) for v in value]
     return str(value)
-
-
-def _record_error(exc: Exception, *, category: str) -> None:
-    """Logga su Sentry senza sollevare — mantiene il cron resiliente.
-
-    ``contextlib.suppress`` esprime in modo Pythonico l'intento "ingoia
-    intenzionalmente": Sentry non è inizializzato in test/local dev e non
-    vogliamo che il fallimento di logging rimbalzi sul caller.
-    """
-    with contextlib.suppress(Exception):
-        import sentry_sdk
-
-        # Solo breadcrumb (no capture_exception): errori upstream graceful, già gestiti con return [] graceful. Niente issue spam su Sentry per degraded service vendor.
-        sentry_sdk.add_breadcrumb(
-            category="weworkremotely",
-            message=f"weworkremotely fetch failed category={category}: {type(exc).__name__}",
-            level="warning",
-        )

@@ -131,16 +131,9 @@ class TestFetchAdzunaJobs:
 
 
 class TestParsing:
-    def test_parse_created_iso_with_z_suffix(self) -> None:
-        dt = adzuna._parse_created("2026-04-25T09:00:00Z")
-        assert dt is not None
-        assert dt.tzinfo is not None
-
-    def test_parse_created_returns_none_on_garbage(self) -> None:
-        assert adzuna._parse_created(None) is None
-        assert adzuna._parse_created("") is None
-        assert adzuna._parse_created("not-a-date") is None
-
+    # Test sui parser ISO datetime sono ora centralizzati in
+    # ``test_integrations_common.py::test_parse_iso_datetime_*`` dopo
+    # l'estrazione dell'helper in ``integrations._common``.
     def test_safe_int_handles_none_and_strings(self) -> None:
         assert adzuna._safe_int(None) is None
         assert adzuna._safe_int(42) == 42

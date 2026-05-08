@@ -20,11 +20,11 @@ Degradazione graceful: lista vuota su errori di rete o 4xx/5xx. Le rotture
 upstream finiscono in Sentry come breadcrumb, senza propagare al cron caller.
 """
 
-import contextlib
-from datetime import UTC, datetime
 from typing import Any
 
 import httpx
+
+from ._common import parse_iso_datetime, record_error, safe_str
 
 REMOTEOK_BASE = "https://remoteok.com/api"
 USER_AGENT = "Worldwild/1.0 (+https://github.com/MK023/JobSearch)"
@@ -65,7 +65,7 @@ def fetch_remoteok_jobs(
         resp.raise_for_status()
         payload = resp.json()
     except (httpx.HTTPError, ValueError) as exc:
-        _record_error(exc)
+        record_error(exc, source="remoteok")
         return []
 
     if not isinstance(payload, list):
@@ -109,25 +109,18 @@ def _normalize(raw: dict[str, Any]) -> dict[str, Any] | None:
         "source": "remoteok",
         "external_id": ext_id,
         "title": title[:500],
-        "company": _safe_str(raw.get("company"), 255),
-        "location": _safe_str(raw.get("location"), 255),
-        "url": _safe_str(raw.get("url") or raw.get("apply_url"), 1000),
+        "company": safe_str(raw.get("company"), 255),
+        "location": safe_str(raw.get("location"), 255),
+        "url": safe_str(raw.get("url") or raw.get("apply_url"), 1000),
         "description": (raw.get("description") or "").strip(),
         "salary_min": salary_min,
         "salary_max": salary_max,
         "salary_currency": salary_currency,
         "contract_type": "",  # non esposto dall'API
         "category": "",  # Remote OK usa solo ``tags``, no campo category
-        "posted_at": _parse_date(raw.get("date")),
+        "posted_at": parse_iso_datetime(raw.get("date")),
         "raw_payload": raw,
     }
-
-
-def _safe_str(value: Any, max_len: int) -> str:
-    if value is None:
-        return ""
-    s = str(value).strip()
-    return s[:max_len]
 
 
 def _safe_int(value: Any) -> int | None:
@@ -137,35 +130,3 @@ def _safe_int(value: Any) -> int | None:
         return int(value)
     except (TypeError, ValueError):
         return None
-
-
-def _parse_date(value: Any) -> datetime | None:
-    """Parsa il campo ``date`` ISO 8601 di Remote OK in datetime tz-aware UTC."""
-    if not value:
-        return None
-    try:
-        normalized = str(value).replace("Z", "+00:00")
-        dt = datetime.fromisoformat(normalized)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=UTC)
-        return dt
-    except (TypeError, ValueError):
-        return None
-
-
-def _record_error(exc: Exception) -> None:
-    """Logga su Sentry senza rilanciare — mantiene il cron resiliente.
-
-    ``contextlib.suppress`` esprime in modo Pythonic "ignoro intenzionalmente":
-    Sentry non è inizializzato in test/local dev, e non vogliamo che questa
-    fragilità rimbalzi sul caller.
-    """
-    with contextlib.suppress(Exception):
-        import sentry_sdk
-
-        # Solo breadcrumb (no capture_exception): errori upstream graceful, già gestiti con return [] graceful. Niente issue spam su Sentry per degraded service vendor.
-        sentry_sdk.add_breadcrumb(
-            category="remoteok",
-            message=f"remoteok fetch failed: {type(exc).__name__}",
-            level="warning",
-        )

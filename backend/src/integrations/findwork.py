@@ -13,12 +13,12 @@ visibili gli adapter andati stale senza far crashare il cron.
 """
 
 import contextlib
-from datetime import UTC, datetime
 from typing import Any
 
 import httpx
 
 from ..config import settings
+from ._common import parse_iso_datetime, record_error, safe_str
 
 FINDWORK_BASE = "https://findwork.dev/api/jobs/"
 DEFAULT_MAX_PAGES = 5  # cursor-based; conservativo sul free tier
@@ -73,7 +73,7 @@ def fetch_findwork_jobs(
                 timeout_s=timeout_s,
             )
         except (httpx.HTTPError, ValueError) as exc:
-            _record_error(exc, page=pages_fetched + 1)
+            record_error(exc, source="findwork", page=pages_fetched + 1)
             break
 
         results = payload.get("results", [])
@@ -136,9 +136,9 @@ def _normalize(raw: dict[str, Any]) -> dict[str, Any] | None:
         "source": "findwork",
         "external_id": ext_id,
         "title": title[:500],
-        "company": _safe_str(raw.get("company_name"), 255),
-        "location": _safe_str(raw.get("location"), 255),
-        "url": _safe_str(raw.get("url"), 1000),
+        "company": safe_str(raw.get("company_name"), 255),
+        "location": safe_str(raw.get("location"), 255),
+        "url": safe_str(raw.get("url"), 1000),
         "description": (raw.get("text") or "").strip(),
         "salary_min": None,
         "salary_max": None,
@@ -146,30 +146,9 @@ def _normalize(raw: dict[str, Any]) -> dict[str, Any] | None:
         "contract_type": contract_type[:32],
         "contract_time": "",
         "category": "",
-        "posted_at": _parse_date_posted(raw.get("date_posted")),
+        "posted_at": parse_iso_datetime(raw.get("date_posted")),
         "raw_payload": raw,
     }
-
-
-def _safe_str(value: Any, max_len: int) -> str:
-    if value is None:
-        return ""
-    s = str(value).strip()
-    return s[:max_len]
-
-
-def _parse_date_posted(value: Any) -> datetime | None:
-    """Parse Findwork ISO datetime in datetime tz-aware UTC."""
-    if not value:
-        return None
-    try:
-        normalized = str(value).replace("Z", "+00:00")
-        dt = datetime.fromisoformat(normalized)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=UTC)
-        return dt
-    except (TypeError, ValueError):
-        return None
 
 
 def _record_missing_key() -> None:
@@ -186,17 +165,4 @@ def _record_missing_key() -> None:
             category="findwork",
             message="Findwork API key not configured — skipping fetch",
             level="info",
-        )
-
-
-def _record_error(exc: Exception, *, page: int) -> None:
-    """Logga su Sentry senza rilanciare — keeps the cron resilient."""
-    with contextlib.suppress(Exception):
-        import sentry_sdk
-
-        # Solo breadcrumb (no capture_exception): errori upstream graceful, già gestiti con return [] graceful. Niente issue spam su Sentry per degraded service vendor.
-        sentry_sdk.add_breadcrumb(
-            category="findwork",
-            message=f"findwork fetch failed page={page}: {type(exc).__name__}",
-            level="warning",
         )
