@@ -196,16 +196,10 @@ class TestFetchJobicyJobs:
 
 
 class TestParsing:
-    def test_parse_pub_date_naive_string_assumes_utc(self) -> None:
-        dt = jobicy._parse_pub_date("2024-06-01 10:30:00")
-        assert dt is not None
-        assert dt.tzinfo is UTC
-
-    def test_parse_pub_date_returns_none_on_garbage(self) -> None:
-        assert jobicy._parse_pub_date(None) is None
-        assert jobicy._parse_pub_date("") is None
-        assert jobicy._parse_pub_date("not-a-date") is None
-
+    # Test sui parser ISO datetime sono ora centralizzati in
+    # ``test_integrations_common.py::test_parse_iso_datetime_*`` dopo
+    # l'estrazione dell'helper in ``integrations._common`` (incluso il
+    # caso space-separator naive ``"YYYY-MM-DD HH:MM:SS"`` di Jobicy).
     def test_safe_int_handles_string_int_and_none(self) -> None:
         assert jobicy._safe_int(None) is None
         assert jobicy._safe_int("") is None

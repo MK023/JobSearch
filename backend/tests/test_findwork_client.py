@@ -193,16 +193,9 @@ class TestFetchFindworkJobs:
 
 
 class TestParsing:
-    def test_parse_date_posted_iso_with_z_suffix(self) -> None:
-        dt = findwork._parse_date_posted("2026-04-25T09:00:00Z")
-        assert dt is not None
-        assert dt.tzinfo is not None
-
-    def test_parse_date_posted_returns_none_on_garbage(self) -> None:
-        assert findwork._parse_date_posted(None) is None
-        assert findwork._parse_date_posted("") is None
-        assert findwork._parse_date_posted("not-a-date") is None
-
+    # Test sui parser ISO datetime sono ora centralizzati in
+    # ``test_integrations_common.py::test_parse_iso_datetime_*`` dopo
+    # l'estrazione dell'helper in ``integrations._common``.
     def test_normalize_drops_rows_missing_id_or_role(self) -> None:
         assert findwork._normalize({"id": "", "role": "x"}) is None
         assert findwork._normalize({"id": 5, "role": ""}) is None

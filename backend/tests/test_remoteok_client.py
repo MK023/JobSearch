@@ -181,21 +181,9 @@ def test_fetch_remoteok_skips_legal_notice_first_item() -> None:
 
 
 class TestParsing:
-    def test_parse_date_iso_with_offset(self) -> None:
-        dt = remoteok._parse_date("2024-06-01T10:30:00+00:00")
-        assert dt is not None
-        assert dt.tzinfo is not None
-
-    def test_parse_date_iso_with_z_suffix(self) -> None:
-        dt = remoteok._parse_date("2024-06-01T10:30:00Z")
-        assert dt is not None
-        assert dt.tzinfo is not None
-
-    def test_parse_date_returns_none_on_garbage(self) -> None:
-        assert remoteok._parse_date(None) is None
-        assert remoteok._parse_date("") is None
-        assert remoteok._parse_date("not-a-date") is None
-
+    # Test sui parser ISO datetime sono ora centralizzati in
+    # ``test_integrations_common.py::test_parse_iso_datetime_*`` dopo
+    # l'estrazione dell'helper in ``integrations._common``.
     def test_safe_int_handles_none_and_strings(self) -> None:
         assert remoteok._safe_int(None) is None
         assert remoteok._safe_int(80000) == 80000

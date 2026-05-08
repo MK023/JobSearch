@@ -19,11 +19,11 @@ Differenze rispetto ad Adzuna:
 - ``id`` non esposto: usiamo ``url`` come external_id (stabile cross-poll)
 """
 
-import contextlib
-from datetime import UTC, datetime
 from typing import Any
 
 import httpx
+
+from ._common import parse_iso_datetime, record_error, safe_str
 
 WORKINGNOMADS_ENDPOINT = "https://www.workingnomads.com/api/exposed_jobs/"
 HTTP_TIMEOUT_SECONDS = 15.0
@@ -48,7 +48,7 @@ def fetch_workingnomads_jobs(
     try:
         raw_items = _fetch_all(timeout_s=timeout_s)
     except (httpx.HTTPError, ValueError) as exc:
-        _record_error(exc)
+        record_error(exc, source="workingnomads")
         return []
 
     aggregated: list[dict[str, Any]] = []
@@ -82,18 +82,18 @@ def _normalize(raw: dict[str, Any]) -> dict[str, Any] | None:
 
     Returns ``None`` se mancano gli essenziali (url o title): inutili nel DB.
     """
-    ext_id = _safe_str(raw.get("url"), 1000)
-    title = _safe_str(raw.get("title"), 500)
+    ext_id = safe_str(raw.get("url"), 1000)
+    title = safe_str(raw.get("title"), 500)
     if not ext_id or not title:
         return None
 
-    location = _safe_str(raw.get("location"), 255) or _safe_str(raw.get("country"), 255)
+    location = safe_str(raw.get("location"), 255) or safe_str(raw.get("country"), 255)
 
     return {
         "source": "workingnomads",
         "external_id": ext_id,
         "title": title,
-        "company": _safe_str(raw.get("company_name"), 255),
+        "company": safe_str(raw.get("company_name"), 255),
         "location": location,
         "url": ext_id,
         "description": (raw.get("description") or "").strip(),
@@ -102,49 +102,7 @@ def _normalize(raw: dict[str, Any]) -> dict[str, Any] | None:
         "salary_currency": "",
         "contract_type": "",
         "contract_time": "",
-        "category": _safe_str(raw.get("category_name"), 128),
-        "posted_at": _parse_pub_date(raw.get("pub_date")),
+        "category": safe_str(raw.get("category_name"), 128),
+        "posted_at": parse_iso_datetime(raw.get("pub_date")),
         "raw_payload": raw,
     }
-
-
-def _safe_str(value: Any, max_len: int) -> str:
-    if value is None:
-        return ""
-    s = str(value).strip()
-    return s[:max_len]
-
-
-def _parse_pub_date(value: Any) -> datetime | None:
-    """Parse della stringa ISO ``pub_date`` in datetime UTC-aware.
-
-    Working Nomads usa formato ``2024-06-01T10:30:00Z``.
-    """
-    if not value:
-        return None
-    try:
-        normalized = str(value).replace("Z", "+00:00")
-        dt = datetime.fromisoformat(normalized)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=UTC)
-        return dt
-    except (TypeError, ValueError):
-        return None
-
-
-def _record_error(exc: Exception) -> None:
-    """Log su Sentry senza rilanciare — mantiene la cron resiliente.
-
-    ``contextlib.suppress`` e' il modo Pythonico per esprimere "swallow
-    intenzionale": Sentry non e' inizializzato in test/dev locale e non
-    vogliamo che la mancanza torni indietro al chiamante.
-    """
-    with contextlib.suppress(Exception):
-        import sentry_sdk
-
-        # Solo breadcrumb (no capture_exception): errori upstream graceful, già gestiti con return [] graceful. Niente issue spam su Sentry per degraded service vendor.
-        sentry_sdk.add_breadcrumb(
-            category="workingnomads",
-            message=f"workingnomads fetch failed: {type(exc).__name__}",
-            level="warning",
-        )

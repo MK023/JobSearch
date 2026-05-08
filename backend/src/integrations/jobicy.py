@@ -19,11 +19,11 @@ Note specifiche Jobicy:
 - ``jobIndustry`` e ``jobType`` sono liste: prendiamo il primo elemento
 """
 
-import contextlib
-from datetime import UTC, datetime
 from typing import Any
 
 import httpx
+
+from ._common import parse_iso_datetime, record_error, safe_str
 
 JOBICY_BASE = "https://jobicy.com/api/v2/remote-jobs"
 DEFAULT_COUNT = 50  # Jobicy cap esplicito per call
@@ -59,7 +59,7 @@ def fetch_jobicy_jobs(
     try:
         raw_jobs = _fetch(params=params, timeout_s=timeout_s)
     except (httpx.HTTPError, ValueError) as exc:
-        _record_error(exc)
+        record_error(exc, source="jobicy")
         return []
 
     normalized: list[dict[str, Any]] = []
@@ -103,25 +103,18 @@ def _normalize(raw: dict[str, Any]) -> dict[str, Any] | None:
         "source": "jobicy",
         "external_id": ext_id,
         "title": title[:500],
-        "company": _safe_str(raw.get("companyName"), 255),
-        "location": _safe_str(raw.get("jobGeo"), 255),
-        "url": _safe_str(raw.get("url"), 1000),
+        "company": safe_str(raw.get("companyName"), 255),
+        "location": safe_str(raw.get("jobGeo"), 255),
+        "url": safe_str(raw.get("url"), 1000),
         "description": (raw.get("jobDescription") or "").strip(),
         "salary_min": _safe_int(raw.get("annualSalaryMin")),
         "salary_max": _safe_int(raw.get("annualSalaryMax")),
-        "salary_currency": _safe_str(raw.get("salaryCurrency"), 8),
+        "salary_currency": safe_str(raw.get("salaryCurrency"), 8),
         "contract_type": _normalize_contract_type(raw.get("jobType")),
         "category": _first_of_list(raw.get("jobIndustry"), max_len=128),
-        "posted_at": _parse_pub_date(raw.get("pubDate")),
+        "posted_at": parse_iso_datetime(raw.get("pubDate")),
         "raw_payload": raw,
     }
-
-
-def _safe_str(value: Any, max_len: int) -> str:
-    if value is None:
-        return ""
-    s = str(value).strip()
-    return s[:max_len]
 
 
 def _safe_int(value: Any) -> int | None:
@@ -139,39 +132,10 @@ def _first_of_list(value: Any, *, max_len: int) -> str:
     if not isinstance(value, list) or not value:
         return ""
     first = value[0]
-    return _safe_str(first, max_len)
+    return safe_str(first, max_len)
 
 
 def _normalize_contract_type(value: Any) -> str:
     """Converte ``["full-time"]`` → ``"full_time"`` per coerenza con Adzuna."""
     raw = _first_of_list(value, max_len=32)
     return raw.replace("-", "_").lower() if raw else ""
-
-
-def _parse_pub_date(value: Any) -> datetime | None:
-    """Parsing del formato Jobicy ``YYYY-MM-DD HH:MM:SS`` (no timezone → UTC)."""
-    if not value:
-        return None
-    try:
-        dt = datetime.strptime(str(value), "%Y-%m-%d %H:%M:%S")
-        return dt.replace(tzinfo=UTC)
-    except (TypeError, ValueError):
-        return None
-
-
-def _record_error(exc: Exception) -> None:
-    """Logga su Sentry senza rilanciare — il cron deve restare resiliente.
-
-    ``contextlib.suppress`` è il modo Pythonico di esprimere "ingoia
-    intenzionalmente": Sentry non è inizializzato in test / dev locale e
-    non vogliamo che questo si rifletta sul caller.
-    """
-    with contextlib.suppress(Exception):
-        import sentry_sdk
-
-        # Solo breadcrumb (no capture_exception): errori upstream graceful, già gestiti con return [] graceful. Niente issue spam su Sentry per degraded service vendor.
-        sentry_sdk.add_breadcrumb(
-            category="jobicy",
-            message=f"jobicy fetch failed: {type(exc).__name__}",
-            level="warning",
-        )

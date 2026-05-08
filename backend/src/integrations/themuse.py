@@ -18,11 +18,11 @@ API ref: https://www.themuse.com/developers/api/v2
 - Salary non e' esposto da The Muse → restituiamo None / "".
 """
 
-import contextlib
-from datetime import UTC, datetime
 from typing import Any
 
 import httpx
+
+from ._common import parse_iso_datetime, record_error, safe_str
 
 THEMUSE_BASE = "https://www.themuse.com/api/public/jobs"
 HTTP_TIMEOUT_SECONDS = 15.0
@@ -61,7 +61,7 @@ def fetch_themuse_jobs(
                 timeout_s=timeout_s,
             )
         except (httpx.HTTPError, ValueError) as exc:
-            _record_error(exc, page=page)
+            record_error(exc, source="themuse", page=page)
             break
 
         results = payload.get("results", [])
@@ -147,57 +147,15 @@ def _normalize(raw: dict[str, Any]) -> dict[str, Any] | None:
         "source": "themuse",
         "external_id": ext_id,
         "title": title[:500],
-        "company": _safe_str(company_raw.get("name") if isinstance(company_raw, dict) else "", 255),
+        "company": safe_str(company_raw.get("name") if isinstance(company_raw, dict) else "", 255),
         "location": location_str[:255],
-        "url": _safe_str(refs_raw.get("landing_page") if isinstance(refs_raw, dict) else "", 1000),
+        "url": safe_str(refs_raw.get("landing_page") if isinstance(refs_raw, dict) else "", 1000),
         "description": (raw.get("contents") or "").strip(),
         "salary_min": None,
         "salary_max": None,
         "salary_currency": "",
         "contract_type": contract_type[:32],
         "category": category[:128],
-        "posted_at": _parse_publication_date(raw.get("publication_date")),
+        "posted_at": parse_iso_datetime(raw.get("publication_date")),
         "raw_payload": raw,
     }
-
-
-def _safe_str(value: Any, max_len: int) -> str:
-    if value is None:
-        return ""
-    s = str(value).strip()
-    return s[:max_len]
-
-
-def _parse_publication_date(value: Any) -> datetime | None:
-    """Parse il datetime ISO di The Muse in datetime UTC tz-aware.
-
-    Formato tipico: ``"2024-06-01T10:30:00.000Z"``.
-    """
-    if not value:
-        return None
-    try:
-        normalized = str(value).replace("Z", "+00:00")
-        dt = datetime.fromisoformat(normalized)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=UTC)
-        return dt
-    except (TypeError, ValueError):
-        return None
-
-
-def _record_error(exc: Exception, *, page: int) -> None:
-    """Log a Sentry senza propagare — mantiene la cron resiliente.
-
-    ``contextlib.suppress`` e' il modo Pythonico per dire "swallow intenzionale":
-    Sentry non e' inizializzato in test/local dev, e non vogliamo che sia un
-    problema per il caller.
-    """
-    with contextlib.suppress(Exception):
-        import sentry_sdk
-
-        # Solo breadcrumb (no capture_exception): errori upstream graceful, già gestiti con return [] graceful. Niente issue spam su Sentry per degraded service vendor.
-        sentry_sdk.add_breadcrumb(
-            category="themuse",
-            message=f"themuse fetch failed page={page}: {type(exc).__name__}",
-            level="warning",
-        )

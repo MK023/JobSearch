@@ -17,11 +17,12 @@ to stop. Arbeitnow exposes a ``remote`` boolean flag, useful for filtering
 client-side since Marco's target is remote-first.
 """
 
-import contextlib
 from datetime import UTC, datetime
 from typing import Any
 
 import httpx
+
+from ._common import record_error, safe_str
 
 ARBEITNOW_BASE = "https://www.arbeitnow.com/api/job-board-api"
 DEFAULT_MAX_PAGES = 5  # ~10 results/page typically — 50 results/run is plenty
@@ -54,7 +55,7 @@ def fetch_arbeitnow_jobs(
         try:
             page_results, last_page = _fetch_page(page=page, timeout_s=timeout_s)
         except (httpx.HTTPError, ValueError) as exc:
-            _record_error(exc, page=page)
+            record_error(exc, source="arbeitnow", page=page)
             break
 
         if not page_results:
@@ -138,9 +139,9 @@ def _normalize(raw: dict[str, Any], *, remote_only: bool) -> dict[str, Any] | No
         "source": "arbeitnow",
         "external_id": ext_id,
         "title": title[:500],
-        "company": _safe_str(raw.get("company_name"), 255),
-        "location": _safe_str(raw.get("location"), 255),
-        "url": _safe_str(raw.get("url"), 1000),
+        "company": safe_str(raw.get("company_name"), 255),
+        "location": safe_str(raw.get("location"), 255),
+        "url": safe_str(raw.get("url"), 1000),
         "description": (raw.get("description") or "").strip(),
         "salary_min": None,
         "salary_max": None,
@@ -151,13 +152,6 @@ def _normalize(raw: dict[str, Any], *, remote_only: bool) -> dict[str, Any] | No
         "posted_at": _parse_created_at(raw.get("created_at")),
         "raw_payload": raw,
     }
-
-
-def _safe_str(value: Any, max_len: int) -> str:
-    if value is None:
-        return ""
-    s = str(value).strip()
-    return s[:max_len]
 
 
 def _parse_created_at(value: Any) -> datetime | None:
@@ -174,21 +168,3 @@ def _parse_created_at(value: Any) -> datetime | None:
         return datetime.fromtimestamp(ts, tz=UTC)
     except (TypeError, ValueError, OSError, OverflowError):
         return None
-
-
-def _record_error(exc: Exception, *, page: int) -> None:
-    """Logga su Sentry senza sollevare — mantiene il cron resiliente.
-
-    ``contextlib.suppress`` esprime in modo Pythonico l'intento "ingoia
-    intenzionalmente": Sentry non è inizializzato in test/local dev e non
-    vogliamo che il fallimento di logging rimbalzi sul caller.
-    """
-    with contextlib.suppress(Exception):
-        import sentry_sdk
-
-        # Solo breadcrumb (no capture_exception): errori upstream graceful, già gestiti con return [] graceful. Niente issue spam su Sentry per degraded service vendor.
-        sentry_sdk.add_breadcrumb(
-            category="arbeitnow",
-            message=f"arbeitnow fetch failed page={page}: {type(exc).__name__}",
-            level="warning",
-        )

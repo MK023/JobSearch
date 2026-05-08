@@ -188,21 +188,9 @@ class TestFetchRemotiveJobs:
 
 
 class TestParsing:
-    def test_parse_publication_date_iso_basic(self) -> None:
-        dt = remotive._parse_publication_date("2026-04-25T09:00:00")
-        assert dt is not None
-        assert dt.tzinfo is not None  # forzato a UTC per naive
-
-    def test_parse_publication_date_with_z_suffix(self) -> None:
-        dt = remotive._parse_publication_date("2026-04-25T09:00:00Z")
-        assert dt is not None
-        assert dt.tzinfo is not None
-
-    def test_parse_publication_date_returns_none_on_garbage(self) -> None:
-        assert remotive._parse_publication_date(None) is None
-        assert remotive._parse_publication_date("") is None
-        assert remotive._parse_publication_date("not-a-date") is None
-
+    # Test sui parser ISO datetime sono ora centralizzati in
+    # ``test_integrations_common.py::test_parse_iso_datetime_*`` dopo
+    # l'estrazione dell'helper in ``integrations._common``.
     def test_parse_salary_eur_with_dot_thousands(self) -> None:
         salary_min, salary_max, currency = remotive._parse_salary("80.000 – 120.000 EUR")
         assert salary_min == 80000

@@ -20,11 +20,11 @@ Note Remotive specifiche:
   proviamo un parse regex best-effort, fallback su ``None``
 """
 
-import contextlib
-from datetime import UTC, datetime
 from typing import Any
 
 import httpx
+
+from ._common import parse_iso_datetime, record_error, safe_str
 
 REMOTIVE_BASE = "https://remotive.com/api/remote-jobs"
 DEFAULT_LIMIT = 200
@@ -91,7 +91,7 @@ def fetch_remotive_jobs(
         raw_jobs = _fetch(params=params, timeout_s=timeout_s)
     except (httpx.HTTPError, ValueError) as exc:
         # Errore upstream: breadcrumb a Sentry e ritorno vuoto graceful.
-        _record_error(exc)
+        record_error(exc, source="remotive")
         return []
 
     normalized: list[dict[str, Any]] = []
@@ -131,9 +131,9 @@ def _normalize(raw: dict[str, Any]) -> dict[str, Any] | None:
         "source": "remotive",
         "external_id": ext_id,
         "title": title[:500],
-        "company": _safe_str(raw.get("company_name"), 255),
-        "location": _safe_str(raw.get("candidate_required_location"), 255),
-        "url": _safe_str(raw.get("url"), 1000),
+        "company": safe_str(raw.get("company_name"), 255),
+        "location": safe_str(raw.get("candidate_required_location"), 255),
+        "url": safe_str(raw.get("url"), 1000),
         # Remotive serve description in HTML: la preserviamo come fa Adzuna,
         # rendering/sanitizzazione spettano al layer di presentation.
         "description": (raw.get("description") or "").strip(),
@@ -143,20 +143,12 @@ def _normalize(raw: dict[str, Any]) -> dict[str, Any] | None:
         # Remotive non distingue contract_type vs contract_time: usiamo
         # ``job_type`` (full_time/part_time/contract/freelance) come
         # contract_type, contract_time vuoto per non perdere mypy strict.
-        "contract_type": _safe_str(raw.get("job_type"), 32),
+        "contract_type": safe_str(raw.get("job_type"), 32),
         "contract_time": "",
-        "category": _safe_str(raw.get("category"), 128),
-        "posted_at": _parse_publication_date(raw.get("publication_date")),
+        "category": safe_str(raw.get("category"), 128),
+        "posted_at": parse_iso_datetime(raw.get("publication_date")),
         "raw_payload": raw,
     }
-
-
-def _safe_str(value: Any, max_len: int) -> str:
-    """Conversione sicura ``Any -> str`` con troncamento difensivo."""
-    if value is None:
-        return ""
-    s = str(value).strip()
-    return s[:max_len]
 
 
 def _parse_salary(value: Any) -> tuple[int | None, int | None, str]:
@@ -213,40 +205,3 @@ def _infer_currency(text: str) -> str:
     if "£" in text or "GBP" in text.upper():
         return "GBP"
     return ""
-
-
-def _parse_publication_date(value: Any) -> datetime | None:
-    """Parser ISO datetime per ``publication_date`` Remotive in UTC tz-aware.
-
-    Remotive serve formato ISO 8601 (es. ``"2024-04-15T10:30:00"`` oppure con
-    suffisso ``Z``). ``fromisoformat`` su 3.11+ gestisce entrambi una volta
-    normalizzato il suffisso ``Z``. Naive datetimes vengono forzati a UTC.
-    """
-    if not value:
-        return None
-    try:
-        normalized = str(value).replace("Z", "+00:00")
-        dt = datetime.fromisoformat(normalized)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=UTC)
-        return dt
-    except (TypeError, ValueError):
-        return None
-
-
-def _record_error(exc: Exception) -> None:
-    """Logga su Sentry senza far raise: mantiene il cron resiliente.
-
-    Il wrap ``contextlib.suppress`` è il modo Pythonico per esprimere
-    "swallow intenzionale": Sentry non è inizializzato in test/dev locale e
-    non vogliamo che quello rimbalzi sul caller.
-    """
-    with contextlib.suppress(Exception):
-        import sentry_sdk
-
-        # Solo breadcrumb (no capture_exception): errori upstream graceful, già gestiti con return [] graceful. Niente issue spam su Sentry per degraded service vendor.
-        sentry_sdk.add_breadcrumb(
-            category="remotive",
-            message=f"remotive fetch failed: {type(exc).__name__}",
-            level="warning",
-        )

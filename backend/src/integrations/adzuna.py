@@ -11,13 +11,12 @@ Sentry breadcrumbs are added for non-2xx responses so an adapter going stale
 becomes visible without raising.
 """
 
-import contextlib
-from datetime import UTC, datetime
 from typing import Any
 
 import httpx
 
 from ..config import settings
+from ._common import parse_iso_datetime, record_error, safe_str
 
 ADZUNA_BASE = "https://api.adzuna.com/v1/api/jobs"
 DEFAULT_COUNTRY = "it"  # Italian market is Marco's primary bucket
@@ -63,7 +62,7 @@ def fetch_adzuna_jobs(
             )
         except (httpx.HTTPError, ValueError) as exc:
             # Capture and stop pagination on first hard error; keep what we got.
-            _record_error(exc, page=page)
+            record_error(exc, source="adzuna", page=page)
             break
 
         if not page_results:
@@ -135,26 +134,19 @@ def _normalize(raw: dict[str, Any]) -> dict[str, Any] | None:
         "source": "adzuna",
         "external_id": ext_id,
         "title": title[:500],
-        "company": _safe_str(company_raw.get("display_name"), 255),
-        "location": _safe_str(location_raw.get("display_name"), 255),
-        "url": _safe_str(raw.get("redirect_url"), 1000),
+        "company": safe_str(company_raw.get("display_name"), 255),
+        "location": safe_str(location_raw.get("display_name"), 255),
+        "url": safe_str(raw.get("redirect_url"), 1000),
         "description": (raw.get("description") or "").strip(),
         "salary_min": _safe_int(raw.get("salary_min")),
         "salary_max": _safe_int(raw.get("salary_max")),
-        "salary_currency": _safe_str(raw.get("salary_currency"), 8) or _infer_currency(country_raw=raw),
-        "contract_type": _safe_str(raw.get("contract_type"), 32),
-        "contract_time": _safe_str(raw.get("contract_time"), 32),
-        "category": _safe_str(category_raw.get("label"), 128),
-        "posted_at": _parse_created(raw.get("created")),
+        "salary_currency": safe_str(raw.get("salary_currency"), 8) or _infer_currency(country_raw=raw),
+        "contract_type": safe_str(raw.get("contract_type"), 32),
+        "contract_time": safe_str(raw.get("contract_time"), 32),
+        "category": safe_str(category_raw.get("label"), 128),
+        "posted_at": parse_iso_datetime(raw.get("created")),
         "raw_payload": raw,
     }
-
-
-def _safe_str(value: Any, max_len: int) -> str:
-    if value is None:
-        return ""
-    s = str(value).strip()
-    return s[:max_len]
 
 
 def _safe_int(value: Any) -> int | None:
@@ -174,37 +166,3 @@ def _infer_currency(*, country_raw: dict[str, Any]) -> str:
     if "it" in country or country_raw.get("location", {}).get("area", []):
         return "EUR"
     return ""
-
-
-def _parse_created(value: Any) -> datetime | None:
-    """Parse Adzuna's ISO datetime string into a timezone-aware UTC datetime."""
-    if not value:
-        return None
-    try:
-        # Adzuna format: "2026-04-21T14:30:25Z" — fromisoformat handles the
-        # offset suffix on Python 3.11+.
-        normalized = str(value).replace("Z", "+00:00")
-        dt = datetime.fromisoformat(normalized)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=UTC)
-        return dt
-    except (TypeError, ValueError):
-        return None
-
-
-def _record_error(exc: Exception, *, page: int) -> None:
-    """Log to Sentry without raising — keeps the cron resilient.
-
-    The ``contextlib.suppress`` wrapper is the Pythonic way to express
-    "swallow intentionally": Sentry isn't initialized in tests / local dev,
-    and we don't want that to rebound on the caller.
-    """
-    with contextlib.suppress(Exception):
-        import sentry_sdk
-
-        # Solo breadcrumb (no capture_exception): errori upstream graceful, già gestiti con return [] graceful. Niente issue spam su Sentry per degraded service vendor.
-        sentry_sdk.add_breadcrumb(
-            category="adzuna",
-            message=f"adzuna fetch failed page={page}: {type(exc).__name__}",
-            level="warning",
-        )
