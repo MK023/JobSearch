@@ -124,10 +124,21 @@ class NullCacheService:
 
 
 def create_cache_service() -> CacheService:
-    """Factory: create the appropriate cache service based on configuration."""
+    """Factory: create the appropriate cache service based on configuration.
+
+    Redis init failures (timeout, auth, wrong URL) degradano graceful a
+    ``NullCacheService`` MA con ``logger.exception`` esplicito + Sentry
+    breadcrumb: senza log un Redis outage in produzione era invisibile,
+    l'app girava cacheless senza un singolo evento Sentry. Vedi audit memo
+    `feedback_e2e_wiring_test` per il pattern di non-silenzio.
+    """
     if not settings.redis_url:
         return NullCacheService()
     try:
         return RedisCacheService(settings.redis_url)
     except Exception:
+        logger.exception(
+            "Redis init failed (url=%s), degrading to NullCacheService",
+            settings.redis_url,
+        )
         return NullCacheService()

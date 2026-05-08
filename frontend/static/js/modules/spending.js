@@ -27,8 +27,21 @@ function saveBudget() {
     const fd = new FormData();
     fd.append('budget', val);
     fetch('/api/v1/spending/budget', { method: 'PUT', body: fd })
-        .then(function() { refreshSpending(); })
-        .catch(function(e) { console.error('saveBudget error:', e); });
+        .then(function(r) {
+            // Senza r.ok check il toast "saved" partiva anche su 422/500
+            // → DB non aggiornato ma UI mostrava nuovo valore (divergenza
+            // silenziosa segnalata in audit 6/5).
+            if (!r.ok) {
+                throw new Error('saveBudget HTTP ' + r.status);
+            }
+            refreshSpending();
+        })
+        .catch(function(e) {
+            console.error('saveBudget error:', e);
+            if (window.toast) {
+                window.toast('Errore salvataggio budget', 'error');
+            }
+        });
 }
 
 function _remainingClass(remaining) {

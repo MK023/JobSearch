@@ -3,7 +3,7 @@
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import func
+from sqlalchemy import Numeric, func, update
 from sqlalchemy.orm import Session
 
 from ..analysis.models import AnalysisStatus, AppSettings, JobAnalysis
@@ -48,20 +48,34 @@ def check_budget_available(db: Session) -> tuple[bool, str]:
 
 
 def add_spending(db: Session, cost: float, tokens_in: int, tokens_out: int, is_analysis: bool = True) -> None:
-    """Update running totals after an insert."""
+    """Update running totals after an insert.
+
+    Atomic SQL UPDATE con espressione server-side per evitare race condition
+    su BG task concorrenti (cowork batch + Chrome ext finiscono insieme,
+    read-modify-write classico perdeva increment). Il pre-check resetta
+    ``today_*`` a mezzanotte; poi un singolo UPDATE atomic propaga tutti gli
+    increment in una sola query.
+    """
     s = get_or_create_settings(db)
     _check_today_reset(s)
-    s.total_cost_usd = round(float(s.total_cost_usd or 0) + cost, 6)  # type: ignore[arg-type]
-    s.total_tokens_input = int(s.total_tokens_input or 0) + tokens_in  # type: ignore[assignment]
-    s.total_tokens_output = int(s.total_tokens_output or 0) + tokens_out  # type: ignore[assignment]
-    s.today_cost_usd = round(float(s.today_cost_usd or 0) + cost, 6)  # type: ignore[arg-type]
-    s.today_tokens_input = int(s.today_tokens_input or 0) + tokens_in  # type: ignore[assignment]
-    s.today_tokens_output = int(s.today_tokens_output or 0) + tokens_out  # type: ignore[assignment]
+    db.flush()
+    cost_rounded = round(cost, 6)
+    values: dict[str, Any] = {
+        "total_cost_usd": func.round((AppSettings.total_cost_usd + cost_rounded).cast(Numeric), 6),
+        "total_tokens_input": AppSettings.total_tokens_input + tokens_in,
+        "total_tokens_output": AppSettings.total_tokens_output + tokens_out,
+        "today_cost_usd": func.round((AppSettings.today_cost_usd + cost_rounded).cast(Numeric), 6),
+        "today_tokens_input": AppSettings.today_tokens_input + tokens_in,
+        "today_tokens_output": AppSettings.today_tokens_output + tokens_out,
+    }
     if is_analysis:
-        s.total_analyses = int(s.total_analyses or 0) + 1  # type: ignore[assignment]
-        s.today_analyses = int(s.today_analyses or 0) + 1  # type: ignore[assignment]
+        values["total_analyses"] = AppSettings.total_analyses + 1
+        values["today_analyses"] = AppSettings.today_analyses + 1
     else:
-        s.total_cover_letters = int(s.total_cover_letters or 0) + 1  # type: ignore[assignment]
+        values["total_cover_letters"] = AppSettings.total_cover_letters + 1
+    db.execute(update(AppSettings).where(AppSettings.id == s.id).values(**values))
+    db.flush()
+    db.refresh(s)
 
 
 def remove_spending(

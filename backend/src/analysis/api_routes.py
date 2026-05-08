@@ -2,7 +2,7 @@
 
 import logging
 from datetime import UTC, date, datetime, timedelta
-from typing import Annotated, cast
+from typing import Annotated, Any, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Query, Request
@@ -23,6 +23,31 @@ from .service import analyze_and_charge, find_existing_analysis, get_analysis_by
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["analysis-api"])
+
+
+def _pending_cleanup_candidates(
+    db: Any,
+    user_id: UUID,
+    days: int,
+    max_score: int,
+) -> Any:
+    """Build the canonical query for "PENDING analyses cleanable by `days+max_score`".
+
+    Riusato dai 4 endpoint di cleanup/bulk-reject: previene drift di filtro
+    fra preview e mutazione (4× duplicazione consolidata in un solo punto).
+    Always scoped to the authenticated user's CVs — never crosses user
+    boundaries. Caller decide se ``.all()`` (mutazione) o ``.count()`` (preview).
+    """
+    from ..cv.models import CVProfile
+
+    cutoff = datetime.now(UTC) - timedelta(days=days)
+    user_cv_ids = db.query(CVProfile.id).filter(CVProfile.user_id == user_id)
+    return db.query(JobAnalysis).filter(
+        JobAnalysis.cv_id.in_(user_cv_ids),
+        JobAnalysis.score <= max_score,
+        JobAnalysis.created_at < cutoff,
+        JobAnalysis.status == AnalysisStatus.PENDING,
+    )
 
 
 @router.post("/analyze")
@@ -294,25 +319,7 @@ def cleanup_analyses(
     Only deletes analyses with status=PENDING (da_valutare).
     Analyses marked as applied/interview/rejected are preserved.
     """
-    cutoff = datetime.now(UTC) - timedelta(days=days)
-
-    # Scope to the authenticated user's CVs only — cleanup must never
-    # cross user boundaries.
-    from ..cv.models import CVProfile
-
-    user_cv_ids = db.query(CVProfile.id).filter(CVProfile.user_id == user.id)
-
-    candidates = (
-        db.query(JobAnalysis)
-        .filter(
-            JobAnalysis.cv_id.in_(user_cv_ids),
-            JobAnalysis.score <= max_score,
-            JobAnalysis.created_at < cutoff,
-            JobAnalysis.status == AnalysisStatus.PENDING,
-        )
-        .all()
-    )
-
+    candidates = _pending_cleanup_candidates(db, user.id, days, max_score).all()  # type: ignore[arg-type]
     count = len(candidates)
 
     if dry_run:
@@ -368,20 +375,7 @@ def bulk_reject_preview(
     Filters: status=PENDING, created_at older than `days`, score <= `max_score`,
     scoped to the authenticated user's CVs.
     """
-    from ..cv.models import CVProfile
-
-    cutoff = datetime.now(UTC) - timedelta(days=days)
-    user_cv_ids = db.query(CVProfile.id).filter(CVProfile.user_id == user.id)
-    count = (
-        db.query(JobAnalysis)
-        .filter(
-            JobAnalysis.cv_id.in_(user_cv_ids),
-            JobAnalysis.score <= max_score,
-            JobAnalysis.created_at < cutoff,
-            JobAnalysis.status == AnalysisStatus.PENDING,
-        )
-        .count()
-    )
+    count = _pending_cleanup_candidates(db, user.id, days, max_score).count()  # type: ignore[arg-type]
     return JSONResponse({"count": count, "days": days, "max_score": max_score})
 
 
@@ -399,20 +393,7 @@ def bulk_reject(
     Preserves analyses already marked applied/interview/rejected. Spending is
     NOT reversed — the analysis row is kept; only the tracking status changes.
     """
-    from ..cv.models import CVProfile
-
-    cutoff = datetime.now(UTC) - timedelta(days=days)
-    user_cv_ids = db.query(CVProfile.id).filter(CVProfile.user_id == user.id)
-    candidates = (
-        db.query(JobAnalysis)
-        .filter(
-            JobAnalysis.cv_id.in_(user_cv_ids),
-            JobAnalysis.score <= max_score,
-            JobAnalysis.created_at < cutoff,
-            JobAnalysis.status == AnalysisStatus.PENDING,
-        )
-        .all()
-    )
+    candidates = _pending_cleanup_candidates(db, user.id, days, max_score).all()  # type: ignore[arg-type]
     count = len(candidates)
     for analysis in candidates:
         analysis.status = AnalysisStatus.REJECTED.value  # type: ignore[assignment]
@@ -436,19 +417,5 @@ def cleanup_preview(
     Same filters as the DELETE endpoint, scoped to the authenticated user's
     CVs. No audit log (called from the UI on every parameter change).
     """
-    from ..cv.models import CVProfile
-
-    cutoff = datetime.now(UTC) - timedelta(days=days)
-    user_cv_ids = db.query(CVProfile.id).filter(CVProfile.user_id == user.id)
-    count = (
-        db.query(JobAnalysis)
-        .filter(
-            JobAnalysis.cv_id.in_(user_cv_ids),
-            JobAnalysis.score <= max_score,
-            JobAnalysis.created_at < cutoff,
-            JobAnalysis.status == AnalysisStatus.PENDING,
-        )
-        .count()
-    )
-
+    count = _pending_cleanup_candidates(db, user.id, days, max_score).count()  # type: ignore[arg-type]
     return JSONResponse({"count": count, "days": days, "max_score": max_score})

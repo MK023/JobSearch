@@ -379,30 +379,6 @@ def _merge_glassdoor(result: dict[str, Any], db: Session, cache: CacheService | 
     result["company_reputation"] = rep
 
 
-def _merge_salary(result: dict[str, Any], db: Session) -> None:
-    """Merge salary API data into result."""
-    role = result.get("role", "")
-    if not role:
-        return
-    from ..integrations.salary import fetch_salary_data
-
-    salary = fetch_salary_data(role, result.get("location"), db)
-    if salary:
-        result["salary_data"] = salary
-
-
-def _merge_news(result: dict[str, Any], db: Session) -> None:
-    """Merge company news into result."""
-    company = result.get("company", "")
-    if not company:
-        return
-    from ..integrations.news import fetch_company_news
-
-    news = fetch_company_news(company, db)
-    if news:
-        result["company_news"] = news
-
-
 def _parse_full_response(raw: str) -> dict[str, Any]:
     """Parse stored full_response JSON, handling markdown wrapping."""
     if not raw:
