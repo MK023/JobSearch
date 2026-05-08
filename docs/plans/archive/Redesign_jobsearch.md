@@ -263,9 +263,9 @@ Il calendario date-picker è già buono. Migliorare:
   100% { background-position: 200% 0; }
 }
 .loading {
-  background: linear-gradient(90deg, 
-    var(--bg-tertiary) 25%, 
-    var(--bg-secondary) 50%, 
+  background: linear-gradient(90deg,
+    var(--bg-tertiary) 25%,
+    var(--bg-secondary) 50%,
     var(--bg-tertiary) 75%
   );
   background-size: 200% 100%;
