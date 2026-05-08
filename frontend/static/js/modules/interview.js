@@ -309,11 +309,10 @@ function submitNewRound(analysisId, scheduled) {
 function deleteInterviewFromDetail(analysisId) {
     if (!confirm('Rimuovere il colloquio? Lo status tornera\' a "candidato".')) return;
 
-    fetch('/api/v1/interviews/' + analysisId, {
+    fetchJSON('/api/v1/interviews/' + analysisId, {
         method: 'DELETE',
         headers: { 'Accept': 'application/json' }
     })
-    .then(function(r) { return r.json(); })
     .then(function(data) {
         if (data.ok) {
             globalThis.location.reload();
@@ -327,12 +326,11 @@ function deleteInterviewFromDetail(analysisId) {
 
 
 function logRoundOutcome(interviewId, outcome) {
-    fetch('/api/v1/interviews/round/' + interviewId + '/outcome', {
+    fetchJSON('/api/v1/interviews/round/' + interviewId + '/outcome', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify({ outcome: outcome })
     })
-    .then(function(r) { return r.json(); })
     .then(function(data) {
         if (!data.ok) {
             showToast(data.error || 'Errore', 'error');
@@ -349,11 +347,10 @@ function logRoundOutcome(interviewId, outcome) {
 
 
 function markAsOffer(analysisId) {
-    fetch('/api/v1/status/' + analysisId + '/offerta', {
+    fetchJSON('/api/v1/status/' + analysisId + '/offerta', {
         method: 'POST',
         headers: { 'Accept': 'application/json' }
     })
-    .then(function(r) { return r.json(); })
     .then(function(data) {
         if (data.ok) {
             showToast('Offerta registrata!', 'success');

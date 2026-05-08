@@ -76,11 +76,10 @@ function setStatus(btn) {
         return;
     }
 
-    fetch('/api/v1/status/' + id + '/' + status, {
+    fetchJSON('/api/v1/status/' + id + '/' + status, {
         method: 'POST',
         headers: { 'Accept': 'application/json' }
     })
-    .then(function(r) { return r.json(); })
     .then(function(data) {
         if (data.ok) _handleStatusResponse(group, btn, id, status);
     })
@@ -94,11 +93,10 @@ function setStatus(btn) {
 function deleteAnalysis(id) {
     if (!confirm('Sei sicuro di voler eliminare questa analisi? Verra\' rimossa anche ogni cover letter associata.')) return;
 
-    fetch('/api/v1/analysis/' + id, {
+    fetchJSON('/api/v1/analysis/' + id, {
         method: 'DELETE',
         headers: { 'Accept': 'application/json' }
     })
-    .then(function(r) { return r.json(); })
     .then(function(data) {
         if (data.ok) {
             showToast('Analisi eliminata', 'success');

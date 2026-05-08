@@ -51,9 +51,11 @@ function _remainingClass(remaining) {
 }
 
 function refreshSpending() {
-    fetch('/api/v1/spending')
-        .then(function(r) { return r.json(); })
+    fetchJSON('/api/v1/spending')
         .then(function(d) {
+            // Hardening audit 6/5: r.ok check via fetchJSON. Su 5xx il body
+            // poteva essere HTML d'errore → toFixed crash silenzioso. Ora
+            // .catch riceve Error con status, dashboard mostra last good.
             const costEl = document.getElementById('spending-cost');
             if (!costEl) return;
 

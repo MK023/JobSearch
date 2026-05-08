@@ -27,8 +27,7 @@ function batchManager() {
 
         init: function() {
             // Fetch current batch state from server — survives reloads and deploys.
-            fetch('/api/v1/batch/status')
-                .then((r) => r.json())
+            fetchJSON('/api/v1/batch/status')
                 .then((data) => {
                     if (!data || data.status === 'empty' || !data.items) return;
                     this.items = data.items.map(function(item) {
@@ -67,6 +66,7 @@ function batchManager() {
             fetch('/api/v1/batch/add', { method: 'POST', body: fd })
                 .then(function(r) {
                     if (handleRateLimit(r, 'Troppe richieste batch')) return null;
+                    if (!r.ok) throw new Error('batch/add HTTP ' + r.status);
                     return r.json();
                 })
                 .then((data) => {
@@ -88,6 +88,7 @@ function batchManager() {
             fetch('/api/v1/batch/run', { method: 'POST' })
                 .then((r) => {
                     if (handleRateLimit(r, 'Troppe richieste batch')) { this.running = false; return null; }
+                    if (!r.ok) { this.running = false; throw new Error('batch/run HTTP ' + r.status); }
                     return r.json();
                 })
                 .then((data) => {
@@ -103,8 +104,7 @@ function batchManager() {
         },
 
         pollStatus: function() {
-            fetch('/api/v1/batch/status')
-                .then(function(r) { return r.json(); })
+            fetchJSON('/api/v1/batch/status')
                 .then((data) => {
                     if (!data?.items) return;
                     // Rebuild items from server — matches by id so order/additions are safe.
@@ -145,8 +145,7 @@ function batchManager() {
         },
 
         clearQueue: function() {
-            fetch('/api/v1/batch/clear', { method: 'DELETE' })
-                .then(function(r) { return r.json(); })
+            fetchJSON('/api/v1/batch/clear', { method: 'DELETE' })
                 .then(() => {
                     this.items = [];
                     this.statusText = '';

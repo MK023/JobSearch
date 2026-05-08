@@ -1,6 +1,18 @@
 /**
  * Agenda to-do — server-side persistence via /api/v1/todos.
+ *
+ * Tutte le mutation usano `window.fetchJSON` (vedi app.js): r.ok check
+ * automatico, .catch riceve Error con status code per toast specifici.
  */
+
+function _todoErrorMessage(e) {
+    if (e && e.status) {
+        if (e.status >= 500) return 'Errore server (HTTP ' + e.status + ')';
+        if (e.status === 401) return 'Sessione scaduta';
+        return 'Errore richiesta (HTTP ' + e.status + ')';
+    }
+    return 'Errore di rete';
+}
 
 function addTodoServer() {
     const input = document.getElementById('agenda-todo-input');
@@ -10,8 +22,7 @@ function addTodoServer() {
     const fd = new FormData();
     fd.append('text', text);
 
-    fetch('/api/v1/todos', { method: 'POST', body: fd })
-        .then(function (r) { return r.json(); })
+    fetchJSON('/api/v1/todos', { method: 'POST', body: fd })
         .then(function (data) {
             if (data.ok) {
                 input.value = '';
@@ -20,23 +31,30 @@ function addTodoServer() {
                 showToast(data.error || 'Errore', 'error');
             }
         })
-        .catch(function () { showToast('Errore di rete', 'error'); });
+        .catch(function (e) {
+            console.error('addTodo error:', e);
+            showToast(_todoErrorMessage(e), 'error');
+        });
 }
 
 function toggleTodo(id) {
-    fetch('/api/v1/todos/' + id + '/toggle', { method: 'POST' })
-        .then(function (r) { return r.json(); })
+    fetchJSON('/api/v1/todos/' + id + '/toggle', { method: 'POST' })
         .then(function (data) {
             if (data.ok) globalThis.location.reload();
         })
-        .catch(function () { showToast('Errore', 'error'); });
+        .catch(function (e) {
+            console.error('toggleTodo error:', e);
+            showToast(_todoErrorMessage(e), 'error');
+        });
 }
 
 function removeTodo(id) {
-    fetch('/api/v1/todos/' + id, { method: 'DELETE' })
-        .then(function (r) { return r.json(); })
+    fetchJSON('/api/v1/todos/' + id, { method: 'DELETE' })
         .then(function (data) {
             if (data.ok) globalThis.location.reload();
         })
-        .catch(function () { showToast('Errore', 'error'); });
+        .catch(function (e) {
+            console.error('removeTodo error:', e);
+            showToast(_todoErrorMessage(e), 'error');
+        });
 }

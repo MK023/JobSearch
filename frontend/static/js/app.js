@@ -14,7 +14,27 @@
  *   - followup.js   -> genFollowup(), genLinkedin(), markFollowupDone()
  *   - cv.js         -> uploadCV(), initCVUpload()
  *   - toast.js      -> showToast()
+ *
+ * Global helper:
+ *   - window.fetchJSON(url, options) -> Promise<jsonBody>
+ *     wrapper attorno a fetch() che:
+ *       1) controlla r.ok prima di parsare il body (audit 6/5: 8 file
+ *          frontend prima ignoravano lo status code → 5xx parsavano body
+ *          HTML d'errore e crashavano, mostrando "errore di rete" mentendo)
+ *       2) attacca status + response all'Error per .catch granulare
+ *       3) parsa il body solo su 2xx; il caller riceve direttamente i dati
  */
+window.fetchJSON = function (url, options) {
+    return fetch(url, options).then(function (r) {
+        if (!r.ok) {
+            const err = new Error('HTTP ' + r.status + ' on ' + ((options && options.method) || 'GET') + ' ' + url);
+            err.status = r.status;
+            err.response = r;
+            throw err;
+        }
+        return r.json();
+    });
+};
 
 function app() {
     return {
@@ -88,8 +108,9 @@ function _checkPendingAnalysis() {
     }
 
     function poll() {
-        fetch('/api/v1/analysis/latest', { headers: { 'Accept': 'application/json' } })
-            .then(function(r) { return r.json(); })
+        // Background polling: 5xx transient → riprova; 4xx persistent →
+        // bail out per evitare loop infinito su backend rotto (audit 6/5).
+        fetchJSON('/api/v1/analysis/latest', { headers: { 'Accept': 'application/json' } })
             .then(function(data) {
                 if (!data?.id || !data.created_at) return scheduleNext();
                 const createdAt = new Date(data.created_at).getTime();
@@ -102,7 +123,17 @@ function _checkPendingAnalysis() {
                     scheduleNext();
                 }
             })
-            .catch(function() { scheduleNext(); });
+            .catch(function(e) {
+                if (e?.status && e.status >= 400 && e.status < 500) {
+                    // Auth scaduto / route rimossa → niente senso ri-pollare.
+                    console.error('latest poll fatal:', e);
+                    sessionStorage.removeItem('pendingAnalysis');
+                    stop();
+                    return;
+                }
+                // 5xx o errore di rete: riprova
+                scheduleNext();
+            });
     }
 
     function scheduleNext() {

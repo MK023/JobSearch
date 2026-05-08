@@ -53,6 +53,11 @@ function submitAnalysis(e) {
             sessionStorage.removeItem('pendingAnalysis');
             return null;
         }
+        if (!r.ok) {
+            // 5xx/4xx (≠429): server in errore → toast + reset loading
+            // invece di crashare su r.json() che parserebbe HTML d'errore.
+            throw new Error('analyze HTTP ' + r.status);
+        }
         return r.json();
     })
     .then(function(data) {
@@ -68,9 +73,13 @@ function submitAnalysis(e) {
     .catch(function(err) {
         if (err?.name === 'AbortError') return;
         if (document.visibilityState === 'hidden') return;
+        sessionStorage.removeItem('pendingAnalysis');
+        const msg = (err?.message || '').includes('HTTP 5')
+            ? 'Errore server, riprova tra poco'
+            : 'Errore di rete';
         setTimeout(function() {
             if (document.visibilityState === 'hidden') return;
-            showToast('Errore di rete', 'error');
+            showToast(msg, 'error');
             resetLoading(wrapper);
         }, 200);
     });
