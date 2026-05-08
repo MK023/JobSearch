@@ -26,7 +26,7 @@ router = APIRouter(tags=["analysis-api"])
 
 
 def _pending_cleanup_candidates(
-    db: Any,
+    db: "DbSession",
     user_id: UUID,
     days: int,
     max_score: int,
@@ -47,6 +47,39 @@ def _pending_cleanup_candidates(
         JobAnalysis.score <= max_score,
         JobAnalysis.created_at < cutoff,
         JobAnalysis.status == AnalysisStatus.PENDING,
+    )
+
+
+def _reverse_analysis_spending(db: "DbSession", analysis: JobAnalysis, today: date) -> None:
+    """Reverse spending totals per ``JobAnalysis`` + sue cover letters.
+
+    Centralizza il pattern di cleanup spending usato da ``delete_analysis`` +
+    ``cleanup_analyses`` (3× duplicazione prima del refactor). Cast espliciti
+    su ``cost_usd`` / ``tokens_input`` / ``tokens_output``: SQLAlchemy ORM li
+    espone come ``Column[X] | int`` → mypy stub plugin li accetta, ma Pylance
+    strict no. Cast li risolve in un singolo punto invece che 12.
+    """
+    created = cast("datetime | None", analysis.created_at)
+    a_today = bool(created and created.date() == today)
+    cover_letters = db.query(CoverLetter).filter(CoverLetter.analysis_id == analysis.id).all()
+    for cl in cover_letters:
+        cl_created = cast("datetime | None", cl.created_at)
+        cl_today = bool(cl_created and cl_created.date() == today)
+        remove_spending(
+            db,
+            cast(float, cl.cost_usd) or 0.0,
+            cast(int, cl.tokens_input) or 0,
+            cast(int, cl.tokens_output) or 0,
+            is_analysis=False,
+            created_today=cl_today,
+        )
+    remove_spending(
+        db,
+        cast(float, analysis.cost_usd) or 0.0,
+        cast(int, analysis.tokens_input) or 0,
+        cast(int, analysis.tokens_output) or 0,
+        is_analysis=True,
+        created_today=a_today,
     )
 
 
@@ -127,7 +160,9 @@ def latest_analysis(
             "id": str(analysis.id),
             "company": analysis.company,
             "role": analysis.role,
-            "created_at": analysis.created_at.isoformat() if analysis.created_at else None,
+            "created_at": (
+                cast(datetime, analysis.created_at).isoformat() if analysis.created_at is not None else None
+            ),
         }
     )
 
@@ -204,29 +239,7 @@ def delete_analysis(
     if not analysis:
         return JSONResponse({"error": "Analysis not found"}, status_code=404)
 
-    today = date.today()
-
-    cover_letters = db.query(CoverLetter).filter(CoverLetter.analysis_id == analysis.id).all()
-    for cl in cover_letters:
-        cl_today = cl.created_at and cl.created_at.date() == today
-        remove_spending(
-            db,
-            float(cl.cost_usd or 0),
-            int(cl.tokens_input or 0),
-            int(cl.tokens_output or 0),
-            is_analysis=False,
-            created_today=bool(cl_today),
-        )
-
-    a_today = analysis.created_at and analysis.created_at.date() == today
-    remove_spending(
-        db,
-        float(analysis.cost_usd or 0),
-        int(analysis.tokens_input or 0),
-        int(analysis.tokens_output or 0),
-        is_analysis=True,
-        created_today=bool(a_today),
-    )
+    _reverse_analysis_spending(db, analysis, date.today())
 
     audit(db, request, "delete_analysis", f"id={analysis_id}, {analysis.role} @ {analysis.company}")
     db.delete(analysis)
@@ -319,7 +332,7 @@ def cleanup_analyses(
     Only deletes analyses with status=PENDING (da_valutare).
     Analyses marked as applied/interview/rejected are preserved.
     """
-    candidates = _pending_cleanup_candidates(db, user.id, days, max_score).all()  # type: ignore[arg-type]
+    candidates = _pending_cleanup_candidates(db, cast(UUID, user.id), days, max_score).all()
     count = len(candidates)
 
     if dry_run:
@@ -329,29 +342,7 @@ def cleanup_analyses(
 
     today = date.today()
     for analysis in candidates:
-        # Reverse spending for associated cover letters
-        cover_letters = db.query(CoverLetter).filter(CoverLetter.analysis_id == analysis.id).all()
-        for cl in cover_letters:
-            cl_today = cl.created_at and cl.created_at.date() == today
-            remove_spending(
-                db,
-                float(cl.cost_usd or 0),
-                int(cl.tokens_input or 0),
-                int(cl.tokens_output or 0),
-                is_analysis=False,
-                created_today=bool(cl_today),
-            )
-
-        # Reverse spending for the analysis itself
-        a_today = analysis.created_at and analysis.created_at.date() == today
-        remove_spending(
-            db,
-            float(analysis.cost_usd or 0),
-            int(analysis.tokens_input or 0),
-            int(analysis.tokens_output or 0),
-            is_analysis=True,
-            created_today=bool(a_today),
-        )
+        _reverse_analysis_spending(db, analysis, today)
         db.delete(analysis)
 
     sample_ids = [str(a.id) for a in candidates[:5]]
@@ -375,7 +366,7 @@ def bulk_reject_preview(
     Filters: status=PENDING, created_at older than `days`, score <= `max_score`,
     scoped to the authenticated user's CVs.
     """
-    count = _pending_cleanup_candidates(db, user.id, days, max_score).count()  # type: ignore[arg-type]
+    count = _pending_cleanup_candidates(db, cast(UUID, user.id), days, max_score).count()
     return JSONResponse({"count": count, "days": days, "max_score": max_score})
 
 
@@ -393,7 +384,7 @@ def bulk_reject(
     Preserves analyses already marked applied/interview/rejected. Spending is
     NOT reversed — the analysis row is kept; only the tracking status changes.
     """
-    candidates = _pending_cleanup_candidates(db, user.id, days, max_score).all()  # type: ignore[arg-type]
+    candidates = _pending_cleanup_candidates(db, cast(UUID, user.id), days, max_score).all()
     count = len(candidates)
     for analysis in candidates:
         analysis.status = AnalysisStatus.REJECTED.value  # type: ignore[assignment]
@@ -417,5 +408,5 @@ def cleanup_preview(
     Same filters as the DELETE endpoint, scoped to the authenticated user's
     CVs. No audit log (called from the UI on every parameter change).
     """
-    count = _pending_cleanup_candidates(db, user.id, days, max_score).count()  # type: ignore[arg-type]
+    count = _pending_cleanup_candidates(db, cast(UUID, user.id), days, max_score).count()
     return JSONResponse({"count": count, "days": days, "max_score": max_score})

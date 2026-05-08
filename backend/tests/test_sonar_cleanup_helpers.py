@@ -1105,3 +1105,193 @@ class TestUpsertInterviewIntegration:
             },
         )
         assert resp.status_code == 400
+
+
+# ── api_routes helpers (PR1 cleanup) ──────────────────────────────────────
+
+
+class TestPendingCleanupCandidates:
+    """Cover the canonical query used by 4 cleanup/bulk-reject endpoints."""
+
+    def test_filters_by_user_score_age_status(self, db_session, test_user, test_cv):
+        """Solo PENDING + score <= max + created_at < cutoff + cv del user."""
+        import uuid
+        from datetime import UTC, datetime, timedelta
+
+        from src.analysis.api_routes import _pending_cleanup_candidates
+        from src.analysis.models import AnalysisStatus, JobAnalysis
+
+        old = datetime.now(UTC) - timedelta(days=100)
+        recent = datetime.now(UTC) - timedelta(days=10)
+
+        # match: old + low score + pending
+        a_match = JobAnalysis(
+            id=uuid.uuid4(),
+            cv_id=test_cv.id,
+            job_description="x",
+            company="A",
+            score=20,
+            status=AnalysisStatus.PENDING,
+            created_at=old,
+        )
+        # skip: too recent
+        a_recent = JobAnalysis(
+            id=uuid.uuid4(),
+            cv_id=test_cv.id,
+            job_description="x",
+            company="B",
+            score=20,
+            status=AnalysisStatus.PENDING,
+            created_at=recent,
+        )
+        # skip: high score
+        a_high = JobAnalysis(
+            id=uuid.uuid4(),
+            cv_id=test_cv.id,
+            job_description="x",
+            company="C",
+            score=80,
+            status=AnalysisStatus.PENDING,
+            created_at=old,
+        )
+        # skip: not pending
+        a_done = JobAnalysis(
+            id=uuid.uuid4(),
+            cv_id=test_cv.id,
+            job_description="x",
+            company="D",
+            score=20,
+            status=AnalysisStatus.APPLIED,
+            created_at=old,
+        )
+        db_session.add_all([a_match, a_recent, a_high, a_done])
+        db_session.commit()
+
+        results = _pending_cleanup_candidates(db_session, test_user.id, days=90, max_score=40).all()
+        ids = {a.id for a in results}
+        assert a_match.id in ids
+        assert a_recent.id not in ids
+        assert a_high.id not in ids
+        assert a_done.id not in ids
+
+    def test_scoped_to_user_cv(self, db_session, test_user, test_cv):
+        """Query non deve mai vedere CV di altri utenti."""
+        import uuid
+        from datetime import UTC, datetime, timedelta
+
+        from src.analysis.api_routes import _pending_cleanup_candidates
+        from src.analysis.models import AnalysisStatus, JobAnalysis
+
+        old = datetime.now(UTC) - timedelta(days=100)
+        a_match = JobAnalysis(
+            id=uuid.uuid4(),
+            cv_id=test_cv.id,
+            job_description="x",
+            company="A",
+            score=20,
+            status=AnalysisStatus.PENDING,
+            created_at=old,
+        )
+        db_session.add(a_match)
+        db_session.commit()
+
+        # Query con UUID ranom (no CV) → nessun match
+        unknown_user = uuid.uuid4()
+        results = _pending_cleanup_candidates(db_session, unknown_user, days=90, max_score=40).all()
+        assert len(results) == 0
+
+
+class TestReverseAnalysisSpending:
+    """Cover the spending-reversal helper used by delete + cleanup endpoints."""
+
+    def test_reverses_analysis_spending(self, db_session, test_cv):
+        """Decrementa i totali quando si rimuove una JobAnalysis con cost+token."""
+        import uuid
+        from datetime import UTC, date, datetime
+
+        from src.analysis.api_routes import _reverse_analysis_spending
+        from src.analysis.models import AnalysisStatus, JobAnalysis
+        from src.dashboard.service import add_spending, get_or_create_settings
+
+        # Pre-popola spending
+        settings_row = get_or_create_settings(db_session)
+        add_spending(db_session, cost=0.05, tokens_in=1000, tokens_out=500, is_analysis=True)
+        db_session.commit()
+        db_session.refresh(settings_row)
+        baseline_total = float(settings_row.total_cost_usd or 0)
+
+        # Crea analysis con cost noto
+        analysis = JobAnalysis(
+            id=uuid.uuid4(),
+            cv_id=test_cv.id,
+            job_description="x",
+            company="X",
+            score=20,
+            status=AnalysisStatus.PENDING,
+            created_at=datetime.now(UTC),
+            cost_usd=0.02,
+            tokens_input=400,
+            tokens_output=200,
+        )
+        db_session.add(analysis)
+        db_session.commit()
+
+        _reverse_analysis_spending(db_session, analysis, today=date.today())
+        db_session.commit()
+        db_session.refresh(settings_row)
+
+        # total_cost_usd diminuito di 0.02
+        new_total = float(settings_row.total_cost_usd or 0)
+        assert abs(new_total - (baseline_total - 0.02)) < 1e-6
+
+    def test_reverses_with_cover_letters(self, db_session, test_cv):
+        """Decrementa anche i cost delle cover letter associate."""
+        import uuid
+        from datetime import UTC, date, datetime
+
+        from src.analysis.api_routes import _reverse_analysis_spending
+        from src.analysis.models import AnalysisStatus, JobAnalysis
+        from src.cover_letter.models import CoverLetter
+        from src.dashboard.service import add_spending, get_or_create_settings
+
+        settings_row = get_or_create_settings(db_session)
+        add_spending(db_session, cost=0.10, tokens_in=2000, tokens_out=1000, is_analysis=True)
+        add_spending(db_session, cost=0.03, tokens_in=300, tokens_out=150, is_analysis=False)
+        db_session.commit()
+        db_session.refresh(settings_row)
+        baseline = float(settings_row.total_cost_usd or 0)
+
+        analysis = JobAnalysis(
+            id=uuid.uuid4(),
+            cv_id=test_cv.id,
+            job_description="x",
+            company="X",
+            score=20,
+            status=AnalysisStatus.PENDING,
+            created_at=datetime.now(UTC),
+            cost_usd=0.05,
+            tokens_input=600,
+            tokens_output=300,
+        )
+        db_session.add(analysis)
+        db_session.flush()
+        cl = CoverLetter(
+            id=uuid.uuid4(),
+            analysis_id=analysis.id,
+            content="...",
+            cost_usd=0.01,
+            tokens_input=200,
+            tokens_output=100,
+            language="it",
+            created_at=datetime.now(UTC),
+        )
+        db_session.add(cl)
+        db_session.commit()
+
+        _reverse_analysis_spending(db_session, analysis, today=date.today())
+        db_session.commit()
+        db_session.refresh(settings_row)
+
+        new_total = float(settings_row.total_cost_usd or 0)
+        # Reversed: -0.05 (analysis) -0.01 (cl) = -0.06
+        assert abs(new_total - (baseline - 0.06)) < 1e-6
