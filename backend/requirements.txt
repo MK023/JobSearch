@@ -15,7 +15,7 @@ itsdangerous==2.2.0
 slowapi==0.1.9
 python-docx==1.2.0
 pypdf==6.10.2
-cryptography==46.0.7
+cryptography==47.0.0
 boto3==1.42.91
 resend==2.29.0
 sentry-sdk[fastapi]>=2.44.0
