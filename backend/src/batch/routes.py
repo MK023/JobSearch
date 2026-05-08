@@ -288,15 +288,15 @@ def update_item_status(
     except ValueError:
         return JSONResponse({"error": "Invalid status"}, status_code=400)
 
-    item.status = status_enum  # type: ignore[assignment]
-    item.attempt_count = (item.attempt_count or 0) + 1  # type: ignore[assignment]
+    item.status = status_enum
+    item.attempt_count = (item.attempt_count or 0) + 1
 
     if analysis_id:
         validated_aid = validate_uuid(analysis_id)
-        item.analysis_id = validated_aid  # type: ignore[assignment]
+        item.analysis_id = validated_aid
 
     if error_message:
-        item.error_message = error_message  # type: ignore[assignment]
+        item.error_message = error_message
 
     db.commit()
     return JSONResponse({"ok": True})
