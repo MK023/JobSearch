@@ -291,9 +291,9 @@ def _record_success(
         result.get("tokens", {}).get("input", 0),
         result.get("tokens", {}).get("output", 0),
     )
-    item.status = BatchItemStatus.DONE  # type: ignore[assignment]
+    item.status = BatchItemStatus.DONE
     item.analysis_id = analysis.id
-    item.attempt_count = (item.attempt_count or 0) + 1  # type: ignore[assignment]
+    item.attempt_count = (item.attempt_count or 0) + 1
     db.commit()
 
     duration_ms = int((time.monotonic() - started_at) * 1000)
@@ -313,9 +313,9 @@ def _record_success(
 def _record_failure(db: Session, item: BatchItem, exc: Exception, ch_short: str, started_at: float) -> None:
     """Rollback the in-flight transaction and mark the item ERROR."""
     db.rollback()
-    item.status = BatchItemStatus.ERROR  # type: ignore[assignment]
-    item.error_message = str(exc)  # type: ignore[assignment]
-    item.attempt_count = (item.attempt_count or 0) + 1  # type: ignore[assignment]
+    item.status = BatchItemStatus.ERROR
+    item.error_message = str(exc)
+    item.attempt_count = (item.attempt_count or 0) + 1
     db.commit()
     duration_ms = int((time.monotonic() - started_at) * 1000)
     logger.warning(
@@ -336,7 +336,7 @@ def _process_one_item(
     user_id: UUID,
 ) -> None:
     """Run a single batch item end-to-end (dedup → execute → record)."""
-    item.status = BatchItemStatus.RUNNING  # type: ignore[assignment]
+    item.status = BatchItemStatus.RUNNING
     db.commit()
 
     started_at = time.monotonic()

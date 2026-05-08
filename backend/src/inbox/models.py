@@ -5,7 +5,6 @@ import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import (
-    Column,
     DateTime,
     ForeignKey,
     Index,
@@ -13,6 +12,7 @@ from sqlalchemy import (
     Text,
 )
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database.base import Base
 
@@ -44,35 +44,37 @@ class InboxItem(Base):
 
     __tablename__ = "inbox_items"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    created_at = Column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
         nullable=False,
         index=True,
     )
-    source_url = Column(String(500), default="", nullable=False)
-    source = Column(String(20), default=InboxSource.MANUAL.value, nullable=False)
-    raw_text = Column(Text, nullable=False)
-    content_hash = Column(String(64), default="", nullable=False, index=True)
-    status = Column(
+    source_url: Mapped[str] = mapped_column(String(500), default="", nullable=False)
+    # ``source`` and ``status`` stay as ``String(20)`` (not SQLEnum) so the
+    # enum can evolve without an Alembic migration on a single-user app.
+    source: Mapped[str] = mapped_column(String(20), default=InboxSource.MANUAL.value, nullable=False)
+    raw_text: Mapped[str] = mapped_column(Text, nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), default="", nullable=False, index=True)
+    status: Mapped[str] = mapped_column(
         String(20),
         default=InboxStatus.PENDING.value,
         nullable=False,
         index=True,
     )
-    analysis_id = Column(
+    analysis_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("job_analyses.id", ondelete="SET NULL"),
         nullable=True,
     )
-    error_message = Column(Text, nullable=True)
-    processed_at = Column(DateTime(timezone=True), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (Index("idx_inbox_user_status", "user_id", "status"),)
