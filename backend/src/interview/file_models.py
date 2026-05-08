@@ -2,12 +2,16 @@
 
 import uuid
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String
+from sqlalchemy import DateTime, ForeignKey, Index, String
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database.base import Base
+
+if TYPE_CHECKING:
+    from .models import Interview
 
 
 class FileStatus:
@@ -46,31 +50,34 @@ class InterviewFile(Base):
 
     __tablename__ = "interview_files"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    interview_id = Column(
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    interview_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("interviews.id", ondelete="CASCADE"),
         nullable=False,
     )
 
     # File metadata
-    original_filename = Column(String(255), nullable=False)
-    content_type = Column(String(100), nullable=False)
-    file_size = Column(Integer, nullable=True)  # Set after upload confirmation
-    r2_key = Column(String(500), nullable=False, unique=True)  # R2 object key
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    file_size: Mapped[int | None] = mapped_column(nullable=True)  # Set after upload confirmation
+    r2_key: Mapped[str] = mapped_column(String(500), nullable=False, unique=True)  # R2 object key
 
     # Status tracking
-    status = Column(String(20), nullable=False, default=FileStatus.PENDING)
-    scan_result = Column(String(2000), nullable=True)  # Claude API scan summary
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default=FileStatus.PENDING)
+    scan_result: Mapped[str | None] = mapped_column(String(2000), nullable=True)  # Claude API scan summary
 
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
-    updated_at = Column(
+    created_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+    )
+    updated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
         onupdate=lambda: datetime.now(UTC),
     )
 
-    interview = relationship("Interview", back_populates="files")
+    interview: Mapped["Interview"] = relationship(back_populates="files")
 
     __table_args__ = (
         Index("idx_interview_files_interview_id", "interview_id"),

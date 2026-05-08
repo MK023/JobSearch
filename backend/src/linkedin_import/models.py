@@ -6,7 +6,8 @@ export (file ``Job Applications.csv`` inside the archive).
 
 from datetime import UTC, datetime
 
-from sqlalchemy import Column, DateTime, Index, Integer, Text, UniqueConstraint
+from sqlalchemy import DateTime, Index, Text, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database.base import Base
 
@@ -22,14 +23,18 @@ class LinkedinApplication(Base):
         Index("ix_linkedin_apps_date", "application_date"),
     )
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    application_date = Column(DateTime(timezone=True), nullable=True, index=True)
-    contact_email = Column(Text, nullable=True)
-    contact_phone = Column(Text, nullable=True)
-    company_name = Column(Text, nullable=True)
-    job_title = Column(Text, nullable=True)
-    job_url = Column(Text, nullable=True)
-    resume_name = Column(Text, nullable=True)
-    question_and_answers = Column(Text, nullable=True)
-    import_source = Column(Text, nullable=False, default="linkedin_easy_apply")
-    imported_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    application_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    contact_email: Mapped[str | None] = mapped_column(Text, nullable=True)
+    contact_phone: Mapped[str | None] = mapped_column(Text, nullable=True)
+    company_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    job_title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    job_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    resume_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    question_and_answers: Mapped[str | None] = mapped_column(Text, nullable=True)
+    import_source: Mapped[str] = mapped_column(Text, nullable=False, default="linkedin_easy_apply")
+    imported_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+    )

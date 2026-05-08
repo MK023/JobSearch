@@ -3,15 +3,19 @@
 import enum
 import uuid
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database.base import Base
 
 # Ensure InterviewFile is importable (relationship target)
 from .file_models import InterviewFile  # noqa: F401
+
+if TYPE_CHECKING:
+    from ..analysis.models import JobAnalysis
 
 
 class InterviewOutcome(enum.StrEnum):
@@ -38,41 +42,50 @@ class Interview(Base):
 
     __tablename__ = "interviews"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    analysis_id = Column(
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    analysis_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("job_analyses.id", ondelete="CASCADE"),
         nullable=False,
     )
-    round_number = Column(Integer, nullable=False, default=1)
+    round_number: Mapped[int] = mapped_column(nullable=False, default=1)
 
-    scheduled_at = Column(DateTime(timezone=True), nullable=False)
-    ends_at = Column(DateTime(timezone=True), nullable=True)
+    scheduled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # platform values: google_meet / teams / zoom / phone / in_person / other
-    platform = Column(String(20), nullable=True)
+    platform: Mapped[str | None] = mapped_column(String(20), nullable=True)
     # interview_type values: tecnico / hr / conoscitivo / finale / other
-    interview_type = Column(String(20), nullable=True)
+    interview_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
     # outcome values: passed / rejected / withdrawn / pending. NULL means not yet logged.
-    outcome = Column(String(20), nullable=True)
-    interviewer_name = Column(String(255), nullable=True)
-    recruiter_name = Column(String(255), nullable=True)
-    recruiter_email = Column(String(255), nullable=True)
-    meeting_link = Column(String(500), nullable=True)
-    meeting_id = Column(String(100), nullable=True)
-    phone_number = Column(String(50), nullable=True)
-    access_pin = Column(String(20), nullable=True)
-    location = Column(String(500), nullable=True)
-    notes = Column(Text, nullable=True)
+    outcome: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    interviewer_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    recruiter_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    recruiter_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    meeting_link: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    meeting_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    phone_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    access_pin: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    location: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
-    updated_at = Column(
+    created_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+    )
+    updated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
         onupdate=lambda: datetime.now(UTC),
     )
 
-    analysis = relationship("JobAnalysis", back_populates="interviews", foreign_keys=[analysis_id])
-    files = relationship("InterviewFile", back_populates="interview", cascade="all, delete-orphan")
+    analysis: Mapped["JobAnalysis"] = relationship(
+        back_populates="interviews",
+        foreign_keys=[analysis_id],
+    )
+    files: Mapped[list["InterviewFile"]] = relationship(
+        back_populates="interview",
+        cascade="all, delete-orphan",
+    )
 
     __table_args__ = (
         Index("idx_interviews_scheduled", "scheduled_at"),
