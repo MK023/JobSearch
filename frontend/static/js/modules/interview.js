@@ -60,13 +60,20 @@ function openInterviewModal(analysisId) {
     // Show all fields by default (no platform selected)
     togglePlatformFields();
 
-    // Try to load existing interview data
+    // Try to load existing interview data.
+    // Distinzione fra 404 (interview non esiste, modal "nuovo" è corretto) e
+    // 5xx (server in errore: in tal caso aprire il modal vuoto come "nuovo"
+    // sovrascriverebbe dati salvati quando l'utente preme Save). Su 5xx
+    // mostra toast + apri modal in stato "nuovo" sicuro.
     fetch('/api/v1/interviews/' + analysisId, {
         headers: { 'Accept': 'application/json' }
     })
     .then(function(r) {
-        if (r.ok) return r.json();
-        return null;
+        if (r.status === 404) return null;  // expected: nessun interview salvato
+        if (!r.ok) {
+            throw new Error('openInterviewModal HTTP ' + r.status);
+        }
+        return r.json();
     })
     .then(function(data) {
         if (data?.scheduled_at) {
@@ -75,7 +82,11 @@ function openInterviewModal(analysisId) {
         }
         modal.classList.remove('hidden');
     })
-    .catch(function() {
+    .catch(function(e) {
+        console.error('openInterviewModal error:', e);
+        if (window.toast) {
+            window.toast('Errore caricamento colloquio (modal in stato nuovo)', 'error');
+        }
         modal.classList.remove('hidden');
     });
 }

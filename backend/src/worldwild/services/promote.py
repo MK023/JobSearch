@@ -44,6 +44,7 @@ import logging
 from typing import NamedTuple, cast
 from uuid import UUID
 
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from ...analysis.models import AnalysisSource
@@ -56,6 +57,7 @@ from ..models import (
     PROMOTION_STATE_DONE,
     PROMOTION_STATE_FAILED,
     PROMOTION_STATE_IDLE,
+    PROMOTION_STATE_PENDING,
     Decision,
     JobOffer,
 )
@@ -141,6 +143,31 @@ def send_to_pulse(
             error="",
             skipped_reason="already_done",
         )
+
+    # 0b. Atomic claim: prima di partire con la chiamata Anthropic (~10-30s),
+    # transitiamo lo stato da idle/failed → pending con UPDATE conditional.
+    # Se due concorrenti (UI double-click + retry BG) entrano insieme, solo
+    # il primo cambia rowcount=1, il secondo finisce a 0 e short-circuita.
+    # Evita doppia chiamata Anthropic + JobAnalysis duplicata su Pulse.
+    claim_result = secondary_db.execute(
+        update(Decision)
+        .where(
+            (Decision.job_offer_id == offer_id)
+            & (Decision.promotion_state.in_([PROMOTION_STATE_IDLE, PROMOTION_STATE_FAILED]))
+        )
+        .values(promotion_state=PROMOTION_STATE_PENDING)
+    )
+    if cast(int, getattr(claim_result, "rowcount", 0)) == 0:
+        # Un altro caller ha già preso il lock (state pending) → no-op.
+        secondary_db.refresh(decision)
+        return PromotionResult(
+            state=str(decision.promotion_state or PROMOTION_STATE_PENDING),
+            analysis_id=decision.promoted_to_neon_id,  # type: ignore[arg-type]
+            error="",
+            skipped_reason="claim_lost",
+        )
+    secondary_db.flush()
+    secondary_db.refresh(decision)
 
     # 1. Carica la JobOffer source-of-truth.
     offer = secondary_db.get(JobOffer, offer_id)

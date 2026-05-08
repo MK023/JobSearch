@@ -277,3 +277,28 @@ class TestSendToPulseIdempotency:
         assert result.analysis_id != old_neon_id  # nuovo UUID
         # JobAnalysis presente su Pulse (nuova, dato che reset non cancella la vecchia)
         assert primary_db.query(JobAnalysis).count() == 1
+
+    def test_pending_state_blocks_concurrent_caller(self, primary_db: Any, secondary_db: Any) -> None:
+        """Race anti-regression: claim atomic blocca concurrent send_to_pulse.
+
+        Audit 6/5 finding Critical #1: senza atomic claim, 2 caller (UI
+        double-click + BG retry) potevano entrambi passare la guard 'done',
+        entrambi chiamare Anthropic, entrambi inserire JobAnalysis duplicata.
+        """
+        offer_id = _seed_offer(secondary_db)
+        # Force decision state to 'pending' as if another caller already
+        # acquired the lock.
+        _set_decision_state(secondary_db, offer_id, state="pending")
+
+        with patch("src.worldwild.services.promote.get_latest_cv") as mock_cv:
+            result = send_to_pulse(
+                primary_db,
+                secondary_db,
+                offer_id=offer_id,
+                user_id=uuid4(),
+            )
+        mock_cv.assert_not_called()
+        assert result.skipped_reason == "claim_lost"
+        decision = secondary_db.query(Decision).filter(Decision.job_offer_id == offer_id).one()
+        assert decision.promotion_state == "pending"
+        assert primary_db.query(JobAnalysis).count() == 0
