@@ -121,7 +121,11 @@ def view_analysis(
     same_company_analyses = find_by_company(db, cast(str, analysis.company), exclude_id=cast(UUID, analysis.id))
     # Sort newest-first so a fresh bilingual generation (italiano + english)
     # appears in the correct order at the top of the page.
-    cover_letters = sorted(analysis.cover_letters or [], key=lambda c: c.created_at, reverse=True)
+    cover_letters = sorted(
+        analysis.cover_letters or [],
+        key=lambda c: cast(datetime, c.created_at),
+        reverse=True,
+    )
     cover_letter = cover_letters[0] if cover_letters else None  # back-compat alias
     contacts = get_contacts_for_analysis(db, str(analysis.id))
 
