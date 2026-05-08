@@ -28,6 +28,7 @@ export default [
         // Cross-file global functions — "writable" because each file
         // defines some and consumes others via separate <script> tags.
         showToast: "writable",
+        fetchJSON: "writable",
         handleRateLimit: "writable",
         refreshSpending: "writable",
         initBudgetEditing: "writable",
