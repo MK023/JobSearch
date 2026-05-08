@@ -3,23 +3,28 @@
 import enum
 import uuid
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
     JSON,
     Boolean,
-    Column,
     DateTime,
     Float,
     ForeignKey,
     Index,
-    Integer,
     String,
     Text,
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database.base import Base
+
+if TYPE_CHECKING:
+    from ..contacts.models import Contact
+    from ..cover_letter.models import CoverLetter
+    from ..cv.models import CVProfile
+    from ..interview.models import Interview
 
 # SQLAlchemy cascade directive shared by child relationships: delete orphans
 # when the parent is removed so we don't leak rows tied to a gone analysis.
@@ -65,85 +70,87 @@ class JobAnalysis(Base):
 
     __tablename__ = "job_analyses"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    cv_id = Column(
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    cv_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("cv_profiles.id", ondelete="CASCADE"),
         nullable=False,
     )
-    job_description = Column(Text, nullable=False)
-    job_url = Column(String(500), default="")
-    content_hash = Column(String(64), default="", index=True)
+    job_description: Mapped[str] = mapped_column(Text, nullable=False)
+    job_url: Mapped[str | None] = mapped_column(String(500), default="")
+    content_hash: Mapped[str | None] = mapped_column(String(64), default="", index=True)
 
     # Job metadata extracted by AI
-    job_summary = Column(Text, default="")
-    company = Column(String(255), default="")
-    role = Column(String(255), default="")
-    location = Column(String(255), default="")
-    work_mode = Column(String(50), default="")
-    salary_info = Column(String(255), default="")
+    job_summary: Mapped[str | None] = mapped_column(Text, default="")
+    company: Mapped[str | None] = mapped_column(String(255), default="")
+    role: Mapped[str | None] = mapped_column(String(255), default="")
+    location: Mapped[str | None] = mapped_column(String(255), default="")
+    work_mode: Mapped[str | None] = mapped_column(String(50), default="")
+    salary_info: Mapped[str | None] = mapped_column(String(255), default="")
     # Compact CEFR string (A1/A2/B1/B2/C1/C2/Native) extracted by AI dal JD;
     # ``""`` quando l'annuncio non menziona inglese. Confrontabile come ordinal
     # in Python: rule pre-defined in ``analysis.cefr.compare`` (PR successiva).
-    english_level_required = Column(String(8), nullable=True, default="")
+    english_level_required: Mapped[str | None] = mapped_column(String(8), nullable=True, default="")
 
     # Analysis results
-    score = Column(Integer, default=0)
-    recommendation = Column(String(20), default="")
-    status: Column[str] = Column(
-        String(20),
-        default=AnalysisStatus.PENDING.value,
-    )
+    score: Mapped[int | None] = mapped_column(default=0)
+    recommendation: Mapped[str | None] = mapped_column(String(20), default="")
+    status: Mapped[str | None] = mapped_column(String(20), default=AnalysisStatus.PENDING.value)
     # Origin of the analysis (extension / cowork / manual / mcp / api).
     # Indexed: notification aggregator groups pending by source.
-    source: Column[str] = Column(
+    source: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
         default=AnalysisSource.MANUAL.value,
         server_default=AnalysisSource.MANUAL.value,
         index=True,
     )
-    strengths = Column(JSON, default=list)
-    gaps = Column(JSON, default=list)
-    interview_scripts = Column(JSON, default=list)
-    advice = Column(Text, default="")
-    company_reputation = Column(JSON, default=dict)
-    salary_data = Column(JSON, nullable=True)
-    company_news = Column(JSON, nullable=True)
-    career_track = Column(String(30), nullable=True, index=True)
-    track_reason = Column(Text, nullable=True)
-    benefits = Column(JSON, nullable=True)
-    recruiter_info = Column(JSON, nullable=True)
-    experience_required = Column(JSON, nullable=True)
-    full_response = Column(Text, default="")
+    strengths: Mapped[list[Any] | None] = mapped_column(JSON, default=list)
+    gaps: Mapped[list[Any] | None] = mapped_column(JSON, default=list)
+    interview_scripts: Mapped[list[Any] | None] = mapped_column(JSON, default=list)
+    advice: Mapped[str | None] = mapped_column(Text, default="")
+    company_reputation: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
+    salary_data: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    company_news: Mapped[list[Any] | None] = mapped_column(JSON, nullable=True)
+    career_track: Mapped[str | None] = mapped_column(String(30), nullable=True, index=True)
+    track_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    benefits: Mapped[list[Any] | None] = mapped_column(JSON, nullable=True)
+    recruiter_info: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    experience_required: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    full_response: Mapped[str | None] = mapped_column(Text, default="")
 
     # Cost tracking
-    model_used = Column(String(50), default="")
-    tokens_input = Column(Integer, default=0)
-    tokens_output = Column(Integer, default=0)
-    cost_usd = Column(Float, default=0.0)
+    model_used: Mapped[str | None] = mapped_column(String(50), default="")
+    tokens_input: Mapped[int | None] = mapped_column(default=0)
+    tokens_output: Mapped[int | None] = mapped_column(default=0)
+    cost_usd: Mapped[float | None] = mapped_column(Float, default=0.0)
 
     # Timestamps
-    created_at = Column(
+    created_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
     )
-    applied_at = Column(DateTime(timezone=True), nullable=True)
-    followed_up = Column(Boolean, default=False)
+    applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    followed_up: Mapped[bool | None] = mapped_column(Boolean, default=False)
 
     # Relationships
-    cv = relationship("CVProfile", back_populates="analyses")
-    cover_letters = relationship("CoverLetter", back_populates="analysis", cascade=_CASCADE_ALL_DELETE_ORPHAN)
-    contacts = relationship("Contact", back_populates="analysis", cascade=_CASCADE_ALL_DELETE_ORPHAN)
-    interviews = relationship(
-        "Interview",
+    cv: Mapped["CVProfile"] = relationship(back_populates="analyses")
+    cover_letters: Mapped[list["CoverLetter"]] = relationship(
+        back_populates="analysis",
+        cascade=_CASCADE_ALL_DELETE_ORPHAN,
+    )
+    contacts: Mapped[list["Contact"]] = relationship(
+        back_populates="analysis",
+        cascade=_CASCADE_ALL_DELETE_ORPHAN,
+    )
+    interviews: Mapped[list["Interview"]] = relationship(
         back_populates="analysis",
         cascade=_CASCADE_ALL_DELETE_ORPHAN,
         order_by="Interview.round_number",
     )
 
     @property
-    def interview(self) -> "Interview | None":  # type: ignore[name-defined]  # noqa: F821
+    def interview(self) -> "Interview | None":
         """Back-compat alias: latest round (highest round_number).
 
         Code written before the multi-round migration accesses
@@ -167,24 +174,24 @@ class AppSettings(Base):
 
     __tablename__ = "app_settings"
 
-    id = Column(Integer, primary_key=True, default=1)
-    anthropic_budget = Column(Float, default=0.0)
+    id: Mapped[int] = mapped_column(primary_key=True, default=1)
+    anthropic_budget: Mapped[float | None] = mapped_column(Float, default=0.0)
 
     # Running totals (updated on each insert/delete)
-    total_cost_usd = Column(Float, default=0.0)
-    total_tokens_input = Column(Integer, default=0)
-    total_tokens_output = Column(Integer, default=0)
-    total_analyses = Column(Integer, default=0)
-    total_cover_letters = Column(Integer, default=0)
+    total_cost_usd: Mapped[float | None] = mapped_column(Float, default=0.0)
+    total_tokens_input: Mapped[int | None] = mapped_column(default=0)
+    total_tokens_output: Mapped[int | None] = mapped_column(default=0)
+    total_analyses: Mapped[int | None] = mapped_column(default=0)
+    total_cover_letters: Mapped[int | None] = mapped_column(default=0)
 
     # Daily counters (auto-reset on date change)
-    today_date = Column(String(10), default="")
-    today_cost_usd = Column(Float, default=0.0)
-    today_tokens_input = Column(Integer, default=0)
-    today_tokens_output = Column(Integer, default=0)
-    today_analyses = Column(Integer, default=0)
+    today_date: Mapped[str | None] = mapped_column(String(10), default="")
+    today_cost_usd: Mapped[float | None] = mapped_column(Float, default=0.0)
+    today_tokens_input: Mapped[int | None] = mapped_column(default=0)
+    today_tokens_output: Mapped[int | None] = mapped_column(default=0)
+    today_analyses: Mapped[int | None] = mapped_column(default=0)
 
-    updated_at = Column(
+    updated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
         onupdate=lambda: datetime.now(UTC),

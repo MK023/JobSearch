@@ -1,5 +1,6 @@
 """Analysis HTML routes (SSR pages)."""
 
+from datetime import datetime
 from typing import Annotated, cast
 from uuid import UUID
 
@@ -61,7 +62,7 @@ def analyze(
         if existing_url:
             audit(db, request, "analyze_cache_url", f"id={existing_url.id}")
             request.session["flash_message"] = (
-                f"URL già analizzato il {existing_url.created_at.strftime('%d/%m/%Y %H:%M')} - mostro il risultato salvato"
+                f"URL già analizzato il {cast(datetime, existing_url.created_at).strftime('%d/%m/%Y %H:%M')} - mostro il risultato salvato"
             )
             return RedirectResponse(url=f"/analysis/{existing_url.id}", status_code=303)
 
@@ -72,7 +73,7 @@ def analyze(
     if existing:
         audit(db, request, "analyze_cache", f"id={existing.id}")
         request.session["flash_message"] = (
-            f"Analisi gia' eseguita il {existing.created_at.strftime('%d/%m/%Y %H:%M')} - mostro il risultato salvato"
+            f"Analisi gia' eseguita il {cast(datetime, existing.created_at).strftime('%d/%m/%Y %H:%M')} - mostro il risultato salvato"
         )
         return RedirectResponse(url=f"/analysis/{existing.id}", status_code=303)
 
