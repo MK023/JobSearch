@@ -3,8 +3,9 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import Column, DateTime, ForeignKey, String, Text
+from sqlalchemy import DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database.base import Base
 
@@ -14,12 +15,16 @@ class AuditLog(Base):
 
     __tablename__ = "audit_logs"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    action = Column(String(50), nullable=False, index=True)
-    detail = Column(Text, default="")
-    ip_address = Column(String(45), default="")
-    created_at = Column(
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    action: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    detail: Mapped[str | None] = mapped_column(Text, default="")
+    ip_address: Mapped[str | None] = mapped_column(String(45), default="")
+    created_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
         index=True,
