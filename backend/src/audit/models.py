@@ -3,7 +3,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -29,3 +29,5 @@ class AuditLog(Base):
         default=lambda: datetime.now(UTC),
         index=True,
     )
+
+    __table_args__ = (Index("idx_audit_logs_user_id", "user_id"),)

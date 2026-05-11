@@ -5,6 +5,7 @@ from datetime import UTC
 
 from src.analysis.models import AnalysisStatus, JobAnalysis
 from src.analysis.service import (
+    count_pending_analyses,
     find_by_company,
     find_by_url,
     find_existing_analysis,
@@ -139,6 +140,41 @@ class TestFindByCompany:
     def test_returns_empty_for_blank_company(self, db_session):
         results = find_by_company(db_session, "")
         assert results == []
+
+
+class TestCountPendingAnalyses:
+    def test_returns_zero_when_no_rows(self, db_session):
+        assert count_pending_analyses(db_session) == 0
+
+    def test_counts_only_pending_status(self, db_session, test_cv):
+        pending = JobAnalysis(
+            cv_id=test_cv.id,
+            job_description="JD",
+            company="Acme",
+            status=AnalysisStatus.PENDING.value,
+        )
+        applied = JobAnalysis(
+            cv_id=test_cv.id,
+            job_description="JD",
+            company="Acme",
+            status=AnalysisStatus.APPLIED.value,
+        )
+        db_session.add_all([pending, applied])
+        db_session.commit()
+        assert count_pending_analyses(db_session) == 1
+
+    def test_counts_multiple_pending(self, db_session, test_cv):
+        for _ in range(3):
+            db_session.add(
+                JobAnalysis(
+                    cv_id=test_cv.id,
+                    job_description="JD",
+                    company="Acme",
+                    status=AnalysisStatus.PENDING.value,
+                ),
+            )
+        db_session.commit()
+        assert count_pending_analyses(db_session) == 3
 
 
 class TestGetRecentAnalyses:

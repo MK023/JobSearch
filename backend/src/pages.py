@@ -52,13 +52,11 @@ def _base_ctx(db: DbSession, user: CurrentUser, active_page: str) -> dict[str, A
     from sqlalchemy import func as _func
 
     from .agenda.models import TodoItem
-    from .analysis.models import JobAnalysis
+    from .analysis.service import count_pending_analyses
     from .analytics_page.service import get_lock_state
     from .interview.service import get_upcoming_interviews
 
-    pending_count = (
-        db.query(_func.count(JobAnalysis.id)).filter(JobAnalysis.status == AnalysisStatus.PENDING.value).scalar() or 0
-    )
+    pending_count = count_pending_analyses(db)
     agenda_count = (
         db.query(_func.count(TodoItem.id)).filter(TodoItem.done == False).scalar() or 0  # noqa: E712
     )

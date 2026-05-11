@@ -5,12 +5,24 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 from uuid import UUID
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..integrations.anthropic_client import analyze_job
 from ..integrations.cache import CacheService
 from ..integrations.glassdoor import fetch_glassdoor_rating
 from .models import AnalysisSource, AnalysisStatus, JobAnalysis
+
+
+def count_pending_analyses(db: Session) -> int:
+    """Count ``JobAnalysis`` rows still in PENDING status.
+
+    Single source of truth for the "Storico" sidebar badge and the
+    ``BACKLOG_TO_REVIEW`` notification: both render the same number, so
+    keeping the query here avoids drift if the funnel definition changes
+    (e.g. a future REVIEWING intermediate state).
+    """
+    return db.query(func.count(JobAnalysis.id)).filter(JobAnalysis.status == AnalysisStatus.PENDING.value).scalar() or 0
 
 
 def find_existing_analysis(db: Session, hash_value: str, model_id: str) -> JobAnalysis | None:
