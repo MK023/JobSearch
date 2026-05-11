@@ -14,6 +14,34 @@ AI-powered job search platform. Paste your CV, analyze job postings, get compati
 
 ---
 
+## Why
+
+Built after 96 manual job applications turned into a data problem I couldn't solve in a spreadsheet. I needed to track which job descriptions actually matched my profile, which gaps were "bridgeable" versus structural, which interview formats worked, and how my conversion rate evolved with rebrand decisions — across multiple recruiters, multiple roles, and a 4-month window. JobSearch is the toolchain I built to convert job-search from intuition-driven to data-driven.
+
+The architecture is the actual portfolio. The bot itself is the customer who happens to be me — eating the dogfood every time I triage a new posting. It runs on the same stack I use professionally (FastAPI + PostgreSQL + cloud-native deploy + Claude API via MCP), with the same security and CI discipline that I'd apply at scale (OWASP Top 10 audit, mypy strict, 11 CI checks, daily backups, audit trail). Building this *while* searching for the job is the meta-loop: the data the system collects refines my own approach in real time.
+
+---
+
+## Operating cost
+
+Production deployment runs at **~$3-5/month** total — pay-per-use AI costs only:
+
+| Component | Cost | Notes |
+|---|---|---|
+| Render.com web service (Frankfurt) | Free | 750 hours/month free tier — covers single-tenant 24/7 |
+| Neon PostgreSQL (serverless) | Free | 1 GB free tier with autosuspend |
+| Cloudflare R2 (DB backups) | Free | 10 GB / 1M ops free tier |
+| Anthropic Claude API | ~$3-5/month | Pay-per-use: Haiku at ~$0.005/analysis, Sonnet at ~$0.02/analysis |
+| Resend (email reminders) | Free | 100 emails/day free |
+| RapidAPI (Glassdoor, salary, news) | Free | Free tier with caching (30-day TTL reduces ~90% of calls) |
+| Sentry (error tracking) | Free | Free tier with 20% trace sampling |
+| Checkly (6 uptime checks, Terraform IaC) | Free | Free tier |
+| Domain `jobsearches.cc` | ~$15/year | Cloudflare Registrar (at cost) |
+
+The architecture is intentionally designed to fit under $10/month total — but every cost-engineering decision is reversible. Swap Render for ECS Fargate, swap Neon for RDS, and the same Docker image deploys to a $200/month enterprise setup without a single code change. Cheap by design, not by accident.
+
+---
+
 ## Architecture
 
 ```
@@ -166,14 +194,14 @@ Alembic migrations run automatically on deploy (Dockerfile entrypoint).
 
 ---
 
-## Costs
+## Per-analysis AI cost (detail)
 
 | Model | Per analysis | Follow-up |
 |-------|-------------|-----------|
 | Haiku 4.5 | ~$0.005 | ~$0.001 |
 | Sonnet 4.5 | ~$0.02 | ~$0.001 |
 
-Render free tier: 750 hours/month. Neon free tier: 1GB storage, autosuspend. R2 free tier: 10GB storage, 1M ops/month.
+See **Operating cost** section above for the full breakdown including free-tier components.
 
 ---
 
