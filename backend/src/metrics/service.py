@@ -1,4 +1,19 @@
-"""Metrics aggregation service for the admin dashboard."""
+"""Internal request metrics aggregation per la pagina Admin → Metrics.
+
+Le righe ``request_metrics`` sono scritte dal middleware ``MetricsMiddleware``
+(uno per request HTTP completata): endpoint, method, status_code,
+duration_ms, created_at. Questo modulo aggrega via SQL (``func.avg``,
+``func.percentile_cont``, ``case`` su status code) per produrre:
+
+- ``get_metrics_summary()``: ultime 24h, gruppo per endpoint, p50/p95/p99
+  + error rate (status≥500) + traffic count;
+- ``cleanup_old_metrics()``: GC delle righe oltre ``retention_days``
+  (default 7gg) per non far esplodere la quota Neon — chiamato dal
+  cron weekly-cleanup.
+
+Out of scope: persistenza (middleware lo fa già), real-time alerting
+(Sentry copre quello).
+"""
 
 from datetime import UTC, datetime, timedelta
 from typing import Any

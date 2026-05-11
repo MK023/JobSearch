@@ -1,4 +1,15 @@
-"""Audit log service."""
+"""Audit log service — dual-DB write con resilienza cross-database.
+
+``audit(db, request, action, detail)`` aggiunge una riga in ``audit_logs``
+sul DB primario; ``dual_audit(...)`` mirra anche su ``WorldwildAuditLog``
+nel DB secondary (Supabase) per defense-in-depth se Neon hit la quota
+mensile e rifiuta scritture.
+
+Il caller possiede ``db.commit()`` — questo modulo si occupa solo di
+``db.add(...)`` + estrazione di user_id e IP dalla sessione/request.
+``contextlib.suppress`` su parse UUID/IP evita di rompere il flusso
+utente per un audit log malformato (è defensive logging, non load-bearing).
+"""
 
 import contextlib
 import logging

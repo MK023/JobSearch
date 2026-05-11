@@ -1,4 +1,15 @@
-"""Authentication routes."""
+"""Authentication routes — login / logout SSR + session management.
+
+Single-user app: l'unica utente è ``ensure_admin_user`` (seedato a
+startup dalle env ``ADMIN_EMAIL`` / ``ADMIN_PASSWORD``). Login form
+POST verifica bcrypt hash, gestisce lockout brute-force (5 tentativi
+falliti = 30 min di lockout in ``users.locked_until``), audit logga
+ogni success/failure.
+
+Session backend: Starlette ``SessionMiddleware`` con cookie firmato
+(``SECRET_KEY``). Lo storage è server-side (no JWT, no auth provider)
+per minimizzare la attack surface su un perimetro single-user.
+"""
 
 from typing import Annotated, cast
 from uuid import UUID

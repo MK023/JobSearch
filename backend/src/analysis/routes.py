@@ -1,4 +1,14 @@
-"""Analysis HTML routes (SSR pages)."""
+"""Analysis HTML routes — SSR Jinja2 per ``/analyze``, ``/analysis/{id}``.
+
+Form ``/analyze`` accetta il job description + URL e instrada verso
+``analyze_and_charge``: URL dedup (stesso URL già visto → mostra
+cached), content_hash dedup (testo equivalente → riusa analisi), budget
+gate (rifiuta se Anthropic budget exhausted), audit log.
+
+``/analysis/{id}`` mostra il detail con risultati AI, contacts,
+cover_letters ordinate newest-first, interview rounds, status transition
+buttons. Le route API (PATCH status, DELETE) vivono in ``api_routes.py``.
+"""
 
 from datetime import datetime
 from typing import Annotated, cast

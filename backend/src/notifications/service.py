@@ -1,4 +1,18 @@
-"""Notification utilities: credential encryption and deduplication checks."""
+"""Notification log utilities — encryption + dedup contro spam in invio.
+
+Coppia di responsabilità:
+
+- **Encryption Fernet** (``encrypt_credential`` / ``decrypt_credential``)
+  per le credenziali SMTP o token recruiter salvati su DB. La chiave è
+  derivata da ``settings.secret_key`` (SHA256 + base64 urlsafe), così
+  un dump del DB rubato non espone credenziali in chiaro.
+- **Dedup** (``check_already_sent``) interroga ``notification_logs`` per
+  ``(analysis_id, notification_type)`` — evita follow-up duplicati se
+  l'utente ricarica la pagina prima del refresh del badge.
+
+Out of scope: invio email vero (Resend SDK), template HTML — vivono in
+``notifications/email_sender`` e nei template Jinja.
+"""
 
 import base64
 import hashlib

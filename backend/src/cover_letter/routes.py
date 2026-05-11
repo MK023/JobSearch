@@ -1,4 +1,15 @@
-"""Cover letter routes."""
+"""Cover letter routes — generation trigger + history + .docx download.
+
+Endpoint:
+- ``POST /api/v1/cover-letters/generate`` — invoca Claude per generare
+  una cover letter ancorata a ``analysis_id`` (lingua: italiano | english).
+  Budget gate + audit log come per ``/analyze``.
+- ``GET /api/v1/analyses/{id}/cover-letters`` — history sorted newest-first
+  (utile quando l'utente rigenera dopo feedback recruiter).
+- ``GET /api/v1/cover-letters/{id}/download`` — export .docx generato
+  in-memory via ``python-docx``, content-disposition con company-role
+  filename sanitizzato via ``urllib.parse.quote``.
+"""
 
 import logging
 from typing import Annotated, cast

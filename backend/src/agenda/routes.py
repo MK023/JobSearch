@@ -1,4 +1,15 @@
-"""Agenda to-do CRUD routes."""
+"""Agenda routes — CRUD su ``todo_items`` (real) + lista mista API.
+
+L'agenda mostra una lista mista di **real items** (``todo_items``,
+creati dall'utente, toggleable + deletable) e **virtual items**
+(regole computed in ``agenda.service``: es. interview imminenti nelle
+prossime 48h, analisi PENDING che attendono triage).
+
+Le virtual items NON hanno endpoint POST/PATCH/DELETE: il loro stato
+deriva dai dati upstream e cambia quando l'utente agisce sulla risorsa
+sottostante (es. fa il triage dell'inbox item → la virtual to-do
+scompare al prossimo refresh, senza DB write).
+"""
 
 from datetime import UTC, datetime
 from typing import Annotated

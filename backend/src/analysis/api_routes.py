@@ -1,4 +1,16 @@
-"""Analysis JSON API routes (status changes, deletion, AJAX analysis)."""
+"""Analysis JSON API routes — status transition + delete + AJAX analysis.
+
+Endpoint usati dal frontend SPA-light (vanilla JS + ``window.fetchJSON``):
+- ``PATCH /api/v1/analysis/{id}/status`` — transizione status, side-effect
+  ``applied_at`` quando passa a APPLIED (mai overwritten su transition
+  successive, single-source-of-truth dell'application date).
+- ``DELETE /api/v1/analysis/{id}`` — hard delete con cascade su contacts/
+  cover_letters/interviews (in modello via ``cascade="all, delete-orphan"``).
+- ``POST /api/v1/analyze`` — JSON alternative al form HTML, usata da
+  Chrome extension + MCP server. Ritorna analysis_id + status, no redirect.
+- ``POST /api/v1/analysis/import`` — pre-computed import dal MCP (esegue
+  analisi offline e poi POSTa il risultato già fatto al server).
+"""
 
 import logging
 from datetime import UTC, date, datetime, timedelta

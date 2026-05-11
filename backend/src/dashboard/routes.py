@@ -1,4 +1,15 @@
-"""Dashboard and spending routes."""
+"""Dashboard routes — widget snapshot + spending JSON + budget edit.
+
+Endpoint:
+- ``GET /api/v1/dashboard/snapshot`` — payload unico per gli 8 widget
+  (follow-up alerts, interviews 48h, cowork stats, news, todo, top 5
+  recent, db usage, spending) — un singolo round-trip per il poll
+  cron-side, evita 8 fetch dal client.
+- ``GET /api/v1/spending`` — running totals + today counters (UTC date
+  reset auto su ``add_spending``); usato dal widget Budget.
+- ``POST /api/v1/budget`` — set ``anthropic_budget`` su ``app_settings``;
+  audit logga ogni change (importo precedente → nuovo).
+"""
 
 import logging
 from typing import Annotated

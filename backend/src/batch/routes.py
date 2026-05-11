@@ -1,4 +1,17 @@
-"""Batch analysis routes."""
+"""Batch analysis routes — queue submission + status polling + cron tick.
+
+Endpoint principali:
+- ``POST /api/v1/batch/enqueue`` — submission di N job description in un
+  colpo (paste multipli da Chrome extension o cron WorldWild promote).
+  Dedup pre-insert via ``content_hash + model``.
+- ``GET /api/v1/batch/status`` — counts per status (PENDING/RUNNING/DONE/
+  SKIPPED/ERROR), usato dal widget dashboard per progress bar.
+- ``POST /api/v1/batch/run`` — tick di processing: pesca un ``BatchItem``
+  PENDING via atomic UPDATE (race-safe), esegue analyze_and_charge, marca
+  DONE/ERROR. Chiamato da SSE worker + cron.
+- ``POST /api/v1/batch/item/{id}/status`` — admin/MCP per forzare uno
+  stato manualmente (debugging recovery).
+"""
 
 from typing import Annotated, Any, cast
 from uuid import UUID

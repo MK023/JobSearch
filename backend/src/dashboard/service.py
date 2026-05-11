@@ -1,4 +1,20 @@
-"""Dashboard and spending service."""
+"""Dashboard service — ledger spese AI + alert proattivi + DB usage.
+
+Centralizza:
+- ``add_spending()`` atomico per il ledger di costi/tokens su ``app_settings``
+  (running totals + today counters auto-reset on date change) — chiamato
+  dopo ogni Anthropic call così la UI Settings rispecchia il consumo reale;
+- ``check_budget_available()`` + ``get_spending()`` per il budget gate
+  pre-analisi (``ANTHROPIC_BUDGET`` env) — ritorna ``(ok, msg)`` con
+  granularità "speso vs budget" per UX honest;
+- ``get_followup_alerts()`` che surfacizza analisi candidato senza
+  interview pianificata da N giorni — usato dal widget dashboard;
+- ``get_db_usage()`` con stima percentuale verso il 500MB cap di Neon
+  free tier (warning a 80%).
+
+Out of scope: rendering HTML (route layer), chiamate AI vere
+(``integrations/anthropic_client``).
+"""
 
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
