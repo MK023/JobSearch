@@ -77,4 +77,7 @@ class InboxItem(Base):
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    __table_args__ = (Index("idx_inbox_user_status", "user_id", "status"),)
+    __table_args__ = (
+        Index("idx_inbox_user_status", "user_id", "status"),
+        Index("idx_inbox_items_analysis_id", "analysis_id"),
+    )

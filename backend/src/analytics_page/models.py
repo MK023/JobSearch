@@ -8,7 +8,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import JSON, DateTime, ForeignKey, String, Text
+from sqlalchemy import JSON, DateTime, ForeignKey, Index, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -61,3 +61,5 @@ class UserProfile(Base):
     profile: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     # Cached summary shown in the prompt — keeps token count low
     prompt_snippet: Mapped[str | None] = mapped_column(Text, default="")
+
+    __table_args__ = (Index("idx_user_profiles_source_run_id", "source_run_id"),)
