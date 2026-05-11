@@ -56,15 +56,19 @@ _is_pytest = "pytest" in _sys.modules or bool(_os.environ.get("PYTEST_CURRENT_TE
 if settings.sentry_dsn and not _is_pytest:
     import logging as _logging
 
-    import sentry_sdk
-    from sentry_sdk.integrations.logging import LoggingIntegration
+    import sentry_sdk  # type: ignore[import-not-found]  # pyright: ignore[reportMissingImports]
+    from sentry_sdk.integrations.logging import (
+        LoggingIntegration,  # type: ignore[import-not-found]  # pyright: ignore[reportMissingImports]
+    )
 
     _integrations: list = [
         # Capture WARNING+ as Sentry events (INFO+ as breadcrumbs)
         LoggingIntegration(level=_logging.INFO, event_level=_logging.WARNING),
     ]
     try:
-        from sentry_sdk.integrations.mcp import MCPIntegration
+        from sentry_sdk.integrations.mcp import (
+            MCPIntegration,  # type: ignore[import-not-found]  # pyright: ignore[reportMissingImports]
+        )
 
         _integrations.append(MCPIntegration())
     except Exception:  # noqa: S110 — DidNotEnable if mcp package missing
