@@ -120,64 +120,73 @@ def score_vs_outcome(features: list[dict[str, Any]]) -> dict[str, Any]:
     return {label: dict(counts) for label, counts in result.items()}
 
 
-def bias_signals(features: list[dict[str, Any]]) -> dict[str, Any]:
-    """Find pattern suspicious of subjective bias.
+def _summary_row(f: dict[str, Any]) -> dict[str, Any]:
+    """Compact identity for a feature row in a bias report."""
+    return {
+        "id": f["id"],
+        "company": f.get("company"),
+        "role": f.get("role"),
+        "score": f.get("score"),
+    }
 
-    - Rejected high-score (>85) vs kept low-score (<60)
-    - Same company, different outcome
-    - Same role bucket + similar score, different outcome
+
+def _high_score_rejected_records(features: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Features con score ≥ 85 ma scartati — possibili rifiuti soggettivi."""
+    return [_summary_row(f) for f in features if (f.get("score") or 0) >= 85 and f.get("status") in REJECTED_STATUSES]
+
+
+def _low_score_kept_records(features: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Features con score < 60 ma kept — possibili candidature emotive."""
+    return [_summary_row(f) for f in features if (f.get("score") or 0) < 60 and f.get("status") in KEPT_STATUSES]
+
+
+def _same_company_conflicts(features: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Aziende su cui esistono sia ruoli kept che ruoli rejected.
+
+    Segnale di bias se due offerte simili dalla stessa azienda hanno avuto
+    esiti opposti — la decisione probabilmente è dipesa da fattori esterni
+    al merito (ruolo specifico, mood, contesto).
     """
-    high_score_rejected = [
-        {
-            "id": f["id"],
-            "company": f.get("company"),
-            "role": f.get("role"),
-            "score": f.get("score"),
-        }
-        for f in features
-        if (f.get("score") or 0) >= 85 and f.get("status") in REJECTED_STATUSES
-    ]
-
-    low_score_kept = [
-        {
-            "id": f["id"],
-            "company": f.get("company"),
-            "role": f.get("role"),
-            "score": f.get("score"),
-        }
-        for f in features
-        if (f.get("score") or 0) < 60 and f.get("status") in KEPT_STATUSES
-    ]
-
-    # Same company, different outcome
     by_company: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    relevant_statuses = KEPT_STATUSES | REJECTED_STATUSES
     for f in features:
-        c = (f.get("company") or "").strip().lower()
-        if c and f.get("status") in (KEPT_STATUSES | REJECTED_STATUSES):
-            by_company[c].append(f)
+        company = (f.get("company") or "").strip().lower()
+        if company and f.get("status") in relevant_statuses:
+            by_company[company].append(f)
 
-    conflicting_companies = []
+    conflicts: list[dict[str, Any]] = []
     for company, rows in by_company.items():
         statuses = {r.get("status") for r in rows}
-        if statuses & KEPT_STATUSES and statuses & REJECTED_STATUSES:
-            conflicting_companies.append(
-                {
-                    "company": company,
-                    "kept": [
-                        {"id": r["id"], "role": r.get("role"), "score": r.get("score")}
-                        for r in rows
-                        if r.get("status") in KEPT_STATUSES
-                    ],
-                    "rejected": [
-                        {"id": r["id"], "role": r.get("role"), "score": r.get("score")}
-                        for r in rows
-                        if r.get("status") in REJECTED_STATUSES
-                    ],
-                }
-            )
+        if not (statuses & KEPT_STATUSES and statuses & REJECTED_STATUSES):
+            continue
+        conflicts.append(
+            {
+                "company": company,
+                "kept": [
+                    {"id": r["id"], "role": r.get("role"), "score": r.get("score")}
+                    for r in rows
+                    if r.get("status") in KEPT_STATUSES
+                ],
+                "rejected": [
+                    {"id": r["id"], "role": r.get("role"), "score": r.get("score")}
+                    for r in rows
+                    if r.get("status") in REJECTED_STATUSES
+                ],
+            },
+        )
+    return conflicts
 
+
+def bias_signals(features: list[dict[str, Any]]) -> dict[str, Any]:
+    """Find patterns suspicious of subjective bias.
+
+    Three independent signals aggregated in a single dict for the report:
+    - high-score rejected (≥85 ma scartati)
+    - low-score kept (<60 ma candidato/colloquio/offerta)
+    - same company with opposite outcomes
+    """
     return {
-        "high_score_rejected": high_score_rejected,
-        "low_score_kept": low_score_kept,
-        "same_company_different_outcome": conflicting_companies,
+        "high_score_rejected": _high_score_rejected_records(features),
+        "low_score_kept": _low_score_kept_records(features),
+        "same_company_different_outcome": _same_company_conflicts(features),
     }
