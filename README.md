@@ -4,7 +4,7 @@
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.131-009688?logo=fastapi&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-477_passed-30D158)
+![Tests](https://img.shields.io/badge/Tests-1078_passed-30D158)
 ![mypy](https://img.shields.io/badge/mypy-strict-blue)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
@@ -91,7 +91,7 @@ The MCP server runs locally on macOS via Claude Desktop (stdio transport). It is
 |-------|-----------|
 | **Backend** | FastAPI + Uvicorn + Jinja2 SSR |
 | **Frontend** | Alpine.js (reactive UI) + Chart.js 4.4 (stats) + vanilla JS modules |
-| **ORM** | SQLAlchemy 2.0 + Alembic (19 migrations) |
+| **ORM** | SQLAlchemy 2.0 (``Mapped[X]`` typing) + Alembic (26 migrations) |
 | **Database** | PostgreSQL 17 (Neon serverless, 1GB free tier) |
 | **Cache** | Redis 7 (optional, graceful degradation) |
 | **AI** | Anthropic Claude API (tool-use schema-driven JSON, prompt v7 candidate-aware + career-track + auto-adapt) |
@@ -102,7 +102,7 @@ The MCP server runs locally on macOS via Claude Desktop (stdio transport). It is
 | **MCP** | FastMCP (local, stdio) — 15 read-only tools, thin HTTP proxy |
 | **Error Tracking** | Sentry (FastAPI auto-integration, 20% trace sampling) |
 | **Monitoring** | Checkly (6 checks, Terraform IaC) |
-| **CI/CD** | GitHub Actions (ruff, ruff format, mypy strict, bandit, pip-audit, stylelint, ESLint, CodeQL, pytest, Docker build) + daily backup cron |
+| **CI/CD** | GitHub Actions, 11 check (ruff, ruff format, mypy strict, bandit, pip-audit, stylelint, ESLint, CodeQL 3 lang, SonarCloud QG, pytest, Docker build) + daily backup cron + weekly cleanup |
 | **Deploy** | Render.com (Frankfurt, Docker) + Cloudflare (DNS, R2, HSTS) |
 | **IaC** | Terraform (Checkly monitoring) |
 
@@ -151,7 +151,7 @@ Open `http://localhost` — log in with your admin credentials.
 
 ## Infrastructure
 
-The app is deployed on **Render.com** (Frankfurt region) as a Docker web service with auto-deploy on push to `main`. PostgreSQL is hosted on **Neon** (serverless, 1GB free tier). **Cloudflare** handles DNS, R2 storage, and HSTS. **Checkly** monitors uptime (6 checks, Terraform IaC). **GitHub Actions** runs CI (10 checks) + daily DB backup cron.
+The app is deployed on **Render.com** (Frankfurt region) as a Docker web service with auto-deploy on push to `main`. PostgreSQL is hosted on **Neon** (serverless, 1GB free tier). **Cloudflare** handles DNS, R2 storage, and HSTS. **Checkly** monitors uptime (6 checks, Terraform IaC). **GitHub Actions** runs CI (11 checks) + daily DB backup cron.
 
 ```bash
 # Environment variables on Render:
@@ -174,6 +174,16 @@ Alembic migrations run automatically on deploy (Dockerfile entrypoint).
 | Sonnet 4.5 | ~$0.02 | ~$0.001 |
 
 Render free tier: 750 hours/month. Neon free tier: 1GB storage, autosuspend. R2 free tier: 10GB storage, 1M ops/month.
+
+---
+
+## Documentation
+
+| Doc | Contents |
+|---|---|
+| [`docs/technical.md`](docs/technical.md) | 1500-line technical deep dive — 16 sections covering architecture, DB schema, security, AI integration, CI/CD, MCP wiring, learning loop |
+| [`docs/architecture.drawio`](docs/architecture.drawio) | Editable system diagram (draw.io / diagrams.net) — single source of truth for the picture rendered in this README |
+| [`docs/LOCAL_DEV.md`](docs/LOCAL_DEV.md) | Local development setup: Docker Compose, pyenv, pre-commit hooks, debugging Sentry off |
 
 ---
 

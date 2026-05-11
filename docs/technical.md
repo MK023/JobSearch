@@ -1,5 +1,7 @@
 # Technical Documentation - Job Search Command Center
 
+> Companion to the [project README](../README.md) (high-level overview, features, costs, deploy targets) and the editable [architecture diagram](architecture.drawio). For the local dev setup see [LOCAL_DEV.md](LOCAL_DEV.md).
+
 ## Table of Contents
 
 1. [Architecture Overview](#1-architecture-overview)
@@ -27,7 +29,7 @@ The system has two runtime components:
 
 1. **Backend (Render.com, Frankfurt)** — does everything: AI analysis via Anthropic API, PostgreSQL persistence, deduplication via content_hash, cost tracking, and serves the web UI (Jinja2 SSR). Single Docker container, free tier, auto-stop after ~5 min inactivity.
 2. **MCP server (local, macOS)** — thin HTTP proxy (~120 lines) that runs on the developer's machine via Claude Desktop (stdio transport). All 15 read-only tools are HTTP calls to the backend, authenticated with an API key (X-API-Key header).
-3. **GitHub Actions** — CI pipeline (10 checks) + daily DB backup cron + weekly cleanup.
+3. **GitHub Actions** — CI pipeline (11 checks: ruff, mypy strict, bandit, pip-audit, stylelint, ESLint, CodeQL 3-lang, SonarCloud QG, pytest, Docker build, Alembic migrations) + daily DB backup cron + weekly cleanup.
 4. **Checkly** — 6 uptime/API checks managed as Terraform IaC.
 
 ```
