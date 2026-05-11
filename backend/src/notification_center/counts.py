@@ -28,7 +28,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..agenda.models import TodoItem
-from ..analysis.models import AnalysisStatus, JobAnalysis
+from ..analysis.service import count_pending_analyses
 from ..analytics_page.service import get_lock_state
 from ..dependencies import CurrentUser, DbSession
 from ..interview.service import get_upcoming_interviews
@@ -48,9 +48,7 @@ def _compute_counts(db: Session) -> dict[str, Any]:
     unlock check in particular is doing extra work we don't want to
     bake into a join.
     """
-    pending_count = (
-        db.query(func.count(JobAnalysis.id)).filter(JobAnalysis.status == AnalysisStatus.PENDING.value).scalar() or 0
-    )
+    pending_count = count_pending_analyses(db)
     agenda_count = (
         db.query(func.count(TodoItem.id)).filter(TodoItem.done == False).scalar() or 0  # noqa: E712
     )
