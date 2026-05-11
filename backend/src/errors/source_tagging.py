@@ -60,7 +60,7 @@ def tag_flow_source(source: str | None) -> None:
     if not source:
         return
     try:
-        import sentry_sdk  # type: ignore[import-not-found]
+        import sentry_sdk  # type: ignore[import-not-found]  # pyright: ignore[reportMissingImports]
     except ImportError:
         return
     # set_tag on the current scope is request-local once Sentry's FastAPI

@@ -159,7 +159,7 @@ def _record_missing_key() -> None:
     breadcrumb stream.
     """
     with contextlib.suppress(Exception):
-        import sentry_sdk
+        import sentry_sdk  # type: ignore[import-not-found]  # pyright: ignore[reportMissingImports]
 
         sentry_sdk.add_breadcrumb(
             category="findwork",

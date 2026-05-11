@@ -73,7 +73,7 @@ def record_error(exc: Exception, *, source: str, **context: Any) -> None:
     nessun kwarg, ``page=N``, ``category=X``.
     """
     with contextlib.suppress(Exception):
-        import sentry_sdk
+        import sentry_sdk  # type: ignore[import-not-found]  # pyright: ignore[reportMissingImports]
 
         ctx_str = " ".join(f"{k}={v}" for k, v in context.items())
         suffix = f" {ctx_str}" if ctx_str else ""
