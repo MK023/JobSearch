@@ -80,4 +80,5 @@ class BatchItem(Base):
         Index("idx_batch_items_batch_status", "batch_id", "status"),
         Index("idx_batch_items_content_hash_model", "content_hash", "model"),
         Index("idx_batch_items_cv_id", "cv_id"),
+        Index("idx_batch_items_analysis_id", "analysis_id"),
     )
