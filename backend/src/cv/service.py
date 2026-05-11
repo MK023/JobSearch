@@ -1,4 +1,15 @@
-"""CV profile service: CRUD operations."""
+"""CV profile service — CRUD + retrieval del CV "attivo" per ogni utente.
+
+Convenzione: ``get_latest_cv(db, user_id)`` ritorna l'ultimo CV
+inserito; l'app è single-user single-CV per design, ma il modello
+supporta più revisioni storiche (chi ha caricato una nuova CV vede
+solo l'ultima nella UI, le vecchie restano per audit).
+
+Il livello CEFR di inglese è normalizzato a write-time via
+``normalize_cefr_token`` (A1..C2/Native, stringa vuota = non
+dichiarato) — il DB tiene la stringa raw senza CHECK constraint per
+non bloccare migrazioni di rows legacy.
+"""
 
 from uuid import UUID
 

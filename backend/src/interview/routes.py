@@ -1,4 +1,20 @@
-"""Interview JSON API routes."""
+"""Interview routes — multi-round CRUD + outcome logging + reminders.
+
+Una ``JobAnalysis`` può avere più ``Interview`` (conoscitivo → tecnico →
+finale → offer); ognuno ha il suo ``round_number`` + ``outcome``
+(passed/rejected/withdrawn/pending). L'API mantiene compatibilità con
+i caller pre-multi-round (``analysis.interview`` ritorna il latest) via
+la ``@property`` ``JobAnalysis.interview``.
+
+Endpoint:
+- ``POST /api/v1/interviews`` — crea round, ``round_number`` auto-
+  incrementato lato server (no race tra tab paralleli).
+- ``PATCH /api/v1/interviews/{id}`` — update parziale (outcome, notes,
+  date shift, link Meet/Teams). DB-timezone safe: usiamo Postgres
+  ``AT TIME ZONE 'Europe/Rome'`` lato query per display.
+- ``DELETE /api/v1/interviews/{id}`` — hard delete con cascade su
+  ``interview_files`` (file R2 vengono cleanati async).
+"""
 
 import re
 from datetime import UTC, datetime, timedelta

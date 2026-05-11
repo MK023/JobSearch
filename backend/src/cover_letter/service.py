@@ -1,4 +1,13 @@
-"""Cover letter service."""
+"""Cover letter service — generazione AI + export .docx.
+
+Ogni cover letter è ancorata a una ``JobAnalysis``: il service compone
+il prompt da analisi + CV, chiama Claude (modello + tokens tracciati per
+il ledger costi) e persiste il risultato. La generazione è multilingua
+(italiano default + english su richiesta) e supporta più versioni per
+analisi (history utile quando l'utente rigenera dopo feedback).
+
+Out of scope: budget gate, dedup pre-call — gestiti dal caller route.
+"""
 
 import io
 import re

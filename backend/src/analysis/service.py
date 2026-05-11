@@ -1,4 +1,20 @@
-"""Analysis service: job analysis, result building, glassdoor merging."""
+"""Analysis service — orchestrates the Claude API call + persistence flow.
+
+Centralizza le tre operazioni che il caller (route HTML, route API,
+batch worker, MCP import) altrimenti duplicherebbe:
+
+- ``run_analysis()`` invoca Claude, merge dei dati Glassdoor, scrive una
+  riga ``job_analyses``;
+- ``analyze_and_charge()`` aggiunge l'aggiornamento atomico del ledger
+  costi (``dashboard.service.add_spending``) per non far divergere il
+  totale speso dai costi reali delle call AI;
+- helper di lookup/transition (``find_by_url``, ``update_status``,
+  ``rebuild_result``, ``count_pending_analyses``) usati da pagine e
+  notification center.
+
+Out of scope: budget gate, dedup pre-call (URL/content_hash), session
+commit/rollback, audit logging — restano responsabilità del caller.
+"""
 
 import json
 from datetime import UTC, datetime, timedelta

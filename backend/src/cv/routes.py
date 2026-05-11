@@ -1,4 +1,15 @@
-"""CV routes."""
+"""CV routes — upload (file → testo) + active CV retrieval + CEFR set.
+
+Endpoint:
+- ``POST /api/v1/cv/upload`` — accetta .pdf/.docx/.txt, estrae il testo
+  via ``cv.text_extract`` (PyPDF2 + python-docx), salva una nuova riga
+  ``cv_profiles``. Il CV "attivo" è sempre l'ultimo inserito.
+- ``GET /api/v1/cv/active`` — il CV attivo come JSON (raw_text + name +
+  english_level + timestamps).
+- ``PATCH /api/v1/cv/english-level`` — set del livello CEFR dichiarato
+  dall'utente; normalizzato a write-time, alimenta il filter Jinja
+  ``cefr_match`` che evidenzia gap di lingua nelle analisi.
+"""
 
 import re
 from typing import Annotated, cast

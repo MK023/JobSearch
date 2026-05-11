@@ -1,4 +1,17 @@
-"""Contact routes."""
+"""Contact routes — CRUD JSON API per recruiter / hiring manager.
+
+Endpoint:
+- ``POST /api/v1/contacts`` — crea contact, opzionalmente legato a
+  ``analysis_id`` (lead di network → analysis_id null).
+- ``GET /api/v1/contacts?analysis_id=X`` — lista contact per analisi.
+- ``PATCH /api/v1/contacts/{id}`` — update parziale dei campi.
+- ``DELETE /api/v1/contacts/{id}`` — hard delete (no soft-delete: lo
+  storico dei contatti è preservato dalla relazione FK SET NULL su
+  analysis, non da un flag deleted).
+
+Validation email/phone fatta lato server con regex pythonic per
+preservare i casi edge (telefoni IT con prefisso ``+39 ...``).
+"""
 
 import re
 

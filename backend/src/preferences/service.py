@@ -1,4 +1,15 @@
-"""Get/set persisted runtime preferences with whitelist + in-memory cache."""
+"""Runtime preferences — get/set con whitelist + cache process-local.
+
+Tutte le scritture passano dalla ``ALLOWED_KEYS`` whitelist: chiavi non
+elencate restituiscono ``None`` su read e raise su write. È il choke point
+di sicurezza che blocca JSONB injection o write arbitrari da rotte API
+autenticate ma non destinate a toccare preferences (es. una rotta che
+prende un campo ``key`` da query string).
+
+La cache è in-memory per-process con invalidazione automatica su ``set``
+(no TTL, l'app è single-instance su Render free tier). Su deploy multi-
+istanza serve un Redis pub/sub per propagare invalidate cross-process.
+"""
 
 from typing import Any
 

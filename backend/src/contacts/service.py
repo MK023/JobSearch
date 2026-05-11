@@ -1,4 +1,14 @@
-"""Contact service: CRUD for recruiter contacts."""
+"""Contact service — CRUD per i contatti recruiter / hiring manager.
+
+Ogni ``Contact`` è opzionalmente legato a un'analisi (``analysis_id``
+nullable): un recruiter può esistere senza un job specifico (lead di
+network) e gli ``analysis`` con FK ``ON DELETE SET NULL`` preservano
+lo storico contatti anche dopo la cancellazione di una JobAnalysis.
+
+Out of scope: invio email, sync calendario, deduplica per email — sono
+responsabilità rispettivamente di ``notifications``, ``interview``, e
+del layer UI.
+"""
 
 from uuid import UUID
 
