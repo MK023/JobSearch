@@ -18,7 +18,7 @@ pypdf==6.10.2
 cryptography==46.0.7
 boto3==1.42.91
 resend==2.29.0
-sentry-sdk[fastapi]>=2.44.0
+sentry-sdk[fastapi]>=2.59.0
 openpyxl==3.1.5
 bleach==6.3.0
 pyyaml==6.0.3
