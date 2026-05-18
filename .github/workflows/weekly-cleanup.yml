@@ -37,12 +37,20 @@ jobs:
             echo "::error::JOBSEARCH_API_KEY secret not configured"
             exit 1
           fi
-          response=$(curl --silent --show-error --fail-with-body \
+          # Diagnostic mode: capture body + status code separately so errors
+          # always print the server response body (not just curl's exit code).
+          status=$(curl --silent --output /tmp/cleanup_body.json --write-out "%{http_code}" \
             --request DELETE \
             --header "X-API-Key: $API_KEY" \
             --header "Accept: application/json" \
             --max-time 60 \
             "${API_BASE}/api/v1/analysis/cleanup?days=${DAYS}&max_score=${MAX_SCORE}&dry_run=false")
-          echo "Response: $response"
-          # Defensive: endpoint always returns ok=true on success; bail otherwise
-          echo "$response" | grep -q '"ok": *true' || (echo "::error::cleanup did not return ok=true" && exit 1)
+          echo "HTTP status: $status"
+          echo "Response body:"
+          cat /tmp/cleanup_body.json || echo "(empty body)"
+          echo ""
+          if [ "$status" != "200" ]; then
+            echo "::error::Expected HTTP 200, got $status — see response body above"
+            exit 1
+          fi
+          grep -q '"ok": *true' /tmp/cleanup_body.json || (echo "::error::cleanup did not return ok=true" && exit 1)
