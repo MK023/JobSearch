@@ -30,7 +30,7 @@ jobs:
       DAYS: "180"
       MAX_SCORE: "30"
     steps:
-      - name: Call DELETE /analysis/cleanup
+      - name: Call DELETE /api/v1/analysis/cleanup
         run: |
           set -euo pipefail
           if [ -z "$API_KEY" ]; then
@@ -42,7 +42,7 @@ jobs:
             --header "X-API-Key: $API_KEY" \
             --header "Accept: application/json" \
             --max-time 60 \
-            "${API_BASE}/analysis/cleanup?days=${DAYS}&max_score=${MAX_SCORE}&dry_run=false")
+            "${API_BASE}/api/v1/analysis/cleanup?days=${DAYS}&max_score=${MAX_SCORE}&dry_run=false")
           echo "Response: $response"
           # Defensive: endpoint always returns ok=true on success; bail otherwise
           echo "$response" | grep -q '"ok": *true' || (echo "::error::cleanup did not return ok=true" && exit 1)
