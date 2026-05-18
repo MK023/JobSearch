@@ -238,6 +238,45 @@ def fetch_analysis_salary(
     return JSONResponse({"ok": True, "salary_data": data})
 
 
+# NOTE: /analysis/cleanup MUST be registered BEFORE /analysis/{analysis_id} —
+# FastAPI matches routes in registration order, and the parametric route would
+# otherwise catch "cleanup" as analysis_id and reject it with 400 "Invalid ID
+# format" via the UUID validator. Pattern: literal/specific paths first.
+@router.delete("/analysis/cleanup")
+@limiter.limit(settings.rate_limit_analyze)
+def cleanup_analyses(
+    request: Request,
+    db: DbSession,
+    user: CurrentUser,
+    days: Annotated[int, Query(ge=1, le=365, description="Delete analyses older than N days")] = 90,
+    max_score: Annotated[int, Query(ge=0, le=100, description="Only delete analyses with score <= this")] = 40,
+    dry_run: Annotated[bool, Query(description="If True, return count without deleting")] = True,
+) -> JSONResponse:
+    """Delete old low-score analyses to free DB space (1GB free-tier limit).
+
+    Only deletes analyses with status=PENDING (da_valutare).
+    Analyses marked as applied/interview/rejected are preserved.
+    """
+    candidates = _pending_cleanup_candidates(db, cast(UUID, user.id), days, max_score).all()
+    count = len(candidates)
+
+    if dry_run:
+        audit(db, request, "cleanup_dry_run", f"would_delete={count}, days={days}, max_score={max_score}")
+        db.commit()
+        return JSONResponse({"ok": True, "deleted": count, "dry_run": True})
+
+    today = date.today()
+    for analysis in candidates:
+        _reverse_analysis_spending(db, analysis, today)
+        db.delete(analysis)
+
+    sample_ids = [str(a.id) for a in candidates[:5]]
+    audit(db, request, "cleanup", f"deleted={count}, days={days}, max_score={max_score}, sample={sample_ids}")
+    db.commit()
+
+    return JSONResponse({"ok": True, "deleted": count, "dry_run": False})
+
+
 @router.delete("/analysis/{analysis_id}")
 def delete_analysis(
     request: Request,
@@ -327,41 +366,6 @@ def check_dedup(
     if existing:
         return JSONResponse({"exists": True, "analysis_id": str(existing.id)})
     return JSONResponse({"exists": False})
-
-
-@router.delete("/analysis/cleanup")
-@limiter.limit(settings.rate_limit_analyze)
-def cleanup_analyses(
-    request: Request,
-    db: DbSession,
-    user: CurrentUser,
-    days: Annotated[int, Query(ge=1, le=365, description="Delete analyses older than N days")] = 90,
-    max_score: Annotated[int, Query(ge=0, le=100, description="Only delete analyses with score <= this")] = 40,
-    dry_run: Annotated[bool, Query(description="If True, return count without deleting")] = True,
-) -> JSONResponse:
-    """Delete old low-score analyses to free DB space (1GB free-tier limit).
-
-    Only deletes analyses with status=PENDING (da_valutare).
-    Analyses marked as applied/interview/rejected are preserved.
-    """
-    candidates = _pending_cleanup_candidates(db, cast(UUID, user.id), days, max_score).all()
-    count = len(candidates)
-
-    if dry_run:
-        audit(db, request, "cleanup_dry_run", f"would_delete={count}, days={days}, max_score={max_score}")
-        db.commit()
-        return JSONResponse({"ok": True, "deleted": count, "dry_run": True})
-
-    today = date.today()
-    for analysis in candidates:
-        _reverse_analysis_spending(db, analysis, today)
-        db.delete(analysis)
-
-    sample_ids = [str(a.id) for a in candidates[:5]]
-    audit(db, request, "cleanup", f"deleted={count}, days={days}, max_score={max_score}, sample={sample_ids}")
-    db.commit()
-
-    return JSONResponse({"ok": True, "deleted": count, "dry_run": False})
 
 
 @router.get("/analysis/bulk-reject-preview")
