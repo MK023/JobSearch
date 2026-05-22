@@ -82,3 +82,6 @@ terraform.tfvars
 
 # Screenshot locali (share dir, non versionati)
 screenshot/
+
+# graphify knowledge graph (artefatto rigenerabile)
+graphify-out/
