@@ -2,8 +2,13 @@
 
 ``audit(db, request, action, detail)`` aggiunge una riga in ``audit_logs``
 sul DB primario; ``dual_audit(...)`` mirra anche su ``WorldwildAuditLog``
-nel DB secondary (Supabase) per defense-in-depth se Neon hit la quota
-mensile e rifiuta scritture.
+nel DB secondary per defense-in-depth se il primario esaurisce la quota
+e rifiuta scritture.
+
+Non è un'ipotesi: il 29 aprile 2026 il compute del free tier di Neon —
+allora primario — è arrivato al 100% e ha forzato la migrazione live a
+Supabase. La difesa è stata progettata contro esattamente quello scenario,
+e lo scenario si è presentato.
 
 Il caller possiede ``db.commit()`` — questo modulo si occupa solo di
 ``db.add(...)`` + estrazione di user_id e IP dalla sessione/request.
@@ -58,14 +63,14 @@ def dual_audit(
     """Write an audit entry to BOTH primary and secondary DBs independently.
 
     Each write is wrapped in its own try/except: a failure on either side
-    (Neon over-quota, Supabase paused, network blip) logs a warning but does
+    (primary over-quota, secondary paused, network blip) logs a warning but does
     NOT block the user-facing action. The trade-off is intentional — losing
     one of the two copies is acceptable, blocking the action over an audit
     failure is not.
 
     Caller still owns commits on each session.
     """
-    # Primary write (Neon)
+    # Primary write ("Pulse", Supabase)
     try:
         audit(primary_db, request, action, detail, user_id)
     except Exception:  # noqa: BLE001 — never raise from audit path

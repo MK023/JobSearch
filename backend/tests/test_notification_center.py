@@ -12,9 +12,11 @@ from datetime import UTC, datetime, timedelta
 from src.analysis.models import AnalysisSource, AnalysisStatus, JobAnalysis
 from src.dashboard.service import get_or_create_settings
 from src.interview.models import Interview, InterviewOutcome
+from src.notification_center.models import NotificationSeverity
 from src.notification_center.service import (
     _BACKLOG_THRESHOLD,
     _BUDGET_WARNING_DEFAULT,
+    _DB_SIZE_WARNING_MB,
     _INTERVIEW_NO_OUTCOME_DAYS_DEFAULT,
     _INTERVIEW_UPCOMING_HOURS,
     dismiss_notification,
@@ -341,3 +343,49 @@ class TestDismissServerSide:
         db_session.commit()
         assert get_notifications(db_session) == []
         assert get_unread_count(db_session) == 0
+
+
+class TestDbSizeHigh:
+    """L'allarme "database quasi pieno" deve suonare PRIMA che il DB si blocchi.
+
+    Il primario è Supabase dal 29/4/2026 (migrazione forzata dall'esaurimento
+    del compute free tier di Neon). La doc Supabase è esplicita:
+
+        "Free Plan projects enter read-only mode when your database size
+         exceeds 500 MB."
+        https://supabase.com/docs/guides/platform/database-size
+
+    La soglia ereditata da Neon era 800 MB (80% di 1 GB): irraggiungibile,
+    perché a 500 MB Supabase blocca le scritture e il DB smette di crescere.
+    Un allarme tarato sopra il punto di rottura non è un allarme.
+    """
+
+    SUPABASE_FREE_READONLY_MB = 500
+
+    def test_soglia_sotto_il_blocco_supabase(self):
+        """Il guardrail: sopra i 500 MB la notifica non potrebbe mai scattare."""
+        assert _DB_SIZE_WARNING_MB < self.SUPABASE_FREE_READONLY_MB, (
+            f"Soglia a {_DB_SIZE_WARNING_MB} MB, ma Supabase free tier va in "
+            f"sola lettura a {self.SUPABASE_FREE_READONLY_MB} MB: l'avviso "
+            f"non scatterebbe mai."
+        )
+
+    def test_avvisa_prima_del_blocco(self, db_session, monkeypatch):
+        """A ridosso del cap (450 MB su 500) l'utente deve essere avvisato."""
+        monkeypatch.setattr("src.notification_center.service._db_size_mb", lambda _db: 450.0)
+        notifs = [n for n in get_notifications(db_session) if n.id == "db:size"]
+        assert len(notifs) == 1, "A 450 MB su un cap di 500 l'avviso deve esserci"
+        assert notifs[0].severity == NotificationSeverity.WARNING
+        assert "500" in notifs[0].title, (
+            f"Il titolo deve nominare il cap vero (500 MB), non quello di Neon. Trovato: {notifs[0].title!r}"
+        )
+
+    def test_silenzio_quando_il_db_e_piccolo(self, db_session, monkeypatch):
+        """Sotto soglia nessun rumore."""
+        monkeypatch.setattr("src.notification_center.service._db_size_mb", lambda _db: 10.0)
+        assert [n for n in get_notifications(db_session) if n.id == "db:size"] == []
+
+    def test_sqlite_non_rompe(self, db_session, monkeypatch):
+        """`pg_database_size` non esiste su SQLite: None significa silenzio."""
+        monkeypatch.setattr("src.notification_center.service._db_size_mb", lambda _db: None)
+        assert [n for n in get_notifications(db_session) if n.id == "db:size"] == []

@@ -84,7 +84,8 @@ services:
       - jobsearch
 
   db:
-    # Pinned to 17 for dev/prod parity (Neon + Supabase prod entrambi su PG 17).
+    # Pinned to 17 for dev/prod parity (Supabase prod è su PG 17; il commento
+    # originale citava anche Neon, primario fino alla migrazione del 29/4/2026).
     # Mismatch versione dialect-specific tra dev e prod ha già bruciato un
     # deploy in passato — see 12-factor "dev/prod parity".
     image: postgres:17-alpine

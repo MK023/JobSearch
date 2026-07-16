@@ -3,8 +3,8 @@
 Kept fully separate from the primary engine in ``base.py``: different declarative
 ``WorldwildBase``, different ``sessionmaker``, different metadata. The two
 databases never share migrations or ORM relationships — promotion of curated
-job offers from Supabase into Neon's ``job_analyses`` happens in application
-code, not via cross-DB FK or query.
+job offers into the primary's ``job_analyses`` happens in application code,
+not via cross-DB FK or query.
 
 When ``WORLDWILD_DATABASE_URL`` is empty (the default in dev / CI / test),
 ``engine`` and ``WorldwildSessionLocal`` are ``None``. Callers must check

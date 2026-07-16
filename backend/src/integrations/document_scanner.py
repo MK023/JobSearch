@@ -32,6 +32,10 @@ Criteri per "compiled: false":
 - Il documento e' un template vuoto con campi placeholder (es. "___", "[Nome]", "INSERIRE QUI")
 - Il documento contiene solo intestazioni senza contenuto
 - Il documento e' praticamente vuoto
+
+La summary deve indicare SOLO se il documento e' compilato o vuoto e il perche'.
+NON classificare il tipo di documento (non dire "CV", "lettera", "modulo", ecc.)
+ne' elencarne i contenuti: serve unicamente la verifica compilato/non compilato.
 """
 
 SCAN_TOOL_NAME = "submit_scan_result"
@@ -41,7 +45,13 @@ SCAN_INPUT_SCHEMA: dict[str, Any] = {
     "properties": {
         "compiled": {"type": "boolean", "description": "True if the document has been filled out."},
         "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
-        "summary": {"type": "string", "description": "Short description, max 200 chars."},
+        "summary": {
+            "type": "string",
+            "description": (
+                "Frase breve (max 200 char) sul PERCHE' il documento e' compilato o vuoto. "
+                "Non classificare il tipo di documento ne' elencarne i contenuti."
+            ),
+        },
     },
     "required": ["compiled", "confidence", "summary"],
 }
