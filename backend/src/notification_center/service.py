@@ -12,7 +12,7 @@ Rules:
    duplicated.
 3. INTERVIEW_NO_OUTCOME (warning) — an interview round is >3 days in
    the past and its ``outcome`` is still NULL. One per interview.
-4. DB_SIZE_HIGH (warning) — database usage is >80% of the 1GB Neon
+4. DB_SIZE_HIGH (warning) — database usage is >80% of the 500 MB Supabase
    free-tier limit. One notification, never duplicated.
 5. FOLLOWUP_DUE (info, dismissible) — application sent >N days ago and
    not yet followed up. One per analysis.
@@ -42,7 +42,13 @@ _INTERVIEW_UPCOMING_HOURS = 24
 _INTERVIEW_NO_OUTCOME_DAYS_DEFAULT = 3
 _BUDGET_WARNING_DEFAULT = 1.00
 _BUDGET_CRITICAL_DEFAULT = 0.50
-_DB_SIZE_WARNING_MB = 800  # 80% of 1GB Neon free tier
+# 80% del cap Supabase free tier. NON è il disco (1 GB): il free tier va in
+# sola lettura quando la *database size* supera i 500 MB.
+# https://supabase.com/docs/guides/platform/database-size
+# Era 800 (80% del GB di Neon, primario fino al 29/4/2026): una soglia sopra il
+# punto di rottura non scatta mai, perché a 500 MB il DB smette di crescere.
+_SUPABASE_FREE_READONLY_MB = 500
+_DB_SIZE_WARNING_MB = 400
 _BACKLOG_THRESHOLD = 1
 
 # Per-type drill-down URLs: each aggregated card sends the user to the page
@@ -194,8 +200,12 @@ def _db_size_high(db: Session) -> list[Notification]:
             id="db:size",
             type=NotificationType.DB_SIZE_HIGH,
             severity=NotificationSeverity.WARNING,
-            title=f"Database quasi pieno — {size_mb:.0f} MB su 1024 MB",
-            body=("Neon free tier ha un limite di 1 GB. Esegui cleanup delle analisi vecchie dalla sezione Settings."),
+            title=f"Database quasi pieno — {size_mb:.0f} MB su {_SUPABASE_FREE_READONLY_MB} MB",
+            body=(
+                f"Oltre i {_SUPABASE_FREE_READONLY_MB} MB il free tier di Supabase mette il "
+                "database in sola lettura e l'app smette di scrivere. Esegui cleanup delle "
+                "analisi vecchie dalla sezione Settings."
+            ),
             action_url=_SETTINGS_URL,
             action_label="Apri Settings",
             dismissible=True,

@@ -112,9 +112,21 @@ _startup_time: float = 0.0
 def _run_migrations() -> None:
     """Run Alembic migrations (upgrade head) on startup per ENTRAMBI i DB.
 
-    Primary (Pulse) sempre. Secondary (Worldwild) solo se configurato — gli
-    ambienti dev senza secondary DB skippano silenziosamente. Idempotente:
-    `alembic upgrade head` no-op se schema già a head revision.
+    Primary (Pulse) sempre, e un suo fallimento è **fatale**: senza il
+    primario non c'è app da servire, meglio un boot fallito che un 500 a
+    ogni richiesta.
+
+    Secondary (Worldwild) solo se configurato, e un suo fallimento **non
+    ferma il boot**: degrada l'ingestion e basta. Idempotente: `alembic
+    upgrade head` è no-op se lo schema è già a head.
+
+    Perché l'asimmetria: il 16/07/2026 il progetto Supabase di WorldWild è
+    andato in pausa per inattività (free tier: pausa dopo 7 giorni di basso
+    traffico) mentre Pulse era vivo. L'upgrade sul secondario sollevava, il
+    `lifespan` propagava, e l'app non partiva — con il primario sano. Un DB
+    dichiarato opzionale non deve diventare un single point of failure.
+    Stessa logica di `dual_audit()`: perdere una copia è accettabile,
+    bloccare tutto no.
     """
     from alembic import command
     from alembic.config import Config
@@ -133,7 +145,19 @@ def _run_migrations() -> None:
         worldwild_cfg = Config()
         worldwild_cfg.set_main_option("script_location", str(base_dir / "alembic_worldwild"))
         worldwild_cfg.set_main_option("sqlalchemy.url", worldwild_url)
-        command.upgrade(worldwild_cfg, "head")
+        try:
+            command.upgrade(worldwild_cfg, "head")
+        except Exception:
+            # Non fatale: l'app serve Pulse anche senza il secondario.
+            # `logger.exception` diventa un evento Sentry da solo — l'init in
+            # cima al modulo monta LoggingIntegration(event_level=WARNING).
+            # Silenziare qui sarebbe peggio del bug: l'ingestion resterebbe
+            # ferma senza che nessuno lo sappia.
+            logger.exception(
+                "Migrazioni WorldWild fallite: il secondario è irraggiungibile "
+                "(progetto Supabase in pausa?). L'app parte comunque, ma "
+                "l'ingestion resta ferma finché non torna su."
+            )
 
 
 @asynccontextmanager
