@@ -3,8 +3,10 @@
     <h2>Analisi multipla</h2>
 
     <div>
-        <input type="url" x-model="batchUrl" placeholder="Link annuncio (opzionale)">
-        <textarea x-model="batchJd" placeholder="Incolla la descrizione del lavoro..." class="batch-textarea"></textarea>
+        <label for="batch-url" class="sr-only">Link annuncio (opzionale)</label>
+        <input type="url" id="batch-url" x-model="batchUrl" placeholder="Link annuncio (opzionale)">
+        <label for="batch-jd" class="sr-only">Descrizione del lavoro</label>
+        <textarea id="batch-jd" x-model="batchJd" placeholder="Incolla la descrizione del lavoro..." class="batch-textarea"></textarea>
         <div class="button-row">
             <button class="btn btn-primary btn-sm" @click="addItem()" :disabled="!batchJd.trim()">Aggiungi alla coda</button>
             <div class="toggle">
