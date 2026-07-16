@@ -208,6 +208,7 @@
     </div>
     {% endfor %}
     <div class="agenda-todo-input-row">
+      <label for="agenda-todo-input" class="sr-only">Aggiungi un task</label>
       <input type="text" id="agenda-todo-input" class="agenda-todo-input" placeholder="Aggiungi un task..." onkeydown="if(event.key==='Enter')addTodoServer()">
       <button class="agenda-btn agenda-btn-green" onclick="addTodoServer()">Aggiungi</button>
     </div>
