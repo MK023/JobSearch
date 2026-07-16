@@ -29,7 +29,7 @@ Production deployment runs at **~$3-5/month** total — pay-per-use AI costs onl
 | Component | Cost | Notes |
 |---|---|---|
 | Render.com web service (Frankfurt) | Free | 750 hours/month free tier — covers single-tenant 24/7 |
-| Neon PostgreSQL (serverless) | Free | 1 GB free tier with autosuspend |
+| Supabase PostgreSQL | Free | Primary DB ("Pulse"). Migrated off Neon on 29 Apr 2026 when its free-tier compute hit 100% |
 | Cloudflare R2 (DB backups) | Free | 10 GB / 1M ops free tier |
 | Anthropic Claude API | ~$3-5/month | Pay-per-use: Haiku at ~$0.005/analysis, Sonnet at ~$0.02/analysis |
 | Resend (email reminders) | Free | 100 emails/day free |
@@ -38,7 +38,9 @@ Production deployment runs at **~$3-5/month** total — pay-per-use AI costs onl
 | Checkly (6 uptime checks, Terraform IaC) | Free | Free tier |
 | Domain `jobsearches.cc` | ~$15/year | Cloudflare Registrar (at cost) |
 
-The architecture is intentionally designed to fit under $10/month total — but every cost-engineering decision is reversible. Swap Render for ECS Fargate, swap Neon for RDS, and the same Docker image deploys to a $200/month enterprise setup without a single code change. Cheap by design, not by accident.
+The architecture is intentionally designed to fit under $10/month total — but every cost-engineering decision is reversible. Swap Render for ECS Fargate, swap Supabase for RDS, and the same Docker image deploys to a $200/month enterprise setup without a single code change. Cheap by design, not by accident.
+
+That reversibility was tested for real, not claimed: on **29 April 2026** Neon's free-tier compute hit 100% and the primary database had to be migrated live to Supabase. It took a `pg_dump` and no code changes — but it also exposed that the JSON backup was missing 16 of 23 tables, which is why "backup" here now means "restore the whole DB in one command" (see `backend/src/integrations/db_dump.py`).
 
 ---
 
@@ -67,11 +69,11 @@ The architecture is intentionally designed to fit under $10/month total — but 
            |              |          | Checkly (6 checks|
      +-----v------+  +----v----+    | Terraform IaC)   |
      | PostgreSQL |  |  Redis  |    +------------------+
-     |  (Neon)    |  |  (opt)  |
+     | (Supabase) |  |  (opt)  |
      +------------+  +---------+
 ```
 
-The MCP server runs locally on macOS via Claude Desktop (stdio transport). It is a thin HTTP proxy (~120 lines) — every tool is a single HTTP call to the backend. The backend on Render.com does everything: AI analysis via Anthropic API (tool-use schema-driven JSON), PostgreSQL persistence (Neon), deduplication, cost tracking, and serves the web UI. Checkly monitors uptime via 6 checks managed as Terraform IaC. Daily DB backups run via GitHub Actions cron to Cloudflare R2.
+The MCP server runs locally on macOS via Claude Desktop (stdio transport). It is a thin HTTP proxy (~120 lines) — every tool is a single HTTP call to the backend. The backend on Render.com does everything: AI analysis via Anthropic API (tool-use schema-driven JSON), PostgreSQL persistence (Supabase), deduplication, cost tracking, and serves the web UI. Checkly monitors uptime via 6 checks managed as Terraform IaC. Daily DB backups run via GitHub Actions cron to Cloudflare R2.
 
 ---
 
@@ -109,7 +111,7 @@ The MCP server runs locally on macOS via Claude Desktop (stdio transport). It is
 | **DB Backup** | Manual + daily cron (GitHub Actions) to Cloudflare R2 |
 | **DB Cleanup** | Delete old low-score analyses to free 1GB storage (dry-run default) |
 | **Audit Trail** | DB log of all user actions |
-| **Claude MCP** | 15 read-only tools to query data from Claude Desktop |
+| **Claude MCP** | 23 read-only tools to query data from Claude Desktop |
 
 ---
 
@@ -119,15 +121,15 @@ The MCP server runs locally on macOS via Claude Desktop (stdio transport). It is
 |-------|-----------|
 | **Backend** | FastAPI + Uvicorn + Jinja2 SSR |
 | **Frontend** | Alpine.js (reactive UI) + Chart.js 4.4 (stats) + vanilla JS modules |
-| **ORM** | SQLAlchemy 2.0 (``Mapped[X]`` typing) + Alembic (26 migrations) |
-| **Database** | PostgreSQL 17 (Neon serverless, 1GB free tier) |
+| **ORM** | SQLAlchemy 2.0 (``Mapped[X]`` typing) + Alembic (27 primary + 4 worldwild migrations) |
+| **Database** | PostgreSQL 17 (Supabase free tier) — primary "Pulse"; secondary "WorldWild" on its own Supabase project |
 | **Cache** | Redis 7 (optional, graceful degradation) |
-| **AI** | Anthropic Claude API (tool-use schema-driven JSON, prompt v7 candidate-aware + career-track + auto-adapt) |
+| **AI** | Anthropic Claude API (tool-use schema-driven JSON, prompt v8 candidate-aware + career-track + auto-adapt) |
 | **Analytics** | Pure-Python data-science primitives (`backend/src/analytics/`, no external deps) + `/analytics` page (`backend/src/analytics_page/`) + CLI scripts (`scripts/export_db.py`, `scripts/analyze_db.py`) |
 | **File Storage** | Cloudflare R2 (S3-compatible, presigned URLs, DB backups) |
 | **Email** | Resend (document reminders) |
 | **Auth** | Session + bcrypt + rate limiting (slowapi) for web UI; API key (X-API-Key) for MCP |
-| **MCP** | FastMCP (local, stdio) — 15 read-only tools, thin HTTP proxy |
+| **MCP** | FastMCP (local, stdio) — 23 read-only tools, thin HTTP proxy |
 | **Error Tracking** | Sentry (FastAPI auto-integration, 20% trace sampling) |
 | **Monitoring** | Checkly (6 checks, Terraform IaC) |
 | **CI/CD** | GitHub Actions, 11 check (ruff, ruff format, mypy strict, bandit, pip-audit, stylelint, ESLint, CodeQL 3 lang, SonarCloud QG, pytest, Docker build) + daily backup cron + weekly cleanup |
@@ -179,12 +181,12 @@ Open `http://localhost` — log in with your admin credentials.
 
 ## Infrastructure
 
-The app is deployed on **Render.com** (Frankfurt region) as a Docker web service with auto-deploy on push to `main`. PostgreSQL is hosted on **Neon** (serverless, 1GB free tier). **Cloudflare** handles DNS, R2 storage, and HSTS. **Checkly** monitors uptime (6 checks, Terraform IaC). **GitHub Actions** runs CI (11 checks) + daily DB backup cron.
+The app is deployed on **Render.com** (Frankfurt region) as a Docker web service with auto-deploy on push to `main`. PostgreSQL is hosted on **Supabase** (free tier). **Cloudflare** handles DNS, R2 storage, and HSTS. **Checkly** monitors uptime (6 checks, Terraform IaC). **GitHub Actions** runs CI (11 checks) + daily DB backup cron.
 
 ```bash
 # Environment variables on Render:
 ANTHROPIC_API_KEY, SECRET_KEY, ADMIN_EMAIL, ADMIN_PASSWORD,
-DATABASE_URL (from Neon), REDIS_URL (optional),
+DATABASE_URL (from Supabase), REDIS_URL (optional),
 R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT_URL, R2_BUCKET_NAME,
 API_KEY (for MCP auth), RESEND_API_KEY, SENTRY_DSN,
 RAPIDAPI_KEY, TRUSTED_HOSTS, CORS_ALLOWED_ORIGINS

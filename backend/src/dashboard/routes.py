@@ -77,7 +77,7 @@ def db_usage(
     db: DbSession,
     user: CurrentUser,
 ) -> JSONResponse:
-    """Return DB row counts and estimated size to monitor the 1GB free-tier limit."""
+    """Return DB row counts and estimated size to monitor the 500 MB free-tier limit."""
     return JSONResponse(get_db_usage(db))
 
 

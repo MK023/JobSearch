@@ -9,8 +9,9 @@ Centralizza:
   granularità "speso vs budget" per UX honest;
 - ``get_followup_alerts()`` che surfacizza analisi candidato senza
   interview pianificata da N giorni — usato dal widget dashboard;
-- ``get_db_usage()`` con stima percentuale verso il 500MB cap di Neon
-  free tier (warning a 80%).
+- ``get_db_usage()`` con stima percentuale verso il cap di 500 MB del
+  free tier Supabase, oltre il quale il DB va in sola lettura (warning
+  all'80%, cioè 400 MB — vedi ``notification_center/service.py``).
 
 Out of scope: rendering HTML (route layer), chiamate AI vere
 (``integrations/anthropic_client``).

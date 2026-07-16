@@ -45,7 +45,7 @@ Claude Desktop (stdio)     Browser            GitHub Actions
        |                     ---- Resend (email reminders)
        |                     ---- RapidAPI (Glassdoor ratings)
        v
-  PostgreSQL (Neon, 1GB free tier)
+  PostgreSQL (Supabase free tier) — "Pulse", primario
 
   Checkly (6 checks, Terraform IaC) → monitors /health + key endpoints
 ```
@@ -1105,7 +1105,7 @@ The app runs on Render.com (Frankfurt region) as a Docker web service (`srv-d7bp
 |---------|---------------|--------|
 | Container | 4 (nginx + backend + db + redis) | 1 (backend only) |
 | Static files | Nginx serves /static/ | FastAPI StaticFiles |
-| Database | Local container | Neon PostgreSQL (managed) |
+| Database | Local container | Supabase PostgreSQL (managed) |
 | Cache | Redis container | None (REDIS_URL empty) |
 | HTTPS | No (port 80) | Yes (Render edge proxy) |
 | Port | 80 (nginx) → 8000 (backend) | 8080 direct |

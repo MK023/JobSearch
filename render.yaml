@@ -10,7 +10,10 @@ services:
     healthCheckPath: /health
 
     envVars:
-      # Database (Neon PostgreSQL — set manually on Render dashboard)
+      # Database (Supabase PostgreSQL — set manually on Render dashboard).
+      # Migrated off Neon on 29 Apr 2026 (free-tier compute hit 100%).
+      # This comment is the only hint the repo gives about the production DB:
+      # the value itself lives on Render, not here. Keep it honest.
       - key: DATABASE_URL
         sync: false
 
