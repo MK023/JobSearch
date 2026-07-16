@@ -1,8 +1,10 @@
 name: Weekly DB cleanup
 
 # Calls the production cleanup endpoint to delete old, low-score, pending
-# analyses (status=PENDING). Free-tier Neon limit is 1GB; this keeps usage
-# in check without manual intervention.
+# analyses (status=PENDING). The Supabase free tier puts the database in
+# read-only mode above 500 MB — not 1 GB, which is the disk, not the database
+# size. This keeps usage in check without manual intervention.
+# https://supabase.com/docs/guides/platform/database-size
 #
 # Auth: X-API-Key header against settings.api_key (same path used by the
 # MCP server). Set the GitHub Actions secret JOBSEARCH_API_KEY.
