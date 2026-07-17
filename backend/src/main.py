@@ -109,6 +109,26 @@ _STATIC_DIR = _BASE_DIR / "frontend" / "static"
 _startup_time: float = 0.0
 
 
+def _running_commit() -> str | None:
+    """Return the short SHA of the commit this container was built from.
+
+    `None` fuori da Render (dev, CI, test): si dichiara, non si finge.
+
+    Perché serve: il 16/07/2026 la produzione ha servito il container del
+    22 giugno per un'ora dopo un merge — il deploy era fallito e Render
+    aveva (giustamente) tenuto vivo il vecchio. Dall'esterno era
+    indistinguibile da un'app sana: `/health` rispondeva 200 e il campo
+    `version` era hardcoded a "2.0.0", cioè lo stesso identico valore in
+    entrambi i container. Anche i 6 check Checkly sono rimasti verdi tutto
+    il tempo, perché un 200 non dice *quale codice* ha risposto.
+
+    Il commit è l'unica cosa che distingue davvero due container.
+    `RENDER_GIT_COMMIT`: https://render.com/docs/environment-variables
+    """
+    commit = _os.environ.get("RENDER_GIT_COMMIT")
+    return commit[:7] if commit else None
+
+
 def _run_migrations() -> None:
     """Run Alembic migrations (upgrade head) on startup per ENTRAMBI i DB.
 
@@ -500,20 +520,15 @@ def create_app() -> FastAPI:
             if size_bytes is not None:
                 db_size_mb = round(int(size_bytes) / 1024 / 1024, 2)
 
-        # `version` è il tag dell'ultima release (v2.0.0, 19/03/2026): dice cosa
-        # abbiamo *rilasciato*, non cosa sta *girando*, e non cambia a ogni
-        # deploy. Il commit è l'unica cosa che distingue due container: il
-        # 16/07/2026 la produzione ha servito codice del 22 giugno per un'ora
-        # dopo un merge (deploy fallito, container vecchio tenuto vivo) e sia
-        # questo endpoint sia i 6 check Checkly rispondevano 200, identici.
-        # RENDER_GIT_COMMIT: https://render.com/docs/environment-variables
-        commit = _os.environ.get("RENDER_GIT_COMMIT")
         return {
             "status": status,
             "db": db_status,
             "db_size_mb": db_size_mb,
+            # `version` è il tag dell'ultima release: dice cosa abbiamo
+            # *rilasciato*. `commit` dice cosa sta *girando*. Vedi
+            # `_running_commit`: sono due domande diverse.
             "version": "2.0.0",
-            "commit": commit[:7] if commit else None,
+            "commit": _running_commit(),
             "uptime_seconds": uptime,
             "cache": cache_stats,
         }
