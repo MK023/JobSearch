@@ -500,11 +500,20 @@ def create_app() -> FastAPI:
             if size_bytes is not None:
                 db_size_mb = round(int(size_bytes) / 1024 / 1024, 2)
 
+        # `version` è il tag dell'ultima release (v2.0.0, 19/03/2026): dice cosa
+        # abbiamo *rilasciato*, non cosa sta *girando*, e non cambia a ogni
+        # deploy. Il commit è l'unica cosa che distingue due container: il
+        # 16/07/2026 la produzione ha servito codice del 22 giugno per un'ora
+        # dopo un merge (deploy fallito, container vecchio tenuto vivo) e sia
+        # questo endpoint sia i 6 check Checkly rispondevano 200, identici.
+        # RENDER_GIT_COMMIT: https://render.com/docs/environment-variables
+        commit = _os.environ.get("RENDER_GIT_COMMIT")
         return {
             "status": status,
             "db": db_status,
             "db_size_mb": db_size_mb,
             "version": "2.0.0",
+            "commit": commit[:7] if commit else None,
             "uptime_seconds": uptime,
             "cache": cache_stats,
         }
